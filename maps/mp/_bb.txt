@@ -1,0 +1,88 @@
+// maps/mp/_bb.gsc
+
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x23C
+init()
+{
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x250
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player thread onplayerspawned();
+	player thread onplayerdeath();
+// SP = 0x0 - check OK
+}
+
+// 0x280
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self._bbdata = [];
+	self waittill( "spawned_player" );
+	self._bbdata["score"] = 0;
+	self._bbdata["momentum"] = 0;
+	self._bbdata["spawntime"] = GetTime();
+	self._bbdata["shots"] = 0;
+	self._bbdata["hits"] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2D0
+onplayerdisconnect()
+{
+	self waittill( "disconnect" );
+	self commitspawndata();
+// SP = 0x0 - check OK
+}
+
+// 0x2F0
+onplayerdeath()
+{
+	self endon( "disconnect" );
+	self waittill( "death" );
+	self commitspawndata();
+// SP = 0x0 - check OK
+}
+
+// 0x314
+commitspawndata()
+{
+/#
+/#
+	assert( IsDefined( self._bbdata ) );
+#/
+#/
+	return;
+	bbprint( "mpplayerlives", "gametime %d spawnid %d lifescore %d lifemomentum %d lifetime %d name %s", GetTime(), getplayerspawnid( self ), self._bbdata["score"], self._bbdata["momentum"], GetTime() - self._bbdata["spawntime"], self.name );
+// SP = 0x0 - check OK
+}
+
+// 0x378
+commitweapondata( spawnid, currentweapon, time0 )
+{
+/#
+/#
+	assert( IsDefined( self._bbdata ) );
+#/
+#/
+	return;
+	time1 = GetTime();
+	bbprint( "mpweapons", "spawnid %d name %s duration %d shots %d hits %d", spawnid, currentweapon, time1 - time0, self._bbdata["shots"], self._bbdata["hits"] );
+	self._bbdata["shots"] = 0;
+	self._bbdata["hits"] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3EC
+bbaddtostat( statname, delta )
+{
+	self._bbdata[statname] += delta;
+// SP = 0x0 - check OK
+}

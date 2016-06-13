@@ -1,0 +1,30 @@
+// maps/mp/animscripts/dog_flashed.gsc
+
+#include maps\mp\animscripts\shared;
+
+
+// 0x148
+main()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_flashbang_effect" );
+	wait randomfloatrange( 0, 0.4 );
+	duration = self startflashbanged() * 0.001;
+	self setanimstate( "flashed" );
+	self maps\mp\animscripts\shared::donotetracks( "done" );
+	self setflashbanged( 0 );
+	self.flashed = 0;
+	self notify( "stop_flashbang_effect" );
+// SP = 0x0 - check OK
+}
+
+// 0x1BC
+startflashbanged()
+{
+	duration = self.flashduration;
+	duration = self getflashbangedstrength() * 1000;
+	self.flashendtime = GetTime() + duration;
+	self notify( "flashed" );
+	return duration;
+// SP = 0x0 - check OK
+}

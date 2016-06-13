@@ -1,0 +1,118 @@
+// clientscripts/mp/_trophy_system.csc
+
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "mp_trophy_system" );
+
+
+// 0x3D8
+init( localclientnum )
+{
+	registerclientfield( "missile", "trophy_system_state", 1, 2, "int", ::trophy_state_change, 0 );
+	registerclientfield( "scriptmover", "trophy_system_state", 1, 2, "int", ::trophy_state_change_recon, 0 );
+	level._effect["fx_trophy_friendly_light"] = loadfx( "weapon/trophy_system/fx_trophy_light_friendly" );
+	level._effect["fx_trophy_enemy_light"] = loadfx( "weapon/trophy_system/fx_trophy_light_enemy" );
+	level._effect["fx_trophy_deploy_impact"] = loadfx( "weapon/trophy_system/fx_trophy_deploy_impact" );
+// SP = 0x0 - check OK
+}
+
+// 0x460
+spawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread trophy_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x47C
+trophy_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	waittillsnapprocessed( localclientnum );
+	fx_handle = self playflarefx( localclientnum );
+	self notify( "teamBased_fx_reinitialized" );
+	self thread checkforplayerswitch( localclientnum, fx_handle );
+	level thread watchforplayerrespawnforteambasedfx( localclientnum, self, ::trophy_fx, fx_handle );
+// SP = 0x0 - check OK
+}
+
+// 0x4E4
+playflarefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	fx_handle = playfxontag( localclientnum, level._effect["fx_trophy_friendly_light"], self, "tag_light_fx" );
+	fx_handle = playfxontag( localclientnum, level._effect["fx_trophy_enemy_light"], self, "tag_light_fx" );
+	self thread watchtrophyshutdown( localclientnum, fx_handle );
+	return fx_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x550
+watchtrophyshutdown( localclientnum, fxhandle )
+{
+	msg = self waittill_any_return( "entityshutdown", "team_changed", "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	self thread trophy_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x598
+checkforplayerswitch( localclientnum, fxhandle )
+{
+	self endon( "entityshutdown" );
+	self endon( "teamBased_fx_reinitialized" );
+	level waittill( "player_switch" );
+	self notify( "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	waittillframeend;
+	self thread trophy_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x5E0
+trophy_state_change( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	return;
+	switch ( newval )
+	{
+		case 1:
+			self thread trophy_deploy_anim( localclientnum, 1 );
+			break;
+		case 2:
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x644
+trophy_state_change_recon( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	return;
+	switch ( newval )
+	{
+		case 1:
+			self thread trophy_deploy_anim( localclientnum, 0 );
+			break;
+		case 2:
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6A8
+trophy_deploy_anim( localclientnum, playfx )
+{
+	self endon( "entityshutdown" );
+	self useanimtree( -1 );
+	self setanim( %o_trophy_deploy, 1, 0, 1 );
+	playfxontag( localclientnum, level._effect["fx_trophy_deploy_impact"], self, "tag_origin" );
+	wait 0.3;
+	self useanimtree( -1 );
+	self setanim( %o_trophy_spin, 1, 0, 1.4 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,130 @@
+// clientscripts/mp/zombies/_zm_ai_sloth.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0x528
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x530
+init()
+{
+	register_sloth_client_fields();
+	level._effect["fx_zmb_taser_vomit"] = loadfx( "maps/zombie/fx_zmb_taser_vomit" );
+	level._effect["fx_buried_sloth_building"] = loadfx( "maps/zombie_buried/fx_buried_sloth_building" );
+	level._effect["fx_buried_sloth_drinking"] = loadfx( "maps/zombie_buried/fx_buried_sloth_drinking" );
+	level._effect["fx_buried_sloth_eating"] = loadfx( "maps/zombie_buried/fx_buried_sloth_eating" );
+	level._effect["fx_buried_sloth_glass_brk"] = loadfx( "maps/zombie_buried/fx_buried_sloth_glass_brk" );
+// SP = 0x0 - check OK
+}
+
+// 0x5A4
+register_sloth_client_fields()
+{
+	registerclientfield( "actor", "actor_is_sloth", 12000, 1, "int", ::actor_is_sloth_handler_cb, 0, 0 );
+	registerclientfield( "actor", "sloth_berserk", 12000, 1, "int", ::sloth_berserk_cb, 1 );
+	registerclientfield( "actor", "sloth_ragdoll_zombie", 12000, 1, "int", ::sloth_ragdoll_zombie_cb, 0 );
+	registerclientfield( "actor", "sloth_vomit", 12000, 1, "int", ::sloth_vomit_cb, 0 );
+	registerclientfield( "actor", "sloth_buildable", 12000, 1, "int", ::sloth_buildable_cb, 0 );
+	registerclientfield( "actor", "sloth_drinking", 12000, 1, "int", ::sloth_drinking_cb, 0 );
+	registerclientfield( "actor", "sloth_eating", 12000, 1, "int", ::sloth_eating_cb, 0 );
+	registerclientfield( "actor", "sloth_glass_brk", 12000, 1, "int", ::sloth_glass_brk_cb, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x6B4
+sloth_berserk_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.sloth_berserk_origin = self.origin;
+	level.sloth_beserk_origin = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x6E0
+sloth_ragdoll_zombie_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	p = level.sloth_beserk_origin;
+	force_mul = 1;
+	p = level._sloth_actor[localclientnum].origin;
+	force_mul = 1.5;
+	return;
+	dir = self.origin - p;
+	force = length( dir ) * force_mul;
+	dir = vectornormalize( dir );
+	launch = ( dir[0], dir[1], 0.15 );
+	launch = vector_scale( launch, force );
+	self launchragdoll( launch );
+// SP = 0x0 - check OK
+}
+
+// 0x78C
+actor_is_sloth_handler_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level._sloth_actor[localclientnum] = self;
+// SP = 0x0 - check OK
+}
+
+// 0x7AC
+sloth_vomit_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	playfxontag( localclientnum, level._effect["fx_zmb_taser_vomit"], self, "j_neck" );
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+sloth_buildable_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self thread loop_buildable_fx( localclientnum );
+	self notify( "stop_buildable" );
+// SP = 0x0 - check OK
+}
+
+// 0x810
+loop_buildable_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self notify( "stop_buildable" );
+	self endon( "stop_buildable" );
+	level.benches = [];
+	level.benches[level.benches.size] = "turbine_bench";
+	level.benches[level.benches.size] = "subwoofer_bench";
+	level.benches[level.benches.size] = "headchopper_bench";
+	level.benches[level.benches.size] = "springpad_bench";
+	closest_dist = undefined;
+	closest = getent( localclientnum, level.benches[0], "targetname" );
+	closest_dist = distancesquared( self.origin, closest.origin );
+	i = 1;
+	bench = getent( localclientnum, level.benches[i], "targetname" );
+	dist = distancesquared( self.origin, bench.origin );
+	closest = bench;
+	closest_dist = dist;
+	i++;
+	playfx( localclientnum, level._effect["fx_buried_sloth_building"], closest, "tag_origin" );
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x940
+sloth_drinking_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	playfxontag( localclientnum, level._effect["fx_buried_sloth_drinking"], self, "j_head" );
+// SP = 0x0 - check OK
+}
+
+// 0x974
+sloth_eating_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	playfxontag( localclientnum, level._effect["fx_buried_sloth_eating"], self, "j_head" );
+// SP = 0x0 - check OK
+}
+
+// 0x9A8
+sloth_glass_brk_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	playfxontag( localclientnum, level._effect["fx_buried_sloth_glass_brk"], self, "tag_weapon_right" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,15 @@
+// maps/mp/zombies/_zm_bot.gsc
+
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xF4
+init()
+{
+/#
+	println( "ZM >> Zombiemode Server Scripts Init (_zm_bot.gsc)" );
+#/
+// SP = 0x0 - check OK
+}

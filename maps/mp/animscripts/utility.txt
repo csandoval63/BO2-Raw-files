@@ -1,0 +1,125 @@
+// maps/mp/animscripts/utility.gsc
+
+
+// 0x380
+anim_get_dvar_int( dvar, def )
+{
+	return int( anim_get_dvar( dvar, def ) );
+// SP = 0x0 - check OK
+}
+
+// 0x3A4
+anim_get_dvar( dvar, def )
+{
+	return GetDvarFloat( dvar );
+	setdvar( dvar, def );
+	return def;
+// SP = 0x0 - check OK
+}
+
+// 0x3D4
+set_orient_mode( mode, val1 )
+{
+/#
+	println( "DOG:  Setting orient mode: " + mode + " " + val1 + " " + GetTime() );
+	println( "DOG:  Setting orient mode: " + mode + " " + GetTime() );
+#/
+	self orientmode( mode, val1 );
+	self orientmode( mode );
+// SP = 0x0 - check OK
+}
+
+// 0x458
+debug_anim_print( text )
+{
+/#
+	println( text + " " + GetTime() );
+	println( text + " " + GetTime() );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4A4
+debug_turn_print( text, line )
+{
+/#
+	duration = 200;
+	currentyawcolor = ( 1, 1, 1 );
+	lookaheadyawcolor = ( 1, 0, 0 );
+	desiredyawcolor = ( 1, 1, 0 );
+	currentyaw = angleclamp180( self.angles[1] );
+	desiredyaw = angleclamp180( self.desiredangle );
+	lookaheaddir = self.lookaheaddir;
+	lookaheadangles = vectortoangles( lookaheaddir );
+	lookaheadyaw = angleclamp180( lookaheadangles[1] );
+	println( text + " " + GetTime() + " cur: " + currentyaw + " look: " + lookaheadyaw + " desired: " + desiredyaw );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x53C
+debug_allow_movement()
+{
+/#
+	return anim_get_dvar_int( "debug_dog_allow_movement", "1" );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x558
+debug_allow_combat()
+{
+/#
+	return anim_get_dvar_int( "debug_dog_allow_combat", "1" );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x574
+current_yaw_line_debug( duration )
+{
+/#
+	currentyawcolor = [];
+	currentyawcolor[0] = ( 0, 0, 1 );
+	currentyawcolor[1] = ( 1, 0, 1 );
+	current_color_index = 0;
+	start_time = GetTime();
+	level.lastdebugheight = 15;
+	pos1 = ( self.origin[0], self.origin[1], self.origin[2] + level.lastdebugheight );
+	pos2 = pos1 + vector_scale( anglestoforward( self.angles ), ( current_color_index + 1 ) * 10 );
+	line( pos1, pos2, currentyawcolor[current_color_index], 0.3, 1, duration );
+	current_color_index = ( current_color_index + 1 ) % currentyawcolor.size;
+	wait 0.05;
+	level.lastdebugheight = 30;
+	level.lastdebugheight = 15;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x644
+getanimdirection( damageyaw )
+{
+	return "front";
+	return "right";
+	return "back";
+	return "left";
+	return "front";
+// SP = 0x0 - check OK
+}
+
+// 0x6A0
+setfootstepeffect( name, fx )
+{
+/#
+	assert( IsDefined( name ), "Need to define the footstep surface type." );
+#/
+/#
+	assert( IsDefined( fx ), "Need to define the mud footstep effect." );
+#/
+	anim.optionalstepeffects = [];
+	anim.optionalstepeffects[anim.optionalstepeffects.size] = name;
+	level._effect["step_" + name] = fx;
+// SP = 0x0 - check OK
+}

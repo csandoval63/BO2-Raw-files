@@ -1,0 +1,200 @@
+// maps/mp/animscripts/shared.gsc
+
+#include maps\mp\_utility;
+#include maps\mp\animscripts\utility;
+#include common_scripts\utility;
+
+
+// 0x5A4
+handledogsoundnotetracks( note )
+{
+	return 1;
+	prefix = getsubstr( note, 0, 5 );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5DC
+growling()
+{
+	return IsDefined( self.script_growl );
+// SP = 0x0 - check OK
+}
+
+// 0x5E8
+handlenotetrack( note, flagname, customfunction, var1 )
+{
+/#
+	println( "dog notetrack: " + flagname + " " + note + " " + GetTime() );
+#/
+	return;
+	switch ( note )
+	{
+		case "end":
+		case "finish":
+		case "undefined":
+			return note;
+		default:
+			return [[customfunction]]( note );
+			return [[customfunction]]( note, var1 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6A8
+donotetracks( flagname, customfunction, var1 )
+{
+	self waittill( flagname, note );
+	note = "undefined";
+	val = self handlenotetrack( note, flagname, customfunction, var1 );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+donotetracksforeverproc( notetracksfunc, flagname, killstring, customfunction, var1 )
+{
+	self endon( killstring );
+	self endon( "killanimscript" );
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, var1 );
+	timetaken = GetTime() - time;
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, var1 );
+	timetaken = GetTime() - time;
+/#
+	println( GetTime() + " mapsmpanimscriptsshared::DoNoteTracksForever is trying to cause an infinite loop on anim " + flagname + ", returned " + returnednote + "." );
+#/
+	wait 0.05 - timetaken;
+// SP = 0x0 - check OK
+}
+
+// 0x79C
+donotetracksforever( flagname, killstring, customfunction, var1 )
+{
+	donotetracksforeverproc( ::donotetracks, flagname, killstring, customfunction, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x7C4
+donotetracksfortimeproc( donotetracksforeverfunc, time, flagname, customfunction, ent, var1 )
+{
+	ent endon( "stop_notetracks" );
+	[[donotetracksforeverfunc]]( flagname, undefined, customfunction, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x7EC
+donotetracksfortime( time, flagname, customfunction, var1 )
+{
+	ent = spawnstruct();
+	ent thread donotetracksfortimeendnotify( time );
+	donotetracksfortimeproc( ::donotetracksforever, time, flagname, customfunction, ent, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x834
+donotetracksfortimeendnotify( time )
+{
+	wait time;
+	self notify( "stop_notetracks" );
+// SP = 0x0 - check OK
+}
+
+// 0x848
+trackloop()
+{
+	players = get_players();
+	deltachangeperframe = 5;
+	aimblendtime = 0.05;
+	prevyawdelta = 0;
+	prevpitchdelta = 0;
+	maxyawdeltachange = 5;
+	maxpitchdeltachange = 5;
+	pitchadd = 0;
+	yawadd = 0;
+	domaxanglecheck = 0;
+	self.shootent = self.enemy;
+	domaxanglecheck = 1;
+	pitchadd = -1 * anim.covercrouchleanpitch;
+	yawadd = self.covernode.angles[1] - self.angles[1];
+	yawdelta = 0;
+	pitchdelta = 0;
+	firstframe = 1;
+	incranimaimweight();
+	selfshootatpos = ( self.origin[0], self.origin[1], self geteye()[2] );
+	shootpos = undefined;
+	shootpos = self.enemy getshootatpos();
+	yawdelta = 0;
+	pitchdelta = 0;
+	vectortoshootpos = shootpos - selfshootatpos;
+	anglestoshootpos = vectortoangles( vectortoshootpos );
+	pitchdelta = 360 - anglestoshootpos[0];
+	pitchdelta = angleclamp180( pitchdelta + pitchadd );
+	yawdelta = self.angles[1] - anglestoshootpos[1];
+	yawdelta = angleclamp180( yawdelta + yawadd );
+	yawdelta = 0;
+	pitchdelta = 0;
+	yawdelta = self.rightaimlimit;
+	yawdelta = self.leftaimlimit;
+	pitchdelta = self.upaimlimit;
+	pitchdelta = self.downaimlimit;
+	firstframe = 0;
+	yawdeltachange = yawdelta - prevyawdelta;
+	yawdelta = prevyawdelta + maxyawdeltachange * sign( yawdeltachange );
+	pitchdeltachange = pitchdelta - prevpitchdelta;
+	pitchdelta = prevpitchdelta + maxpitchdeltachange * sign( pitchdeltachange );
+	prevyawdelta = yawdelta;
+	prevpitchdelta = pitchdelta;
+	updown = 0;
+	leftright = 0;
+/#
+	assert( yawdelta <= self.rightaimlimit );
+#/
+	weight = yawdelta / self.rightaimlimit * self.a.aimweight;
+	leftright = weight;
+/#
+	assert( yawdelta >= self.leftaimlimit );
+#/
+	weight = yawdelta / self.leftaimlimit * self.a.aimweight;
+	leftright = -1 * weight;
+/#
+	assert( pitchdelta <= self.upaimlimit );
+#/
+	weight = pitchdelta / self.upaimlimit * self.a.aimweight;
+	updown = weight;
+/#
+	assert( pitchdelta >= self.downaimlimit );
+#/
+	weight = pitchdelta / self.downaimlimit * self.a.aimweight;
+	updown = -1 * weight;
+	self setaimanimweights( updown, leftright );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xBFC
+setanimaimweight( goalweight, goaltime )
+{
+	self.a.aimweight = goalweight;
+	self.a.aimweight_start = goalweight;
+	self.a.aimweight_end = goalweight;
+	self.a.aimweight_transframes = 0;
+	self.a.aimweight = goalweight;
+	self.a.aimweight_start = self.a.aimweight;
+	self.a.aimweight_end = goalweight;
+	self.a.aimweight_transframes = int( goaltime * 20 );
+	self.a.aimweight_t = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC90
+incranimaimweight()
+{
+	self.a.aimweight_t++;
+	t = 1 * self.a.aimweight_t / self.a.aimweight_transframes;
+	self.a.aimweight = self.a.aimweight_start * ( 1 - t ) + self.a.aimweight_end * t;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,87 @@
+// maps/mp/gametypes_zm/_serversettings.gsc
+
+
+// 0x2F8
+init()
+{
+	level.hostname = GetDvar( #"0x5B0D334C" );
+	level.hostname = "CoDHost";
+	setdvar( "sv_hostname", level.hostname );
+	setdvar( "ui_hostname", level.hostname );
+	makedvarserverinfo( "ui_hostname", "CoDHost" );
+	level.motd = GetDvar( #"0x72EC4620" );
+	level.motd = "";
+	setdvar( "scr_motd", level.motd );
+	setdvar( "ui_motd", level.motd );
+	makedvarserverinfo( "ui_motd", "" );
+	level.allowvote = GetDvar( #"0x67B97008" );
+	level.allowvote = "1";
+	setdvar( "g_allowvote", level.allowvote );
+	setdvar( "ui_allowvote", level.allowvote );
+	makedvarserverinfo( "ui_allowvote", "1" );
+	level.allow_teamchange = "0";
+	level.allow_teamchange = "1";
+	setdvar( "ui_allow_teamchange", level.allow_teamchange );
+	level.friendlyfire = getgametypesetting( "friendlyfiretype" );
+	setdvar( "ui_friendlyfire", level.friendlyfire );
+	makedvarserverinfo( "ui_friendlyfire", "0" );
+	setdvar( "scr_mapsize", "64" );
+	setdvar( "scr_mapsize", "64" );
+	setdvar( "scr_mapsize", "32" );
+	setdvar( "scr_mapsize", "16" );
+	setdvar( "scr_mapsize", "8" );
+	level.mapsize = GetDvarFloat( #"0xA0F97FC5" );
+	constraingametype( GetDvar( #"0x4F118387" ) );
+	constrainmapsize( level.mapsize );
+	updateserversettings();
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0x540
+updateserversettings()
+{
+	sv_hostname = GetDvar( #"0x5B0D334C" );
+	level.hostname = sv_hostname;
+	setdvar( "ui_hostname", level.hostname );
+	scr_motd = GetDvar( #"0x72EC4620" );
+	level.motd = scr_motd;
+	setdvar( "ui_motd", level.motd );
+	g_allowvote = GetDvar( #"0x67B97008" );
+	level.allowvote = g_allowvote;
+	setdvar( "ui_allowvote", level.allowvote );
+	scr_friendlyfire = getgametypesetting( "friendlyfiretype" );
+	level.friendlyfire = scr_friendlyfire;
+	setdvar( "ui_friendlyfire", level.friendlyfire );
+// SP = 0x0 - check OK
+}
+
+// 0x604
+constraingametype( gametype )
+{
+	entities = getentarray();
+	i = 0;
+	entity = entities[i];
+	entity delete();
+	entity delete();
+	entity delete();
+	entity delete();
+	entity delete();
+	entity delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x75C
+constrainmapsize( mapsize )
+{
+	entities = getentarray();
+	i = 0;
+	entity = entities[i];
+	entity delete();
+	entity delete();
+	entity delete();
+	entity delete();
+	i++;
+// SP = 0x0 - check OK
+}

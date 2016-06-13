@@ -1,0 +1,10 @@
+// maps/mp/animscripts/zm_dog_flashed.gsc
+
+
+// 0x98
+main()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_flashbang_effect" );
+// SP = 0x0 - check OK
+}

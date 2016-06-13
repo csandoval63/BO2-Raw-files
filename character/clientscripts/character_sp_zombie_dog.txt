@@ -1,0 +1,21 @@
+// character/clientscripts/character_sp_zombie_dog.csc
+
+
+// 0x98
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xA0
+precache()
+{
+	register_gibs();
+// SP = 0x0 - check OK
+}
+
+// 0xB0
+register_gibs()
+{
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,48 @@
+// animscripts/flashed.gsc
+
+#include animscripts\face;
+#include animscripts\shared;
+#include maps\_utility;
+#include maps\_anim;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+#include animscripts\utility;
+#include animscripts\anims;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x270
+flashbanganim()
+{
+	self endon( "killanimscript" );
+	self setflaggedanimknoball( "flashed_anim", animarraypickrandom( "flashed" ), %body, 1, 0.2, randomfloatrange( 0.6, 0.8 ) );
+	self animscripts\shared::donotetracks( "flashed_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D0
+main()
+{
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( "flashed" );
+	self exitpronewrapper( 1 );
+	self.a.pose = "stand";
+	self startflashbanged();
+	self animscripts\face::saygenericdialogue( "flashbang" );
+	self.allowdeath = 1;
+	self setanimknoball( self.flashedanim, %body );
+	self thread flashbanganim();
+	time = GetTime();
+	self notify( "stop_flashbang_effect" );
+	self setflashbanged( 0 );
+	self.flashed = 0;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x394
+end_script()
+{
+// SP = 0x0 - check OK
+}

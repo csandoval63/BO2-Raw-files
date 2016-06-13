@@ -1,0 +1,39 @@
+// clientscripts/_explosive_dart.csc
+
+
+// 0x184
+main()
+{
+	level._effect["dart_light"] = loadfx( "weapon/titus/fx_titus_bolt_blink_os" );
+/#
+	println( "dart_light :" + level._effect["dart_light"] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1BC
+spawned( localclientnum )
+{
+/#
+	println( "titus dart spawned" );
+#/
+	player = getlocalplayer( localclientnum );
+	enemy = 0;
+	self.fxtagname = "tag_origin";
+	enemy = 1;
+	self thread loop_local_sound( localclientnum, "wpn_titus_alert", 0.3, level._effect["dart_light"] );
+// SP = 0x0 - check OK
+}
+
+// 0x22C
+loop_local_sound( localclientnum, alias, interval, fx )
+{
+	self endon( "entityshutdown" );
+	self playsound( localclientnum, alias );
+	n_id = playfxontag( localclientnum, fx, self, self.fxtagname );
+	wait interval;
+	stopfx( localclientnum, n_id );
+	interval /= 1.2;
+	interval = 0.1;
+// SP = 0x0 - check OK
+}

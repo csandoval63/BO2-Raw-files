@@ -1,0 +1,49 @@
+// clientscripts/mp/zm_prison_ffotd.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x190
+main_start()
+{
+	level thread fix_zfighting_models_ffotd();
+	level thread hide_bad_models_ffotd();
+// SP = 0x0 - check OK
+}
+
+// 0x1B0
+main_end()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1B8
+fix_zfighting_models_ffotd()
+{
+	pos_x = 1928;
+	i = 0;
+	catwalk_supports[i] = findstaticmodelindex( ( pos_x, 9560, 1544 ) );
+	pos_x -= 80;
+	i++;
+	foreach ( support_index in catwalk_supports )
+	{
+		hidestaticmodel( support_index );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x240
+hide_bad_models_ffotd()
+{
+	model_01_index = findstaticmodelindex( ( 512, 9689.75, 1572 ) );
+	hidestaticmodel( model_01_index );
+	model_02_index = findstaticmodelindex( ( 176.5, 8713.5, 830.25 ) );
+	hidestaticmodel( model_02_index );
+	model_03_index = findstaticmodelindex( ( 133, 8683.5, 825.75 ) );
+	hidestaticmodel( model_03_index );
+	model_04_index = findstaticmodelindex( ( 2894, 9876.75, 1347.25 ) );
+	hidestaticmodel( model_04_index );
+	model_05_index = findstaticmodelindex( ( 2923.5, 9857.5, 1351.25 ) );
+	hidestaticmodel( model_05_index );
+// SP = 0x0 - check OK
+}

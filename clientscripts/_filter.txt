@@ -1,0 +1,1380 @@
+// clientscripts/_filter.csc
+
+
+// 0x1AAC
+init_filter_indices()
+{
+	return;
+	level.genericfilterinitialized = 1;
+	level.filter_matcount = 5;
+// SP = 0x0 - check OK
+}
+
+// 0x1ACC
+map_material_helper( player, materialname )
+{
+	level.filter_matid[materialname] = level.filter_matcount;
+	player map_material( level.filter_matcount, materialname );
+	level.filter_matcount++;
+// SP = 0x0 - check OK
+}
+
+// 0x1AFC
+init_filter_binoculars( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_binoculars" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B20
+enable_filter_binoculars( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_binoculars"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1B54
+disable_filter_binoculars( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1B74
+init_filter_binoculars_with_outline( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_binoculars_with_outline" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B98
+enable_filter_binoculars_with_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_binoculars_with_outline"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1BCC
+disable_filter_binoculars_with_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1BEC
+init_filter_frost( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_frost" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C10
+set_filter_frost_opacity( player, filterid, opacity )
+{
+	player set_filter_pass_constant( filterid, 0, 0, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x1C30
+enable_filter_frost( player, filterid, opacity )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_frost"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_frost_opacity( player, filterid, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x1C74
+disable_filter_frost( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1C90
+init_filter_hazmat( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_hazmat" );
+	map_material_helper( player, "generic_overlay_hazmat_1" );
+	map_material_helper( player, "generic_overlay_hazmat_2" );
+	map_material_helper( player, "generic_overlay_hazmat_3" );
+	map_material_helper( player, "generic_overlay_hazmat_4" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CF4
+set_filter_hazmat_opacity( player, filterid, overlayid, opacity )
+{
+	player set_filter_pass_constant( filterid, 0, 0, opacity );
+	player set_overlay_constant( overlayid, 0, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x1D28
+enable_filter_hazmat( player, filterid, overlayid, stage, opacity )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_hazmat"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_hazmat_1"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_hazmat_2"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_hazmat_3"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_hazmat_4"], 1 );
+	player set_overlay_enabled( overlayid, 1 );
+	set_filter_hazmat_opacity( player, filterid, overlayid, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x1E0C
+disable_filter_hazmat( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+	player set_overlay_enabled( overlayid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1E3C
+init_filter_helmet( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_helmet" );
+	map_material_helper( player, "generic_overlay_helmet" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E70
+enable_filter_helmet( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_helmet"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_helmet"], 1 );
+	player set_overlay_enabled( overlayid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1ECC
+disable_filter_helmet( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+	player set_overlay_enabled( overlayid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1EFC
+init_filter_tacticalmask( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_overlay_tacticalmask" );
+// SP = 0x0 - check OK
+}
+
+// 0x1F20
+enable_filter_tacticalmask( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_overlay_tacticalmask"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1F54
+disable_filter_tacticalmask( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1F70
+init_filter_scope( player )
+{
+	init_filter_indices();
+	player map_material( 0, "generic_filter_scope" );
+// SP = 0x0 - check OK
+}
+
+// 0x1FAC
+init_filter_infrared( player )
+{
+	init_filter_indices();
+	player map_material( 1, "generic_filter_infrared" );
+// SP = 0x0 - check OK
+}
+
+// 0x1FE8
+init_filter_tvguided( player )
+{
+	init_filter_indices();
+	player map_material( 2, "tow_filter_overlay_sp" );
+	player map_material( 3, "tow_overlay" );
+// SP = 0x0 - check OK
+}
+
+// 0x201C
+init_filter_hud_outline_code( player )
+{
+	init_filter_indices();
+	player map_material( 4, "generic_filter_hud_outline" );
+// SP = 0x0 - check OK
+}
+
+// 0x2040
+init_code_filters( player )
+{
+	init_filter_scope( player );
+	init_filter_infrared( player );
+	init_filter_tvguided( player );
+	init_filter_hud_outline_code( player );
+// SP = 0x0 - check OK
+}
+
+// 0x207C
+init_filter_teargas( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_teargas" );
+// SP = 0x0 - check OK
+}
+
+// 0x20A0
+set_filter_teargas_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x20C0
+enable_filter_teargas( player, filterid, amount )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_teargas"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_teargas_amount( player, filterid, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2104
+disable_filter_teargas( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2120
+init_filter_sonar( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_sonar_glass2" );
+// SP = 0x0 - check OK
+}
+
+// 0x2144
+set_filter_sonar_reveal_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+	player set_filter_pass_constant( filterid, 1, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2178
+enable_filter_sonar_glass( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_sonar_glass2"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x21AC
+disable_filter_sonar_glass( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x21CC
+init_filter_hud_outline( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_hud_outline" );
+// SP = 0x0 - check OK
+}
+
+// 0x21F0
+set_filter_hud_outline_reveal_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+	player set_filter_pass_constant( filterid, 1, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2224
+enable_filter_hud_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_hud_outline"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2258
+disable_filter_hud_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2278
+init_filter_pakistan3_outline( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_pakistan3_outline" );
+// SP = 0x0 - check OK
+}
+
+// 0x229C
+set_filter_pakistan3_outline_reveal_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+	player set_filter_pass_constant( filterid, 1, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x22D0
+enable_filter_pakistan3_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_pakistan3_outline"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2304
+disable_filter_pakistan3_outline( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+init_filter_sonar_attachment( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_overlay_sonar_attachment" );
+// SP = 0x0 - check OK
+}
+
+// 0x2348
+set_filter_sonar_attachment_params( player, filterid, pulse_duration, pulse_time )
+{
+	player set_filter_pass_constant( filterid, 0, 10, pulse_duration );
+	player set_filter_pass_constant( filterid, 0, 11, pulse_time );
+// SP = 0x0 - check OK
+}
+
+// 0x2380
+enable_filter_sonar_attachment( player, filterid, overlayid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_overlay_sonar_attachment"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x23B4
+disable_filter_sonar_attachment( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x23D4
+init_filter_hud_projected_grid( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_hud_projected_grid" );
+// SP = 0x0 - check OK
+}
+
+// 0x23F8
+init_filter_hud_projected_grid_haiti( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_hud_projected_grid_haiti" );
+// SP = 0x0 - check OK
+}
+
+// 0x241C
+set_filter_hud_projected_grid_position( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x243C
+set_filter_hud_projected_grid_radius( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 1, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x245C
+enable_filter_hud_projected_grid( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_hud_projected_grid"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_hud_projected_grid_position( player, filterid, 500 );
+	player set_filter_hud_projected_grid_radius( player, filterid, 200 );
+// SP = 0x0 - check OK
+}
+
+// 0x24B4
+enable_filter_hud_projected_grid_haiti( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_hud_projected_grid_haiti"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_hud_projected_grid_position( player, filterid, 500 );
+	player set_filter_hud_projected_grid_radius( player, filterid, 200 );
+// SP = 0x0 - check OK
+}
+
+// 0x250C
+disable_filter_hud_projected_grid( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2528
+init_filter_rts_hologram( player, materialname )
+{
+	init_filter_indices();
+	map_material_helper( player, materialname );
+	map_material_helper( player, "generic_filter_rts_hologram_nosonar" );
+// SP = 0x0 - check OK
+}
+
+// 0x255C
+set_filter_rts_hologram_position( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x257C
+set_filter_rts_hologram_radius( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 1, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x259C
+enable_filter_rts_hologram( player, filterid, materialname )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid[materialname] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_rts_hologram_position( player, filterid, 500 );
+	player set_filter_rts_hologram_radius( player, filterid, 200 );
+	player set_filter_bit_flag( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2604
+disable_filter_rts_hologram( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+	player set_filter_bit_flag( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2634
+enable_filter_rts_hologram_no_sonar( player, filterid, materialname )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_rts_hologram_nosonar"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_rts_hologram_position( player, filterid, 500 );
+	player set_filter_rts_hologram_radius( player, filterid, 200 );
+	player set_filter_bit_flag( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x269C
+disable_filter_rts_hologram_no_sonar( player, filterid, overlayid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+	player set_filter_bit_flag( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x26CC
+init_filter_rts_vehicle_damage( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_rts_vehicle_damage" );
+// SP = 0x0 - check OK
+}
+
+// 0x26F0
+set_filter_rts_vehicle_damage_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2710
+enable_filter_rts_vehicle_damage( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_rts_vehicle_damage"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_rts_vehicle_damage_amount( player, filterid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2754
+disable_filter_rts_vehicle_damage( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2770
+init_filter_satellite_transition( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_satellite_transition" );
+// SP = 0x0 - check OK
+}
+
+// 0x2794
+set_filter_satellite_transition_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x27B4
+enable_filter_satellite_transition( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_satellite_transition"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x27E8
+disable_filter_satellite_transition( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2804
+init_filter_f35_damage( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_f35_damage" );
+// SP = 0x0 - check OK
+}
+
+// 0x2828
+set_filter_f35_damage_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2848
+enable_filter_f35_damage( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_f35_damage"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_f35_damage_amount( player, filterid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x288C
+disable_filter_f35_damage( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x28A8
+init_filter_karma_spiderbot( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_karma_spiderbot" );
+// SP = 0x0 - check OK
+}
+
+// 0x28CC
+enable_filter_karma_spiderbot( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_karma_spiderbot"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2900
+disable_filter_karma_spiderbot( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x291C
+init_filter_karma_lowlight( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_karma_lowlight" );
+// SP = 0x0 - check OK
+}
+
+// 0x2940
+enable_filter_karma_lowlight( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_karma_lowlight"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2974
+disable_filter_karma_lowlight( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2990
+init_filter_vehicle_damage( player, materialname )
+{
+	init_filter_indices();
+	map_material_helper( player, materialname );
+// SP = 0x0 - check OK
+}
+
+// 0x29C4
+set_filter_vehicle_damage_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x29E4
+set_filter_vehicle_sun_position( player, filterid, x, y )
+{
+	player set_filter_pass_constant( filterid, 0, 4, x );
+	player set_filter_pass_constant( filterid, 0, 5, y );
+// SP = 0x0 - check OK
+}
+
+// 0x2A1C
+enable_filter_vehicle_damage( player, filterid, materialname )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid[materialname] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2A5C
+disable_filter_vehicle_damage( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2A78
+init_filter_emp( player, materialname )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_emp_damage" );
+// SP = 0x0 - check OK
+}
+
+// 0x2AA0
+set_filter_emp_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2AC0
+enable_filter_emp( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_emp_damage"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2AF4
+disable_filter_emp( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2B10
+init_filter_raindrops( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_raindrops" );
+// SP = 0x0 - check OK
+}
+
+// 0x2B34
+set_filter_raindrops_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2B54
+enable_filter_raindrops( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_raindrops"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_pass_quads( filterid, 0, 400 );
+	set_filter_raindrops_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2BB0
+disable_filter_raindrops( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2BCC
+init_filter_squirrel_raindrops( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_squirrel_raindrops" );
+// SP = 0x0 - check OK
+}
+
+// 0x2BF0
+set_filter_squirrel_raindrops_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2C10
+enable_filter_squirrel_raindrops( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_squirrel_raindrops"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_pass_quads( filterid, 0, 400 );
+	set_filter_squirrel_raindrops_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2C6C
+disable_filter_squirrel_raindrops( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2C88
+init_filter_radialblur( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_radialblur" );
+// SP = 0x0 - check OK
+}
+
+// 0x2CAC
+set_filter_radialblur_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2CCC
+enable_filter_radialblur( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_radialblur"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_radialblur_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2D14
+disable_filter_radialblur( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2D30
+init_filter_zodiac_raindrops( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_zodiac_raindrops" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D54
+set_filter_zodiac_raindrops_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2D74
+enable_filter_zodiac_raindrops( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_zodiac_raindrops"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_pass_quads( filterid, 0, 400 );
+	set_filter_zodiac_raindrops_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2DD0
+disable_filter_zodiac_raindrops( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2DEC
+init_filter_rage( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_rage" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E10
+init_filter_rage_simple( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_rage_simple" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E34
+set_filter_rage_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2E54
+set_filter_rage_ghost_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 1, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2E74
+set_filter_rage_ghost_scale( player, filterid, scalex, scaley )
+{
+	player set_filter_pass_constant( filterid, 0, 8, scalex );
+	player set_filter_pass_constant( filterid, 0, 9, scaley );
+// SP = 0x0 - check OK
+}
+
+// 0x2EAC
+set_filter_rage_ghost_offset( player, filterid, offsetx, offsety )
+{
+	player set_filter_pass_constant( filterid, 0, 10, offsetx );
+	player set_filter_pass_constant( filterid, 0, 11, offsety );
+// SP = 0x0 - check OK
+}
+
+// 0x2EE4
+set_filter_rage_ghost_image( player, filterid, image )
+{
+	player set_filter_pass_constant( filterid, 0, 4, image );
+// SP = 0x0 - check OK
+}
+
+// 0x2F04
+set_filter_rage_shift_amount( player, filterid, image )
+{
+	player set_filter_pass_constant( filterid, 0, 5, image );
+// SP = 0x0 - check OK
+}
+
+// 0x2F24
+set_filter_rage_warp_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 6, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x2F44
+set_filter_rage_hit( player, filterid, opacity )
+{
+	player set_filter_pass_constant( filterid, 0, 12, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x2F64
+enable_filter_rage( player, filterid, rage_amount )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_rage"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_rage_amount( player, filterid, rage_amount );
+	set_filter_rage_ghost_scale( player, filterid, 1.9, 1 );
+	set_filter_rage_shift_amount( player, filterid, 0 );
+	set_filter_rage_warp_amount( player, filterid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2FE0
+enable_filter_rage_simple( player, filterid, rage_amount )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_rage_simple"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_rage_amount( player, filterid, rage_amount );
+	set_filter_rage_ghost_scale( player, filterid, 1.9, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x303C
+disable_filter_rage( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3058
+toggle_rage_filter( player, filterid, rage_amount, toggle )
+{
+	disable_filter_rage( player, filterid );
+	init_filter_rage( player );
+	enable_filter_rage( player, filterid, rage_amount );
+	disable_filter_rage( player, filterid );
+	init_filter_rage_simple( player );
+	enable_filter_rage_simple( player, filterid, rage_amount );
+// SP = 0x0 - check OK
+}
+
+// 0x30C4
+init_filter_massiah( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_massiah" );
+// SP = 0x0 - check OK
+}
+
+// 0x30E8
+set_filter_massiah_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3108
+enable_filter_massiah( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_massiah"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_massiah_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3150
+disable_filter_massiah( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x316C
+init_filter_oxygenmask( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_oxygenmask_warp" );
+	map_material_helper( player, "generic_filter_oxygenmask_condensation" );
+	map_material_helper( player, "generic_overlay_oxygenmask_1" );
+	map_material_helper( player, "generic_overlay_oxygenmask_2" );
+	map_material_helper( player, "generic_overlay_oxygenmask_3" );
+	map_material_helper( player, "generic_overlay_oxygenmask_4" );
+// SP = 0x0 - check OK
+}
+
+// 0x31E0
+set_filter_oxygenmask_amount( player, filterid_warp, amount )
+{
+	player set_filter_pass_constant( filterid_warp, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3200
+set_filter_oxygenmask_smoke_amount( player, filterid_warp, amount )
+{
+	player set_filter_pass_constant( filterid_warp, 0, 1, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3220
+set_filter_oxygenmask_radialblur_amount( player, filterid_warp, amount )
+{
+	player set_filter_pass_constant( filterid_warp, 0, 2, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3240
+set_filter_oxygenmask_condensation_amount( player, filterid_condensation, amount )
+{
+	player set_filter_pass_constant( filterid_condensation, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3260
+set_filter_oxygenmask_crack_state( player, overlayid, stage )
+{
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_1"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_2"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_3"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_4"], 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x32FC
+enable_filter_oxygenmask( player, filterid_warp, filterid_condensation, overlayid, stage )
+{
+	player set_filter_pass_material( filterid_warp, 0, level.filter_matid["generic_filter_oxygenmask_warp"] );
+	player set_filter_pass_enabled( filterid_warp, 0, 1 );
+	player set_filter_pass_material( filterid_condensation, 0, level.filter_matid["generic_filter_oxygenmask_condensation"] );
+	player set_filter_pass_enabled( filterid_condensation, 0, 1 );
+	player set_filter_pass_quads( filterid_condensation, 0, 400 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_1"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_2"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_3"], 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_oxygenmask_4"], 1 );
+	player set_overlay_enabled( overlayid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x340C
+disable_filter_oxygenmask( player, filterid_warp, filterid_condensation, overlayid )
+{
+	player set_filter_pass_enabled( filterid_warp, 0, 0 );
+	player set_filter_pass_enabled( filterid_condensation, 0, 0 );
+	player set_overlay_enabled( overlayid, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x344C
+init_filter_crackedglass_pakistan3( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_overlay_broken_glass_2" );
+	map_material_helper( player, "generic_overlay_broken_glass_3" );
+	map_material_helper( player, "generic_overlay_broken_glass_4" );
+// SP = 0x0 - check OK
+}
+
+// 0x3490
+set_filter_crackedglass_pakistan3_state( player, overlayid, stage )
+{
+	player set_overlay_enabled( overlayid, 0 );
+	player set_overlay_enabled( overlayid, 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_broken_glass_2"], 1 );
+	player set_overlay_enabled( overlayid, 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_broken_glass_3"], 1 );
+	player set_overlay_enabled( overlayid, 1 );
+	player set_overlay_material( overlayid, level.filter_matid["generic_overlay_broken_glass_4"], 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3548
+init_filter_custom_tow( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_overlay_custom_tow_noise" );
+	map_material_helper( player, "generic_overlay_custom_tow_crosshair" );
+// SP = 0x0 - check OK
+}
+
+// 0x357C
+set_filter_custom_tow_mode( player, mode )
+{
+	player set_overlay_constant( 1, 0, mode );
+// SP = 0x0 - check OK
+}
+
+// 0x3598
+enable_filter_custom_tow( player )
+{
+	player set_overlay_material( 0, level.filter_matid["generic_overlay_custom_tow_noise"], 1 );
+	player set_overlay_material( 1, level.filter_matid["generic_overlay_custom_tow_crosshair"], 1 );
+	player set_overlay_enabled( 0, 1 );
+	player set_overlay_enabled( 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x35F0
+disable_filter_custom_tow( player, overlayid )
+{
+	player set_overlay_enabled( 0, 0 );
+	player set_overlay_enabled( 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x361C
+init_filter_harper_blood( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_harper_blood" );
+// SP = 0x0 - check OK
+}
+
+// 0x3640
+set_filter_harper_blood_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3660
+enable_filter_harper_blood( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_harper_blood"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_harper_blood_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x36A8
+disable_filter_harper_blood( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x36C4
+init_filter_claw_boot( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_boot_up" );
+// SP = 0x0 - check OK
+}
+
+// 0x36E8
+set_filter_claw_boot_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3708
+enable_filter_claw_boot( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_boot_up"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_claw_boot_amount( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3750
+disable_filter_claw_boot( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x376C
+init_filter_angola_gun_cam( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_angola_gun_cam" );
+// SP = 0x0 - check OK
+}
+
+// 0x3790
+set_filter_angola_gun_cam( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 10, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x37B0
+enable_filter_angola_gun_cam( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_angola_gun_cam"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_angola_gun_cam( player, filterid, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x37F4
+disable_filter_angola_gun_cam( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3810
+init_filter_blood_splats( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_blood_splats" );
+// SP = 0x0 - check OK
+}
+
+// 0x3834
+set_filter_blood_splats_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x3854
+set_filter_blood_splats_count( player, filterid, count )
+{
+	player set_filter_pass_constant( filterid, 0, 1, count );
+// SP = 0x0 - check OK
+}
+
+// 0x3874
+set_filter_blood_splats_coverage( player, filterid, coverage )
+{
+	player set_filter_pass_constant( filterid, 0, 2, coverage );
+// SP = 0x0 - check OK
+}
+
+// 0x3894
+set_filter_blood_splats_life( player, filterid, life )
+{
+	player set_filter_pass_constant( filterid, 0, 3, life );
+// SP = 0x0 - check OK
+}
+
+// 0x38B4
+set_filter_blood_splats_sun( player, filterid, sunx, suny )
+{
+	player set_filter_pass_constant( filterid, 0, 4, sunx );
+	player set_filter_pass_constant( filterid, 0, 5, suny );
+// SP = 0x0 - check OK
+}
+
+// 0x38EC
+enable_filter_blood_splats( player, filterid, amount, count )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_blood_splats"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_pass_quads( filterid, 0, 60 );
+	set_filter_blood_splats_amount( player, filterid, amount );
+	set_filter_blood_splats_count( player, filterid, count );
+	set_filter_blood_splats_coverage( player, filterid, 1 );
+	set_filter_blood_splats_life( player, filterid, 1 );
+	set_filter_blood_splats_sun( player, filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3984
+disable_filter_blood_splats( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x39A0
+init_filter_blood_droplets( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_blood_droplets" );
+// SP = 0x0 - check OK
+}
+
+// 0x39C4
+set_filter_blood_droplets_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+// SP = 0x0 - check OK
+}
+
+// 0x39E4
+set_filter_blood_droplets_count( player, filterid, count )
+{
+	player set_filter_pass_constant( filterid, 0, 1, count );
+// SP = 0x0 - check OK
+}
+
+// 0x3A04
+set_filter_blood_droplets_coverage( player, filterid, coverage )
+{
+	player set_filter_pass_constant( filterid, 0, 2, coverage );
+// SP = 0x0 - check OK
+}
+
+// 0x3A24
+set_filter_blood_droplets_life( player, filterid, life )
+{
+	player set_filter_pass_constant( filterid, 0, 3, life );
+// SP = 0x0 - check OK
+}
+
+// 0x3A44
+set_filter_blood_droplets_sun( player, filterid, sunx, suny )
+{
+	player set_filter_pass_constant( filterid, 0, 4, sunx );
+	player set_filter_pass_constant( filterid, 0, 5, suny );
+// SP = 0x0 - check OK
+}
+
+// 0x3A7C
+enable_filter_blood_droplets( player, filterid, amount, count )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_blood_droplets"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	player set_filter_pass_quads( filterid, 0, 400 );
+	set_filter_blood_droplets_amount( player, filterid, amount );
+	set_filter_blood_droplets_count( player, filterid, count );
+	set_filter_blood_droplets_coverage( player, filterid, 1 );
+	set_filter_blood_droplets_life( player, filterid, 1 );
+	set_filter_blood_droplets_sun( player, filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3B18
+disable_filter_blood_droplets( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3B34
+init_filter_rage_hit( player )
+{
+	init_filter_indices();
+	map_material_helper( player, "generic_filter_rage_hit" );
+// SP = 0x0 - check OK
+}
+
+// 0x3B58
+set_filter_rage_hit_opacity( player, filterid, opacity )
+{
+	player set_filter_pass_constant( filterid, 0, 4, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x3B78
+set_filter_rage_hit_tint_color( player, filterid, red, green, blue )
+{
+	player set_filter_pass_constant( filterid, 0, 0, red );
+	player set_filter_pass_constant( filterid, 0, 1, green );
+	player set_filter_pass_constant( filterid, 0, 2, blue );
+// SP = 0x0 - check OK
+}
+
+// 0x3BC4
+enable_filter_rage_hit( player, filterid, opacity, tintr, tintg, tintb )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_rage_hit"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	set_filter_rage_hit_opacity( player, filterid, opacity );
+// SP = 0x0 - check OK
+}
+
+// 0x3C10
+disable_filter_rage_hit( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}

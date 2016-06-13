@@ -1,0 +1,212 @@
+// animscripts/stop.gsc
+
+#include animscripts\cover_prone;
+#include animscripts\shared;
+#include animscripts\face;
+#include animscripts\debug;
+#include animscripts\anims;
+#include animscripts\setposemovement;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x6B0
+main()
+{
+	self notify( "stopScript" );
+	self endon( "killanimscript" );
+/#
+#/
+	self thread animscripts\utility::idlelookatbehavior( 160, 1 );
+	[[self.exception["stop_immediate"]]]();
+	thread delayedexception();
+	self trackscriptstate( "Stop Main", "code" );
+	animscripts\utility::initialize( "stop" );
+	self flamethrower_stop_shoot();
+	self randomizeidleset();
+	self thread setlaststoppedtime();
+	self thread stancechangewatcher();
+	transitionedtoidle = GetTime() < 3000;
+	transitionedtoidle = 1;
+	transitionedtoidle = 1;
+	transitionedtoidle = 1;
+	desiredpose = getdesiredidlepose();
+	self clearanim( %root, 0.3 );
+	transitionedtoidle = 0;
+	self setposemovement( desiredpose, "stop" );
+	self thread transitiontoidle();
+	transitionedtoidle = 1;
+	self waittill( "endIdle" );
+	self thread playidle( desiredpose, self.a.idleset );
+	self waittill( "endIdle" );
+// SP = 0x0 - check OK
+}
+
+// 0x858
+stancechangewatcher()
+{
+	self endon( "death" );
+	self endon( "killanimscript" );
+	desiredpose = getdesiredidlepose();
+/#
+	self animscripts\debug::debugpopstate( "playIdle" );
+#/
+	self notify( "endIdle" );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x8B8
+setlaststoppedtime()
+{
+	self endon( "death" );
+	self waittill( "killanimscript" );
+	self.laststoppedtime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x8D0
+getdesiredidlepose()
+{
+	mynode = animscripts\utility::getclaimednode();
+	mynodeangle = mynode.angles[1];
+	mynodetype = mynode.type;
+	mynodeangle = self.desiredangle;
+	mynodetype = "node was undefined";
+	self animscripts\face::setidleface( anim.alertface );
+	desiredpose = animscripts\utility::choosepose();
+	desiredpose = animscripts\utility::choosepose( "stand" );
+	desiredpose = animscripts\utility::choosepose( "crouch" );
+	desiredpose = animscripts\utility::choosepose( "prone" );
+	return desiredpose;
+// SP = 0x0 - check OK
+}
+
+// 0x99C
+transitiontoidle()
+{
+	self endon( "endIdle" );
+	self endon( "killanimscript" );
+/#
+	self animscripts\debug::debugpushstate( "transitionToIdle" );
+#/
+	waittillframeend;
+	special = "";
+	special = "_cqb";
+	special = "_hmg";
+	idleanim = animarray( "idle_trans_in" + special );
+	self setflaggedanimknoballrestart( "idle_transition", idleanim, %body, 1, 0.3, self.animplaybackrate );
+	self animscripts\shared::donotetracks( "idle_transition" );
+/#
+	self animscripts\debug::debugpopstate( "transitionToIdle" );
+#/
+	self notify( "endIdle" );
+// SP = 0x0 - check OK
+}
+
+// 0xAB8
+playidle( pose, idleset )
+{
+	self endon( "endIdle" );
+	self endon( "killanimscript" );
+/#
+	self animscripts\debug::debugpushstate( "playIdle" );
+#/
+	waittillframeend;
+	self pronestill();
+/#
+	self animscripts\debug::debugpopstate( "playIdle" );
+#/
+	self notify( "endIdle" );
+	return;
+	special = "";
+	special = "_cqb";
+	special = "_hmg";
+	idleanimsetarray = animarray( "idle" + special );
+/#
+	assert( idleanimsetarray.size > 0 );
+#/
+	idleset %= idleanimsetarray.size;
+	idleanimarray = idleanimsetarray[idleset];
+/#
+	assert( idleanimarray.size > 0 );
+#/
+	idleanim = idleanimarray[randomintrange( 0, idleanimarray.size )];
+	transtime = 0.2;
+	transtime = 0.5;
+	self orientmode( "face angle", self.angles[1] );
+	self setflaggedanimknoballrestart( "idle", idleanim, %body, 1, transtime, self.animplaybackrate );
+	self animscripts\shared::donotetracks( "idle" );
+/#
+	self animscripts\debug::debugpopstate( "playIdle" );
+#/
+	self notify( "endIdle" );
+// SP = 0x0 - check OK
+}
+
+// 0xC48
+pronestill()
+{
+/#
+	self animscripts\debug::debugpushstate( "ProneStill" );
+#/
+	transanim = animarray( self.a.pose + "_2_prone" );
+/#
+	assert( IsDefined( transanim ), self.a.pose );
+#/
+/#
+	assert( animhasnotetrack( transanim, "anim_pose = \"prone\"" ) );
+#/
+	self setflaggedanimknoballrestart( "trans", transanim, %body, 1, 0.2, 1 );
+	animscripts\shared::donotetracks( "trans" );
+/#
+	assert( self.a.pose == "prone" );
+#/
+	self.a.movement = "stop";
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+/#
+	self animscripts\debug::debugpopstate( "ProneStill" );
+#/
+	return;
+	twitchanim = animarraypickrandom( "twitch" );
+	self setflaggedanimknoball( "prone_idle", twitchanim, %prone_modern, 1, 0.2 );
+	self setanim( animarray( "straight_level" ), 1, 0.2 );
+	self setflaggedanimknob( "prone_idle", animarraypickrandom( "idle" )[0], 1, 0.2 );
+	wait 0.05;
+	self thread updatepronethread();
+	self waittillmatch( "prone_idle" );
+	return "end";
+	self notify( "kill UpdateProneThread" );
+/#
+	self animscripts\debug::debugpopstate( "ProneStill" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE08
+updatepronethread()
+{
+	self endon( "killanimscript" );
+	self endon( "kill UpdateProneThread" );
+	self endon( "endIdle" );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0xE3C
+delayedexception()
+{
+	self endon( "killanimscript" );
+	wait 0.05;
+	[[self.exception["stop"]]]();
+// SP = 0x0 - check OK
+}
+
+// 0xE5C
+end_script()
+{
+// SP = 0x0 - check OK
+}

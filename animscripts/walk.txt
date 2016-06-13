@@ -1,0 +1,71 @@
+// animscripts/walk.gsc
+
+#include animscripts\shared;
+#include animscripts\run;
+#include animscripts\debug;
+#include maps\_utility;
+#include animscripts\anims;
+#include animscripts\utility;
+#include animscripts\setposemovement;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2B4
+movewalk()
+{
+/#
+	self animscripts\debug::debugpushstate( "MoveWalk" );
+#/
+	desiredpose = self animscripts\utility::choosepose();
+	switch ( desiredpose )
+	{
+		case "crouch":
+/#
+			self animscripts\debug::debugpopstate( "MoveWalk", "already walking" );
+#/
+			walkanim = getstandwalkanim();
+			dowalkanim( walkanim );
+			break;
+		case "stand":
+/#
+			self animscripts\debug::debugpopstate( "MoveWalk", "already walking" );
+#/
+			dowalkanim( animarray( "walk_f" ) );
+			break;
+		default:
+/#
+			assert( desiredpose == "prone" );
+#/
+/#
+			self animscripts\debug::debugpopstate( "MoveWalk", "already walking" );
+#/
+			self.a.movement = "walk";
+			dowalkanim( animarray( "combat_run_f" ) );
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "MoveWalk" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3F0
+dowalkanim( walkanim )
+{
+	self endon( "movemode" );
+	self animscripts\run::updaterunweightsonce( walkanim, animarray( "tactical_walk_b" ), animarray( "tactical_walk_r" ), animarray( "tactical_walk_l" ) );
+	self animscripts\run::updaterunweightsonce( walkanim, animarray( "walk_b" ), animarray( "walk_l" ), animarray( "walk_r" ) );
+	self animscripts\shared::donotetracksfortime( 0.2, "walkanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x48C
+getstandwalkanim()
+{
+	return self.walk_combatanim;
+	return self.walk_noncombatanim;
+	return animarray( "tactical_walk_f" );
+	return animarray( "walk_f" );
+// SP = 0x0 - check OK
+}

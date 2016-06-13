@@ -1,0 +1,757 @@
+// animscripts/cover_behavior.gsc
+
+#include animscripts\shoot_behavior;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include animscripts\shared;
+#include animscripts\debug;
+#include animscripts\cover_utility;
+#include animscripts\combat_utility;
+
+
+// 0x1218
+coverglobalsinit()
+{
+	anim.coverglobals = spawnstruct();
+	anim.coverglobals.desynched_time = 2500;
+	anim.coverglobals.respond_to_death_retry_interval = 30000;
+	anim.coverglobals.min_grenade_throw_distance_sq = 562500;
+	anim.coverglobals.suppress_wait_min = 3000;
+	anim.coverglobals.suppress_wait_ambush_min = 6000;
+	anim.coverglobals.suppress_wait_max = 20000;
+	anim.coverglobals.look_wait_min = 4000;
+	anim.coverglobals.look_wait_max = 15000;
+	anim.coverglobals.enemy_blindfire_wait_time_min = 3000;
+	anim.coverglobals.enemy_blindfire_wait_time_max = 12000;
+	anim.coverglobals.ally_blindfire_wait_time_min = 8000;
+	anim.coverglobals.ally_blindfire_wait_time_max = 12000;
+	anim.coverglobals.peekout_offset = 30;
+	anim.coverglobals.corner_left_lean_yaw_max = -60;
+	anim.coverglobals.corner_right_lean_yaw_max = 60;
+	anim.coverglobals.corner_left_ab_yaw = 14;
+	anim.coverglobals.corner_right_ab_yaw = -14;
+// SP = 0x0 - check OK
+}
+
+// 0x12FC
+main( behaviorcallbacks )
+{
+	self.couldntseeenemypos = self.origin;
+	behaviorstarttime = GetTime();
+	resetlookforbettercovertime();
+	resetseekoutenemytime();
+	resetrespondtodeathtime();
+	self.a.lastencountertime = behaviorstarttime;
+	self.a.nextallowedlooktime = behaviorstarttime;
+	self.a.nextallowedsuppresstime = behaviorstarttime;
+	self.a.idlingatcover = 0;
+	self.a.movement = "stop";
+	self thread watchplayeraim();
+	self thread watchsuppression();
+	self thread animscripts\utility::idlelookatbehavior( 160, 1 );
+	desynched = GetTime() > anim.coverglobals.desynched_time;
+	correctangles = getcorrectcoverangles();
+	starttime = GetTime();
+	self thread endidleatframeend();
+	[[behaviorcallbacks.mainloopstart]]();
+	self notify( "dont_end_idle" );
+/#
+#/
+	angles = ( correctangles[0], angleclamp180( correctangles[1] ), correctangles[2] );
+	self teleport( self.covernode.origin, angles );
+	idle( behaviorcallbacks, 0.05 + randomfloat( 1.5 ) );
+	desynched = 1;
+	return;
+	visibleenemy = 0;
+	suppressableenemy = 0;
+	visibleenemy = isenemyvisiblefromexposed();
+	suppressableenemy = cansuppressenemyfromexposed();
+	return;
+	attackvisibleenemy( behaviorcallbacks );
+	return;
+	attacksuppressableenemy( behaviorcallbacks );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x154C
+end_script()
+{
+	self.turntomatchnode = 0;
+	self.a.prevattack = undefined;
+	self.meleecoverchargegraceendtime = GetTime() + 0;
+	self.meleecoverchargemintime = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1584
+getcorrectcoverangles()
+{
+	correctangles = ( self.covernode.angles[0], getnodeforwardyaw( self.covernode ), self.covernode.angles[2] );
+	return correctangles;
+// SP = 0x0 - check OK
+}
+
+// 0x15B8
+resetrespondtodeathtime()
+{
+	self.a.respondtodeathtime = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15C8
+resetlookforbettercovertime()
+{
+	currenttime = GetTime();
+	self.a.getboredofthisnodetime = currenttime + randomintrange( 2000, 5000 );
+	dist = distance2d( self.origin, self.enemy.origin );
+	self.a.getboredofthisnodetime = currenttime + randomintrange( 5000, 10000 );
+	self.a.getboredofthisnodetime = currenttime + randomintrange( 2000, 5000 );
+	self.a.getboredofthisnodetime = currenttime + randomintrange( 10000, 15000 );
+	self.a.getboredofthisnodetime = currenttime + randomintrange( 5000, 15000 );
+// SP = 0x0 - check OK
+}
+
+// 0x16C8
+respondtodeadteammate()
+{
+	return 1;
+	self.a.respondtodeathtime = GetTime() + anim.coverglobals.respond_to_death_retry_interval;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1714
+dononattackcoverbehavior( behaviorcallbacks )
+{
+	idle( behaviorcallbacks );
+	return 1;
+	return 1;
+	resetseekoutenemytime();
+	self.a.lastencountertime = GetTime();
+	return 1;
+	return 1;
+	animscripts\shared::switchweapons();
+	[[behaviorcallbacks.resetweaponanims]]();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x17F0
+throwgrenadeatenemyasap( behaviorcallbacks )
+{
+	players = getplayers();
+	self.grenadeammo++;
+	return 1;
+	self.grenadeammo++;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x188C
+providecoveringfire( behaviorcallbacks )
+{
+	resetseekoutenemytime();
+	self.a.lastencountertime = GetTime();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x18C8
+attackvisibleenemy( behaviorcallbacks )
+{
+	return;
+	return;
+	resetseekoutenemytime();
+	self.a.lastencountertime = GetTime();
+	idle( behaviorcallbacks );
+// SP = 0x0 - check OK
+}
+
+// 0x194C
+attacksuppressableenemy( behaviorcallbacks )
+{
+	return;
+	preferredactivity = "suppress";
+	preferredactivity = "ambush";
+	preferredactivity = "ambush";
+	self.a.nextallowedsuppresstime = GetTime() + randomintrange( anim.coverglobals.suppress_wait_min, anim.coverglobals.suppress_wait_max );
+	self.a.lastencountertime = GetTime();
+	return;
+	return;
+	idle( behaviorcallbacks );
+// SP = 0x0 - check OK
+}
+
+// 0x1A48
+attacknothingtodo( behaviorcallbacks )
+{
+	return 0;
+	return 0;
+	self.a.nextallowedlooktime = GetTime() + randomintrange( anim.coverglobals.look_wait_min, anim.coverglobals.look_wait_max );
+	return 0;
+	return 1;
+	resetseekoutenemytime();
+	self.a.lastencountertime = GetTime();
+	self.a.nextallowedsuppresstime = GetTime() + randomintrange( anim.coverglobals.suppress_wait_ambush_min, anim.coverglobals.suppress_wait_max );
+	return 0;
+	idle( behaviorcallbacks );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1B84
+isenemyvisiblefromexposed()
+{
+	return 0;
+	return 0;
+	return canseeenemyfromexposed();
+// SP = 0x0 - check OK
+}
+
+// 0x1BC4
+suppressedbehavior( behaviorcallbacks )
+{
+	return 0;
+	nextallowedblindfiretime = GetTime();
+	justlooked = 1;
+/#
+	self animscripts\debug::debugpushstate( "suppressedBehavior" );
+#/
+	justlooked = 0;
+	self teleport( self.covernode.origin );
+/#
+	return 0;
+#/
+	trymovingnodes = 1;
+	trymovingnodes = cointoss();
+	self notify( "killanimscript" );
+	waittillframeend;
+/#
+	self animscripts\debug::debugpopstate( "suppressedBehavior", "found better cover" );
+#/
+	return 1;
+/#
+	self animscripts\debug::debugpopstate( "suppressedBehavior", "should provide covering fire" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( "suppressedBehavior", "at unsafe concealment node" );
+#/
+	return 0;
+	nextallowedblindfiretime += randomintrange( anim.coverglobals.enemy_blindfire_wait_time_min, anim.coverglobals.enemy_blindfire_wait_time_max );
+	nextallowedblindfiretime += randomintrange( anim.coverglobals.ally_blindfire_wait_time_min, anim.coverglobals.ally_blindfire_wait_time_max );
+	nextallowedblindfiretime = GetTime();
+	justlooked = 1;
+	idle( behaviorcallbacks );
+	peekout( behaviorcallbacks );
+/#
+	self animscripts\debug::debugpopstate( "suppressedBehavior" );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E48
+calloptionalbehaviorcallback( callback, arg, arg2, arg3 )
+{
+	return 0;
+	self thread endidleatframeend();
+	starttime = GetTime();
+	val = undefined;
+	val = [[callback]]( arg, arg2, arg3 );
+	val = [[callback]]( arg, arg2 );
+	val = [[callback]]( arg );
+	val = [[callback]]();
+/#
+/#
+	assert( val == 0, "behavior callback must return true or false" );
+#/
+/#
+	assert( GetTime() != starttime, "behavior callback must return true only if its lets time pass" );
+#/
+/#
+	assert( GetTime() == starttime, "behavior callbacks returning false must not have a wait in them" );
+#/
+#/
+	self notify( "dont_end_idle" );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x1F2C
+watchsuppression()
+{
+	self endon( "killanimscript" );
+	self.lastsuppressiontime = GetTime() - 100000;
+	self.suppressionstart = self.lastsuppressiontime;
+	self waittill( "suppression" );
+	time = GetTime();
+	self.suppressionstart = time;
+	self.lastsuppressiontime = time;
+// SP = 0x0 - check OK
+}
+
+// 0x1F88
+coverreload( behaviorcallbacks, threshold )
+{
+	return 0;
+/#
+	assert( IsDefined( self.bulletsinclip ) );
+#/
+/#
+	assert( IsDefined( self.weapon ) );
+#/
+/#
+	assert( IsDefined( threshold ) );
+#/
+/#
+	assert( IsDefined( weaponclipsize( self.weapon ) ) );
+#/
+	forcebehavior = 0;
+/#
+	forcebehavior = shouldforcebehavior( "reload" );
+#/
+	return 0;
+	self.isreloading = 1;
+/#
+	self animscripts\debug::debugpushstate( "reload" );
+#/
+	result = calloptionalbehaviorcallback( behaviorcallbacks.reload );
+/#
+	self animscripts\debug::debugpopstate( "reload" );
+#/
+	self.isreloading = 0;
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x2074
+rambo( behaviorcallbacks )
+{
+	return calloptionalbehaviorcallback( behaviorcallbacks.rambo );
+// SP = 0x0 - check OK
+}
+
+// 0x2090
+leavecoverandshoot( behaviorcallbacks, initialgoal )
+{
+	self thread animscripts\shoot_behavior::decidewhatandhowtoshoot( initialgoal );
+	self thread breakoutofshootingifwanttomoveup();
+/#
+	self animscripts\debug::debugpushstate( "leaveCoverAndShoot" );
+#/
+	val = rambo( behaviorcallbacks );
+	val = calloptionalbehaviorcallback( behaviorcallbacks.leavecoverandshoot );
+/#
+	self animscripts\debug::debugpopstate( "leaveCoverAndShoot" );
+#/
+	self notify( "stop_deciding_how_to_shoot" );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x2118
+lookforenemy( behaviorcallbacks )
+{
+	return 0;
+/#
+	self animscripts\debug::debugpushstate( "lookForEnemy" );
+#/
+	looked = 0;
+	looked = peekout( behaviorcallbacks );
+	looked = calloptionalbehaviorcallback( behaviorcallbacks.look, 5 + randomfloat( 2 ) );
+	looked = calloptionalbehaviorcallback( behaviorcallbacks.look, 2 + randomfloat( 2 ) );
+	looked = calloptionalbehaviorcallback( behaviorcallbacks.fastlook );
+/#
+	self animscripts\debug::debugaddstateinfo( "lookForEnemy", "look failed, used fastlook" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "lookForEnemy" );
+#/
+	return looked;
+// SP = 0x0 - check OK
+}
+
+// 0x2210
+peekout( behaviorcallbacks )
+{
+/#
+	self animscripts\debug::debugpushstate( "peekOut" );
+#/
+	looked = calloptionalbehaviorcallback( behaviorcallbacks.fastlook );
+	looked = calloptionalbehaviorcallback( behaviorcallbacks.look, 0 );
+/#
+	self animscripts\debug::debugaddstateinfo( "peekOut", "fastlook failed, used look" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "peekOut" );
+#/
+	return looked;
+// SP = 0x0 - check OK
+}
+
+// 0x2280
+idle( behaviorcallbacks, howlong )
+{
+/#
+	self animscripts\debug::debugpushstate( "idle" );
+#/
+	self.flinching = 0;
+/#
+	self animscripts\debug::debugpopstate( "idle", "flinched" );
+#/
+	return 1;
+	self thread flinchwhensuppressed( behaviorcallbacks );
+/#
+	assert( IsDefined( behaviorcallbacks.idle ) );
+#/
+	self thread idlethread( behaviorcallbacks.idle );
+	self.a.idlingatcover = 1;
+	self idlewait( howlong );
+	self idlewaitabit();
+	self waittill( "flinch_done" );
+	self notify( "stop_waiting_to_flinch" );
+/#
+	self animscripts\debug::debugpopstate( "idle" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x238C
+idlewait( howlong )
+{
+	self endon( "end_idle" );
+	wait howlong;
+// SP = 0x0 - check OK
+}
+
+// 0x23A0
+idlewaitabit()
+{
+	self endon( "end_idle" );
+	wait 0.3 + randomfloat( 0.1 );
+	self waittill( "do_slow_things" );
+// SP = 0x0 - check OK
+}
+
+// 0x23CC
+idlethread( idlecallback )
+{
+	self endon( "killanimscript" );
+	self [[idlecallback]]();
+// SP = 0x0 - check OK
+}
+
+// 0x23E4
+flinchwhensuppressed( behaviorcallbacks )
+{
+	self endon( "killanimscript" );
+	self endon( "stop_waiting_to_flinch" );
+	lastsuppressiontime = self.lastsuppressiontime;
+	self waittill( "suppression" );
+	time = GetTime();
+	lastsuppressiontime = time;
+/#
+	self animscripts\debug::debugpushstate( "flinchWhenSuppressed" );
+#/
+	self.flinching = 1;
+	self thread endidleatframeend();
+/#
+	assert( IsDefined( behaviorcallbacks.flinch ) );
+#/
+	val = [[behaviorcallbacks.flinch]]();
+	self notify( "dont_end_idle" );
+	self.flinching = 0;
+	self notify( "flinch_done" );
+/#
+	self animscripts\debug::debugpopstate( "flinchWhenSuppressed" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x24A4
+endidleatframeend()
+{
+	self endon( "killanimscript" );
+	self endon( "dont_end_idle" );
+	waittillframeend;
+	return;
+	self notify( "end_idle" );
+	self.a.idlingatcover = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x24D0
+trythrowinggrenade( behaviorcallbacks, throwat, forcethrow )
+{
+	result = undefined;
+	forcethrow = forcethrow;
+/#
+	self animscripts\debug::debugpushstate( "tryThrowingGrenade" );
+#/
+/#
+	assert( IsDefined( throwat ) );
+#/
+/#
+	self animscripts\debug::debugpopstate( "tryThrowingGrenade", "Cant throw grenade, canThrowGrenade() failed" );
+#/
+	forward = anglestoforward( self.angles );
+	dir = vectornormalize( throwat.origin - self.origin );
+/#
+	self animscripts\debug::debugpopstate( "tryThrowingGrenade", "don't want to throw backwards" );
+#/
+	return 0;
+	forward = anglestoforward( self.covernode.angles );
+	dir = vectornormalize( throwat.origin - self.covernode.origin );
+/#
+	self animscripts\debug::debugpopstate( "tryThrowingGrenade", "don't want to throw backwards" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( "tryThrowingGrenade", "doingAmbush and haven't seen enemy recently" );
+#/
+	return 0;
+	switchsides( behaviorcallbacks );
+	result = calloptionalbehaviorcallback( behaviorcallbacks.grenadehidden, throwat, forcethrow );
+	result = calloptionalbehaviorcallback( behaviorcallbacks.grenade, throwat );
+/#
+	self animscripts\debug::debugpopstate( "tryThrowingGrenade" );
+#/
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x26A8
+blindfire( behaviorcallbacks )
+{
+	return 0;
+	self animscripts\shoot_behavior::setshootent( self.enemy );
+/#
+	self animscripts\debug::debugpushstate( "blindfire" );
+#/
+	result = calloptionalbehaviorcallback( behaviorcallbacks.blindfire );
+/#
+	self animscripts\debug::debugpopstate( "blindfire" );
+#/
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x2710
+breakoutofshootingifwanttomoveup()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_deciding_how_to_shoot" );
+	return;
+	wait 0.5 + randomfloat( 0.75 );
+	return;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x27BC
+enemyishiding()
+{
+	return 0;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x285C
+wouldbesmartformyaitypetoseekoutenemy()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x288C
+resetseekoutenemytime()
+{
+	self.seekoutenemytime = GetTime() + randomintrange( 500, 1000 );
+	self.seekoutenemytime = GetTime() + randomintrange( 3000, 5000 );
+// SP = 0x0 - check OK
+}
+
+// 0x28D8
+cantfindanythingtodo()
+{
+	return advanceonhidingenemy();
+// SP = 0x0 - check OK
+}
+
+// 0x28E8
+advanceonhidingenemy()
+{
+	return 0;
+	return tryrunningtoenemy( 0 );
+	foundbettercover = 0;
+	foundbettercover = lookforbettercover();
+	return tryrunningtoenemy( 0 );
+	return foundbettercover;
+// SP = 0x0 - check OK
+}
+
+// 0x29AC
+trytogetoutofdangeroussituation()
+{
+	return 1;
+	return lookforbettercover();
+// SP = 0x0 - check OK
+}
+
+// 0x29CC
+movetonearbycover()
+{
+	return 0;
+	self.didshufflemove = undefined;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	node = self findshufflecovernode();
+	return 0;
+	return 0;
+	self.shufflemove = 1;
+	self.shufflenode = node;
+	self.didshufflemove = 1;
+	self.keepclaimednode = 0;
+	wait 0.5;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2ADC
+shouldprovidecoveringfire()
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2AE4
+watchplayeraim()
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "stop_watchPlayerAim" );
+	self.coverlookattrigger delete();
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+	self.coversafetopopout = 1;
+	stepoutpos = self.covernode.origin;
+	stepoutpos -= vector_scale( anglestoright( self.covernode.angles ), 32 );
+	stepoutpos += vector_scale( anglestoright( self.covernode.angles ), 32 );
+	triggerheight = 72;
+	triggerheight = 48;
+	self.coverlookattrigger = spawn( "trigger_lookat", stepoutpos, 0, 15, triggerheight );
+/#
+#/
+	waittillframeend;
+	self.coversafetopopout = 1;
+	self.playeraimsuppression = 0;
+	self.coverlookattrigger waittill( "trigger", watcher );
+/#
+	self thread watchplayeraimdebug( 12 );
+#/
+	self.coversafetopopout = 0;
+	self.playeraimsuppression = randomfloat( 1 ) < 0.9;
+	wait 0.5;
+	wait 0.05;
+	self.coversafetopopout = 1;
+	self.playeraimsuppression = 0;
+	self.coverlookattrigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2C8C
+watchplayeraimdebug( numframes )
+{
+/#
+	self endon( "death" );
+	i = 0;
+	recordenttext( "Cover Trigger Watched", self, level.color_debug["white"], "Suppression" );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2CD8
+shouldswitchsides( forvariety )
+{
+	return 0;
+/#
+	forcecornermode = shouldforcebehavior( "force_corner_direction" );
+	return 0;
+#/
+	enemyrightbehindme = 0;
+	return 1;
+	yaw = self.covernode getyawtoorigin( self.enemy.origin );
+	desiredcornerdirection = self.cornerdirection;
+	desiredcornerdirection = "right";
+	desiredcornerdirection = "left";
+	enemyrightbehindme = 1;
+	self.covernode.desiredcornerdirection = desiredcornerdirection;
+	return 1;
+	self.covernode.desiredcornerdirection = "right";
+	self.covernode.desiredcornerdirection = "left";
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2E38
+switchsides( behaviorcallbacks )
+{
+/#
+	self animscripts\debug::debugpushstate( "switchSides" );
+#/
+	result = [[behaviorcallbacks.switchsides]]();
+	self notify( "stop_watchPlayerAim" );
+	self thread watchplayeraim();
+	self.a.nextallowedswitchsidestime = GetTime() + randomintrange( 5000, 7500 );
+	self.a.lastswitchsidestime = GetTime();
+/#
+	self animscripts\debug::debugpopstate( "switchSides" );
+#/
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x2EAC
+runforcedbehaviors( behaviorcallbacks )
+{
+/#
+	didsomething = 0;
+	idle( behaviorcallbacks );
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	self.grenadeammo = 1;
+	didsomething = 1;
+	didsomething = 1;
+	didsomething = 1;
+	animscripts\shared::switchweapons();
+	didsomething = 1;
+	return didsomething;
+#/
+// SP = 0x0 - check OK
+}

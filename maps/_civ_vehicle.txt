@@ -1,0 +1,34 @@
+// maps/_civ_vehicle.gsc
+
+#include maps\_vehicle;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x10C
+main()
+{
+	build_aianims( ::setanims, ::set_vehicle_anims );
+	build_unload_groups( ::unload_groups );
+	level._effect["sand"] = loadfx( "vehicle/treadfx/fx_treadfx_sand" );
+// SP = 0x0 - check OK
+}
+
+// 0x150
+set_vehicle_anims( positions )
+{
+	return positions;
+// SP = 0x0 - check OK
+}
+
+// 0x15C
+setanims()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x164
+unload_groups()
+{
+// SP = 0x0 - check OK
+}

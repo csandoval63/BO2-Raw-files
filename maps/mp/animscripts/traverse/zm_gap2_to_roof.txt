@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_gap2_to_roof.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xEC
+main()
+{
+	dosimpletraverse( "gap2_to_roof" );
+// SP = 0x0 - check OK
+}

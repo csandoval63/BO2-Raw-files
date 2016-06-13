@@ -1,0 +1,55 @@
+// clientscripts/mp/zombies/_zm_weap_blundersplat.csc
+
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\_music;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x264
+init()
+{
+	level._effect["dart_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_grn_os" );
+/#
+	println( "dart_light :" + level._effect["dart_light"] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x29C
+spawned( localclientnum )
+{
+/#
+	println( "titus dart spawned" );
+#/
+	player = getlocalplayer( localclientnum );
+	enemy = 0;
+	self.fxtagname = "tag_origin";
+	enemy = 1;
+	self thread loop_local_sound( localclientnum, "wpn_blundersplat_alert", 0.3, level._effect["dart_light"] );
+	self thread sndfuseloop();
+// SP = 0x0 - check OK
+}
+
+// 0x318
+loop_local_sound( localclientnum, alias, interval, fx )
+{
+	self endon( "entityshutdown" );
+	wait 0.1;
+	n_id = playfxontag( localclientnum, fx, self, self.fxtagname );
+	wait interval;
+	stopfx( localclientnum, n_id );
+	interval /= 1.2;
+	interval = 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x388
+sndfuseloop()
+{
+	location = self.origin;
+	soundloopemitter( "wpn_blundersplat_fuse", location );
+	self waittill( "entityshutdown" );
+	soundstoploopemitter( "wpn_blundersplat_fuse", location );
+// SP = 0x0 - check OK
+}

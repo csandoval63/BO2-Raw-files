@@ -1,0 +1,1614 @@
+// animscripts/shared.gsc
+
+#include maps\_gameskill;
+#include animscripts\debug;
+#include animscripts\cqb;
+#include maps\_dialog;
+#include animscripts\weaponlist;
+#include animscripts\shared;
+#include animscripts\init;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\combat_utility;
+#include animscripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2700
+placeweaponon( weapon, position )
+{
+	self notify( "weapon_position_change" );
+	self animscripts\init::initweapon( weapon );
+	curposition = self.weaponinfo[weapon].position;
+/#
+	assert( self.a.weaponpos[curposition] == weapon );
+#/
+	return;
+	self detachallweaponmodels();
+	self detachweapon( weapon );
+	self updateattachedweaponmodels();
+	self setcurrentweapon( "none" );
+	animscripts\init::setweapondist();
+	return;
+	self detachweapon( self.a.weaponpos[position] );
+	self attachweapon( weapon, position );
+	self setcurrentweapon( weapon );
+	self animscripts\anims::clearanimcache();
+	self.aimthresholdyaw = 10;
+	self.aimthresholdpitch = 20;
+	self.aimthresholdyaw = 25;
+	self.aimthresholdpitch = 25;
+	self attachweapon( weapon, position );
+	self updateattachedweaponmodels();
+	animscripts\init::setweapondist();
+/#
+	assert( self.a.weaponpos["right"] == "none" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x28AC
+detachweapon( weapon )
+{
+	self.a.weaponpos[self.weaponinfo[weapon].position] = "none";
+	self.weaponinfo[weapon].position = "none";
+// SP = 0x0 - check OK
+}
+
+// 0x28E0
+attachweapon( weapon, position )
+{
+	self.weaponinfo[weapon].position = position;
+	self.a.weaponpos[position] = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x290C
+detachallweaponmodels()
+{
+	index = 0;
+	weapon = self.a.weaponpos[self.weapon_positions[index]];
+	self setactorweapon( "none" );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x2968
+updateattachedweaponmodels()
+{
+	index = 0;
+	weapon = self.a.weaponpos[self.weapon_positions[index]];
+	self setactorweapon( weapon );
+	self hidepart( "tag_clip" );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x2A04
+gettagforpos( position )
+{
+	switch ( position )
+	{
+		case "back":
+			return "tag_weapon_chest";
+		case "chest":
+			return "tag_stowed_back";
+		case "hand":
+			return "tag_weapon_left";
+		case "left":
+			return "tag_weapon_right";
+		case "right":
+			return "tag_inhand";
+		default:
+/#
+			assertmsg( "unknown weapon placement position: " + position );
+#/
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2A7C
+dropaiweapon()
+{
+	return;
+	return;
+/#
+	println( "Not dropping secondary weapon '" + self.weapon + "'" );
+#/
+	return;
+/#
+	println( "Not dropping sidearm '" + self.weapon + "'" );
+#/
+	return;
+	self swapdropweapon();
+	current_weapon = self.weapon;
+	position = self.weaponinfo[current_weapon].position;
+	animscripts\shared::placeweaponon( current_weapon, "none" );
+	self setprimaryweapon( "none" );
+	self setsecondaryweapon( "none" );
+	dropweaponname = player_weapon_drop( current_weapon );
+	velocity = self getvelocity();
+	speed = length( velocity ) * 0.5;
+	droppedweapon = self dropweapon( dropweaponname, position, speed );
+	self setcurrentweapon( "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x2C08
+dropallaiweapons()
+{
+	return;
+	animscripts\shared::placeweaponon( self.weapon, "none" );
+	self setcurrentweapon( "none" );
+	return;
+	self.a.dropping_weapons = 1;
+	self swapdropweapon();
+	self detachallweaponmodels();
+	droppedsidearm = 0;
+	index = 0;
+	weapon = self.a.weaponpos[self.weapon_positions[index]];
+	self.weaponinfo[weapon].position = "none";
+	self.a.weaponpos[self.weapon_positions[index]] = "none";
+/#
+	println( "Not dropping secondary weapon '" + weapon + "'" );
+#/
+/#
+	println( "Not dropping sidearm '" + weapon + "'" );
+#/
+	velocity = self getvelocity();
+	speed = length( velocity ) * 0.5;
+	weapon = player_weapon_drop( weapon );
+	droppedweapon = self dropweapon( weapon, self.weapon_positions[index], speed );
+	droppedsidearm = 1;
+	index++;
+	velocity = self getvelocity();
+	speed = length( velocity ) * 0.5;
+	droppedweapon = self dropweapon( self.sidearm, "chest", speed );
+	self setcurrentweapon( "none" );
+	self.a.dropping_weapons = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2E50
+swapdropweapon()
+{
+	found_weapon = 0;
+	i = 0;
+	weapon = self.a.weaponpos[self.weapon_positions[i]];
+	weapon_toks = strtok( weapon, "_" );
+	drop_weapon_toks = strtok( self.script_dropweapon, "_" );
+/#
+	println( "Swapping out weapon '" + weapon + "' for script_dropweapon '" + self.script_dropweapon + "'" );
+#/
+	self placeweaponon( weapon, "none" );
+	self setcurrentweapon( self.script_dropweapon );
+	self placeweaponon( self.script_dropweapon, self.weapon_positions[i] );
+	found_weapon = 1;
+	i++;
+	self swapdropweaponprimary();
+	self.script_dropweapon = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2F50
+swapdropweaponprimary()
+{
+	position = self.weaponinfo[self.primaryweapon].position;
+/#
+	println( "Swapping out weapon '" + self.primaryweapon + "' for script_dropweapon '" + self.script_dropweapon + "'" );
+#/
+	self placeweaponon( self.primaryweapon, "none" );
+	self placeweaponon( self.script_dropweapon, position );
+// SP = 0x0 - check OK
+}
+
+// 0x2FC8
+addphysweapon()
+{
+	self thread deleteatlimit();
+// SP = 0x0 - check OK
+}
+
+// 0x2FDC
+has_script_drop_weapon()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3010
+player_weapon_drop( weapon_name )
+{
+	return "usrpg_player_sp";
+	return "rpg_player_sp";
+	return "panzerschreck_player_sp";
+	return weapon_name;
+// SP = 0x0 - check OK
+}
+
+// 0x3084
+deleteatlimit()
+{
+	wait 30;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x30A0
+shownotetrack( note )
+{
+/#
+	self endon( "death" );
+	anim.shownotetrackspeed = 30;
+	anim.shownotetrackduration = 30;
+	thisoffset = 0;
+	self.a.shownotetrackoffset = 10;
+	self thread reduceshownotetrackoffset();
+	thisoffset = self.a.shownotetrackoffset;
+	self.a.shownotetrackoffset += 10;
+	duration = anim.shownotetrackduration + int( 20 * thisoffset / anim.shownotetrackspeed );
+	color = ( 0.5, 0.75, 1 );
+	color = ( 0.25, 0.4, 0.5 );
+	color = ( 1, 0.5, 0.5 );
+	i = 0;
+	amnt = 1 * ( i - ( duration - anim.shownotetrackduration ) ) / anim.shownotetrackduration;
+	amnt = 0;
+	time = 1 * i / 20;
+	alpha = 1 - amnt * amnt;
+	pos = self geteye() + ( 0, 0, 20 + anim.shownotetrackspeed * time - thisoffset );
+	print3d( pos, note, color, alpha );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3274
+reduceshownotetrackoffset()
+{
+/#
+	self endon( "death" );
+	wait 0.05;
+	self.a.shownotetrackoffset -= anim.shownotetrackspeed * 0.05;
+	self.a.shownotetrackoffset = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x32C4
+handledogsoundnotetracks( note )
+{
+	self playsound( "fly_dog_step_run_default" );
+	return 1;
+	prefix = getsubstr( note, 0, 5 );
+	return 0;
+	alias = "aml" + getsubstr( note, 5 );
+	self thread play_sound_on_tag_endon_death( alias, "tag_eye" );
+	self thread play_sound_in_space( alias, self gettagorigin( "tag_eye" ) );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x335C
+registernotetracks()
+{
+	anim.notetracks["anim_pose = \"stand\""] = ::notetrackposestand;
+	anim.notetracks["anim_pose = \"crouch\""] = ::notetrackposecrouch;
+	anim.notetracks["anim_pose = \"prone\""] = ::notetrackposeprone;
+	anim.notetracks["anim_pose = \"crawl\""] = ::notetrackposecrawl;
+	anim.notetracks["anim_pose = \"back\""] = ::notetrackposeback;
+	anim.notetracks["anim_movement = \"stop\""] = ::notetrackmovementstop;
+	anim.notetracks["anim_movement = \"walk\""] = ::notetrackmovementwalk;
+	anim.notetracks["anim_movement = \"run\""] = ::notetrackmovementrun;
+	anim.notetracks["gunhand = (gunhand)_left"] = ::notetrackgunhand;
+	anim.notetracks["anim_gunhand = \"left\""] = ::notetrackgunhand;
+	anim.notetracks["anim_gunhand = \"leftright\""] = ::notetrackgunhand;
+	anim.notetracks["gunhand = (gunhand)_right"] = ::notetrackgunhand;
+	anim.notetracks["anim_gunhand = \"right\""] = ::notetrackgunhand;
+	anim.notetracks["anim_gunhand = \"none\""] = ::notetrackgunhand;
+	anim.notetracks["gun drop"] = ::notetrackgundrop;
+	anim.notetracks["dropgun"] = ::notetrackgundrop;
+	anim.notetracks["gun_2_chest"] = ::notetrackguntochest;
+	anim.notetracks["gun_2_back"] = ::notetrackguntoback;
+	anim.notetracks["chest_2_back"] = ::notetrackchesttoback;
+	anim.notetracks["pistol_pickup"] = ::notetrackpistolpickup;
+	anim.notetracks["pistol_putaway"] = ::notetrackpistolputaway;
+	anim.notetracks["drop clip"] = ::notetrackdropclip;
+	anim.notetracks["refill clip"] = ::notetrackrefillclip;
+	anim.notetracks["reload done"] = ::notetrackrefillclip;
+	anim.notetracks["load_shell"] = ::notetrackloadshell;
+	anim.notetracks["weapon_switch"] = ::notetrackweaponswitch;
+	anim.notetracks["gravity on"] = ::notetrackgravity;
+	anim.notetracks["gravity off"] = ::notetrackgravity;
+	anim.notetracks["bodyfall large"] = ::notetrackbodyfall;
+	anim.notetracks["bodyfall small"] = ::notetrackbodyfall;
+	anim.notetracks["footstep"] = ::notetrackfootstep;
+	anim.notetracks["step"] = ::notetrackfootstep;
+	anim.notetracks["footstep_right_large"] = ::notetrackfootstep;
+	anim.notetracks["footstep_right_small"] = ::notetrackfootstep;
+	anim.notetracks["footstep_left_large"] = ::notetrackfootstep;
+	anim.notetracks["footstep_left_small"] = ::notetrackfootstep;
+	anim.notetracks["footscrape"] = ::notetrackfootscrape;
+	anim.notetracks["land"] = ::notetrackland;
+	anim.notetracks["start_ragdoll"] = ::notetrackstartragdoll;
+	anim.notetracks["become_corpse"] = ::notetrackbecomecorpse;
+	anim.notetracks["fire"] = ::notetrackfire;
+	anim.notetracks["fire_spray"] = ::notetrackfirespray;
+	anim.notetracks["fire spray"] = ::notetrackfirespray;
+	anim.notetracks["lookat = \"player\""] = ::notetracklookatplayer;
+	anim.notetracks["headlookat = \"player\""] = ::notetrackheadlookatplayer;
+	anim.notetracks["lookat = \"\""] = ::notetrackclearlookat;
+	anim.notetracks["hide"] = ::notetrackhide;
+	anim.notetracks["show"] = ::notetrackshow;
+// SP = 0x0 - check OK
+}
+
+// 0x3664
+notetrackhide( note, flagname )
+{
+	self hide();
+	self notify( "hide" );
+// SP = 0x0 - check OK
+}
+
+// 0x3684
+notetrackshow( note, flagname )
+{
+	self show();
+	self notify( "show" );
+// SP = 0x0 - check OK
+}
+
+// 0x36A4
+notetracklookatplayer( note, flagname )
+{
+	return;
+	relax_ik_headtracking_limits();
+	setsaveddvar( "ik_dvar_lookatentity_notorso", 0 );
+	self.lookat_set_in_anim = 1;
+	self lookatentity( get_players()[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x36F0
+notetrackheadlookatplayer( note, flagname )
+{
+	return;
+	relax_ik_headtracking_limits();
+	setsaveddvar( "ik_dvar_lookatentity_notorso", 1 );
+	self.lookat_set_in_anim = 1;
+	self lookatentity( get_players()[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x3740
+notetrackclearlookat( note, flagname )
+{
+	return;
+	restore_ik_headtracking_limits();
+	self.lookat_set_in_anim = 0;
+	self lookatentity();
+// SP = 0x0 - check OK
+}
+
+// 0x3774
+notetrackfire( note, flagname )
+{
+	return;
+	thread [[anim.fire_notetrack_functions[self.a.script]]]();
+	thread [[animscripts\shared::shootnotetrack]]();
+// SP = 0x0 - check OK
+}
+
+// 0x37C0
+notetrackstopanim( note, flagname )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x37CC
+notetrackstartragdoll( note, flagname )
+{
+	return;
+	do_ragdoll_death();
+// SP = 0x0 - check OK
+}
+
+// 0x37EC
+notetrackbecomecorpse( note, flagname )
+{
+	become_corpse();
+// SP = 0x0 - check OK
+}
+
+// 0x3804
+setanimmode( animmode, waittime )
+{
+	wait waittime;
+	self animmode( animmode );
+// SP = 0x0 - check OK
+}
+
+// 0x382C
+notetrackmovementstop( note, flagname )
+{
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x3854
+notetrackmovementwalk( note, flagname )
+{
+	self.a.movement = "walk";
+// SP = 0x0 - check OK
+}
+
+// 0x387C
+notetrackmovementrun( note, flagname )
+{
+	self.a.movement = "run";
+// SP = 0x0 - check OK
+}
+
+// 0x38A4
+notetrackposestand( note, flagname )
+{
+	self orientmode( "face default" );
+	self exitpronewrapper( 1 );
+	self.a.pose = "stand";
+	self notify( "entered_pose" + "stand" );
+// SP = 0x0 - check OK
+}
+
+// 0x3904
+notetrackposecrouch( note, flagname )
+{
+	self orientmode( "face default" );
+	self exitpronewrapper( 1 );
+	self.a.pose = "crouch";
+	self notify( "entered_pose" + "crouch" );
+	self.a.crouchpain = 0;
+	self.health = 150;
+// SP = 0x0 - check OK
+}
+
+// 0x3984
+notetrackposeprone( note, flagname )
+{
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 1 );
+	self.a.pose = "prone";
+	self notify( "entered_pose" + "prone" );
+// SP = 0x0 - check OK
+}
+
+// 0x39EC
+notetrackposecrawl( note, flagname )
+{
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 1 );
+	self.a.pose = "prone";
+	self notify( "entered_pose" + "prone" );
+// SP = 0x0 - check OK
+}
+
+// 0x3A54
+notetrackposeback( note, flagname )
+{
+	self exitpronewrapper( 1 );
+	self.a.pose = "back";
+	self notify( "entered_pose" + "back" );
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x3AA4
+notetrackgunhand( note, flagname )
+{
+	animscripts\shared::placeweaponon( self.weapon, "left" );
+	self thread placeweapononrightoninterrupt();
+	animscripts\shared::placeweaponon( self.weapon, "left" );
+	self notify( "placed_weapon_on_left" );
+	animscripts\shared::placeweaponon( self.weapon, "right" );
+	self notify( "placed_weapon_on_right" );
+	animscripts\shared::placeweaponon( self.weapon, "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x3B5C
+placeweapononrightoninterrupt()
+{
+	self endon( "death" );
+	self endon( "placed_weapon_on_right" );
+	self waittill( "killanimscript" );
+	animscripts\shared::placeweaponon( self.weapon, "right" );
+// SP = 0x0 - check OK
+}
+
+// 0x3B98
+notetrackgundrop( note, flagname )
+{
+	self.lastweapon = self.weapon;
+	primaryweapon = self.primaryweapon;
+	secondaryweapon = self.secondaryweapon;
+	pistolonlyai = aihasonlypistol();
+	self animscripts\shared::dropaiweapon();
+	self setcurrentweapon( self.secondaryweapon );
+	self setcurrentweapon( self.primaryweapon );
+	self animscripts\anims::clearanimcache();
+// SP = 0x0 - check OK
+}
+
+// 0x3C1C
+notetrackguntochest( note, flagname )
+{
+	animscripts\shared::placeweaponon( self.weapon, "chest" );
+// SP = 0x0 - check OK
+}
+
+// 0x3C38
+notetrackguntoback( note, flagname )
+{
+	animscripts\shared::placeweaponon( self.weapon, "back" );
+	self setcurrentweapon( self.primaryweapon );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self animscripts\anims::clearanimcache();
+// SP = 0x0 - check OK
+}
+
+// 0x3C80
+notetrackchesttoback( note, flagname )
+{
+/#
+	assert( hassecondaryweapon() );
+#/
+	animscripts\shared::placeweaponon( getsecondaryweapon(), "back" );
+// SP = 0x0 - check OK
+}
+
+// 0x3CBC
+notetrackpistolpickup( note, flagname )
+{
+	animscripts\shared::placeweaponon( self.sidearm, "right" );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self notify( "weapon_switch_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x3D08
+notetrackpistolputaway( note, flagname )
+{
+	animscripts\shared::placeweaponon( self.weapon, "none" );
+	setcurrentweapon( self.primaryweapon );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self animscripts\anims::clearanimcache();
+// SP = 0x0 - check OK
+}
+
+// 0x3D4C
+notetrackweaponswitch( note, flagname )
+{
+/#
+	assert( hassecondaryweapon(), "no secondary weapon available! check the aitype for this actor. " );
+#/
+	self animscripts\shared::placeweaponon( self.weapon, "back" );
+	self animscripts\shared::placeweaponon( self.secondaryweapon, "right" );
+	self animscripts\shared::placeweaponon( self.weapon, "back" );
+	self animscripts\shared::placeweaponon( self.primaryweapon, "right" );
+	clipsize = weaponclipsize( self.weapon );
+	self.bulletsinclip = int( clipsize * 0.5 );
+	self.bulletsinclip = clipsize;
+	self.bulletsinclip = clipsize;
+	self notify( "complete_weapon_switch" );
+	self.lastweapon = self.weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x3E54
+notetrackdropclip( note, flagname )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3E60
+notetrackrefillclip( note, flagname )
+{
+	self showrocket();
+	self animscripts\weaponlist::refillclip();
+// SP = 0x0 - check OK
+}
+
+// 0x3E90
+notetrackloadshell( note, flagname )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3E9C
+notetrackgravity( note, flagname )
+{
+	self animmode( "gravity" );
+	self animmode( "nogravity" );
+// SP = 0x0 - check OK
+}
+
+// 0x3EE8
+notetrackbodyfall( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_bodyfall_large_" + groundtype );
+	self playsound( "fly_bodyfall_small_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x3F58
+notetrackfootstep( note, flagname )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3F64
+notetrackfootscrape( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_step_scrape_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x3F9C
+notetrackland( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_land_plr_" + groundtype );
+	self playsound( "fly_land_npc_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x3FF8
+handlenotetrack( note, flagname, customfunction, var1 )
+{
+/#
+	self thread shownotetrack( note );
+#/
+	return;
+	a_vo_note = strtok( note, "#" );
+/#
+	assert( IsDefined( a_vo_note[1] ), "VO alias not defined after a #vox notetrack" );
+#/
+	self thread maps\_dialog::say_dialog( a_vo_note[1], undefined, 1 );
+	notetrackfunc = anim.notetracks[note];
+	return [[notetrackfunc]]( note, flagname );
+	switch ( note )
+	{
+		case "allow pain":
+		case "end":
+		case "finish":
+			return note;
+		case "no death":
+			self thread play_sound_in_space( "wpn_melee_swing_large", self gettagorigin( "TAG_WEAPON_RIGHT" ) );
+			break;
+		case "no pain":
+			self thread play_sound_in_space( "wpn_melee_swing_large", self gettagorigin( "TAG_WEAPON_RIGHT" ) );
+			break;
+		case "stop anim":
+			self.a.nodeath = 1;
+			break;
+		case "stop scene":
+			self disable_pain();
+			break;
+		case "swap taghelmet to tagleft":
+			self enable_pain();
+			break;
+		case "swish large":
+			self detach( self.helmetsidemodel, "TAG_HELMETSIDE" );
+			self.helmetsidemodel = undefined;
+			self detach( self.hatmodel, "" );
+			self attach( self.hatmodel, "TAG_WEAPON_LEFT" );
+			self.hatmodel = undefined;
+			break;
+		case "swish small":
+			anim_stopanimscripted( 0.2 );
+			return note;
+		case "undefined":
+			anim_stopscene( 0.2 );
+			return note;
+		default:
+			return [[customfunction]]( note );
+			return [[customfunction]]( note, var1 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4230
+donotetracks( flagname, customfunction, debugidentifier, var1 )
+{
+	self waittill( flagname, note );
+	note = "undefined";
+	val = self handlenotetrack( note, flagname, customfunction, var1 );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x427C
+donotetracksintercept( flagname, interceptfunction, debugidentifier )
+{
+/#
+	assert( IsDefined( interceptfunction ) );
+#/
+	self waittill( flagname, note );
+	note = "undefined";
+	intercepted = [[interceptfunction]]( note );
+	val = self handlenotetrack( note, flagname );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x42EC
+donotetrackspostcallback( flagname, postfunction )
+{
+/#
+	assert( IsDefined( postfunction ) );
+#/
+	self waittill( flagname, note );
+	note = "undefined";
+	val = self handlenotetrack( note, flagname );
+	[[postfunction]]( note );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x4348
+donotetracksforever( flagname, killstring, customfunction, debugidentifier )
+{
+	donotetracksforeverproc( ::donotetracks, flagname, killstring, customfunction, debugidentifier );
+// SP = 0x0 - check OK
+}
+
+// 0x4370
+donotetracksforeverintercept( flagname, killstring, interceptfunction, debugidentifier )
+{
+	donotetracksforeverproc( ::donotetracksintercept, flagname, killstring, interceptfunction, debugidentifier );
+// SP = 0x0 - check OK
+}
+
+// 0x4398
+donotetracksforeverproc( notetracksfunc, flagname, killstring, customfunction, debugidentifier )
+{
+	self endon( killstring );
+	self endon( "killanimscript" );
+	debugidentifier = "undefined";
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, debugidentifier );
+	timetaken = GetTime() - time;
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, debugidentifier );
+	timetaken = GetTime() - time;
+/#
+	println( GetTime() + " " + debugidentifier + " animscriptsshared::DoNoteTracksForever is trying to cause an infinite loop on anim " + flagname + ", returned " + returnednote + "." );
+#/
+	wait 0.05 - timetaken;
+// SP = 0x0 - check OK
+}
+
+// 0x4454
+donotetracksfortime( time, flagname, customfunction, debugidentifier )
+{
+	ent = spawnstruct();
+	ent thread donotetracksfortimeendnotify( time );
+	donotetracksfortimeproc( ::donotetracksforever, time, flagname, customfunction, debugidentifier, ent );
+// SP = 0x0 - check OK
+}
+
+// 0x449C
+donotetracksfortimeintercept( time, flagname, interceptfunction, debugidentifier )
+{
+	ent = spawnstruct();
+	ent thread donotetracksfortimeendnotify( time );
+	donotetracksfortimeproc( ::donotetracksforeverintercept, time, flagname, interceptfunction, debugidentifier, ent );
+// SP = 0x0 - check OK
+}
+
+// 0x44E4
+donotetracksfortimeproc( donotetracksforeverfunc, time, flagname, customfunction, debugidentifier, ent )
+{
+	ent endon( "stop_notetracks" );
+	[[donotetracksforeverfunc]]( flagname, undefined, customfunction, debugidentifier );
+// SP = 0x0 - check OK
+}
+
+// 0x450C
+donotetracksfortimeendnotify( time )
+{
+	wait time;
+	self notify( "stop_notetracks" );
+// SP = 0x0 - check OK
+}
+
+// 0x4520
+shootnotetrack()
+{
+	waittillframeend;
+	now = GetTime();
+	self.a.lastshoottime = now;
+	self shootenemywrapper();
+	self decrementbulletsinclip();
+	self.a.rockets--;
+// SP = 0x0 - check OK
+}
+
+// 0x4574
+fire_straight()
+{
+	return;
+	shootnotetrack();
+	return;
+	weaporig = self gettagorigin( "tag_weapon" );
+	dir = anglestoforward( self gettagangles( "tag_weapon" ) );
+	pos = weaporig + vector_scale( dir, 1000 );
+	self.a.lastshoottime = GetTime();
+	self shoot( 1, pos );
+	self decrementbulletsinclip();
+// SP = 0x0 - check OK
+}
+
+// 0x4614
+notetrackfirespray( note, flagname )
+{
+	return;
+	weaporig = self gettagorigin( "tag_weapon" );
+	dir = anglestoforward( self gettagangles( "tag_weapon" ) );
+	hitenemy = 0;
+	enemydir = vectornormalize( self.enemy geteye() - weaporig );
+	hitenemy = 1;
+	self shootenemywrapper();
+	dir += ( ( randomfloat( 2 ) - 1 ) * 0.1, ( randomfloat( 2 ) - 1 ) * 0.1, ( randomfloat( 2 ) - 1 ) * 0.1 );
+	pos = weaporig + vector_scale( dir, 1000 );
+	self shootposwrapper( pos );
+	self decrementbulletsinclip();
+// SP = 0x0 - check OK
+}
+
+// 0x4758
+getpredictedaimyawtoshootentorpos( time )
+{
+	return 0;
+	return getaimyawtopoint( self.shootpos );
+	predictedpos = self.shootent.origin + vector_scale( self.shootentvelocity, time );
+	return getaimyawtopoint( predictedpos );
+// SP = 0x0 - check OK
+}
+
+// 0x47A4
+getaimyawtoshootentorpos()
+{
+	return 0;
+	return getaimyawtopoint( self.shootpos );
+	return getaimyawtopoint( self.shootent getshootatpos( self ) );
+// SP = 0x0 - check OK
+}
+
+// 0x47E4
+getaimpitchtoshootentorpos()
+{
+	pitch = getpitchtoshootentorpos();
+	pitch -= anim.covercrouchleanpitch;
+	return pitch;
+// SP = 0x0 - check OK
+}
+
+// 0x4834
+getpitchtoshootentorpos()
+{
+	return 0;
+	return animscripts\combat_utility::getpitchtospot( self.shootpos );
+	return animscripts\combat_utility::getpitchtospot( self.shootent getshootatpos( self ) );
+// SP = 0x0 - check OK
+}
+
+// 0x4874
+getaimyawtopoint( point )
+{
+	yaw = getyawtospot( point );
+	dist = distance( self.origin, point );
+	anglefudge = asin( -3 / dist );
+	yaw += anglefudge;
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x48C8
+trackshootentorpos()
+{
+	self animscripts\shared::setaiminganims( %aim_2, %aim_4, %aim_6, %aim_8 );
+	self animscripts\shared::trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x4904
+stoptracking()
+{
+	self notify( "stop tracking" );
+// SP = 0x0 - check OK
+}
+
+// 0x4914
+trackloopstart()
+{
+	self notify( "trackLoopStart" );
+	self.pausetrackloop = 0;
+/#
+	recordenttext( "TrackLoop: Running", self, level.color_debug["red"], "Animscript" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4954
+tracklooppausethread()
+{
+	self endon( "death" );
+	self waittill_any( "killanimscript", "stop tracking", "melee" );
+	self.pausetrackloop = 1;
+/#
+	recordenttext( "TrackLoop: Paused", self, level.color_debug["red"], "Animscript" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x49B0
+tracklooppacer()
+{
+	self endon( "death" );
+	wait 0.05;
+	self notify( "trackLoopStart" );
+// SP = 0x0 - check OK
+}
+
+// 0x49CC
+scriptneedstagaim()
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4A40
+trackloopgetshootfrompos()
+{
+	origin = undefined;
+	origin = self gettagorigin( "tag_aim" );
+/#
+	println( "no tag_aim in model " + self.model );
+#/
+	eyeheight = self geteyeapprox()[2];
+	eyeheight = self.origin[2] + eyeheight - self.origin[2] * 0.5;
+	origin = ( self.origin[0], self.origin[1], eyeheight );
+	return origin;
+// SP = 0x0 - check OK
+}
+
+// 0x4AEC
+trackloopgetshootfromangles()
+{
+	angles = undefined;
+	angles = self gettagangles( "tag_aim" );
+/#
+	println( "no tag_aim in model " + self.model );
+#/
+	angles = self.angles;
+	return angles;
+// SP = 0x0 - check OK
+}
+
+// 0x4B4C
+shoulddebugaiming()
+{
+/#
+	ai_entnum = GetDvarInt( #"0xC8569254" );
+	return 1;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4B90
+trackloop()
+{
+	self endon( "death" );
+	self waittill( "trackLoopStart" );
+	prevyawdelta = 0;
+	prevpitchdelta = 0;
+	prevaim2 = self.a.aim_2;
+	yawdelta = 0;
+	pitchdelta = 0;
+	domaxanglecheck = 0;
+	self.shootent = self.enemy;
+	domaxanglecheck = 1;
+	firstframe = 1;
+	self.pausetrackloop = 0;
+	self thread tracklooppausethread();
+	shootfromangles = self trackloopgetshootfromangles();
+	prevshootfromyawangle = shootfromangles[1];
+	prevshootfrompitchangle = shootfromangles[0];
+/#
+	debugaiming = 0;
+	debugaiming = 1;
+#/
+	rightaimlimit = self.rightaimlimit;
+	leftaimlimit = self.leftaimlimit;
+	upaimlimit = self.upaimlimit;
+	downaimlimit = self.downaimlimit;
+	prevyawdelta = rightaimlimit;
+	prevyawdelta = leftaimlimit;
+	prevpitchdelta = upaimlimit;
+	prevpitchdelta = downaimlimit;
+	aiminganimschanged = 0;
+	aimblendtime = 0.05;
+	aiminganimschanged = 1;
+	aimblendtime = 0;
+	prevaim2 = self.a.aim_2;
+	incranimaimweight();
+	shootfrompos = self trackloopgetshootfrompos();
+	shootpos = self.shootpos;
+	shootpos = self.shootent getshootatpos();
+	shootpos = trackloopgetcqbshootpos( shootfrompos );
+	shootfromangles = self trackloopgetshootfromangles();
+	shootfromyawangle = shootfromangles[1];
+	shootfrompitchangle = shootfromangles[0];
+	shootfromyawdelta = angleclamp180( shootfromyawangle - prevshootfromyawangle );
+	shootfrompitchdelta = angleclamp180( shootfrompitchangle - prevshootfrompitchangle );
+/#
+	tempangles = ( shootfrompitchangle, self.desiredangle, shootfromangles[2] );
+	tempvector = anglestoforward( tempangles );
+	recordline( shootfrompos, shootfrompos + vector_scale( tempvector, 100 ), level.color_debug["white"], "Animscript", self );
+#/
+	desireddelta = angleclamp180( self.desiredangle - shootfromangles[1] );
+	newangledelta = min( 11 * 2, abs( desireddelta ) );
+	newangledelta *= sign( desireddelta );
+	shootfromyawangle = angleclamp180( shootfromangles[1] + newangledelta );
+	shootfromyawangle = prevshootfromyawangle + 11 * sign( shootfromyawdelta );
+	shootfrompitchangle = prevshootfrompitchangle + 11 * sign( shootfrompitchdelta );
+/#
+	recordenttext( "actualAngle: " + shootfromangles[0] + " shootFromPitchAngle: " + shootfrompitchangle + " shootFromPitchDelta: " + shootfrompitchdelta, self, level.color_debug["cyan"], "Animscript" );
+	recordenttext( "actualAngle: " + shootfromangles[1] + " shootFromYawAngle: " + shootfromyawangle + " shootFromYawDelta: " + shootfromyawdelta, self, level.color_debug["orange"], "Animscript" );
+	facingvector = anglestoforward( shootfromangles );
+	recordline( shootfrompos, shootfrompos + vector_scale( facingvector, 100 ), level.color_debug["blue"], "Animscript", self );
+#/
+	shootfromangles = ( shootfrompitchangle, shootfromyawangle, shootfromangles[2] );
+/#
+	facingvector = anglestoforward( shootfromangles );
+	recordline( shootfrompos, shootfrompos + vector_scale( facingvector, 100 ), level.color_debug["green"], "Animscript", self );
+	recordline( shootfrompos, shootpos, level.color_debug["red"], "Animscript", self );
+#/
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	yawdelta = angleclamp180( shootfromyawangle - self.node.angles[1] );
+	pitchdelta = 0;
+	likelyenemydir = self getanglestolikelyenemypath();
+	yawdelta = angleclamp180( shootfromyawangle - likelyenemydir[1] );
+	pitchdelta = angleclamp180( 360 - likelyenemydir[0] );
+	yawdelta = 0;
+	pitchdelta = 0;
+	vectortoshootpos = shootpos - shootfrompos;
+	anglestoshootpos = vectortoangles( vectortoshootpos );
+	yawdelta = shootfromyawangle - anglestoshootpos[1];
+	yawdelta = angleclamp180( yawdelta );
+	pitchdelta = shootfrompitchangle - anglestoshootpos[0];
+	pitchdelta = angleclamp180( pitchdelta );
+	yawdelta = 0;
+	pitchdelta = 0;
+	yawdelta = clamp( yawdelta, -10, 10 );
+	yawdelta = rightaimlimit;
+	yawdelta = leftaimlimit;
+	pitchdelta = upaimlimit;
+	pitchdelta = downaimlimit;
+	firstframe = 0;
+	yawdelta = 0;
+	pitchdelta = 0;
+	adjustedmaxyawdeltachange = 5 + abs( shootfromyawdelta );
+	adjustedmaxpitchdeltachange = 5 + abs( shootfrompitchdelta );
+	yawdeltachange = yawdelta - prevyawdelta;
+	yawdelta = prevyawdelta + adjustedmaxyawdeltachange * sign( yawdeltachange );
+	pitchdeltachange = pitchdelta - prevpitchdelta;
+	pitchdelta = prevpitchdelta + adjustedmaxpitchdeltachange * sign( pitchdeltachange );
+/#
+	recordenttext( "pitchDelta: " + pitchdelta, self, level.color_debug["cyan"], "Animscript" );
+	recordenttext( "yawDelta: " + yawdelta, self, level.color_debug["orange"], "Animscript" );
+#/
+	prevshootfromyawangle = shootfromyawangle;
+	prevshootfrompitchangle = shootfrompitchangle;
+	prevyawdelta = yawdelta;
+	prevpitchdelta = pitchdelta;
+/#
+	assert( yawdelta <= rightaimlimit );
+#/
+	weight = yawdelta / rightaimlimit * self.a.aimweight;
+	self setanimlimited( self.a.aim_4, 0, aimblendtime );
+	self setanimlimited( self.a.aim_6, weight, aimblendtime );
+/#
+	assert( yawdelta >= leftaimlimit );
+#/
+	weight = yawdelta / leftaimlimit * self.a.aimweight;
+	self setanimlimited( self.a.aim_6, 0, aimblendtime );
+	self setanimlimited( self.a.aim_4, weight, aimblendtime );
+/#
+	assert( pitchdelta <= upaimlimit );
+#/
+	weight = pitchdelta / upaimlimit * self.a.aimweight;
+	self setanimlimited( self.a.aim_2, 0, aimblendtime );
+	self setanimlimited( self.a.aim_8, weight, aimblendtime );
+/#
+	assert( pitchdelta >= downaimlimit );
+#/
+	weight = pitchdelta / downaimlimit * self.a.aimweight;
+	self setanimlimited( self.a.aim_8, 0, aimblendtime );
+	self setanimlimited( self.a.aim_2, weight, aimblendtime );
+	wait 0.05;
+	waittillframeend;
+	self waittill( "trackLoopStart" );
+	self.pausetrackloop = 0;
+	firstframe = 1;
+	prevyawdelta = 0;
+	prevpitchdelta = 0;
+	shootfromangles = self trackloopgetshootfromangles();
+	prevshootfromyawangle = shootfromangles[1];
+	prevshootfrompitchangle = shootfromangles[0];
+// SP = 0x0 - check OK
+}
+
+// 0x5358
+trackloopgetcqbshootpos( shootfrompos )
+{
+	shootpos = undefined;
+	selfforward = anglestoforward( self.angles );
+	shootpos = self.cqb_target getshootatpos();
+	dir = shootpos - shootfrompos;
+	vdot = vectordot( dir, selfforward );
+	shootpos = undefined;
+	shootpos = self.cqb_point_of_interest;
+	dir = shootpos - shootfrompos;
+	vdot = vectordot( dir, selfforward );
+	shootpos = undefined;
+	return shootpos;
+// SP = 0x0 - check OK
+}
+
+// 0x5434
+setanimaimweight( goalweight, goaltime )
+{
+	self.a.aimweight = goalweight;
+	self.a.aimweight_start = goalweight;
+	self.a.aimweight_end = goalweight;
+	self.a.aimweight_transframes = 0;
+	self.a.aimweight = 0;
+	self.a.aimweight_start = self.a.aimweight;
+	self.a.aimweight_end = goalweight;
+	self.a.aimweight_transframes = int( goaltime * 20 );
+	self.a.aimweight_t = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x54D4
+incranimaimweight()
+{
+	self.a.aimweight_t++;
+	t = 1 * self.a.aimweight_t / self.a.aimweight_transframes;
+	self.a.aimweight = self.a.aimweight_start * ( 1 - t ) + self.a.aimweight_end * t;
+// SP = 0x0 - check OK
+}
+
+// 0x553C
+decidenumshotsforburst()
+{
+	numshots = 0;
+	numshots = anim.semifirenumshots[randomint( anim.semifirenumshots.size )];
+	numshots = anim.fastburstfirenumshots[randomint( anim.fastburstfirenumshots.size )];
+	numshots = anim.burstfirenumshots[randomint( anim.burstfirenumshots.size )];
+	return numshots;
+/#
+	assert( self.bulletsinclip >= 0, self.bulletsinclip );
+#/
+	return 1;
+	return self.bulletsinclip;
+// SP = 0x0 - check OK
+}
+
+// 0x55E8
+decidenumshotsforfull()
+{
+	numshots = self.bulletsinclip;
+	choice = randomfloat( 10 );
+	numshots = randomintrange( 2, 6 );
+	numshots = randomintrange( 6, 12 );
+	numshots = randomintrange( 12, 20 );
+	return numshots;
+// SP = 0x0 - check OK
+}
+
+// 0x5660
+handledropclip( flagname )
+{
+	self endon( "killanimscript" );
+	self endon( "abort_reload" );
+	return;
+	clipmodel = undefined;
+	clipmodel = getweaponclipmodel( self.weapon );
+	self hidepart( "tag_clip" );
+	self thread dropclipmodel( clipmodel, "tag_clip" );
+	self.weaponinfo[self.weapon].hasclip = 0;
+	self thread resetcliponabort( clipmodel );
+	self waittill( flagname, notetrack );
+	switch ( notetrack )
+	{
+		case "attach clip left":
+		case "attach clip right":
+			self attach( clipmodel, "tag_inhand" );
+			self hidepart( "tag_clip" );
+			self.a.reloadclipinhand = 1;
+			self thread resetcliponabort( clipmodel, "tag_inhand" );
+			self animscripts\weaponlist::refillclip();
+			break;
+		case "detach clip left":
+		case "detach clip right":
+			self.a.reloadclipinhand = 0;
+			self detach( clipmodel, "tag_inhand" );
+			self showpart( "tag_clip" );
+			self notify( "clip_detached" );
+			self.weaponinfo[self.weapon].hasclip = 1;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x57EC
+resetcliponabort( clipmodel, currenttag )
+{
+	self notify( "clip_detached" );
+	self endon( "clip_detached" );
+	self waittill_any( "killanimscript", "abort_reload" );
+	return;
+	self.a.reloadclipinhand = 0;
+	self detach( clipmodel, currenttag );
+	self showpart( "tag_clip" );
+	self.weaponinfo[self.weapon].hasclip = 1;
+	dropclipmodel( clipmodel, currenttag );
+// SP = 0x0 - check OK
+}
+
+// 0x5880
+dropclipmodel( clipmodel, tagname )
+{
+	return;
+	origin = self gettagorigin( tagname );
+	angles = self gettagangles( tagname );
+	dir = anglestoup( ( 0, 0, angles[2] ) ) * -1;
+	createdynentandlaunch( clipmodel, origin, angles, origin + vector_scale( ( 0, 0, -1 ), 70 ), dir );
+// SP = 0x0 - check OK
+}
+
+// 0x58E4
+movetooriginovertime( origin, time )
+{
+	self endon( "killanimscript" );
+	distsq = distancesquared( self.origin, origin );
+	dist = distance( self.origin, origin );
+/#
+	println( "^1Warning: AI starting behavior for node at " + origin + " but could not move to that point. dist  = " + dist );
+#/
+	return;
+	self.keepclaimednodeifvalid = 1;
+	offset = self.origin - origin;
+	frames = int( time * 20 );
+	offsetreduction = vector_scale( offset, 1 / frames );
+	i = 0;
+	offset -= offsetreduction;
+	self teleport( origin + offset );
+	wait 0.05;
+	i++;
+	self.keepclaimednodeifvalid = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x59C4
+returntrue()
+{
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x59CC
+playlookanimation( lookanim, looktime, canstopcallback )
+{
+	canstopcallback = ::returntrue;
+	i = 0;
+	return;
+	return;
+	self setanimknoball( lookanim, %body, 1, 0.1 );
+	wait 0.1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5A68
+getsecondaryweapon()
+{
+	return self.secondaryweapon;
+	return self.primaryweapon;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x5AD8
+hassecondaryweapon()
+{
+	weapon = getsecondaryweapon();
+	return weapon != "none";
+// SP = 0x0 - check OK
+}
+
+// 0x5AFC
+shouldthrowdownweapon()
+{
+	return 0;
+/#
+	return 1;
+#/
+	return 0;
+	return 0;
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5B98
+throwdownweapon()
+{
+	self endon( "killanimscript" );
+	swapanim = animarray( "throw_down_weapon" );
+	return;
+	self thread throwdownweaponfallback();
+/#
+	self animscripts\debug::debugpushstate( "throwdownWeapon" );
+#/
+	self animmode( "angle deltas" );
+	self setflaggedanimknoballrestart( "weapon swap", swapanim, %body, 1, 0.1, 1 );
+	note = "";
+	self waittill( "weapon swap", note );
+	dropaiweapon();
+/#
+	assert( hassecondaryweapon(), "self.secondaryweapon not defined! check the aitype for this actor. " );
+#/
+	self animscripts\shared::placeweaponon( self.secondaryweapon, "right" );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self notify( "throw_down_weapon_done" );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5CD0
+throwdownweaponfallback()
+{
+	self endon( "throw_down_weapon_done" );
+	self waittill( "killanimscript" );
+	self animscripts\shared::placeweaponon( self.secondaryweapon, "right" );
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5D04
+shouldswitchweapons()
+{
+	return 0;
+	return 0;
+	return 0;
+/#
+	assert( hassecondaryweapon(), "self.secondaryweapon not defined! check the aitype for this actor. " );
+#/
+	self.a.weapon_switch_asap = 0;
+	return 1;
+	return 0;
+	return 0;
+	curweaponclass = weaponanims();
+	return 1;
+	return 1;
+/#
+	return 1;
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5DE4
+shouldswitchweaponfordistance()
+{
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	shoulduseweapon = undefined;
+/#
+#/
+/#
+	assert( IsDefined( self.primaryweapon_fightdist_minsq ) );
+#/
+/#
+	assert( IsDefined( self.secondaryweapon_fightdist_minsq ) );
+#/
+	withinprimaryrange = distsqtoshootpos < self.primaryweapon_fightdist_maxsq;
+	withinsecondaryrange = distsqtoshootpos < self.secondaryweapon_fightdist_maxsq;
+/#
+	println( "getweaponaccuracy for:" + self.primaryweapon );
+#/
+	primaryweapon_accuracy = getweaponaccuracy( self, self.primaryweapon );
+/#
+	println( "getweaponaccuracy for:" + self.secondaryweapon );
+#/
+	secondaryweapon_accuracy = getweaponaccuracy( self, self.secondaryweapon );
+	shoulduseweapon = self.primaryweapon;
+	shoulduseweapon = self.secondaryweapon;
+	shoulduseweapon = self.weapon;
+	shoulduseweapon = self.primaryweapon;
+	shoulduseweapon = self.secondaryweapon;
+/#
+	assert( IsDefined( shoulduseweapon ) );
+#/
+	self.a.weapon_switch_for_distance_time = GetTime() + randomfloatrange( 2, 4 ) * 1000;
+	return 0;
+	return 1;
+	self.a.weapon_switch_for_distance_time = -1;
+	return 0;
+	self.a.weapon_switch_for_distance_time = -1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5FA0
+isexposed()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6030
+getweaponswitchanim()
+{
+	animname = "weapon_switch";
+	animname = "weapon_switch_cover";
+	animname = "weapon_switch_quadrants_cover";
+	animname = "weapon_putaway_cover";
+	animname = "weapon_switch_quadrants";
+	animname = "weapon_putaway";
+	return animarraypickrandom( animname );
+	return animarray( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x60E4
+getweaponpulloutanim()
+{
+	animname = "weapon_pullout";
+	animname = "weapon_pullout_cover";
+/#
+	assert( animarrayexist( animname ) );
+#/
+	return animarraypickrandom( animname );
+	return animarray( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x6150
+switchweapons()
+{
+	swapanim = getweaponswitchanim();
+	return;
+/#
+	self animscripts\debug::debugpushstate( "switchWeapons" );
+#/
+	self animmode( "angle deltas" );
+	self setflaggedanimknoballrestart( "weapon swap", swapanim, %body, 1, 0.1, 1 );
+	self donotetracks( "weapon swap" );
+	pulloutanim = getweaponpulloutanim();
+	self setflaggedanimknoballrestart( "weapon swap", pulloutanim, %body, 1, 0.1, 1 );
+	self donotetracks( "weapon swap" );
+	self clearanim( %weapon_switch, 0.2 );
+	self.a.weapon_switch_time = GetTime();
+	self.a.weapon_switch_for_distance_time = -1;
+	self notify( "weapon_switched" );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6268
+isenemyinexplodablevolume()
+{
+	return 0;
+	i = 0;
+	return 1;
+	i++;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x62F8
+isenemyvulnerablebyrpg()
+{
+	isbigdog = self.enemy.isbigdog;
+	isasd = issubstr( self.enemy.vehicletype, "metalstorm" );
+	issentryturret = issubstr( self.enemy.vehicletype, "turret_sentry" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6384
+shouldswitchweaponforsituation()
+{
+	self endon( "death" );
+	secondaryweaponclass = weaponclass( self getsecondaryweapon() );
+	favorrpgagainstenemy = isenemyvulnerablebyrpg();
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x63FC
+setaiminganims( aim_2, aim_4, aim_6, aim_8 )
+{
+/#
+	assert( IsDefined( aim_2 ) );
+#/
+/#
+	assert( IsDefined( aim_4 ) );
+#/
+/#
+	assert( IsDefined( aim_6 ) );
+#/
+/#
+	assert( IsDefined( aim_8 ) );
+#/
+	self.a.aim_2 = aim_2;
+	self.a.aim_4 = aim_4;
+	self.a.aim_6 = aim_6;
+	self.a.aim_8 = aim_8;
+// SP = 0x0 - check OK
+}
+
+// 0x647C
+updatelaserstatus( toggle, skipaimcheck )
+{
+	self.a.laseron = 1;
+	self.a.laseron = 0;
+	isaimingatenemy = animscripts\combat_utility::aimedatshootentorpos();
+	self laseron();
+	self laseroff();
+// SP = 0x0 - check OK
+}
+
+// 0x6500
+canuselaser()
+{
+	return 0;
+	return;
+	return 0;
+	return isalive( self );
+// SP = 0x0 - check OK
+}

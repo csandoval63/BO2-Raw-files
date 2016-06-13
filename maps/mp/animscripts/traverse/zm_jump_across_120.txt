@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_jump_across_120.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xF4
+main()
+{
+	dosimpletraverse( "jump_across_120" );
+// SP = 0x0 - check OK
+}

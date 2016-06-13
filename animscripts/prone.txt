@@ -1,0 +1,200 @@
+// animscripts/prone.gsc
+
+#include animscripts\weaponlist;
+#include animscripts\face;
+#include animscripts\shared;
+#include animscripts\combat;
+#include animscripts\setposemovement;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include maps\_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x774
+pronerangecombat( changereason )
+{
+	self trackscriptstate( "ProneRangeCombat", changereason );
+	self endon( "killanimscript" );
+/#
+	assert( IsDefined( changereason ), "Script state called without reason." );
+#/
+	self thread proneturningthread( ::pronecombatthread, "kill ProneRangeCombat" );
+	timer = GetTime();
+	self waittill( "kill ProneRangeCombat" );
+	wait 0.05;
+	self thread animscripts\combat::main();
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+set3flaggedanimknobs( animflag, animarray, weight, blendtime, rate )
+{
+	self setanimknob( animarray["left"], weight, blendtime, rate );
+	self setflaggedanimknob( animflag, animarray["middle"], weight, blendtime, rate );
+	self setanimknob( animarray["right"], weight, blendtime, rate );
+// SP = 0x0 - check OK
+}
+
+// 0x838
+proneturningthread( threadtospawn, killmestring )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( killmestring );
+	self.a.usingproneleftandright = 0;
+	self thread [[threadtospawn]]( "kill ProneTurningThread children" );
+	self orientmode( "face default" );
+	self orientmode( "face enemy" );
+	attackyaw = self.angles[1];
+	pos = getenemysightpos();
+	attackyaw = vectortoangles( pos - self.origin )[1];
+	yawdelta = self.angles[1] - attackyaw;
+	yawdelta = int( yawdelta + 360 ) % 360;
+	yawdelta -= 360;
+	amount = yawdelta / 45;
+	amount = 0.01;
+	amount = 0.99;
+	self setanimknob( %prone_straight, 1 - amount, 0.1, 1 );
+	self setanim( %prone_right45, amount, 0.1, 1 );
+	self setanim( %prone_left45, 0.01, 0.1, 1 );
+	self notify( "kill ProneTurningThread children" );
+	self setflaggedanimknobrestart( "turn anim", %prone_turn_right, 1, 0.1, 1 );
+	self animscripts\shared::donotetracks( "turn anim" );
+	self updateprone( %prone_shootfeet_straight45up, %prone_shootfeet_straight45down, 1, 0.1, 1 );
+	self thread [[threadtospawn]]( "kill ProneTurningThread children" );
+	amount = yawdelta / -45;
+	amount = 0.01;
+	amount = 0.99;
+	self setanimknob( %prone_straight, 1 - amount, 0.1, 1 );
+	self setanim( %prone_left45, amount, 0.1, 1 );
+	self setanim( %prone_right45, 0.01, 0.1, 1 );
+	self notify( "kill ProneTurningThread children" );
+	self setflaggedanimknobrestart( "turn anim", %prone_turn_left, 1, 0.1, 1 );
+	self animscripts\shared::donotetracks( "turn anim" );
+	self updateprone( %prone_shootfeet_straight45up, %prone_shootfeet_straight45down, 1, 0.1, 1 );
+	self thread [[threadtospawn]]( "kill ProneTurningThread children" );
+	self thread waitfornotify( "Update prone aim", "Prone aim done waiting", "Prone aim done waiting" );
+	self thread waitfortime( 0.3, "Prone aim done waiting", "Prone aim done waiting" );
+	waittillframeend;
+	self waittill( "Prone aim done waiting" );
+	lookforbettercover();
+// SP = 0x0 - check OK
+}
+
+// 0xB9C
+pronecombatthread( killmestring )
+{
+	self endon( "killanimscript" );
+	self endon( killmestring );
+	wait 0;
+	self notify( "kill ProneRangeCombat" );
+	isprone = self.a.pose == "prone";
+	canshootfromprone = animscripts\utility::canshootenemyfrompose( "prone", undefined, !(isprone) );
+	cangoprone = cangopronehere( self.origin, self.angles[1] );
+	self notify( "kill ProneRangeCombat" );
+	proneshootvolley();
+	reload( 0 );
+	reload( 0.999 );
+	wait 0.05;
+	self.enemydistancesq = self getclosestenemysqdist();
+	self notify( "kill ProneRangeCombat" );
+	scriptchange();
+// SP = 0x0 - check OK
+}
+
+// 0xC98
+waitfornotify( waitforstring, notifystring, killmestring )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( killmestring );
+	self waittill( waitforstring );
+	self notify( notifystring );
+// SP = 0x0 - check OK
+}
+
+// 0xCC0
+waitfortime( time, notifystring, killmestring )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( killmestring );
+	wait time;
+	self notify( notifystring );
+// SP = 0x0 - check OK
+}
+
+// 0xCE8
+candopronecombat( origin, yaw )
+{
+	return 0;
+	return 0;
+	return 0;
+	canshootprone = animscripts\utility::canshootenemyfrompose( "prone" );
+	return 0;
+	return cangopronehere( origin, yaw );
+// SP = 0x0 - check OK
+}
+
+// 0xD54
+cangopronehere( origin, yaw )
+{
+	alreadyprone = self.a.pose == "prone";
+	canfitprone = self checkprone( origin, yaw, alreadyprone );
+	return canfitprone;
+// SP = 0x0 - check OK
+}
+
+// 0xD88
+proneshootvolley()
+{
+	self setposemovement( "prone", "stop" );
+	shootanims["middle"] = %prone_shoot_straight;
+	shootanims["left"] = %prone_shoot_left;
+	shootanims["right"] = %prone_shoot_right;
+	autoshootanims["middle"] = %prone_shoot_auto_straight;
+	autoshootanims["left"] = %prone_shoot_auto_left;
+	autoshootanims["right"] = %prone_shoot_auto_right;
+	self animscripts\face::setidleface( anim.aimface );
+	self.a.usingproneleftandright = 1;
+	self notify( "Update prone aim" );
+	self setanimknob( %prone, 1, 0.15, 1 );
+	rand = randomfloat( 1 );
+	self set3flaggedanimknobs( "shootanim", shootanims, 1, 0.15, 0 );
+	wait rand;
+	self updateplayersightaccuracy();
+	self animscripts\face::setidleface( anim.autofireface );
+	self set3flaggedanimknobs( "shootanim", autoshootanims, 1, 0.15, 0 );
+	wait 0.2;
+	animrate = animscripts\weaponlist::autoshootanimrate();
+	self set3flaggedanimknobs( "shootanim", autoshootanims, 1, 0.05, animrate );
+	rand = randomint( 8 ) + 6;
+	i = 0;
+	self waittillmatch( "shootanim" );
+	return "fire";
+	self shootenemywrapper();
+	self decrementbulletsinclip();
+	i++;
+	self set3flaggedanimknobs( "shootanim", shootanims, 1, 0.2, 0 );
+	wait 0.2;
+	rand = randomint( 3 ) + 2;
+	i = 0;
+	self set3flaggedanimknobs( "shootanim", shootanims, 1, 0, 1 );
+	self shootenemywrapper();
+	self decrementbulletsinclip();
+	shoottime = animscripts\weaponlist::shootanimtime();
+	quicktime = animscripts\weaponlist::waitaftershot();
+	wait quicktime;
+	wait shoottime - quicktime;
+	i++;
+	self.a.usingproneleftandright = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xFE8
+end_script()
+{
+// SP = 0x0 - check OK
+}

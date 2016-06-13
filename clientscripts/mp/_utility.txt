@@ -1,0 +1,847 @@
+// clientscripts/mp/_utility.csc
+
+#include clientscripts\mp\_utility_code;
+
+
+// 0xDE0
+error( message )
+{
+/#
+	println( "^c * ERROR * ", message );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE04
+getstruct( name, type )
+{
+	return undefined;
+	array = level.struct_class_names[type][name];
+/#
+	println( "**** Getstruct returns undefined on " + name + " : " + " type." );
+#/
+	return undefined;
+/#
+	assertmsg( "getstruct used for more than one struct of type " + type + " called " + name + "." );
+#/
+	return undefined;
+	return array[0];
+// SP = 0x0 - check OK
+}
+
+// 0xE7C
+getstructarray( name, type )
+{
+/#
+	assert( IsDefined( level.struct_class_names ), "Tried to getstruct before the structs were init" );
+#/
+	array = level.struct_class_names[type][name];
+	return [];
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0xEBC
+play_sound_in_space( localclientnum, alias, origin )
+{
+	playsound( localclientnum, alias, origin );
+// SP = 0x0 - check OK
+}
+
+// 0xEDC
+vector_compare( vec1, vec2 )
+{
+	return abs( vec1[2] - vec2[2] ) < 0.001;
+// SP = 0x0 - check OK
+}
+
+// 0xF2C
+array_func( entities, func, arg1, arg2, arg3, arg4, arg5 )
+{
+	return;
+	keys = getarraykeys( entities );
+	i = 0;
+	single_func( entities[keys[i]], func, arg1, arg2, arg3, arg4, arg5 );
+	i++;
+	single_func( entities, func, arg1, arg2, arg3, arg4, arg5 );
+// SP = 0x0 - check OK
+}
+
+// 0xFBC
+single_func( entity, func, arg1, arg2, arg3, arg4, arg5 )
+{
+	entity [[func]]( arg1, arg2, arg3, arg4, arg5 );
+	entity [[func]]( arg1, arg2, arg3, arg4 );
+	entity [[func]]( arg1, arg2, arg3 );
+	entity [[func]]( arg1, arg2 );
+	entity [[func]]( arg1 );
+	entity [[func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x1054
+array_thread( entities, func, arg1, arg2, arg3, arg4, arg5 )
+{
+	return;
+	keys = getarraykeys( entities );
+	i = 0;
+	single_thread( entities[keys[i]], func, arg1, arg2, arg3, arg4, arg5 );
+	i++;
+	single_thread( entities, func, arg1, arg2, arg3, arg4, arg5 );
+// SP = 0x0 - check OK
+}
+
+// 0x10E4
+single_thread( entity, func, arg1, arg2, arg3, arg4, arg5 )
+{
+	entity thread [[func]]( arg1, arg2, arg3, arg4, arg5 );
+	entity thread [[func]]( arg1, arg2, arg3, arg4 );
+	entity thread [[func]]( arg1, arg2, arg3 );
+	entity thread [[func]]( arg1, arg2 );
+	entity thread [[func]]( arg1 );
+	entity thread [[func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x117C
+registersystem( ssysname, cbfunc )
+{
+	level._systemstates = [];
+/#
+	error( "Max num client systems exceeded." );
+#/
+	return;
+/#
+	error( "Attempt to re-register client system : " + ssysname );
+#/
+	return;
+	level._systemstates[ssysname] = spawnstruct();
+	level._systemstates[ssysname].callback = cbfunc;
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+loop_sound_delete( ender, entid )
+{
+	self waittill( ender );
+	deletefakeent( 0, entid );
+// SP = 0x0 - check OK
+}
+
+// 0x1218
+loop_fx_sound( clientnum, alias, origin, ender )
+{
+	entid = spawnfakeent( clientnum );
+	thread loop_sound_delete( ender, entid );
+	self endon( ender );
+	setfakeentorg( clientnum, entid, origin );
+	playloopsound( clientnum, entid, alias );
+// SP = 0x0 - check OK
+}
+
+// 0x1274
+waitforallclients()
+{
+	localclient = 0;
+	wait 0.01;
+	waitforclient( localclient );
+	localclient++;
+// SP = 0x0 - check OK
+}
+
+// 0x12C0
+waitforclient( client )
+{
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x12E8
+waittill_string( msg, ent )
+{
+	self endon( "death" );
+	ent endon( "die" );
+	self waittill( msg );
+	ent notify( "returned", msg );
+// SP = 0x0 - check OK
+}
+
+// 0x1318
+waittill_dobj( localclientnum )
+{
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x1344
+waittill_any_return( string1, string2, string3, string4, string5, string6 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	self thread waittill_string( string1, ent );
+	self thread waittill_string( string2, ent );
+	self thread waittill_string( string3, ent );
+	self thread waittill_string( string4, ent );
+	self thread waittill_string( string5, ent );
+	self thread waittill_string( string6, ent );
+	ent waittill( "returned", msg );
+	ent notify( "die" );
+	return msg;
+// SP = 0x0 - check OK
+}
+
+// 0x1464
+waittill_any( string1, string2, string3, string4, string5 )
+{
+/#
+	assert( IsDefined( string1 ) );
+#/
+	self endon( string2 );
+	self endon( string3 );
+	self endon( string4 );
+	self endon( string5 );
+	self waittill( string1 );
+// SP = 0x0 - check OK
+}
+
+// 0x14B4
+within_fov( start_origin, start_angles, end_origin, fov )
+{
+	normal = vectornormalize( end_origin - start_origin );
+	forward = anglestoforward( start_angles );
+	dot = vectordot( forward, normal );
+	return dot >= fov;
+// SP = 0x0 - check OK
+}
+
+// 0x14F4
+array( a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z )
+{
+	array = [];
+	array[0] = a;
+	return array;
+	array[1] = b;
+	return array;
+	array[2] = c;
+	return array;
+	array[3] = d;
+	return array;
+	array[4] = e;
+	return array;
+	array[5] = f;
+	return array;
+	array[6] = g;
+	return array;
+	array[7] = h;
+	return array;
+	array[8] = i;
+	return array;
+	array[9] = j;
+	return array;
+	array[10] = k;
+	return array;
+	array[11] = l;
+	return array;
+	array[12] = m;
+	return array;
+	array[13] = n;
+	return array;
+	array[14] = o;
+	return array;
+	array[15] = p;
+	return array;
+	array[16] = q;
+	return array;
+	array[17] = r;
+	return array;
+	array[18] = s;
+	return array;
+	array[19] = t;
+	return array;
+	array[20] = u;
+	return array;
+	array[21] = v;
+	return array;
+	array[22] = w;
+	return array;
+	array[23] = x;
+	return array;
+	array[24] = y;
+	return array;
+	array[25] = z;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x176C
+add_to_array( array, ent, allow_dupes )
+{
+	return array;
+	allow_dupes = 1;
+	array[0] = ent;
+	array[array.size] = ent;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x17C0
+array_delete( array )
+{
+	i = 0;
+	array[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x17F0
+array_randomize( array )
+{
+	i = 0;
+	j = randomint( array.size );
+	temp = array[i];
+	array[i] = array[j];
+	array[j] = temp;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1840
+array_reverse( array )
+{
+	array2 = [];
+	i = array.size - 1;
+	array2[array2.size] = array[i];
+	i--;
+	return array2;
+// SP = 0x0 - check OK
+}
+
+// 0x1878
+array_exclude( array, arrayexclude )
+{
+	newarray = arraycopy( array );
+	i = 0;
+	arrayremovevalue( newarray, arrayexclude[i] );
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x18BC
+array_notify( ents, notifier )
+{
+	i = 0;
+	ents[i] notify( notifier );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x18E8
+array_wait( array, msg, timeout )
+{
+	keys = getarraykeys( array );
+	structs = [];
+	i = 0;
+	key = keys[i];
+	structs[key] = spawnstruct();
+	structs[key]._array_wait = 1;
+	structs[key] thread array_waitlogic1( array[key], msg, timeout );
+	i++;
+	i = 0;
+	key = keys[i];
+	structs[key] waittill( "_array_wait" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x19A0
+array_waitlogic1( ent, msg, timeout )
+{
+	self array_waitlogic2( ent, msg, timeout );
+	self._array_wait = 0;
+	self notify( "_array_wait" );
+// SP = 0x0 - check OK
+}
+
+// 0x19CC
+array_waitlogic2( ent, msg, timeout )
+{
+	ent endon( msg );
+	ent endon( "death" );
+	wait timeout;
+	ent waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x19F8
+array_check_for_dupes( array, single )
+{
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1A2C
+array_swap( array, index1, index2 )
+{
+/#
+	assert( index1 < array.size, "index1 to swap out of range" );
+#/
+/#
+	assert( index2 < array.size, "index2 to swap out of range" );
+#/
+	temp = array[index1];
+	array[index1] = array[index2];
+	array[index2] = temp;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1A84
+random( array )
+{
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x1A9C
+add_trigger_to_ent( ent, trig )
+{
+	ent._triggers = [];
+	ent._triggers[trig getentitynumber()] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1AD0
+remove_trigger_from_ent( ent, trig )
+{
+	return;
+	return;
+	ent._triggers[trig getentitynumber()] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1B14
+ent_already_in_trigger( trig )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1B58
+trigger_thread( ent, on_enter_payload, on_exit_payload )
+{
+	ent endon( "entityshutdown" );
+	return;
+	add_trigger_to_ent( ent, self );
+	[[on_enter_payload]]( ent );
+	wait 0.01;
+	[[on_exit_payload]]( ent );
+	remove_trigger_from_ent( ent, self );
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+local_player_trigger_thread_always_exit( ent, on_enter_payload, on_exit_payload )
+{
+	return;
+	add_trigger_to_ent( ent, self );
+	[[on_enter_payload]]( ent );
+	wait 0.01;
+	[[on_exit_payload]]( ent );
+	remove_trigger_from_ent( ent, self );
+// SP = 0x0 - check OK
+}
+
+// 0x1C6C
+friendnotfoe( localclientindex )
+{
+	player = getlocalplayer( localclientindex );
+	player = getnonpredictedlocalplayer( localclientindex );
+	team = player.team;
+	owner = self getowner( localclientindex );
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1D04
+watchforplayerrespawnforteambasedfx( localclientnum, entity, startfxfunc, fxhandle, optarg1 )
+{
+	entity endon( "entityshutdown" );
+	entity endon( "teamBased_fx_reinitialized" );
+	level waittill( "respawn", clientnum );
+	stopfx( localclientnum, fxhandle );
+	waittillframeend;
+	entity thread [[startfxfunc]]( localclientnum, optarg1 );
+	entity thread [[startfxfunc]]( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1D78
+waittillsnapprocessed( localclientindex )
+{
+	level waittill( "snap_processed", snapshotlocalclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1DA4
+local_player_entity_thread( localclientnum, entity, func, arg1, arg2, arg3, arg4 )
+{
+	entity endon( "entityshutdown" );
+	entity waittill_dobj( localclientnum );
+	single_thread( entity, func, localclientnum, arg1, arg2, arg3, arg4 );
+// SP = 0x0 - check OK
+}
+
+// 0x1DE8
+local_players_entity_thread( entity, func, arg1, arg2, arg3, arg4 )
+{
+	players = level.localplayers;
+	i = 0;
+	players[i] thread local_player_entity_thread( i, entity, func, arg1, arg2, arg3, arg4 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1E38
+is_true( check )
+{
+	return check;
+// SP = 0x0 - check OK
+}
+
+// 0x1E4C
+is_false( check )
+{
+	return !(check);
+// SP = 0x0 - check OK
+}
+
+// 0x1E60
+getdvarfloatdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return float( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x1E8C
+getdvarintdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return int( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x1EB8
+debug_line( from, to, color, time )
+{
+/#
+	level.debug_line = getdvarintdefault( "scr_debug_line", 0 );
+	time = 1000;
+	line( from, to, color, 1, 1, time );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F18
+debug_star( origin, color, time )
+{
+/#
+	level.debug_star = getdvarintdefault( "scr_debug_star", 0 );
+	time = 1000;
+	color = ( 1, 1, 1 );
+	debugstar( origin, time, color );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F7C
+initutility()
+{
+	level.isdemoplaying = isdemoplaying();
+	level.localplayers = [];
+	level.numgametypereservedobjectives = [];
+	level.releasedobjectives = [];
+	maxlocalclients = getmaxlocalclients();
+	localclientnum = 0;
+	level.releasedobjectives[localclientnum] = [];
+	level.numgametypereservedobjectives[localclientnum] = 0;
+	localclientnum++;
+	waitforclient( 0 );
+	level.localplayers = getlocalplayers();
+// SP = 0x0 - check OK
+}
+
+// 0x1FF4
+servertime()
+{
+	level.servertime = getservertime( 0 );
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x2018
+serverwait( localclientnum, seconds, waitbetweenchecks, level_endon )
+{
+	level endon( level_endon );
+	waitbetweenchecks = 0.2;
+	waitcompletedsuccessfully = 0;
+	starttime = level.servertime;
+	lasttime = starttime;
+	endtime = starttime + seconds * 1000;
+	lasttime = level.servertime;
+	wait waitbetweenchecks;
+	waitcompletedsuccessfully = 1;
+	realwait( seconds );
+	waitcompletedsuccessfully = 1;
+	return waitcompletedsuccessfully;
+// SP = 0x0 - check OK
+}
+
+// 0x20B8
+isplayerviewlinkedtoentity( localclientnum )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x20E8
+getexploderid( ent )
+{
+	level._exploder_ids = [];
+	level._exploder_id = 1;
+	level._exploder_ids[ent.v["exploder"]] = level._exploder_id;
+	level._exploder_id++;
+	return level._exploder_ids[ent.v["exploder"]];
+// SP = 0x0 - check OK
+}
+
+// 0x2148
+getclientfield( field_name )
+{
+	return codegetworldclientfield( field_name );
+	return codegetclientfield( self, field_name );
+// SP = 0x0 - check OK
+}
+
+// 0x2174
+getclientfieldtoplayer( field_name )
+{
+	return codegetplayerstateclientfield( self, field_name );
+// SP = 0x0 - check OK
+}
+
+// 0x218C
+isgrenadelauncherweapon( weapon )
+{
+	return 1;
+	switch ( weapon )
+	{
+		case "china_lake_mp":
+		case "xm25_mp":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x21DC
+isdumbrocketlauncherweapon( weapon )
+{
+	switch ( weapon )
+	{
+		case "ai_tank_drone_rocket_mp":
+		case "m220_tow_mp":
+		case "rpg_mp":
+		case "smaw_mp":
+		case "usrpg_mp":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x222C
+isguidedrocketlauncherweapon( weapon )
+{
+	switch ( weapon )
+	{
+		case "fhj18_mp":
+		case "javelin_mp":
+		case "m202_flash_mp":
+		case "m72_law_mp":
+		case "smaw_mp":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x227C
+isrocketlauncherweapon( weapon )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x22AC
+islauncherweapon( weapon )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x22DC
+getnextobjid( localclientnum )
+{
+	nextid = 0;
+	nextid = level.releasedobjectives[localclientnum][level.releasedobjectives[localclientnum].size - 1];
+	level.releasedobjectives[localclientnum][level.releasedobjectives[localclientnum].size - 1] = undefined;
+	nextid = level.numgametypereservedobjectives[localclientnum];
+	level.numgametypereservedobjectives[localclientnum]++;
+/#
+	println( "^3SCRIPT WARNING: Ran out of objective IDs" );
+/#
+	assert( nextid < 32 );
+#/
+#/
+	nextid = 31;
+	return nextid;
+// SP = 0x0 - check OK
+}
+
+// 0x2374
+releaseobjid( localclientnum, objid )
+{
+/#
+	assert( objid < level.numgametypereservedobjectives[localclientnum] );
+#/
+	i = 0;
+	return;
+/#
+/#
+	assert( objid != level.releasedobjectives[localclientnum][i] );
+#/
+#/
+	i++;
+	level.releasedobjectives[localclientnum][level.releasedobjectives[localclientnum].size] = objid;
+// SP = 0x0 - check OK
+}
+
+// 0x2400
+clamp( val, val_min, val_max )
+{
+	val = val_min;
+	val = val_max;
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x242C
+newtimer()
+{
+	s_timer = spawnstruct();
+	s_timer.n_time_created = GetTime();
+	return s_timer;
+// SP = 0x0 - check OK
+}
+
+// 0x244C
+timergettime()
+{
+	t_now = GetTime();
+	return t_now - self.n_time_created;
+// SP = 0x0 - check OK
+}
+
+// 0x2460
+timergettimeseconds()
+{
+	return timergettime() / 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x2474
+timerwait( n_wait )
+{
+	wait n_wait;
+	return timergettimeseconds();
+// SP = 0x0 - check OK
+}
+
+// 0x248C
+lerpdvar( str_dvar, n_val, n_lerp_time, b_saved_dvar )
+{
+	n_start_val = GetDvarFloat( str_dvar );
+	s_timer = newtimer();
+	n_time_delta = s_timer timerwait( 0.05 );
+	n_curr_val = lerpfloat( n_start_val, n_val, n_time_delta / n_lerp_time );
+	setsaveddvar( str_dvar, n_curr_val );
+	setdvar( str_dvar, n_curr_val );
+// SP = 0x0 - check OK
+}
+
+// 0x2510
+newservertimer()
+{
+	s_timer = spawnstruct();
+	s_timer.n_time_created = level.servertime;
+	return s_timer;
+// SP = 0x0 - check OK
+}
+
+// 0x2534
+timerservergettime()
+{
+	t_now = level.servertime;
+	return t_now - self.n_time_created;
+// SP = 0x0 - check OK
+}
+
+// 0x254C
+timerservergettimeseconds()
+{
+	return level.servertime / 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x255C
+servertimerwait( localclientnum, n_wait )
+{
+	serverwait( localclientnum, n_wait );
+	return timerservergettimeseconds();
+// SP = 0x0 - check OK
+}
+
+// 0x2580
+serverlerpdvar( localclientnum, str_dvar, n_val, n_lerp_time, b_saved_dvar )
+{
+	n_start_val = GetDvarFloat( str_dvar );
+	s_timer = newtimer();
+	n_time_delta = s_timer servertimerwait( localclientnum, 0.05 );
+	n_curr_val = lerpfloat( n_start_val, n_val, n_time_delta / n_lerp_time );
+	setsaveddvar( str_dvar, n_curr_val );
+	setdvar( str_dvar, n_curr_val );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,91 @@
+// clientscripts/mp/_missile_drone.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "mp_missile_drone" );
+
+
+// 0x404
+init( localclientnum )
+{
+	level._effect["missile_drone_enemy_light"] = loadfx( "weapon/missile/fx_missile_drone_light_red" );
+	level._effect["missile_drone_friendly_light"] = loadfx( "weapon/missile/fx_missile_drone_light_red" );
+	registerclientfield( "toplayer", "missile_drone_active", 1, 2, "int", ::missile_drone_active_cb, 0 );
+	registerclientfield( "missile", "missile_drone_projectile_active", 1, 1, "int", ::missile_drone_projectile_active_cb, 0 );
+	registerclientfield( "missile", "missile_drone_projectile_animate", 1, 1, "int", ::missile_drone_projectile_animate_cb, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x49C
+missile_drone_projectile_animate_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "entityshutdown" );
+	self endon( "death" );
+	wait 0.1;
+	self waittill_dobj( localclientnum );
+	self useanimtree( -1 );
+	self setanim( %o_drone_hunter_launch, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x50C
+missile_drone_projectile_active_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self thread clientscripts\mp\_fx::blinky_light( localclientnum, "tag_target", level._effect["missile_drone_friendly_light"], level._effect["missile_drone_enemy_light"] );
+	self thread clientscripts\mp\_fx::stop_blinky_light( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x55C
+missile_drone_active_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self targetacquired( localclientnum );
+	self targetscan( localclientnum );
+	self targetlost( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x5B0
+targetlost( localclientnum )
+{
+	self notify( "targetLost" );
+	stopfx( localclientnum, self.missile_drone_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x5D8
+targetacquired( localclientnum )
+{
+	self endon( "disconnect" );
+	self endon( "targetLost" );
+	self endon( "targetScanning" );
+	self endon( "entityshutdown" );
+	self notify( "targetAcquired" );
+	soundplayed = 0;
+	realwait( 0.05 );
+	currentweapon = getcurrentweapon( localclientnum );
+	realwait( 1 );
+	realwait( 1 );
+	realwait( 1 );
+	self.missile_drone_fx = playviewmodelfx( localclientnum, level._effect["missile_drone_enemy_light"], "tag_target" );
+	playsound( localclientnum, "fly_hunter_raise_plr", self.origin );
+	soundplayed = 1;
+	realwait( 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x6DC
+targetscan( localclientnum )
+{
+	self endon( "disconnect" );
+	self endon( "targetLost" );
+	self endon( "targetAcquired" );
+	self notify( "targetScanning" );
+	soundplayed = 0;
+	currentweapon = getcurrentweapon( localclientnum );
+	realwait( 1 );
+	soundplayed = 1;
+	realwait( 1 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,482 @@
+// maps/_detonategrenades.gsc
+
+#include maps\_dds;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xBB0
+init()
+{
+	level._effect["claymore_laser"] = loadfx( "weapon/claymore/fx_claymore_laser" );
+	level._effect["prox_grenade_fx"] = loadfx( "weapon/grenade/fx_prox_grenade_scan_grn" );
+	level._effect["prox_grenade_shock"] = loadfx( "weapon/grenade/fx_prox_grenade_impact_player_spwner" );
+// SP = 0x0 - check OK
+}
+
+// 0xBF4
+watchgrenadeusage()
+{
+	level.satchelexplodethisframe = 0;
+	self endon( "death" );
+	self.satchelarray = [];
+	self.claymore_array = [];
+	self.throwinggrenade = 0;
+	self.gotpullbacknotify = 0;
+	self thread watch_concussion();
+	thread watch_satchel();
+	thread watch_satchel_detonation();
+	thread watch_claymores();
+	thread watch_proximity_grenade();
+	thread watch_combat_axe();
+	self thread watch_for_throwbacks();
+	self waittill( "grenade_pullback", weaponname );
+	self.throwinggrenade = 1;
+	self.gotpullbacknotify = 1;
+	switch ( weaponname )
+	{
+		case "willy_pete_80s_sp":
+		case "willy_pete_sp":
+		default:
+			self begin_grenade_tracking();
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xCB8
+begin_smoke_grenade_tracking()
+{
+	self waittill( "grenade_fire", grenade, weaponname );
+	level.smokegrenades = 0;
+	grenade delete();
+	grenade thread smoke_grenade_death();
+// SP = 0x0 - check OK
+}
+
+// 0xD18
+begin_mortar_tracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", mortar, weaponname );
+	mortar thread mortar_death();
+// SP = 0x0 - check OK
+}
+
+// 0xD50
+mortar_death()
+{
+	self waittill_not_moving();
+	earthquake( 0.55, 3, self.origin, 1500 );
+	playrumbleonposition( "explosion_generic", self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xD90
+smoke_grenade_death()
+{
+	level.smokegrenades++;
+	wait 50;
+	level.smokegrenades--;
+// SP = 0x0 - check OK
+}
+
+// 0xDA4
+begin_grenade_tracking()
+{
+	self endon( "death" );
+	self waittill( "grenade_fire", grenade, weaponname );
+	self maps\_dds::dds_notify_grenade( weaponname, self.team == "allies", 0 );
+	self.throwinggrenade = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xDDC
+watch_for_throwbacks()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", grenade, weapname );
+	self.gotpullbacknotify = 0;
+	grenade.threwback = 1;
+	self maps\_dds::dds_notify_grenade( weapname, self.team == "allies", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xE4C
+begin_satchel_tracking()
+{
+	self endon( "death" );
+	self waittill_any( "grenade_fire", "weapon_change" );
+	self.throwinggrenade = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE70
+watch_satchel()
+{
+	self waittill( "grenade_fire", satchel, weapname );
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = self.satchelarray[i];
+	i++;
+	self.satchelarray = newarray;
+	i = 0;
+	self.satchelarray[i] delete();
+	i++;
+	newarray = [];
+	i = 0;
+	newarray[i] = self.satchelarray[self.satchelarray.size - 5 + 1 + i];
+	i++;
+	self.satchelarray = newarray;
+	self.satchelarray[self.satchelarray.size] = satchel;
+	satchel.owner = self;
+	satchel thread satchel_damage();
+// SP = 0x0 - check OK
+}
+
+// 0xF8C
+watch_claymores()
+{
+	self endon( "spawned_player" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", placed_explosive, weapname );
+	placed_explosive.owner = self;
+	placed_explosive thread satchel_damage();
+	placed_explosive thread claymore_detonation();
+	placed_explosive thread play_claymore_effects();
+	placed_explosive.owner = self;
+	placed_explosive thread satchel_damage();
+	placed_explosive thread tc6_mine_detonation();
+// SP = 0x0 - check OK
+}
+
+// 0x1024
+tc6_mine_detonation()
+{
+	self endon( "death" );
+	waittill_not_moving();
+	should_detonate = 0;
+	damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - 25 ), 23, 25, 100 );
+	ai_damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - 36 ), 3, 36, 36 * 2 );
+	wait 0.5;
+	self playsound( "wpn_claymore_alert" );
+	wait 0.2;
+	damagearea waittill( "trigger", ent );
+	should_detonate = 1;
+	wait 0.25;
+	wait 0.05;
+	should_detonate = 1;
+	self detonate( self.owner );
+	self detonate( undefined );
+	damagearea delete();
+	ai_damagearea delete();
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x11AC
+claymore_detonation()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	spawnflag = 17;
+	playerteamtoallow = "axis";
+	spawnflag = 18;
+	playerteamtoallow = "allies";
+	damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - 192 ), spawnflag, 192, 192 * 2 );
+	self thread delete_claymores_on_death( damagearea );
+	level.claymores = [];
+	level.claymores[level.claymores.size] = self;
+	level.claymores[0] delete();
+	damagearea waittill( "trigger", ent );
+	self playsound( "wpn_claymore_alert" );
+	wait 0.4;
+	self detonate( self.owner );
+	self detonate( undefined );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1360
+delete_claymores_on_death( ent )
+{
+	self waittill( "death" );
+	arrayremovevalue( level.claymores, self );
+	wait 0.05;
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x139C
+watch_satchel_detonation()
+{
+	self endon( "death" );
+	self waittill( "detonate" );
+	weap = self getcurrentweapon();
+	note = weap + "_detonated";
+	self notify( note );
+	i = 0;
+	self.satchelarray[i] thread wait_and_detonate( 0.1 );
+	i++;
+	self.satchelarray = [];
+// SP = 0x0 - check OK
+}
+
+// 0x141C
+wait_and_detonate( delay )
+{
+	self endon( "death" );
+	wait delay;
+	earthquake( 0.35, 3, self.origin, 1500 );
+	self detonate();
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1464
+satchel_damage()
+{
+	self.health = 100;
+	self setcandamage( 1 );
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	attacker = undefined;
+	self waittill( "damage", amount, attacker );
+	wait 0.1 + randomfloat( 0.4 );
+	wait 0.05;
+	return;
+	level.satchelexplodethisframe = 1;
+	thread reset_satchel_explode_this_frame();
+	self detonate( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x1518
+reset_satchel_explode_this_frame()
+{
+	wait 0.05;
+	level.satchelexplodethisframe = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x152C
+saydamaged( orig, amount )
+{
+/#
+	i = 0;
+	print3d( orig, "damaged! " + amount );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x156C
+play_claymore_effects()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	playfxontag( level._effect["claymore_laser"], self, "tag_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x159C
+getdamageableents( pos, radius, dolos, startradius )
+{
+	ents = [];
+	dolos = 0;
+	startradius = 0;
+	players = get_players();
+	i = 0;
+	playerpos = players[i].origin + vector_scale( ( 0, 0, 1 ), 32 );
+	distsq = distancesquared( pos, playerpos );
+	newent = spawnstruct();
+	newent.isplayer = 1;
+	newent.isadestructable = 0;
+	newent.entity = players[i];
+	newent.damagecenter = playerpos;
+	ents[ents.size] = newent;
+	i++;
+	grenades = getentarray( "grenade", "classname" );
+	i = 0;
+	entpos = grenades[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 0;
+	newent.entity = grenades[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	destructables = getentarray( "destructable", "targetname" );
+	i = 0;
+	entpos = destructables[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 1;
+	newent.entity = destructables[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	return ents;
+// SP = 0x0 - check OK
+}
+
+// 0x17F0
+weapondamagetracepassed( from, to, startradius, ignore )
+{
+	midpos = undefined;
+	diff = to - from;
+	midpos = to;
+	dir = vectornormalize( diff );
+	midpos = from + ( dir[0] * startradius, dir[1] * startradius, dir[2] * startradius );
+	trace = bullettrace( midpos, to, 0, ignore );
+/#
+	thread debugline( midpos, to, ( 1, 1, 1 ) );
+	thread debugline( midpos, trace["position"], ( 1, 0.9, 0.8 ) );
+	thread debugline( trace["position"], to, ( 1, 0.4, 0.3 ) );
+#/
+	return trace["fraction"] == 1;
+// SP = 0x0 - check OK
+}
+
+// 0x18EC
+damageent( einflictor, eattacker, idamage, smeansofdeath, sweapon, damagepos, damagedir )
+{
+	self.damageorigin = damagepos;
+	self.entity thread [[level.callbackplayerdamage]]( einflictor, eattacker, idamage, 0, smeansofdeath, sweapon, damagepos, damagedir, "none", 0 );
+	return;
+	self.entity damage_notify_wrapper( idamage, eattacker );
+// SP = 0x0 - check OK
+}
+
+// 0x1964
+debugline( a, b, color )
+{
+/#
+	i = 0;
+	line( a, b, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x19A8
+watch_concussion()
+{
+	self endon( "death" );
+	self waittill( "grenade_fire", grenade, weapname );
+// SP = 0x0 - check OK
+}
+
+// 0x19D0
+watch_proximity_grenade()
+{
+	self endon( "spawned_player" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", grenade, weapname );
+	grenade thread proximity_grenade_damage();
+	grenade thread proximity_grenade_detonation();
+	grenade thread proximity_grenade_fx();
+// SP = 0x0 - check OK
+}
+
+// 0x1A2C
+proximity_grenade_damage()
+{
+	self endon( "death" );
+	self.health = 100;
+	self setcandamage( 1 );
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	self waittill( "damage" );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0x1A9C
+proximity_grenade_fx()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	playfxontag( level._effect["prox_grenade_fx"], self, "tag_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x1ACC
+proximity_grenade_detonation()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	wait 0.5;
+	spawnflag = 17;
+	playerteamtoallow = "axis";
+	spawnflag = 18;
+	playerteamtoallow = "allies";
+	t_damage_area = spawn( "trigger_radius", self.origin + vector_scale( ( 0, 0, -1 ), 192 ), spawnflag, 192, 384 );
+	self thread proximity_grenade_delete_on_death( t_damage_area );
+	level.a_proximity_grenades = [];
+	level.a_proximity_grenades[level.a_proximity_grenades.size] = self;
+	level.a_proximity_grenades[0] delete();
+	t_damage_area waittill( "trigger", ent );
+	level thread proximity_grenade_detonate_think( self.origin );
+	self detonate( self.owner );
+	self detonate( undefined );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1C4C
+proximity_grenade_detonate_think( v_origin )
+{
+	level.player thread proximity_grenade_player_effect( v_origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1C84
+proximity_grenade_delete_on_death( t_radius )
+{
+	self waittill( "death" );
+	arrayremovevalue( level.a_proximity_grenades, self );
+	wait 0.05;
+	t_radius delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1CC0
+proximity_grenade_player_effect( v_origin )
+{
+	self endon( "death" );
+	n_period = 0.03;
+	n_duration = 1.25;
+	n_start_time = GetTime();
+	saved_vision = self getvisionsetnaked();
+	toggle = 1;
+	self playsound( "wpn_taser_mine_zap" );
+	self shellshock( "death", n_duration + 0.5 );
+	n_duration_ms = n_duration * 1000;
+	wait 0.1;
+	self visionsetnaked( "taser_mine_shock", 0 );
+	self dodamage( 5, v_origin, level.player );
+	self playrumbleonentity( "damage_light" );
+	self visionsetnaked( saved_vision, 0 );
+	toggle = !(toggle);
+	wait n_period;
+	self visionsetnaked( saved_vision, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1DB0
+watch_combat_axe()
+{
+	self waittill( "grenade_fire", grenade, weapname );
+	level.a_combat_axes = [];
+	level.a_combat_axes[level.a_combat_axes.size] = grenade;
+	level.a_combat_axes[0] delete();
+	arrayremoveindex( level.a_combat_axes, 0 );
+// SP = 0x0 - check OK
+}

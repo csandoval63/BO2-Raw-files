@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_jump_up_to_climb.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xF4
+main()
+{
+	dosimpletraverse( "jump_up_to_climb" );
+// SP = 0x0 - check OK
+}

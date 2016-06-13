@@ -1,0 +1,2359 @@
+// maps/_vehicle.gsc
+
+#include maps\_soct;
+#include maps\_horse;
+#include maps\_van;
+#include maps\_motorcycle;
+#include maps\_motorcycle_lapd;
+#include maps\_sampan;
+#include maps\_rcbomb;
+#include maps\_snowcat;
+#include maps\_policecar;
+#include maps\_tiara;
+#include maps\_civ_vehicle;
+#include maps\_civ_pickup_big;
+#include maps\_civ_pickup;
+#include maps\_truck_gaztigr;
+#include maps\_btr;
+#include maps\_apc_buffel;
+#include maps\_apc;
+#include maps\_zpu_antiair;
+#include maps\_mig17;
+#include maps\_littlebird;
+#include maps\_pavelow;
+#include maps\_hip;
+#include maps\_cobra;
+#include maps\_chinook;
+#include maps\_jeep;
+#include maps\_uaz;
+#include maps\_truck_gaz63;
+#include maps\_truck_gaz66;
+#include maps\_truck;
+#include maps\_tank_zsu23;
+#include maps\_t72;
+#include maps\_spawner;
+#include maps\_dynamic_nodes;
+#include maps\_treadfx;
+#include maps\_osprey;
+#include maps\_f35;
+#include maps\_pegasus;
+#include maps\_avenger;
+#include maps\_hind;
+#include maps\_blackhawk;
+#include maps\_hind_player;
+#include maps\_huey;
+#include maps\_turret;
+#include maps\_destructible;
+#include maps\_vehicle;
+#include maps\_vehicle_aianim;
+#include maps\_vehicle_death;
+#include codescripts\struct;
+#include common_scripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "vehicles" );
+
+
+// 0x454C
+init_vehicles()
+{
+	precachemodel( "fx" );
+	precachestring( &"hud_vehicle_turret_fire" );
+	return;
+	level.heli_default_decel = 10;
+	setup_targetname_spawners();
+	setup_dvars();
+	setup_levelvars();
+	setup_ai();
+	setup_triggers();
+	setup_nodes();
+	maps\_vehicle_death::init();
+	allvehiclesprespawn = getentarray( "script_vehicle", "classname" );
+/#
+	level thread vehicle_spawner_tool( allvehiclesprespawn );
+#/
+	setup_vehicles( allvehiclesprespawn );
+	level array_ent_thread( level.vehicle_processtriggers, ::trigger_process );
+	level.vehicle_processtriggers = undefined;
+	level.vehicle_enemy_tanks = [];
+	level.vehicle_enemy_tanks["vehicle_ger_tracked_king_tiger"] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4614
+setup_script_gatetrigger( trigger )
+{
+	gates = [];
+	return level.vehicle_gatetrigger[trigger.script_gatetrigger];
+	return gates;
+// SP = 0x0 - check OK
+}
+
+// 0x463C
+trigger_process( trigger )
+{
+	btriggeronce = 1;
+	btriggeronce = 0;
+	btriggeronce = 0;
+	trigger.processed_trigger = undefined;
+	gates = setup_script_gatetrigger( trigger );
+	script_vehicledetour = is_node_script_struct( trigger );
+	detoured = !(is_node_script_struct( trigger ));
+	gotrigger = 1;
+	trigger trigger_wait();
+	other = trigger.who;
+	trigger waittill( "enable" );
+	other.vehicle_flags[trigger.script_flag_set] = 1;
+	other notify( "vehicle_flag_arrived", trigger.script_flag_set );
+	flag_set( trigger.script_flag_set );
+	other.vehicle_flags[trigger.script_flag_clear] = 0;
+	flag_clear( trigger.script_flag_clear );
+	other thread path_detour_script_origin( trigger );
+	other thread path_detour( trigger );
+	trigger script_delay();
+	gotrigger = 0;
+/#
+	println( "failed to find deleteable vehicle with script_vehicleGroupDelete group number: ", trigger.script_vehiclegroupdelete );
+#/
+	level.vehicle_deletegroup[trigger.script_vehiclegroupdelete] = [];
+	array_delete( level.vehicle_deletegroup[trigger.script_vehiclegroupdelete] );
+	level notify( "spawnvehiclegroup" + trigger.script_vehiclespawngroup );
+	level waittill( "vehiclegroup spawned" + trigger.script_vehiclespawngroup );
+	level array_ent_thread( gates, ::path_gate_open );
+/#
+	println( "^3Vehicle start trigger is: ", trigger.script_vehiclestartmove );
+#/
+	return;
+	array_thread( array_copy( level.vehicle_startmovegroup[trigger.script_vehiclestartmove] ), ::gopath );
+// SP = 0x0 - check OK
+}
+
+// 0x4964
+path_detour_get_detourpath( detournode )
+{
+	detourpath = undefined;
+	j = 0;
+	detourpath = level.vehicle_detourpaths[detournode.script_vehicledetour][j];
+	j++;
+	return detourpath;
+// SP = 0x0 - check OK
+}
+
+// 0x49D4
+path_detour_script_origin( detournode )
+{
+	detourpath = path_detour_get_detourpath( detournode );
+	self thread vehicle_paths( detourpath );
+// SP = 0x0 - check OK
+}
+
+// 0x4A00
+crash_detour_check( detourpath )
+{
+	return detourpath.script_crashtype == "plane";
+// SP = 0x0 - check OK
+}
+
+// 0x4A54
+crash_derailed_check( detourpath )
+{
+	return detourpath.derailed;
+// SP = 0x0 - check OK
+}
+
+// 0x4A70
+path_detour( node )
+{
+	detournode = getvehiclenode( node.target, "targetname" );
+	detourpath = path_detour_get_detourpath( detournode );
+	return;
+	return;
+	self notify( "crashpath", detourpath );
+	detourpath.derailed = 1;
+	self notify( "newpath" );
+	self setswitchnode( node, detourpath );
+	return;
+	return;
+	return;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x4B28
+vehicle_levelstuff( vehicle )
+{
+	level.vehicle_link = array_2dadd( level.vehicle_link, vehicle.script_linkname, vehicle );
+	level.vehicle_spawngroup = array_2dadd( level.vehicle_spawngroup, vehicle.script_vehiclespawngroup, vehicle );
+	level.vehicle_startmovegroup = array_2dadd( level.vehicle_startmovegroup, vehicle.script_vehiclestartmove, vehicle );
+	level.vehicle_deletegroup = array_2dadd( level.vehicle_deletegroup, vehicle.script_vehiclegroupdelete, vehicle );
+// SP = 0x0 - check OK
+}
+
+// 0x4BC4
+spawn_array( spawners )
+{
+	ai = [];
+	i = 0;
+	spawners[i].count = 1;
+	spawned = spawners[i] spawn_drone();
+	spawned = spawners[i] spawn_ai();
+/#
+	assert( IsDefined( spawned ) );
+#/
+	ai[ai.size] = spawned;
+	i++;
+	ai = remove_non_riders_from_array( ai );
+	return ai;
+// SP = 0x0 - check OK
+}
+
+// 0x4C68
+remove_non_riders_from_array( ai )
+{
+	living_ai = [];
+	i = 0;
+	living_ai[living_ai.size] = ai[i];
+	i++;
+	return living_ai;
+// SP = 0x0 - check OK
+}
+
+// 0x4CB4
+ai_should_be_added( ai )
+{
+	return 1;
+	return 0;
+	return 0;
+	return ai.classname == "script_model";
+// SP = 0x0 - check OK
+}
+
+// 0x4CF0
+spawn_ai_group()
+{
+	hasriders = IsDefined( self.script_vehicleride );
+	haswalkers = IsDefined( self.script_vehiclewalk );
+	return;
+	spawners = [];
+	riderspawners = [];
+	walkerspawners = [];
+	riderspawners = level.vehicle_ridespawners[self.script_vehicleride];
+	riderspawners = [];
+	walkerspawners = level.vehicle_walkspawners[self.script_vehiclewalk];
+	walkerspawners = [];
+	spawners = arraycombine( riderspawners, walkerspawners, 1, 0 );
+	startinvehicles = [];
+	i = 0;
+	spawners[i].script_forcespawn = 1;
+	i++;
+	ai = spawn_array( spawners );
+	ai = arraycombine( ai, level.vehicle_rideai[self.script_vehicleride], 1, 0 );
+	ai = arraycombine( ai, level.vehicle_walkai[self.script_vehiclewalk], 1, 0 );
+	ai vehicle_rider_walk_setup( self );
+	ai = sort_by_startingpos( ai );
+	i = 0;
+	ai[i] thread maps\_vehicle_aianim::vehicle_enter( self, self.script_tag );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4E4C
+sort_by_startingpos( guysarray )
+{
+	firstarray = [];
+	secondarray = [];
+	i = 0;
+	firstarray[firstarray.size] = guysarray[i];
+	secondarray[secondarray.size] = guysarray[i];
+	i++;
+	return arraycombine( firstarray, secondarray, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x4EB4
+vehicle_rider_walk_setup( vehicle )
+{
+	return;
+	self.followmode = self.script_followmode;
+	self.followmode = "cover nodes";
+	return;
+	node = getnode( self.target, "targetname" );
+	self.nodeaftervehiclewalk = node;
+// SP = 0x0 - check OK
+}
+
+// 0x4F14
+setup_groundnode_detour( node )
+{
+	realdetournode = getvehiclenode( node.targetname, "target" );
+	return;
+	realdetournode.detoured = 0;
+	add_proccess_trigger( realdetournode );
+// SP = 0x0 - check OK
+}
+
+// 0x4F50
+add_proccess_trigger( trigger )
+{
+	return;
+	level.vehicle_processtriggers[level.vehicle_processtriggers.size] = trigger;
+	trigger.processed_trigger = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4F7C
+islastnode( node )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4FC4
+vehicle_paths( node )
+{
+	self endon( "death" );
+/#
+	assert( IsDefined( self.attachedpath ), "vehicle_path() called without a path" );
+#/
+	self notify( "newpath" );
+	self.attachedpath = node;
+	pathstart = self.attachedpath;
+	self.currentnode = self.attachedpath;
+	return;
+/#
+	self thread debug_vehicle_paths();
+#/
+	self endon( "newpath" );
+	currentpoint = pathstart;
+	self waittill( "reached_node", currentpoint );
+	currentpoint enable_turrets( self );
+	return;
+	self.currentnode = currentpoint;
+	self.nextnode = undefined;
+	self thread path_gate_wait_till_open( currentpoint );
+	currentpoint notify( "trigger", self );
+	amount = currentpoint.script_dropbombs;
+	delay = 0;
+	delaytrace = 0;
+	delay = currentpoint.script_dropbombs_delay;
+	delaytrace = currentpoint.script_dropbombs_delaytrace;
+	self notify( "drop_bombs", amount, delay, delaytrace );
+	self notify( currentpoint.script_noteworthy );
+	self notify( "noteworthy", currentpoint.script_noteworthy );
+	self notify( currentpoint.script_notify );
+	level notify( currentpoint.script_notify );
+	waittillframeend;
+	return;
+	self godon();
+	self godoff();
+	array_delete( self.riders );
+	self.delete_on_death = 1;
+	self notify( "death" );
+	self delete();
+	return;
+	self drivepath();
+	self startpath();
+	self setbrake( 1 );
+	self setspeed( 0, 60, 60 );
+	accel = 30;
+	accel = currentpoint.script_float;
+	self resumespeed( accel );
+	self.script_crashtypeoverride = currentpoint.script_crashtypeoverride;
+	self.script_badplace = currentpoint.script_badplace;
+	self.vteam = currentpoint.script_team;
+	self notify( "turning", currentpoint.script_turningdir );
+	self thread deathrolloff();
+	self thread deathrollon();
+	self.queueanim = 1;
+	self.groupedanim_pos = currentpoint.script_startingposition;
+	self notify( "groupedanimevent", currentpoint.script_vehicleaianim );
+	exploder( currentpoint.script_exploder );
+	self.vehicle_flags[currentpoint.script_flag_set] = 1;
+	self notify( "vehicle_flag_arrived", currentpoint.script_flag_set );
+	flag_set( currentpoint.script_flag_set );
+	self.vehicle_flags[currentpoint.script_flag_clear] = 0;
+	flag_clear( currentpoint.script_flag_clear );
+	unload_node_helicopter( undefined );
+	self.attachedpath = self.nextnode;
+	self drivepath( self.attachedpath );
+	unload_node( currentpoint );
+	vehicle_pause_path();
+	currentpoint script_wait();
+	vehicle_pause_path();
+	self waittill( currentpoint.script_waittill );
+	self.vehicle_flags = [];
+	self.vehicle_flags[currentpoint.script_flag_wait] = 1;
+	self notify( "vehicle_flag_arrived", currentpoint.script_flag_wait );
+	self ent_flag_set( "waiting_for_flag" );
+	vehicle_pause_path();
+	flag_wait( currentpoint.script_flag_wait );
+	self ent_flag_clear( "waiting_for_flag" );
+	self.set_lookat_point = undefined;
+	self clearlookatent();
+	self lights_on();
+	self lights_off();
+	self setvehgoalpos_wrap( currentpoint.origin, 1 );
+	self.switchnode = undefined;
+	vehicle_resume_path();
+	self notify( "reached_dynamic_path_end" );
+	self delete();
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x55F4
+vehicle_pause_path()
+{
+	self setbrake( 1 );
+	self setvehgoalpos( self.origin, 1 );
+	self setspeed( 0, 100, 100 );
+	self setspeed( 0, 35, 35 );
+	self.vehicle_paused = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5680
+vehicle_resume_path()
+{
+	self setbrake( 0 );
+	self drivepath( self.currentnode );
+	self resumespeed( 100 );
+	self resumespeed( 35 );
+	self.vehicle_paused = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x56F8
+getonpath( path_start )
+{
+	return;
+	self.hasstarted = undefined;
+	self.attachedpath = path_start;
+	self attachpath( path_start );
+	self vehicle_disconnectpaths_wrapper();
+	self setbrake( 1 );
+	self thread vehicle_paths();
+// SP = 0x0 - check OK
+}
+
+// 0x5784
+getoffpath()
+{
+	self cancelaimove();
+	self clearvehgoalpos();
+// SP = 0x0 - check OK
+}
+
+// 0x57A4
+create_vehicle_from_spawngroup_and_gopath( spawngroup )
+{
+	vehiclearray = maps\_vehicle::scripted_spawn( spawngroup );
+	i = 0;
+	vehiclearray[i] thread maps\_vehicle::gopath();
+	i++;
+	return vehiclearray;
+// SP = 0x0 - check OK
+}
+
+// 0x57F0
+gopath()
+{
+	self endon( "death" );
+	self endon( "stop path" );
+	self setbrake( 0 );
+	arrayremovevalue( level.vehicle_startmovegroup[self.script_vehiclestartmove], self );
+/#
+	println( "vehicle already moving when triggered with a startmove" );
+#/
+	return;
+	self.hasstarted = 1;
+	self script_delay();
+	self notify( "start_vehiclepath" );
+	self drivepath( self.attachedpath );
+	self startpath();
+	wait 0.05;
+	self vehicle_connectpaths_wrapper();
+	self waittill( "reached_end_node" );
+	self vehicle_disconnectpaths_wrapper();
+	return;
+	do_unload( self.script_unloaddelay );
+// SP = 0x0 - check OK
+}
+
+// 0x5910
+do_unload( delay )
+{
+	self endon( "unload" );
+	wait delay;
+	self notify( "unload" );
+// SP = 0x0 - check OK
+}
+
+// 0x5938
+path_gate_open( node )
+{
+	node.gateopen = 1;
+	node notify( "gate opened" );
+// SP = 0x0 - check OK
+}
+
+// 0x5954
+path_gate_wait_till_open( pathspot )
+{
+	self endon( "death" );
+	self.waitingforgate = 1;
+	self vehicle_setspeed( 0, 15, "path gate closed" );
+	pathspot waittill( "gate opened" );
+	self.waitingforgate = 0;
+	script_resumespeed( "gate opened", level.vehicle_resumespeed );
+// SP = 0x0 - check OK
+}
+
+// 0x59A8
+spawner_setup( vehicles, spawngroup )
+{
+	level.vehicle_spawners[spawngroup] = [];
+	foreach ( veh in vehicles )
+	{
+		veh thread vehicle_main();
+		s_spawner = createstruct();
+		veh vehicle_dynamic_cover( s_spawner );
+		s_spawner set_spawner_variables( veh );
+		level.vehicle_spawners[spawngroup][level.vehicle_spawners[spawngroup].size] = s_spawner;
+	}
+	thread vehicle_spawn_group( spawngroup );
+// SP = 0x0 - check OK
+}
+
+// 0x5A3C
+vehicle_spawn_group( spawngroup )
+{
+	level waittill( "spawnvehiclegroup" + spawngroup );
+	spawned_vehicles = [];
+	i = 0;
+	spawned_vehicles[spawned_vehicles.size] = vehicle_spawn( level.vehicle_spawners[spawngroup][i] );
+	i++;
+	level notify( "vehiclegroup spawned" + spawngroup, spawned_vehicles );
+// SP = 0x0 - check OK
+}
+
+// 0x5AA0
+scripted_spawn( group )
+{
+	thread scripted_spawn_go( group );
+	level waittill( "vehiclegroup spawned" + group, vehicles );
+	return vehicles;
+// SP = 0x0 - check OK
+}
+
+// 0x5AC4
+scripted_spawn_go( group )
+{
+	waittillframeend;
+	level notify( "spawnvehiclegroup" + group );
+// SP = 0x0 - check OK
+}
+
+// 0x5AD8
+set_spawner_variables( vehicle )
+{
+	self.spawnermodel = vehicle.model;
+	self.angles = vehicle.angles;
+	self.origin = vehicle.origin;
+	self.script_delay = vehicle.script_delay;
+	self.script_noteworthy = vehicle.script_noteworthy;
+	self.script_parameters = vehicle.script_parameters;
+	self.script_team = vehicle.script_team;
+	self.script_vehicleride = vehicle.script_vehicleride;
+	self.target = vehicle.target;
+	self.targetname = vehicle.targetname;
+	self.targetname = "notdefined";
+	self.spawnedtargetname = self.targetname;
+	self.targetname += "_vehiclespawner";
+	self.triggeredthink = vehicle.triggeredthink;
+	self.script_sound = vehicle.script_sound;
+	self.script_startinghealth = vehicle.script_startinghealth;
+	self.spawnernum = vehicle.spawnernum;
+	flag_init( vehicle.script_deathflag );
+	self.script_deathflag = vehicle.script_deathflag;
+	self.script_enable_turret0 = vehicle.script_enable_turret0;
+	self.script_enable_turret1 = vehicle.script_enable_turret1;
+	self.script_enable_turret2 = vehicle.script_enable_turret2;
+	self.script_enable_turret3 = vehicle.script_enable_turret3;
+	self.script_enable_turret4 = vehicle.script_enable_turret4;
+	self.script_linkto = vehicle.script_linkto;
+	self.script_vehiclespawngroup = vehicle.script_vehiclespawngroup;
+	self.script_vehiclestartmove = vehicle.script_vehiclestartmove;
+	self.script_vehiclegroupdelete = vehicle.script_vehiclegroupdelete;
+	self.script_vehicle_selfremove = vehicle.script_vehicle_selfremove;
+	self.script_nomg = vehicle.script_nomg;
+	self.script_badplace = vehicle.script_badplace;
+	self.script_vehicleride = vehicle.script_vehicleride;
+	self.script_vehiclewalk = vehicle.script_vehiclewalk;
+	self.script_linkname = vehicle.script_linkname;
+	self.script_crashtypeoverride = vehicle.script_crashtypeoverride;
+	self.script_unloaddelay = vehicle.script_unloaddelay;
+	self.script_unloadmgguy = vehicle.script_unloadmgguy;
+	self.script_keepdriver = vehicle.script_keepdriver;
+	self.script_fireondrones = vehicle.script_fireondrones;
+	self.script_tankgroup = vehicle.script_tankgroup;
+	self.script_playerconeradius = vehicle.script_playerconeradius;
+	self.script_cobratarget = vehicle.script_cobratarget;
+	self.script_targettype = vehicle.script_targettype;
+	self.script_targetoffset_z = vehicle.script_targetoffset_z;
+	self.script_wingman = vehicle.script_wingman;
+	self.script_mg_angle = vehicle.script_mg_angle;
+	self.script_physicsjolt = vehicle.script_physicsjolt;
+	self.script_lights_on = vehicle.script_lights_on;
+	self.script_vehicledetourgroup = vehicle.script_vehicledetourgroup;
+	self.speed = vehicle.speed;
+	self.script_vehicletriggergroup = vehicle.script_vehicletriggergroup;
+	self.script_cheap = vehicle.script_cheap;
+	self.script_nonmovingvehicle = vehicle.script_nonmovingvehicle;
+	self.script_flag = vehicle.script_flag;
+	self.script_disconnectpaths = vehicle.script_disconnectpaths;
+	self.script_bulletshield = vehicle.script_bulletshield;
+	self.script_godmode = vehicle.script_godmode;
+	self.script_vehicleattackgroup = vehicle.script_vehicleattackgroup;
+	self.script_vehicleattackgroupwait = vehicle.script_vehicleattackgroupwait;
+	self.script_friendname = vehicle.script_friendname;
+	self.script_unload = vehicle.script_unload;
+	self.script_string = vehicle.script_string;
+	self.script_int = vehicle.script_int;
+	self.script_animation = vehicle.script_animation;
+	self.script_ignoreme = vehicle.script_ignoreme;
+	self.lockheliheight = vehicle getheliheightlock();
+	self.script_targetset = vehicle.script_targetset;
+	self.script_targetoffset = vehicle.script_targetoffset;
+	self.script_startstate = vehicle.script_startstate;
+	self.script_animname = vehicle.script_animname;
+	self.script_animscripted = vehicle.script_animscripted;
+	self.script_recordent = vehicle.script_recordent;
+	self.script_brake = vehicle.script_brake;
+	self.script_vehicleavoidance = vehicle.script_vehicleavoidance;
+	self.script_doorstate = vehicle.script_doorstate;
+	self.script_combat_getout = vehicle.script_combat_getout;
+	self.radius = vehicle.radius;
+	self.count = vehicle.count;
+	self.count = 1;
+	self.vehicletype = vehicle.vehicletype;
+	self.destructibledef = vehicle.destructibledef;
+	self.usable = 1;
+	self.drivepath = vehicle.drivepath;
+	self.script_numbombs = vehicle.script_numbombs;
+	self.deathfx = vehicle.deathfx;
+	self.fx_crash_effects = vehicle.fx_crash_effects;
+	self.m_objective_model = vehicle.m_objective_model;
+	vehicle delete();
+	id = vehicle_spawnidgenerate( self.origin );
+	self.spawner_id = id;
+// SP = 0x0 - check OK
+}
+
+// 0x6268
+vehicle_spawnidgenerate( origin )
+{
+	return "spawnid" + int( origin[0] ) + "a" + int( origin[1] ) + "a" + int( origin[2] );
+// SP = 0x0 - check OK
+}
+
+// 0x62AC
+vehicledamageassist()
+{
+	self endon( "death" );
+	self.attackers = [];
+	self.attackerdata = [];
+	self waittill( "damage", amount, attacker );
+	self.attackers[self.attackers.size] = attacker;
+	self.attackerdata[attacker getentitynumber()] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6330
+vehicle_spawn( vspawner, from )
+{
+	return;
+	vehicle = spawnvehicle( vspawner.spawnermodel, vspawner.spawnedtargetname, vspawner.vehicletype, vspawner.origin, vspawner.angles, vspawner.destructibledef );
+	vehicle.destructibledef = vspawner.destructibledef;
+	vehicle thread maps\_destructible::destructible_think();
+	vehicle.script_delay = vspawner.script_delay;
+	vehicle.script_noteworthy = vspawner.script_noteworthy;
+	vehicle.script_parameters = vspawner.script_parameters;
+	vehicle.vteam = vspawner.script_team;
+	vehicle.script_vehicleride = vspawner.script_vehicleride;
+	vehicle.target = vspawner.target;
+	vehicle.vehicletype = vspawner.vehicletype;
+	vehicle.triggeredthink = vspawner.triggeredthink;
+	vehicle.script_sound = vspawner.script_sound;
+	vehicle.script_startinghealth = vspawner.script_startinghealth;
+	vehicle.script_deathflag = vspawner.script_deathflag;
+	vehicle.script_enable_turret0 = vspawner.script_enable_turret0;
+	vehicle.script_enable_turret1 = vspawner.script_enable_turret1;
+	vehicle.script_enable_turret2 = vspawner.script_enable_turret2;
+	vehicle.script_enable_turret3 = vspawner.script_enable_turret3;
+	vehicle.script_enable_turret4 = vspawner.script_enable_turret4;
+	vehicle.script_linkto = vspawner.script_linkto;
+	vehicle.script_vehiclespawngroup = vspawner.script_vehiclespawngroup;
+	vehicle.script_vehiclestartmove = vspawner.script_vehiclestartmove;
+	vehicle.script_vehiclegroupdelete = vspawner.script_vehiclegroupdelete;
+	vehicle.script_vehicle_selfremove = vspawner.script_vehicle_selfremove;
+	vehicle.script_nomg = vspawner.script_nomg;
+	vehicle.script_badplace = vspawner.script_badplace;
+	vehicle.script_vehicleride = vspawner.script_vehicleride;
+	vehicle.script_vehiclewalk = vspawner.script_vehiclewalk;
+	vehicle.script_linkname = vspawner.script_linkname;
+	vehicle.script_crashtypeoverride = vspawner.script_crashtypeoverride;
+	vehicle.script_unloaddelay = vspawner.script_unloaddelay;
+	vehicle.script_unloadmgguy = vspawner.script_unloadmgguy;
+	vehicle.script_keepdriver = vspawner.script_keepdriver;
+	vehicle.script_fireondrones = vspawner.script_fireondrones;
+	vehicle.script_tankgroup = vspawner.script_tankgroup;
+	vehicle.script_playerconeradius = vspawner.script_playerconeradius;
+	vehicle.script_cobratarget = vspawner.script_cobratarget;
+	vehicle.script_targettype = vspawner.script_targettype;
+	vehicle.script_targetoffset_z = vspawner.script_targetoffset_z;
+	vehicle.script_wingman = vspawner.script_wingman;
+	vehicle.script_mg_angle = vspawner.script_mg_angle;
+	vehicle.script_physicsjolt = vspawner.script_physicsjolt;
+	vehicle.script_cheap = vspawner.script_cheap;
+	vehicle.script_flag = vspawner.script_flag;
+	vehicle.script_lights_on = vspawner.script_lights_on;
+	vehicle.script_vehicledetourgroup = vspawner.script_vehicledetourgroup;
+	vehicle.speed = vspawner.speed;
+	vehicle.spawner_id = vspawner.spawner_id;
+	vehicle.script_vehicletriggergroup = vspawner.script_vehicletriggergroup;
+	vehicle.script_disconnectpaths = vspawner.script_disconnectpaths;
+	vehicle.script_godmode = vspawner.script_godmode;
+	vehicle.script_bulletshield = vspawner.script_bulletshield;
+	vehicle.script_numbombs = vspawner.script_numbombs;
+	vehicle.script_flag = vspawner.script_flag;
+	vehicle.script_nonmovingvehicle = vspawner.script_nonmovingvehicle;
+	vehicle.script_vehicleattackgroup = vspawner.script_vehicleattackgroup;
+	vehicle.script_vehicleattackgroupwait = vspawner.script_vehicleattackgroupwait;
+	vehicle setvehiclelookattext( vspawner.script_friendname, &"" );
+	vehicle.unload_group = vspawner.script_unload;
+	vehicle.script_string = vspawner.script_string;
+	vehicle.script_int = vspawner.script_int;
+	vehicle.script_animation = vspawner.script_animation;
+	vehicle setheliheightlock( vehicle.lockheliheight );
+	vehicle.script_targetset = vspawner.script_targetset;
+	vehicle.script_targetoffset = vspawner.script_targetoffset;
+	vehicle.script_startstate = vspawner.script_startstate;
+	vehicle.script_recordent = vspawner.script_recordent;
+	vehicle.e_dyn_path = vspawner.e_dyn_path;
+	vehicle.script_brake = vspawner.script_brake;
+	vehicle.script_vehicleavoidance = vspawner.script_vehicleavoidance;
+	vehicle.script_doorstate = vspawner.script_doorstate;
+	vehicle.script_combat_getout = vspawner.script_combat_getout;
+	vehicle.radius = vspawner.radius;
+	vehicle_init( vehicle );
+	level notify( "new_vehicle_spawned" + vehicle.targetname, vehicle );
+	level notify( "new_vehicle_spawned" + vehicle.script_noteworthy, vehicle );
+	level notify( "new_vehicle_spawned" + vehicle.spawner_id, vehicle );
+	vehicle makevehicleusable();
+	vehicle.drivepath = vspawner.drivepath;
+	vehicle.deathfx = vspawner.deathfx;
+	vehicle.script_ignoreme = vspawner.script_ignoreme;
+	vehicle.script_animname = vspawner.script_animname;
+	vehicle.animname = vspawner.script_animname;
+	vehicle.supportsanimscripted = vspawner.script_animscripted;
+	vehicle.fx_crash_effects = vspawner.fx_crash_effects;
+	vehicle.m_objective_model = vspawner.m_objective_model;
+	vehicle thread vehicledamageassist();
+	i = 0;
+	func = vspawner.spawn_funcs[i];
+	single_thread( vehicle, func["function"], func["param1"], func["param2"], func["param3"], func["param4"] );
+	i++;
+	return vehicle;
+// SP = 0x0 - check OK
+}
+
+// 0x6BF8
+vehicle_init( vehicle )
+{
+	vehicle useanimtree( -1 );
+	vehicle.e_dyn_path linkto( vehicle );
+	vehicle ent_flag_init( "waiting_for_flag" );
+	vehicle.takedamage = !(vehicle.script_godmode);
+	vehicle.zerospeed = 1;
+	vehicle.modeldummyon = 0;
+	vehicle setbrake( 1 );
+	type = vehicle.vehicletype;
+	vehicle vehicle_life();
+	vehicle thread vehicle_main();
+	vehicle thread maingun_fx();
+	vehicle.riders = [];
+	vehicle.unloadque = [];
+	vehicle.unload_group = "default";
+	vehicle.getoutrig = [];
+	rigs = level.vehicle_attachedmodels[type];
+	strings = getarraykeys( rigs );
+	i = 0;
+	vehicle.getoutrig[strings[i]] = undefined;
+	vehicle.getoutriganimating[strings[i]] = 0;
+	i++;
+	vehicle thread vehicle_badplace();
+	vehicle lights_on();
+	vehicle friendlyfire_shield();
+	vehicle thread maps\_vehicle_aianim::handle_attached_guys();
+	vehicle thread turret_shoot();
+	vehicle thread physicsjolt_proximity();
+	vehicle_levelstuff( vehicle );
+	vehicle thread disconnect_paths_whenstopped();
+	path_start = getvehiclenode( vehicle.target, "targetname" );
+	path_start = getent( vehicle.target, "targetname" );
+	path_start = getstruct( vehicle.target, "targetname" );
+	vehicle thread getonpath( path_start );
+	vehicle thread attackgroup_think();
+/#
+	recordent( vehicle );
+#/
+	vehicle thread aircraft_dust_kickup();
+/#
+	vehicle thread debug_vehicle();
+#/
+	vehicle spawn_ai_group();
+	vehicle thread maps\_vehicle_death::main();
+	offset = ( 0, 0, 0 );
+	offset = vehicle.script_targetoffset;
+	target_set( vehicle, offset );
+	vehicle setvehicleavoidance( 1 );
+	vehicle enable_turrets();
+	level thread [[level.vehiclespawncallbackthread]]( vehicle );
+// SP = 0x0 - check OK
+}
+
+// 0x6FD4
+detach_getoutrigs()
+{
+	return;
+	return;
+	keys = getarraykeys( self.getoutrig );
+	i = 0;
+	self.getoutrig[keys[i]] unlink();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x702C
+enable_turrets( veh )
+{
+	veh = self;
+	veh maps\_turret::enable_turret( 0 );
+	veh maps\_turret::enable_turret( 1 );
+	veh maps\_turret::enable_turret( 2 );
+	veh maps\_turret::enable_turret( 3 );
+	veh maps\_turret::enable_turret( 4 );
+	veh maps\_turret::disable_turret( 0 );
+	veh maps\_turret::disable_turret( 1 );
+	veh maps\_turret::disable_turret( 2 );
+	veh maps\_turret::disable_turret( 3 );
+	veh maps\_turret::disable_turret( 4 );
+// SP = 0x0 - check OK
+}
+
+// 0x7178
+disconnect_paths_whenstopped()
+{
+	return;
+	self.dontdisconnectpaths = 1;
+	return;
+	self endon( "death" );
+	self endon( "kill_disconnect_paths_forever" );
+	wait 1;
+	self vehicle_disconnectpaths_wrapper();
+	self notify( "speed_zero_path_disconnect" );
+	wait 1;
+	self vehicle_connectpaths_wrapper();
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x7228
+disconnect_paths_while_moving( interval )
+{
+	return;
+	self.dontdisconnectpaths = 1;
+	return;
+	self endon( "death" );
+	self endon( "kill_disconnect_paths_forever" );
+	self vehicle_disconnectpaths_wrapper();
+	self notify( "moving_path_disconnect" );
+	wait interval;
+// SP = 0x0 - check OK
+}
+
+// 0x729C
+vehicle_setspeed( speed, rate, msg )
+{
+	return;
+/#
+	self thread debug_vehiclesetspeed( speed, rate, msg );
+#/
+	self setspeed( speed, rate );
+// SP = 0x0 - check OK
+}
+
+// 0x72E4
+debug_vehiclesetspeed( speed, rate, msg )
+{
+/#
+	self notify( "new debug_vehiclesetspeed" );
+	self endon( "new debug_vehiclesetspeed" );
+	self endon( "resuming speed" );
+	self endon( "death" );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 192 ), "vehicle setspeed: " + msg, ( 1, 1, 1 ), 1, 3 );
+	wait 0.05;
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7360
+script_resumespeed( msg, rate )
+{
+	self endon( "death" );
+	fsetspeed = 0;
+	type = "resumespeed";
+	self.resumemsgs = [];
+	return;
+	fsetspeed = self.attackspeed;
+	type = "setspeed";
+	self.zerospeed = 0;
+	self.zerospeed = 1;
+	self resumespeed( rate );
+	self vehicle_setspeed( fsetspeed, 15, "resume setspeed from attack" );
+	self notify( "resuming speed" );
+/#
+	self thread debug_vehicleresume( msg + " :" + type );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x742C
+debug_vehicleresume( msg )
+{
+/#
+	self endon( "death" );
+	number = self.resumemsgs.size;
+	self.resumemsgs[number] = msg;
+	self thread print_resumespeed( GetTime() + 3 * 1000 );
+	wait 3;
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = self.resumemsgs[i];
+	i++;
+	self.resumemsgs = newarray;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x74B8
+print_resumespeed( timer )
+{
+	self notify( "newresumespeedmsag" );
+	self endon( "newresumespeedmsag" );
+	self endon( "death" );
+	start = self.resumemsgs.size - 5;
+	start = 0;
+	i = start;
+	position = i * 32;
+/#
+	print3d( self.origin + ( 0, 0, position ), "resuming speed: " + self.resumemsgs[i], ( 0, 1, 0 ), 1, 3 );
+#/
+	i++;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x7560
+godon()
+{
+	self.takedamage = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x756C
+godoff()
+{
+	self.takedamage = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x757C
+getnormalanimtime( animation )
+{
+	animtime = self getanimtime( animation );
+	animlength = getanimlength( animation );
+	return 0;
+	return self getanimtime( animation ) / getanimlength( animation );
+// SP = 0x0 - check OK
+}
+
+// 0x75C8
+setup_dynamic_detour( pathnode, get_func )
+{
+	prevnode = [[get_func]]( pathnode.targetname );
+/#
+	assert( IsDefined( prevnode ), "detour can't be on start node" );
+#/
+	prevnode.detoured = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7600
+setup_ai()
+{
+	ai = getaiarray();
+	i = 0;
+	level.vehicle_rideai = array_2dadd( level.vehicle_rideai, ai[i].script_vehicleride, ai[i] );
+	level.vehicle_walkai = array_2dadd( level.vehicle_walkai, ai[i].script_vehiclewalk, ai[i] );
+	i++;
+	ai = getspawnerarray();
+	i = 0;
+	level.vehicle_ridespawners = array_2dadd( level.vehicle_ridespawners, ai[i].script_vehicleride, ai[i] );
+	level.vehicle_walkspawners = array_2dadd( level.vehicle_walkspawners, ai[i].script_vehiclewalk, ai[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7704
+array_2dadd( array, firstelem, newelem )
+{
+	array[firstelem] = [];
+	array[firstelem][array[firstelem].size] = newelem;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x7734
+is_node_script_origin( pathnode )
+{
+	return pathnode.classname == "script_origin";
+// SP = 0x0 - check OK
+}
+
+// 0x7754
+node_trigger_process()
+{
+	processtrigger = 0;
+	level.vehicle_crashpaths[level.vehicle_crashpaths.size] = self;
+	level.vehicle_startnodes[level.vehicle_startnodes.size] = self;
+	get_func = undefined;
+	get_func = ::get_from_entity_target;
+	get_func = ::get_from_spawnstruct_target;
+	setup_dynamic_detour( self, get_func );
+	processtrigger = 1;
+	setup_groundnode_detour( self );
+	level.vehicle_detourpaths = array_2dadd( level.vehicle_detourpaths, self.script_vehicledetour, self );
+/#
+	println( "more than two script_vehicledetour grouped in group number: ", self.script_vehicledetour );
+#/
+	level.vehicle_gatetrigger = array_2dadd( level.vehicle_gatetrigger, self.script_gatetrigger, self );
+	self.gateopen = 0;
+	flag_init( self.script_flag_set );
+	flag_init( self.script_flag_clear );
+	flag_init( self.script_flag_wait );
+	processtrigger = 1;
+	add_proccess_trigger( self );
+// SP = 0x0 - check OK
+}
+
+// 0x790C
+setup_triggers()
+{
+	level.vehicle_processtriggers = [];
+	triggers = [];
+	triggers = arraycombine( getallvehiclenodes(), getentarray( "script_origin", "classname" ), 1, 0 );
+	triggers = arraycombine( triggers, level.struct, 1, 0 );
+	triggers = arraycombine( triggers, get_triggers( "trigger_radius", "trigger_multiple", "trigger_once", "trigger_lookat", "trigger_box" ), 1, 0 );
+	array_thread( triggers, ::node_trigger_process );
+// SP = 0x0 - check OK
+}
+
+// 0x799C
+setup_nodes()
+{
+	a_nodes = getallvehiclenodes();
+	foreach ( node in a_nodes )
+	{
+		flag_init( node.script_flag_set );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x7A10
+is_node_script_struct( node )
+{
+	return 0;
+	return IsDefined( getstruct( node.targetname, "targetname" ) );
+// SP = 0x0 - check OK
+}
+
+// 0x7A38
+setup_vehicles( allvehiclesprespawn )
+{
+	vehicles = allvehiclesprespawn;
+	spawnvehicles = [];
+	groups = [];
+	nonspawned = [];
+	i = 0;
+	vehicles[i] vehicle_load_assets();
+/#
+	assert( IsDefined( vehicles[i].script_vehiclespawngroup ), "Vehicle of type: " + vehicles[i].vehicletype + " has SPAWNER flag set, but is not part of a script_vehiclespawngroup or doesn't have a targetname." );
+#/
+	spawnvehicles[vehicles[i].script_vehiclespawngroup] = [];
+	spawnvehicles[vehicles[i].script_vehiclespawngroup][spawnvehicles[vehicles[i].script_vehiclespawngroup].size] = vehicles[i];
+	addgroup[0] = vehicles[i].script_vehiclespawngroup;
+	groups = arraycombine( groups, addgroup, 0, 0 );
+	nonspawned[nonspawned.size] = vehicles[i];
+	i++;
+	i = 0;
+	thread spawner_setup( spawnvehicles[groups[i]], groups[i] );
+	i++;
+	foreach ( veh in nonspawned )
+	{
+		veh.vteam = veh.script_team;
+		veh vehicle_dynamic_cover();
+		thread vehicle_init( veh );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x7BC4
+vehicle_life()
+{
+	self.health = 99999;
+	type = self.vehicletype;
+	self.health = self.script_startinghealth;
+	return;
+	self.health = randomint( self.healthmax - self.healthmin ) + self.healthmin;
+	self.health = self.healthdefault;
+// SP = 0x0 - check OK
+}
+
+// 0x7C58
+vehicle_load_assets()
+{
+	precachevehicle( self.vehicletype );
+	precachemodel( self.model );
+	precachemodel( self.vehmodel );
+	precachemodel( self.vehmodelenemy );
+	precachemodel( self.vehviewmodel );
+	precache_extra_models();
+	precache_death_model_wrapper( self.deathmodel );
+	precacheshader( "black" );
+	precacheshellshock( self.shootshock );
+	precacherumble( self.shootrumble );
+	precacherumble( self.rumbletype );
+	precacheturret( self.secturrettype );
+	precachemodel( self.secturretmodel );
+	self vehicle_load_fx();
+// SP = 0x0 - check OK
+}
+
+// 0x7DB4
+precache_extra_models()
+{
+	switch ( self.vehicletype )
+	{
+		case "boat_pbr":
+		case "boat_pbr_medium":
+		case "boat_pbr_medium_breakable":
+		case "boat_pbr_player":
+		case "drone_avenger":
+		case "drone_avenger_fast":
+		case "drone_avenger_fast_la2":
+		case "drone_avenger_fast_la2_2x":
+		case "drone_pegasus":
+		case "drone_pegasus_fast":
+		case "drone_pegasus_fast_la2":
+		case "drone_pegasus_fast_la2_2x":
+		case "drone_pegasus_low":
+		case "drone_pegasus_low_la2":
+		case "heli_blackhawk_rts":
+			self maps\_huey::precache_submodels();
+			break;
+		case "heli_blackhawk_rts_axis":
+			self maps\_hind_player::precache_models();
+			self maps\_hind_player::precache_weapons();
+			self maps\_hind_player::precache_hud();
+			break;
+		case "heli_blackhawk_stealth":
+		case "heli_blackhawk_stealth_axis":
+		case "heli_blackhawk_stealth_la2":
+		case "heli_hind":
+		case "heli_hind_pakistan":
+			maps\_blackhawk::precache_extra_models();
+			break;
+		case "heli_hind_player":
+		case "heli_hind_so":
+		case "heli_huey":
+			maps\_hind::precache_extra_models();
+			break;
+		case "heli_huey_assault":
+			precachemodel( "t5_veh_truck_gaz63_camo_rack" );
+			break;
+		case "heli_huey_gunship":
+		case "heli_huey_heavyhog":
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			precachemodel( "t5_veh_gaz66_canvas" );
+			precachemodel( "t5_veh_gaz66_canvas_dead" );
+			break;
+		case "heli_huey_heavyhog_creek":
+			precachemodel( "t5_veh_gaz66_troops" );
+			precachemodel( "t5_veh_gaz66_troops_dead" );
+			precachemodel( "t5_veh_gaz66_canvas" );
+			precachemodel( "t5_veh_gaz66_canvas_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back_canvas" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back_dead" );
+			break;
+		case "heli_huey_medivac":
+		case "heli_huey_medivac_khesanh":
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			break;
+		case "heli_huey_player":
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back_dead" );
+			break;
+		case "heli_huey_side_minigun":
+		case "heli_huey_side_minigun_uwb":
+		case "heli_huey_small":
+			precachemodel( "t5_veh_gaz66_tanker" );
+			precache_death_model_wrapper( "t5_veh_gaz66_tanker_dead" );
+			break;
+		case "heli_huey_usmc":
+		case "heli_huey_usmc_heavyhog_khesanh":
+		case "heli_huey_usmc_khesanh":
+		case "heli_huey_usmc_khesanh_std":
+			precachemodel( "t5_veh_gaz66_troops" );
+			precachemodel( "t5_veh_gaz66_troops_dead" );
+			break;
+		case "heli_osprey":
+			precachemodel( "t5_veh_gaz66_troops" );
+			precachemodel( "t5_veh_gaz66_troops_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_dead" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back" );
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_back_dead" );
+			break;
+		case "heli_osprey_pakistan":
+			precachemodel( "t5_veh_gaz66_troops_no_benches" );
+			precachemodel( "t5_veh_gaz66_troops_dead" );
+			break;
+		case "heli_osprey_rts_axis":
+		case "heli_v78":
+			precachemodel( "t5_veh_gaz66_single50" );
+			precachemodel( "t5_veh_gaz66_single50_dead" );
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			break;
+		case "heli_v78_blackout":
+		case "heli_v78_blackout_low":
+		case "heli_v78_rts":
+		case "heli_v78_yemen":
+			precachemodel( "t5_veh_gunner_turret_enemy_50cal" );
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			break;
+		case "plane_f35":
+			precachemodel( "t5_veh_gunner_turret_enemy_50cal" );
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			break;
+		case "plane_f35_fast":
+		case "plane_f35_fast_la2":
+			precachemodel( "t5_veh_gaz66_quad50" );
+			precachemodel( "t5_veh_gaz66_quad50_dead" );
+			precachemodel( "t5_veh_gaz66_flatbed" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead" );
+			break;
+		case "plane_f35_vtol":
+			precachemodel( "t5_veh_truck_gaz63_camo_rack_low" );
+			break;
+		case "plane_f35_vtol_nocockpit":
+			precachemodel( "t5_veh_gaz66_flatbed_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead_low" );
+			precachemodel( "t5_veh_gaz66_canvas_low" );
+			precachemodel( "t5_veh_gaz66_canvas_dead_low" );
+			break;
+		case "plane_fa38_hero":
+			precachemodel( "t5_veh_gaz66_flatbed_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead_low" );
+			break;
+		case "tank_snowcat_plow":
+			precachemodel( "t5_veh_gaz66_tanker_low" );
+			precachemodel( "t5_veh_gaz66_tanker_dead_low" );
+			break;
+		case "truck_gaz63_camorack":
+			precachemodel( "t5_veh_gaz66_troops_low" );
+			precachemodel( "t5_veh_gaz66_troops_dead_low" );
+			break;
+		case "truck_gaz63_camorack_low":
+			precachemodel( "t5_veh_gaz66_single50_low" );
+			precachemodel( "t5_veh_gaz66_single50_dead_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead_low" );
+			break;
+		case "truck_gaz63_canvas":
+			precachemodel( "t5_veh_gaz66_quad50_low" );
+			precachemodel( "t5_veh_gaz66_quad50_dead_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_low" );
+			precachemodel( "t5_veh_gaz66_flatbed_dead_low" );
+			break;
+		case "truck_gaz63_canvas_camorack":
+			precachemodel( "t5_veh_gaz66_quad50_low" );
+			break;
+		case "truck_gaz63_canvas_low":
+			precachemodel( "t5_veh_snowcat_plow" );
+			break;
+		case "truck_gaz63_flatbed":
+			precachemodel( "t5_veh_boat_pbr_set01_friendly" );
+			precachemodel( "t5_veh_boat_pbr_waterbox" );
+			break;
+		case "truck_gaz63_flatbed_camorack":
+		case "truck_gaz63_flatbed_low":
+			precachemodel( "veh_t6_sea_gunboat_medium_damaged" );
+			precachemodel( "veh_t6_sea_gunboat_medium_wheelhouse_dmg0" );
+			precachemodel( "veh_t6_sea_gunboat_medium_wheelhouse_dmg1" );
+			precachemodel( "veh_t6_sea_gunboat_medium_wheelhouse_dmg2" );
+			precachemodel( "veh_t6_sea_gunboat_medium_rear_dmg0" );
+			precachemodel( "veh_t6_sea_gunboat_medium_rear_dmg1" );
+			precachemodel( "veh_t6_sea_gunboat_medium_rear_dmg2" );
+			break;
+		case "truck_gaz63_player_single50":
+			precachemodel( "t5_veh_boat_pbr_set01" );
+			precachemodel( "t5_veh_boat_pbr_stuff" );
+			break;
+		case "truck_gaz63_player_single50_bulletdamage":
+		case "truck_gaz63_player_single50_nodeath":
+		case "truck_gaz63_player_single50_physics":
+			maps\_avenger::precache_extra_models();
+			break;
+		case "truck_gaz63_quad50":
+			maps\_avenger::precache_extra_models( 1 );
+			break;
+		case "truck_gaz63_quad50_low":
+		case "truck_gaz63_quad50_low_no_deathmodel":
+		case "truck_gaz63_single50":
+		case "truck_gaz63_single50_low":
+		case "truck_gaz63_tanker":
+			maps\_pegasus::precache_extra_models();
+			break;
+		case "truck_gaz63_tanker_low":
+			maps\_pegasus::precache_extra_models( 1 );
+			break;
+		case "truck_gaz63_troops":
+		case "truck_gaz63_troops_bulletdamage":
+		case "truck_gaz63_troops_camorack":
+		case "truck_gaz63_troops_low":
+		case "truck_gaz66_canvas":
+		case "truck_gaz66_flatbed":
+			maps\_f35::precache_extra_models();
+			break;
+		case "truck_gaz66_player_single50":
+		case "truck_gaz66_quad50":
+		case "truck_gaz66_single50":
+		case "truck_gaz66_tanker":
+		case "truck_gaz66_tanker_physics":
+		case "truck_gaz66_troops":
+		case "truck_gaz66_troops_attacking_physics":
+		case "truck_gaz66_troops_physics":
+			maps\_osprey::precache_extra_models();
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x8524
+vehicle_load_fx()
+{
+	loadfx( self.exhaustfxname );
+	maps\_treadfx::loadtreadfx( self );
+	self.deathfx = loadfx( self.deathfxname );
+	self [[self._vehicle_load_fx]]();
+	self [[level._vehicle_load_fx[self.vehicletype]]]();
+// SP = 0x0 - check OK
+}
+
+// 0x85BC
+vehicle_add_loadfx_callback( vehicletype, load_fx )
+{
+	level._vehicle_load_fx = [];
+/#
+	println( "WARNING! LoadFX callback function for vehicle " + vehicletype + " already exists. Proceeding with override" );
+#/
+	level._vehicle_load_fx[vehicletype] = load_fx;
+// SP = 0x0 - check OK
+}
+
+// 0x8608
+ischeap()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x8628
+hashelicopterdustkickup()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x8650
+playloopedfxontag( effect, durration, tag )
+{
+	emodel = get_dummy();
+	effectorigin = spawn( "script_origin", emodel.origin );
+	self endon( "fire_extinguish" );
+	thread playloopedfxontag_originupdate( tag, effectorigin );
+	playfx( effect, effectorigin.origin, effectorigin.upvec );
+	wait durration;
+// SP = 0x0 - check OK
+}
+
+// 0x86B8
+playloopedfxontag_originupdate( tag, effectorigin )
+{
+	effectorigin.angles = self gettagangles( tag );
+	effectorigin.origin = self gettagorigin( tag );
+	effectorigin.forwardvec = anglestoforward( effectorigin.angles );
+	effectorigin.upvec = anglestoup( effectorigin.angles );
+	emodel = get_dummy();
+	effectorigin.angles = emodel gettagangles( tag );
+	effectorigin.origin = emodel gettagorigin( tag );
+	effectorigin.forwardvec = anglestoforward( effectorigin.angles );
+	effectorigin.upvec = anglestoup( effectorigin.angles );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x878C
+setup_dvars()
+{
+/#
+	setdvar( "debug_vehicleresume", "off" );
+	setdvar( "debug_vehiclesetspeed", "off" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x87D8
+setup_levelvars()
+{
+	level.vehicle_resumespeed = 5;
+	level.vehicle_deletegroup = [];
+	level.vehicle_spawngroup = [];
+	level.vehicle_startmovegroup = [];
+	level.vehicle_rideai = [];
+	level.vehicle_walkai = [];
+	level.vehicle_deathswitch = [];
+	level.vehicle_ridespawners = [];
+	level.vehicle_walkspawners = [];
+	level.vehicle_gatetrigger = [];
+	level.vehicle_crashpaths = [];
+	level.vehicle_link = [];
+	level.vehicle_detourpaths = [];
+	level.vehicle_startnodes = [];
+	level.vehicle_spawners = [];
+	level.vehicle_walkercount = [];
+	level.helicopter_crash_locations = getentarray( "helicopter_crash_location", "targetname" );
+	level.playervehicle = spawn( "script_origin", ( 0, 0, 0 ) );
+	level.playervehiclenone = level.playervehicle;
+	level.vehicle_death_thread = [];
+	level.vehicle_driveidle = [];
+	level.vehicle_driveidle_r = [];
+	level.attack_origin_condition_threadd = [];
+	level.vehiclefireanim = [];
+	level.vehiclefireanim_settle = [];
+	level.vehicle_hasname = [];
+	level.vehicle_turret_requiresrider = [];
+	level.vehicle_isstationary = [];
+	level.vehicle_compassicon = [];
+	level.vehicle_unloadgroups = [];
+	level.vehicle_aianims = [];
+	level.vehicle_unloadwhenattacked = [];
+	level.vehicle_deckdust = [];
+	level.vehicle_types = [];
+	level.vehicle_compass_types = [];
+	level.vehicle_bulletshield = [];
+	level.vehicle_death_badplace = [];
+	maps\_vehicle_aianim::setup_aianimthreads();
+// SP = 0x0 - check OK
+}
+
+// 0x89A0
+attacker_isonmyteam( attacker )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x89D8
+attacker_troop_isonmyteam( attacker )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8A38
+bulletshielded( type )
+{
+	return 0;
+	type = tolower( type );
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8A84
+friendlyfire_shield()
+{
+	self.friendlyfire_shield = 1;
+	self.script_bulletshield = level.vehicle_bulletshield[self.vehicletype];
+// SP = 0x0 - check OK
+}
+
+// 0x8ABC
+friendlyfire_shield_callback( attacker, amount, type )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8B34
+vehicle_dynamic_cover( s_spawner )
+{
+	ent = getent( self.targetname, "target" );
+	e_dyn_path = ent;
+	s_spawner.e_dyn_path = e_dyn_path;
+	self.e_dyn_path = e_dyn_path;
+	e_dyn_path = self;
+	e_dyn_path delay_thread( 0.05, maps\_dynamic_nodes::entity_grab_attached_dynamic_nodes, !(IsDefined( s_spawner )) );
+// SP = 0x0 - check OK
+}
+
+// 0x8BC4
+vehicle_badplace()
+{
+	self endon( "kill_badplace_forever" );
+	self endon( "death" );
+	self endon( "delete" );
+	self thread [[level.custombadplacethread]]();
+	return;
+	hasturret = self.turretweapon != "";
+	wait 0.5;
+	speed = self getspeedmph();
+	wait 0.5;
+	bp_radius = 200;
+	bp_radius = 350;
+	bp_radius = 500;
+	bp_radius *= self.badplacemodifier;
+	bp_direction = anglestoforward( self gettagangles( "tag_turret" ) );
+	bp_direction = anglestoforward( self.angles );
+	badplace_arc( "", 0.5, self.origin, bp_radius * 1.9, 300, bp_direction, 17, 17, "allies", "axis" );
+	badplace_cylinder( "", 0.5, self.origin, 200, 300, "allies", "axis" );
+	wait 0.5 + 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x8D2C
+turret_shoot()
+{
+	self endon( "death" );
+	self endon( "stop_turret_shoot" );
+	self.weapon_fire_time = 0;
+	str_weapon = self seatgetweapon( 0 );
+	weapon_fire_time = weaponfiretime( str_weapon );
+	self waittill( "turret_fire" );
+	self notify( "groupedanimevent", "turret_fire" );
+	self fireweapon();
+	luinotifyevent( &"hud_vehicle_turret_fire", 1, int( weapon_fire_time * 1000 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x8DB4
+vehicle_handleunloadevent()
+{
+	self notify( "vehicle_handleunloadevent" );
+	self endon( "vehicle_handleunloadevent" );
+	self endon( "death" );
+	type = self.vehicletype;
+	self waittill( "unload", who );
+	self notify( "groupedanimevent", "unload" );
+// SP = 0x0 - check OK
+}
+
+// 0x8DF8
+get_vehiclenode_any_dynamic( target )
+{
+	path_start = getvehiclenode( target, "targetname" );
+	path_start = getent( target, "targetname" );
+/#
+	println( "helicopter node targetname: " + path_start.targetname );
+	println( "vehicletype: " + self.vehicletype );
+#/
+/#
+	assertmsg( "helicopter on vehicle path( see console for info )" );
+#/
+	path_start = getstruct( target, "targetname" );
+	return path_start;
+// SP = 0x0 - check OK
+}
+
+// 0x8E90
+vehicle_resumepathvehicle()
+{
+	node = get_vehiclenode_any_dynamic( self.currentnode.target );
+	self resumespeed( 35 );
+	vehicle_paths( node );
+// SP = 0x0 - check OK
+}
+
+// 0x8ED8
+vehicle_landvehicle()
+{
+	self setneargoalnotifydist( 2 );
+	self sethoverparams( 0, 0, 10 );
+	self cleargoalyaw();
+	self settargetyaw( flat_angle( self.angles )[1] );
+	self setvehgoalpos_wrap( bullettrace( self.origin, self.origin + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self )["position"], 1 );
+	self waittill( "goal" );
+// SP = 0x0 - check OK
+}
+
+// 0x8F54
+setvehgoalpos_wrap( origin, bstop )
+{
+	return;
+	origin += ( 0, 0, self.originheightoffset );
+	self setvehgoalpos( origin, bstop );
+// SP = 0x0 - check OK
+}
+
+// 0x8F90
+vehicle_liftoffvehicle( height )
+{
+	height = 512;
+	dest = self.origin + ( 0, 0, height );
+	self setneargoalnotifydist( 10 );
+	self setvehgoalpos_wrap( dest, 1 );
+	self waittill( "goal" );
+// SP = 0x0 - check OK
+}
+
+// 0x8FD8
+waittill_stable()
+{
+	timer = GetTime() + 400;
+	timer = GetTime() + 400;
+	timer = GetTime() + 400;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x9058
+unload_node( node )
+{
+	[[self.custom_unload_function]]();
+	return;
+	vehicle_pause_path();
+	pathnode = getnode( node.targetname, "target" );
+	foreach ( ai_rider in self.riders )
+	{
+		ai_rider thread maps\_spawner::go_to_node( pathnode );
+	}
+	waittill_stable();
+	self sethoverparams( 0, 0, 10 );
+	waittill_stable();
+	self notify( "unload", node.script_unload );
+	self waittill( "unloaded" );
+// SP = 0x0 - check OK
+}
+
+// 0x915C
+unload_node_helicopter( node )
+{
+	self thread [[self.custom_unload_function]]();
+	self sethoverparams( 0, 0, 10 );
+	goal = self.nextnode.origin;
+	start = self.nextnode.origin;
+	end = start - vector_scale( ( 0, 0, 1 ), 10000 );
+	trace = bullettrace( start, end, 0, undefined, 1 );
+	goal = ( trace["position"][0], trace["position"][1], trace["position"][2] + self.fastropeoffset );
+	drop_offset_tag = "tag_fastrope_ri";
+	drop_offset_tag = self.drop_offset_tag;
+	drop_offset = self gettagorigin( "tag_origin" ) - self gettagorigin( drop_offset_tag );
+	goal += ( drop_offset[0], drop_offset[1], 0 );
+	self setvehgoalpos( goal, 1 );
+	self waittill( "goal" );
+	self notify( "unload", self.nextnode.script_unload );
+	self waittill( "unloaded" );
+// SP = 0x0 - check OK
+}
+
+// 0x9270
+vehicle_pathdetach()
+{
+	self.attachedpath = undefined;
+	self notify( "newpath" );
+	self setgoalyaw( flat_angle( self.angles )[1] );
+	self setvehgoalpos( self.origin + vector_scale( ( 0, 0, 1 ), 4 ), 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x92B8
+setup_targetname_spawners()
+{
+	level.vehicle_targetname_array = [];
+	vehicles = getentarray( "script_vehicle", "classname" );
+	highestgroup = 0;
+	i = 0;
+	vehicle = vehicles[i];
+	highestgroup = vehicle.script_vehiclespawngroup;
+	i++;
+	i = 0;
+	vehicle = vehicles[i];
+	highestgroup++;
+	vehicle.script_vehiclespawngroup = highestgroup;
+	level.vehicle_targetname_array[vehicle.targetname] = [];
+	level.vehicle_targetname_array[vehicle.targetname][vehicle.script_vehiclespawngroup] = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x93A4
+spawn_vehicles_from_targetname( name, b_supress_assert )
+{
+	b_supress_assert = 0;
+/#
+	assert( IsDefined( level.vehicle_targetname_array[name] ), "No vehicle spawners had targetname " + name );
+#/
+	vehicles = [];
+	array = level.vehicle_targetname_array[name];
+	keys = getarraykeys( array );
+	foreach ( key in keys )
+	{
+		vehicle_array = scripted_spawn( key );
+		vehicles = arraycombine( vehicles, vehicle_array, 1, 0 );
+	}
+	return vehicles;
+// SP = 0x0 - check OK
+}
+
+// 0x9464
+spawn_vehicle_from_targetname( name, b_supress_assert )
+{
+	b_supress_assert = 0;
+	vehicle_array = spawn_vehicles_from_targetname( name, b_supress_assert );
+/#
+	assert( vehicle_array.size == 1, "Tried to spawn a vehicle from targetname " + name + " but it returned " + vehicle_array.size + " vehicles, instead of 1" );
+#/
+	return vehicle_array[0];
+// SP = 0x0 - check OK
+}
+
+// 0x94C4
+spawn_vehicle_from_targetname_and_drive( name )
+{
+	vehiclearray = spawn_vehicles_from_targetname( name );
+/#
+	assert( vehiclearray.size == 1, "Tried to spawn a vehicle from targetname " + name + " but it returned " + vehiclearray.size + " vehicles, instead of 1" );
+#/
+	vehiclearray[0] thread gopath();
+	return vehiclearray[0];
+// SP = 0x0 - check OK
+}
+
+// 0x9514
+spawn_vehicles_from_targetname_and_drive( name )
+{
+	vehiclearray = spawn_vehicles_from_targetname( name );
+	i = 0;
+	vehiclearray[i] thread gopath();
+	i++;
+	return vehiclearray;
+// SP = 0x0 - check OK
+}
+
+// 0x9554
+aircraft_dust_kickup( model )
+{
+	self endon( "death" );
+	self endon( "death_finished" );
+	self endon( "stop_kicking_up_dust" );
+/#
+	assert( IsDefined( self.vehicletype ) );
+#/
+	dotracethisframe = 3;
+	repeatrate = 1;
+	trace = undefined;
+	d = undefined;
+	trace_ent = self;
+	trace_ent = model;
+	repeatrate = 1;
+	wait repeatrate;
+	return;
+	dotracethisframe--;
+	dotracethisframe = 3;
+	trace = bullettrace( trace_ent.origin, trace_ent.origin - vector_scale( ( 0, 0, 1 ), 100000 ), 0, trace_ent );
+	d = distance( trace_ent.origin, trace["position"] );
+	repeatrate = ( d - 350 ) / ( 1200 - 350 ) * ( 0.15 - 0.05 ) + 0.05;
+/#
+	assert( IsDefined( d ) );
+#/
+	repeatrate = 1;
+	repeatrate = 1;
+	repeatrate = 1;
+	trace["surfacetype"] = "dirt";
+/#
+	assert( IsDefined( level._vehicle_effect[self.vehicletype] ), self.vehicletype + " vehicle script hasn't run _tradfx properly" );
+#/
+/#
+	assert( IsDefined( level._vehicle_effect[self.vehicletype][trace["surfacetype"]] ), "UNKNOWN SURFACE TYPE: " + trace["surfacetype"] );
+#/
+	playfx( level._vehicle_effect[self.vehicletype][trace["surfacetype"]], trace["position"] );
+// SP = 0x0 - check OK
+}
+
+// 0x975C
+maingun_fx()
+{
+	return;
+	self endon( "death" );
+	self waittill( "weapon_fired" );
+	playfxontag( level.vehicle_deckdust[self.model], self, "tag_engine_exhaust" );
+	barrel_origin = self gettagorigin( "tag_flash" );
+	ground = physicstrace( barrel_origin, barrel_origin + vector_scale( ( 0, 0, -1 ), 128 ) );
+	physicsexplosionsphere( ground, 192, 100, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x97E4
+lights_on()
+{
+	self clearclientflag( 10 );
+// SP = 0x0 - check OK
+}
+
+// 0x97F8
+lights_off()
+{
+	self setclientflag( 10 );
+// SP = 0x0 - check OK
+}
+
+// 0x980C
+build_drive( forward, reverse, normalspeed, rate )
+{
+	normalspeed = 10;
+	level.vehicle_driveidle[self.model] = forward;
+	level.vehicle_driveidle_r[self.model] = reverse;
+	level.vehicle_driveidle_normal_speed[self.model] = normalspeed;
+	level.vehicle_driveidle_animrate[self.model] = rate;
+// SP = 0x0 - check OK
+}
+
+// 0x9864
+build_aianims( aithread, vehiclethread )
+{
+	level.vehicle_aianims[self.vehicletype] = [[aithread]]();
+	level.vehicle_aianims[self.vehicletype] = [[vehiclethread]]( level.vehicle_aianims[self.vehicletype] );
+// SP = 0x0 - check OK
+}
+
+// 0x98A0
+build_attach_models( modelsthread )
+{
+	level.vehicle_attachedmodels[self.vehicletype] = [[modelsthread]]();
+// SP = 0x0 - check OK
+}
+
+// 0x98BC
+build_unload_groups( unloadgroupsthread )
+{
+	level.vehicle_unloadgroups[self.vehicletype] = [[unloadgroupsthread]]();
+// SP = 0x0 - check OK
+}
+
+// 0x98D8
+get_from_spawnstruct( target )
+{
+	return getstruct( target, "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x98F0
+get_from_entity( target )
+{
+	return getent( target, "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x9908
+get_from_spawnstruct_target( target )
+{
+	return getstruct( target, "target" );
+// SP = 0x0 - check OK
+}
+
+// 0x9920
+get_from_entity_target( target )
+{
+	return getent( target, "target" );
+// SP = 0x0 - check OK
+}
+
+// 0x9938
+isdestructible()
+{
+	return IsDefined( self.destructible_type );
+// SP = 0x0 - check OK
+}
+
+// 0x9944
+attackgroup_think()
+{
+	self endon( "death" );
+	self endon( "switch group" );
+	self endon( "killed all targets" );
+	wait self.script_vehicleattackgroupwait;
+	group = getentarray( "script_vehicle", "classname" );
+	valid_targets = [];
+	i = 0;
+	valid_targets[valid_targets.size] = group[i];
+	i++;
+	wait 0.5;
+	current_target = undefined;
+	current_target = self get_nearest_target( valid_targets );
+	self notify( "killed all targets" );
+	arrayremovevalue( valid_targets, current_target );
+	self setturrettargetent( current_target, vector_scale( ( 0, 0, 1 ), 50 ) );
+	self.fire_delay_max = self.fire_delay_min;
+	wait randomintrange( self.fire_delay_min, self.fire_delay_max );
+	wait randomintrange( 4, 6 );
+	self fireweapon();
+// SP = 0x0 - check OK
+}
+
+// 0x9AA8
+get_nearest_target( valid_targets )
+{
+	nearest_distsq = 99999999;
+	nearest = undefined;
+	i = 0;
+	current_distsq = distancesquared( self.origin, valid_targets[i].origin );
+	nearest_distsq = current_distsq;
+	nearest = valid_targets[i];
+	i++;
+	return nearest;
+// SP = 0x0 - check OK
+}
+
+// 0x9B1C
+debug_vehicle()
+{
+/#
+	self endon( "death" );
+	setdvar( "debug_vehicle_health", "0" );
+	print3d( self.origin, "Health: " + self.health, ( 1, 1, 1 ), 1, 3 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9B84
+debug_vehicle_paths()
+{
+/#
+	self endon( "death" );
+	self endon( "newpath" );
+	self endon( "reached_dynamic_path_end" );
+	nextnode = self.currentnode;
+	recordline( self.origin, self.currentnode.origin, ( 1, 0, 0 ), "Script", self );
+	recordline( self.origin, nextnode.origin, ( 0, 1, 0 ), "Script", self );
+	recordline( self.currentnode.origin, nextnode.origin, ( 1, 1, 1 ), "Script", self );
+	wait 0.05;
+	nextnode = self.nextnode;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9C30
+get_dummy()
+{
+	emodel = self.modeldummy;
+	emodel = self;
+	return emodel;
+// SP = 0x0 - check OK
+}
+
+// 0x9C54
+vehicle_add_main_callback( vehicletype, main )
+{
+	level.vehicle_main_callback = [];
+/#
+	println( "WARNING! Main callback function for vehicle " + vehicletype + " already exists. Proceeding with override" );
+#/
+	level.vehicle_main_callback[vehicletype] = main;
+// SP = 0x0 - check OK
+}
+
+// 0x9CA0
+vehicle_main()
+{
+	self thread [[level.vehicle_main_callback[self.vehicletype]]]();
+	switch ( self.vehicletype )
+	{
+		case "apc_bmp":
+			self maps\_t72::main();
+			break;
+		case "apc_brt40":
+		case "apc_btr40_flashpoint":
+			self maps\_tank_zsu23::main();
+			break;
+		case "apc_btr60":
+		case "apc_btr60_grenade":
+		case "apc_btr60_pakistan":
+			self maps\_truck::main();
+			break;
+		case "apc_buffel":
+		case "apc_buffel_gun_turret":
+		case "apc_buffel_gun_turret_nophysics":
+		case "apc_gaz_tigr":
+		case "apc_gaz_tigr_monsoon":
+		case "apc_gaz_tigr_pakistan":
+		case "apc_gaz_tigr_wturret":
+			self maps\_truck_gaz66::main();
+			break;
+		case "apc_gaz_tigr_wturret_monsoon":
+		case "apc_m113":
+		case "apc_m113_ally":
+		case "apc_m113_axis":
+		case "apc_m113_khesanh_outcasts":
+		case "apc_m113_khesanh_plain":
+		case "apc_m113_khesanh_warchicken":
+		case "boat_sampan":
+		case "boat_sampan_pow":
+		case "boat_soct_allies":
+		case "civ_pickup":
+		case "civ_pickup_4door":
+		case "civ_pickup_red":
+		case "civ_pickup_red_nophysics":
+		case "civ_pickup_red_wturret":
+		case "civ_pickup_red_wturret_la2":
+		case "civ_pickup_red_wturret_light":
+		case "civ_pickup_red_wturret_nophysics":
+		case "civ_pickup_wturret":
+		case "civ_pickup_wturret_afghan":
+		case "civ_pickup_wturret_angola":
+		case "civ_pickup_wturret_beatup":
+		case "civ_pickup_wturret_beatup_cartel":
+		case "civ_pickup_wturret_panama":
+		case "civ_police":
+			self maps\_truck_gaz63::main();
+			break;
+		case "civ_police_light":
+		case "civ_police_light_nophysics":
+			self maps\_uaz::main();
+			break;
+		case "civ_sedan_luxury":
+		case "civ_tanker":
+		case "civ_tanker_civ":
+			self maps\_jeep::main();
+			break;
+		case "civ_technical_afgh":
+			self maps\_chinook::main();
+			break;
+		case "civ_van_sprinter":
+		case "civ_van_sprinter_la2":
+			self maps\_cobra::main();
+			break;
+		case "heli_blackhawk_rts":
+		case "heli_blackhawk_rts_axis":
+		case "heli_blackhawk_stealth":
+		case "heli_blackhawk_stealth_axis":
+		case "heli_blackhawk_stealth_la2":
+		case "heli_chinook":
+			self maps\_hip::main();
+			break;
+		case "heli_cobra":
+		case "heli_cobra_khesanh":
+			self maps\_pavelow::main();
+			break;
+		case "heli_hind":
+		case "heli_hind_pakistan":
+		case "heli_hind_player":
+		case "heli_hind_so":
+		case "heli_hip":
+		case "heli_hip_afghanistan":
+		case "heli_hip_afghanistan_land":
+		case "heli_hip_sidegun":
+			self maps\_osprey::main();
+			break;
+		case "heli_hip_sidegun_spotlight":
+		case "heli_hip_sidegun_uwb":
+		case "heli_huey":
+		case "heli_huey_assault":
+		case "heli_huey_assault_river":
+		case "heli_huey_gunship":
+		case "heli_huey_gunship_river":
+		case "heli_huey_heavyhog":
+		case "heli_huey_heavyhog_creek":
+		case "heli_huey_heavyhog_river":
+		case "heli_huey_medivac":
+		case "heli_huey_medivac_khesanh":
+		case "heli_huey_medivac_river":
+		case "heli_huey_minigun":
+		case "heli_huey_player":
+		case "heli_huey_side_minigun":
+		case "heli_huey_side_minigun_uwb":
+		case "heli_huey_small":
+		case "heli_huey_usmc":
+		case "heli_huey_usmc_gunship":
+		case "heli_huey_usmc_heavyhog":
+		case "heli_huey_usmc_heavyhog_khesanh":
+		case "heli_huey_usmc_khesanh":
+		case "heli_huey_usmc_khesanh_std":
+			self maps\_huey::main();
+			break;
+		case "heli_huey_usmc_minigun":
+			self maps\_hind_player::main();
+			break;
+		case "heli_huey_vista":
+		case "heli_littlebird":
+		case "heli_osprey":
+		case "heli_osprey_pakistan":
+		case "heli_osprey_rts_axis":
+			self maps\_blackhawk::main();
+			break;
+		case "heli_pavelow":
+		case "heli_pavelow_la2":
+		case "heli_v78":
+			self maps\_hind::main();
+			break;
+		case "heli_v78_blackout":
+			self maps\_littlebird::main();
+			break;
+		case "heli_v78_blackout_low":
+		case "heli_v78_rts":
+			self maps\_mig17::main();
+			break;
+		case "heli_v78_yemen":
+		case "horse":
+			self maps\_mig17::main();
+			break;
+		case "horse_axis":
+			self maps\_zpu_antiair::main();
+			break;
+		case "horse_low":
+		case "horse_player":
+		case "horse_player_low":
+		case "jeep_intl":
+		case "jeep_uaz":
+		case "jeep_uaz_closetop":
+		case "jeep_ultimate":
+		case "jeep_willys":
+			self maps\_apc::main();
+			break;
+		case "motorcycle_ai":
+		case "motorcycle_lapd":
+		case "plane_mig17":
+			self maps\_apc_buffel::main();
+			break;
+		case "plane_mig23":
+		case "plane_phantom":
+		case "plane_phantom_gearup_lowres":
+		case "police":
+			self maps\_btr::main();
+			break;
+		case "rcbomb":
+		case "tank_snowcat":
+		case "tank_snowcat_plow":
+		case "tank_snowcat_troops":
+		case "tank_t72":
+			self maps\_truck_gaztigr::main();
+			break;
+		case "tank_zsu23":
+		case "tank_zsu23_low":
+		case "tiara":
+		case "truck_bm21":
+		case "truck_bm21_troops":
+		case "truck_gaz63":
+		case "truck_gaz63_camorack":
+		case "truck_gaz63_camorack_low":
+		case "truck_gaz63_canvas":
+			self maps\_civ_pickup::main();
+			break;
+		case "truck_gaz63_canvas_camorack":
+		case "truck_gaz63_canvas_low":
+		case "truck_gaz63_flatbed":
+		case "truck_gaz63_flatbed_camorack":
+		case "truck_gaz63_flatbed_low":
+		case "truck_gaz63_low":
+			self maps\_civ_pickup_big::main();
+			break;
+		case "truck_gaz63_player_single50":
+		case "truck_gaz63_player_single50_bulletdamage":
+		case "truck_gaz63_player_single50_nodeath":
+			self maps\_civ_vehicle::main();
+			break;
+		case "truck_gaz63_player_single50_physics":
+			self maps\_tiara::main();
+			break;
+		case "truck_gaz63_quad50":
+		case "truck_gaz63_quad50_low":
+		case "truck_gaz63_quad50_low_no_deathmodel":
+		case "truck_gaz63_single50":
+			self maps\_policecar::main();
+			break;
+		case "truck_gaz63_single50_low":
+		case "truck_gaz63_tanker":
+		case "truck_gaz63_tanker_low":
+			self maps\_snowcat::main();
+			break;
+		case "truck_gaz63_troops":
+			self maps\_rcbomb::main();
+			break;
+		case "truck_gaz63_troops_bulletdamage":
+		case "truck_gaz63_troops_camorack":
+			self maps\_sampan::main();
+			break;
+		case "truck_gaz63_troops_low":
+			self maps\_motorcycle_lapd::main();
+			break;
+		case "truck_gaz66":
+			self maps\_motorcycle::main();
+			break;
+		case "truck_gaz66_canvas":
+		case "truck_gaz66_cargo":
+			self maps\_van::main();
+			break;
+		case "truck_gaz66_cargo_doors":
+		case "truck_gaz66_flatbed":
+		case "truck_gaz66_fuel":
+		case "truck_gaz66_troops":
+		case "truck_maz543":
+		case "wpn_zpu_antiair":
+			self maps\_horse::main();
+			break;
+		case "zhao_intro_horse":
+			self maps\_soct::main();
+			break;
+		default:
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xA3C0
+vehicle_connectpaths_wrapper()
+{
+	self connectpaths();
+	self.e_dyn_path maps\_dynamic_nodes::entity_disconnect_dynamic_nodes_from_navigation_mesh();
+	self maps\_dynamic_nodes::entity_disconnect_dynamic_nodes_from_navigation_mesh();
+// SP = 0x0 - check OK
+}
+
+// 0xA3F8
+vehicle_disconnectpaths_wrapper()
+{
+	self.e_dyn_path thread maps\_dynamic_nodes::entity_connect_dynamic_nodes_to_navigation_mesh();
+	self thread maps\_dynamic_nodes::entity_connect_dynamic_nodes_to_navigation_mesh();
+	self disconnectpaths();
+// SP = 0x0 - check OK
+}
+
+// 0xA430
+stop()
+{
+	self notify( "scripted" );
+// SP = 0x0 - check OK
+}
+
+// 0xA448
+defend( position, radius )
+{
+	old_goalpos = self.goalpos;
+	self.goalpos = position;
+	self.goalradius = radius;
+	self notify( "force_goal" );
+	self notify( "main" );
+// SP = 0x0 - check OK
+}
+
+// 0xA490
+vehicle_spawner_tool( allvehicles )
+{
+/#
+	vehicletypes = [];
+	foreach ( veh in allvehicles )
+	{
+		vehicletypes[veh.vehicletype] = veh.model;
+	}
+	veh = codespawnvehicle( 1, "debug_spawn_vehicle", "civ_pickup_mini", vector_scale( ( 0, 0, 1 ), 10000 ), ( 0, 0, 0 ) );
+	vehicletypes[veh.vehicletype] = veh.model;
+	veh delete();
+	veh = codespawnvehicle( 1, "debug_spawn_vehicle", "apc_cougar_player", vector_scale( ( 0, 0, 1 ), 10000 ), ( 0, 0, 0 ) );
+	vehicletypes[veh.vehicletype] = veh.model;
+	veh delete();
+	veh = codespawnvehicle( 1, "debug_spawn_vehicle", "rc_car_racer", vector_scale( ( 0, 0, 1 ), 10000 ), ( 0, 0, 0 ) );
+	vehicletypes[veh.vehicletype] = veh.model;
+	veh delete();
+	types = getarraykeys( vehicletypes );
+	type_index = 0;
+	player = get_players()[0];
+	dynamic_spawn_hud = newclienthudelem( player );
+	dynamic_spawn_hud.alignx = "left";
+	dynamic_spawn_hud.x = 20;
+	dynamic_spawn_hud.y = 395;
+	dynamic_spawn_hud.fontscale = 2;
+	dynamic_spawn_dummy_model = spawn( "script_model", ( 0, 0, 0 ) );
+	origin = player.origin + anglestoforward( player getplayerangles() ) * 270;
+	origin += vector_scale( ( 0, 0, 1 ), 40 );
+	dynamic_spawn_dummy_model hide();
+	vehicle = codespawnvehicle( 1, "debug_spawn_vehicle", types[type_index], origin, player.angles );
+	vehicle_init( vehicle );
+	vehicle makevehicleusable();
+	setdvar( "debug_vehicle_spawn", 0 );
+	wait 0.3;
+	dynamic_spawn_dummy_model hide();
+	type_index++;
+	type_index = 0;
+	wait 0.3;
+	dynamic_spawn_dummy_model hide();
+	type_index--;
+	type_index = types.size - 1;
+	wait 0.3;
+	type = types[type_index];
+	dynamic_spawn_hud settext( "Press X to spawn vehicle " + type );
+	dynamic_spawn_dummy_model setmodel( vehicletypes[type] );
+	dynamic_spawn_dummy_model show();
+	dynamic_spawn_dummy_model notsolid();
+	dynamic_spawn_dummy_model.origin = origin;
+	dynamic_spawn_dummy_model.angles = player.angles;
+	wait 0.05;
+	dynamic_spawn_hud destroy();
+	dynamic_spawn_dummy_model delete();
+	wait 2;
+#/
+// SP = 0x0 - check OK
+}

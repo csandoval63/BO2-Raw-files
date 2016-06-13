@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_alcatraz_base_to_roof_climb.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x108
+main()
+{
+	dosimpletraverse( "baseball_to_roof_climb" );
+// SP = 0x0 - check OK
+}

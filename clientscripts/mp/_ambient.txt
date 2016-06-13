@@ -1,0 +1,401 @@
+// clientscripts/mp/_ambient.csc
+
+#include clientscripts\mp\_utility_code;
+#include clientscripts\mp\_utility;
+
+
+// 0x938
+setup_point_fx( point, fx_id )
+{
+	fx_id = point.script_fxid;
+	point.fx_id = fx_id;
+	point.forward = anglestoforward( point.angles );
+	point.up = anglestoup( point.angles );
+	point.angles = ( 0, 0, 0 );
+	point.forward = ( 0, 0, 0 );
+	point.up = ( 0, 0, 0 );
+	level thread ambient_flak_think( point );
+	level thread ambient_fakefire_think( point );
+// SP = 0x0 - check OK
+}
+
+// 0x9E4
+ambient_flak_think( point )
+{
+	amount = undefined;
+	speed = undefined;
+	night = 0;
+	min_delay = 0.4;
+	max_delay = 4;
+	min_burst_time = 1;
+	max_burst_time = 3;
+	point.is_firing = 0;
+	level thread ambient_flak_rotate( point );
+	level thread ambient_flak_flash( point, min_burst_time, max_burst_time );
+	timer = randomfloatrange( min_burst_time, max_burst_time );
+	point.is_firing = 1;
+	playfx( 0, level._effect[point.fx_id], point.origin, point.forward, point.up );
+	thread play_sound_in_space( 0, "wpn_triple25_fire", point.origin );
+	wait 0.2;
+	timer -= 0.2;
+	point.is_firing = 0;
+	wait randomfloatrange( min_delay, max_delay );
+// SP = 0x0 - check OK
+}
+
+// 0xAD4
+ambient_flak_rotate( point )
+{
+	min_pitch = 30;
+	max_pitch = 80;
+	pointangles = point.angles;
+	pointangles = ( 0, 0, 0 );
+	time = randomfloatrange( 0.5, 2 );
+	steps = time * 10;
+	random_angle = ( randomintrange( min_pitch, max_pitch ) * -1, randomint( 360 ), 0 );
+	forward = anglestoforward( random_angle );
+	up = anglestoup( random_angle );
+	diff_forward = ( forward - point.forward ) / steps;
+	diff_up = ( up - point.up ) / steps;
+	i = 0;
+	point.forward += diff_forward;
+	point.up += diff_up;
+	wait 0.1;
+	i++;
+	point.forward = forward;
+	point.up = up;
+// SP = 0x0 - check OK
+}
+
+// 0xBD4
+ambient_flak_flash( point, min_burst_time, max_burst_time )
+{
+	min_dist = 5000;
+	max_dist = 6500;
+	min_dist = point.script_mindist;
+	max_dist = point.script_maxdist;
+	min_burst_time = 0.25;
+	max_burst_time = 1;
+	fxpos = undefined;
+	wait 0.25;
+	fxpos = point.origin + vector_scale( point.forward, randomintrange( min_dist, max_dist ) );
+	playfx( 0, level._effect["flak_burst_single"], fxpos );
+	playfx( 0, level._effect["flak_cloudflash_night"], fxpos );
+	wait randomfloatrange( min_burst_time, max_burst_time );
+// SP = 0x0 - check OK
+}
+
+// 0xCC4
+ambient_fakefire_think( point )
+{
+	firesound = undefined;
+	weaptype = undefined;
+	burstmin = undefined;
+	burstmax = undefined;
+	betweenshotsmin = undefined;
+	betweenshotsmax = undefined;
+	reloadtimemin = undefined;
+	reloadtimemax = undefined;
+	soundchance = undefined;
+	point.weaponinfo = "axis_turret";
+	switch ( point.weaponinfo )
+	{
+		case "allies_assault":
+			firesound = "weap_bar_fire";
+			firesound = "weap_dp28_fire_plr";
+			burstmin = 16;
+			burstmax = 24;
+			betweenshotsmin = 0.05;
+			betweenshotsmax = 0.08;
+			reloadtimemin = 4;
+			reloadtimemax = 7;
+			soundchance = 75;
+			weaptype = "assault";
+			break;
+		case "allies_rifle":
+			firesound = "weap_mp44_fire";
+			firesound = "weap_type99_fire";
+			burstmin = 16;
+			burstmax = 24;
+			betweenshotsmin = 0.05;
+			betweenshotsmax = 0.08;
+			reloadtimemin = 4;
+			reloadtimemax = 7;
+			soundchance = 75;
+			weaptype = "assault";
+			break;
+		case "allies_smg":
+			firesound = "weap_m1garand_fire";
+			firesound = "weap_mosinnagant_fire";
+			burstmin = 1;
+			burstmax = 3;
+			betweenshotsmin = 0.8;
+			betweenshotsmax = 1.3;
+			reloadtimemin = 3;
+			reloadtimemax = 6;
+			soundchance = 95;
+			weaptype = "rifle";
+			break;
+		case "allies_turret":
+			firesound = "weap_kar98k_fire";
+			firesound = "weap_arisaka_fire";
+			burstmin = 1;
+			burstmax = 3;
+			betweenshotsmin = 0.8;
+			betweenshotsmax = 1.3;
+			reloadtimemin = 3;
+			reloadtimemax = 6;
+			soundchance = 95;
+			weaptype = "rifle";
+			break;
+		case "axis_assault":
+			firesound = "weap_thompson_fire";
+			firesound = "weap_ppsh_fire";
+			burstmin = 14;
+			burstmax = 28;
+			betweenshotsmin = 0.08;
+			betweenshotsmax = 0.12;
+			reloadtimemin = 2;
+			reloadtimemax = 5;
+			soundchance = 75;
+			weaptype = "smg";
+			break;
+		case "axis_rifle":
+			firesound = "weap_mp40_fire";
+			firesound = "weap_type100_fire";
+			burstmin = 14;
+			burstmax = 28;
+			betweenshotsmin = 0.08;
+			betweenshotsmax = 0.12;
+			reloadtimemin = 2;
+			reloadtimemax = 5;
+			soundchance = 75;
+			weaptype = "smg";
+			break;
+		case "axis_smg":
+			firesound = "weap_30cal_fire";
+			firesound = "weap_dp28_fire_plr";
+			burstmin = 60;
+			burstmax = 90;
+			betweenshotsmin = 0.05;
+			betweenshotsmax = 0.08;
+			reloadtimemin = 3;
+			reloadtimemax = 6;
+			soundchance = 95;
+			weaptype = "turret";
+			break;
+		case "axis_turret":
+			firesound = "weap_bar_fire";
+			firesound = "weap_type92_fire";
+			burstmin = 60;
+			burstmax = 90;
+			betweenshotsmin = 0.05;
+			betweenshotsmax = 0.08;
+			reloadtimemin = 3;
+			reloadtimemax = 6;
+			soundchance = 95;
+			weaptype = "turret";
+			break;
+		default:
+/#
+			assertmsg( "Ambient Fakefire: Weapon Info '" + point.weaponinfo + "' is not recognized." );
+#/
+	}
+	burst = randomintrange( burstmin, burstmax );
+	i = 0;
+	tracedist = 10000;
+	target = point.origin + vector_scale( anglestoforward( point.angles + ( -3 + randomint( 6 ), -5 + randomint( 10 ), 0 ) ), tracedist );
+	bullettracer( point.origin, target );
+	playfx( 0, level._effect[point.fx_id], point.origin, point.forward );
+	wait randomfloatrange( betweenshotsmin, betweenshotsmax );
+	i++;
+	wait randomfloatrange( reloadtimemin, reloadtimemax );
+// SP = 0x0 - check OK
+}
+
+// 0x1120
+ceiling_fans_init( clientnum )
+{
+	fan_array = getentarray( clientnum, "ceiling_fan", "targetname" );
+/#
+	println( "**********fan array is defined, size: " + fan_array.size );
+#/
+	array_thread( fan_array, ::spin_fan );
+// SP = 0x0 - check OK
+}
+
+// 0x116C
+spin_fan()
+{
+	self endon( "entityshutdown" );
+	self.speed = randomintrange( 1, 100 );
+	self.speed = self.speed % 10 + 1;
+	self.speed = randomintrange( 1, 100 );
+	self.speed = self.speed % 10 + 1;
+	do_wobble = 0;
+	wobble = self.script_noteworthy;
+	do_wobble = 1;
+	self.wobble_speed = self.speed * 0.5;
+	self rotateyaw( 180, self.speed );
+	self waittill( "rotatedone" );
+	self rotateyaw( 340, self.speed );
+	self waittill( "rotatedone" );
+	self rotateyaw( 20, self.wobble_speed );
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x1264
+clocks_init( clientnum )
+{
+	curr_time = getsystemtime();
+	hours = curr_time[0];
+	hours -= 12;
+	hours = 12;
+	minutes = curr_time[1];
+	seconds = curr_time[2];
+	hour_hand = getentarray( clientnum, "hour_hand", "targetname" );
+	hour_values = [];
+	hour_values["hand_time"] = hours;
+	hour_values["rotate"] = 30;
+	hour_values["rotate_bit"] = 0.00833333;
+	hour_values["first_rotate"] = ( minutes * 60 + seconds ) * hour_values["rotate_bit"];
+	minute_hand = getentarray( clientnum, "minute_hand", "targetname" );
+	minute_values = [];
+	minute_values["hand_time"] = minutes;
+	minute_values["rotate"] = 6;
+	minute_values["rotate_bit"] = 0.1;
+	minute_values["first_rotate"] = seconds * minute_values["rotate_bit"];
+	second_hand = getentarray( clientnum, "second_hand", "targetname" );
+	second_values = [];
+	second_values["hand_time"] = seconds;
+	second_values["rotate"] = 6;
+	second_values["rotate_bit"] = 6;
+	hour_hand_array = getentarray( clientnum, "hour_hand", "targetname" );
+/#
+	println( "**********hour_hand_array is defined, size: " + hour_hand_array.size );
+#/
+	array_thread( hour_hand_array, ::clock_run, hour_values );
+	minute_hand_array = getentarray( clientnum, "minute_hand", "targetname" );
+/#
+	println( "**********minute_hand_array is defined, size: " + minute_hand_array.size );
+#/
+	array_thread( minute_hand_array, ::clock_run, minute_values );
+	second_hand_array = getentarray( clientnum, "second_hand", "targetname" );
+/#
+	println( "**********second_hand_array is defined, size: " + second_hand_array.size );
+#/
+	array_thread( second_hand_array, ::clock_run, second_values );
+// SP = 0x0 - check OK
+}
+
+// 0x1464
+clock_run( time_values )
+{
+	self endon( "entityshutdown" );
+	hour = time_values["hand_time"];
+	curr_time = getsystemtime( 1 );
+	switch ( tolower( self.script_noteworthy ) )
+	{
+		case "alaska":
+			hour = curr_time[0] - 10;
+			break;
+		case "chicago":
+			hour = curr_time[0] - 9;
+			break;
+		case "china":
+			hour = curr_time[0] - 8;
+			break;
+		case "denver":
+			hour = curr_time[0] - 7;
+			break;
+		case "greenland":
+			hour = curr_time[0] - 6;
+			break;
+		case "halifax":
+			hour = curr_time[0] - 5;
+			break;
+		case "helsinki":
+			hour = curr_time[0] - 4;
+			break;
+		case "honolulu":
+			hour = curr_time[0] - 3;
+			break;
+		case "london":
+			hour = curr_time[0];
+			break;
+		case "los angeles":
+			hour = curr_time[0] + 1;
+			break;
+		case "moscow":
+			hour = curr_time[0] + 2;
+			break;
+		case "new york":
+			hour = curr_time[0] + 3;
+			break;
+		case "paris":
+			hour = curr_time[0] + 7;
+			break;
+		case "vietnam":
+			hour = curr_time[0] + 8;
+			break;
+	}
+	hour += 12;
+	hour -= 12;
+	time_values["hand_time"] = hour;
+	self rotatepitch( time_values["hand_time"] * time_values["rotate"], 0.05 );
+	self waittill( "rotatedone" );
+	self rotatepitch( time_values["first_rotate"], 0.05 );
+	self waittill( "rotatedone" );
+	prev_time = getsystemtime();
+	curr_time = getsystemtime();
+	self rotatepitch( time_values["rotate_bit"], 0.05 );
+	prev_time = curr_time;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x16AC
+spin_anemometers( clientnum )
+{
+	spoon_spinners = getentarray( clientnum, "spinner1", "targetname" );
+	flat_spinners = getentarray( clientnum, "spinner2", "targetname" );
+/#
+	println( "**********spoon_spinners is defined, size: " + spoon_spinners.size );
+#/
+	array_thread( spoon_spinners, ::spoon_spin_func );
+/#
+	println( "**********flat_spinners is defined, size: " + flat_spinners.size );
+#/
+	array_thread( flat_spinners, ::arrow_spin_func );
+// SP = 0x0 - check OK
+}
+
+// 0x1738
+spoon_spin_func()
+{
+	self endon( "entityshutdown" );
+	model_speed = self.script_float;
+	model_speed = 2;
+	speed = randomfloatrange( model_speed * 0.6, model_speed );
+	self rotateyaw( 1200, speed );
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x1798
+arrow_spin_func()
+{
+	self endon( "entityshutdown" );
+	model_direction_change = self.script_int;
+	model_direction_change = 25;
+	model_speed = self.script_float;
+	model_speed = 0.8;
+	direction_change = model_direction_change + randomintrange( -11, 11 );
+	speed_change = randomfloatrange( model_speed * 0.3, model_speed );
+	self rotateyaw( direction_change, speed_change );
+	self waittill( "rotatedone" );
+	self rotateyaw( direction_change * -1, speed_change );
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}

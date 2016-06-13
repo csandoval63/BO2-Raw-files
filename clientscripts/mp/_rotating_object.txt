@@ -1,0 +1,42 @@
+// clientscripts/mp/_rotating_object.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x188
+init( localclientnum )
+{
+	rotating_objects = getentarray( localclientnum, "rotating_object", "targetname" );
+	array_thread( rotating_objects, ::rotating_object_think );
+// SP = 0x0 - check OK
+}
+
+// 0x1BC
+rotating_object_think()
+{
+	self endon( "entityshutdown" );
+	axis = "yaw";
+	direction = 360;
+	revolutions = 1000;
+	rotate_time = 12;
+	axis = self.script_noteworthy;
+	rotate_time = self.script_float;
+	rotate_time = 12;
+	direction *= -1;
+	rotate_time *= -1;
+	switch ( axis )
+	{
+		case "pitch":
+			self rotateroll( direction * revolutions, rotate_time * revolutions );
+			break;
+		case "roll":
+			self rotatepitch( direction * revolutions, rotate_time * revolutions );
+			break;
+		case "yaw":
+		default:
+			self rotateyaw( direction * revolutions, rotate_time * revolutions );
+			break;
+	}
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,59 @@
+// animscripts/grenade_cower.gsc
+
+#include animscripts\shared;
+#include animscripts\stop;
+#include maps\_dds;
+#include animscripts\anims;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2B0
+main()
+{
+	self trackscriptstate( "GrenadeCower Main", "code" );
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( "grenadecower" );
+	self maps\_dds::dds_notify( "react_grenade", self.team == "allies" );
+	animscripts\stop::main();
+	return;
+	self animmode( "zonly_physics" );
+	self orientmode( "face angle", self.angles[1] );
+	grenadeangle = 0;
+/#
+	assert( IsDefined( self.grenade ) );
+#/
+	grenadeangle = angleclamp180( vectortoangles( self.grenade.origin - self.origin )[1] - self.angles[1] );
+	grenadeangle = self.angles[1];
+	return;
+	self setflaggedanimknoballrestart( "cowerstart", animarray( "cower_start" ), %body, 1, 0.2 );
+	self animscripts\shared::donotetracks( "cowerstart" );
+	self.a.pose = "crouch";
+	self.a.movement = "stop";
+	self setflaggedanimknoballrestart( "cower", animarray( "cower_idle" ), %body, 1, 0.2 );
+	self animscripts\shared::donotetracks( "cower" );
+	self waittill( "never" );
+// SP = 0x0 - check OK
+}
+
+// 0x434
+trydive( grenadeangle )
+{
+	diveanim = undefined;
+	diveanim = animarray( "dive_forward" );
+	diveanim = animarray( "dive_backward" );
+	moveby = getmovedelta( diveanim, 0, 0.5 );
+	divetopos = self localtoworldcoords( moveby );
+	return 0;
+	self setflaggedanimknoballrestart( "cowerstart", diveanim, %body, 1, 0.2 );
+	self animscripts\shared::donotetracks( "cowerstart" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4DC
+end_script()
+{
+// SP = 0x0 - check OK
+}

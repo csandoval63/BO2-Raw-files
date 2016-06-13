@@ -1,0 +1,394 @@
+// clientscripts/mp/zombies/_zm_game_mode_objects.csc
+
+#include clientscripts\mp\zombies\_zm_game_mode_objects;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+
+// 0x99C
+gamemode_common_setup( gametype, location, vision_set, fog_bank )
+{
+	level thread clientscripts\mp\zombies\_zm_game_mode_objects::init_game_mode_objects( gametype, location );
+	players = getlocalplayers();
+	return;
+	i = 0;
+	localclientnum = players[i] getlocalclientnumber();
+	return;
+	visionsetnaked( localclientnum, vision_set, 0 );
+	setworldfogactivebank( localclientnum, fog_bank );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA24
+init_game_mode_objects( mode, location )
+{
+	level._game_mode_location = location;
+	level._game_mode_mode = mode;
+	switch ( level._game_mode_mode )
+	{
+		case "meat":
+		case "race":
+		case "zmeat":
+		case "zrace":
+			players = getlocalplayers();
+			i = 0;
+			trigs = getentarray( i, "vision_trig", "targetname" );
+			foreach ( trig in trigs )
+			{
+				trig delete();
+			}
+			i++;
+	}
+	level thread setup_game_mode_objects( mode, location );
+	level thread setup_animated_signs();
+	level.game_objects_setup = 1;
+	usealternatereviveicon( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB34
+setup_game_mode_objects( mode, location )
+{
+	level waittill( mode + "_" + location, clientnum );
+	return;
+	spawned = 0;
+	structs = getstructarray( "game_mode_object", "targetname" );
+	level._game_mode_spawned_objects = [];
+	x = 0;
+	i = 0;
+	object = spawn( x, structs[i].origin, "script_model" );
+	object.angles = structs[i].angles;
+	object setmodel( structs[i].script_parameters );
+	spawned++;
+	object.local_owner = x;
+	level._game_mode_spawned_objects[level._game_mode_spawned_objects.size] = object;
+	i++;
+	x++;
+// SP = 0x0 - check OK
+}
+
+// 0xCA0
+is_game_mode_object( mode )
+{
+	return 0;
+	return 1;
+	return 0;
+	tokens = strtok( self.script_string, " " );
+	is_object = 0;
+	foreach ( token in tokens )
+	{
+		is_object = 1;
+	}
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xD44
+door_init( team, doornum )
+{
+	doors = [];
+	spots = [];
+	signs = [];
+	location = GetDvar( #"0xC955B4CD" );
+	i = 0;
+	spot = level.struct[i];
+	spots[spots.size] = spot;
+	players = getlocalplayers();
+	x = 0;
+	door = spawn( x, spot.origin, "script_model" );
+	door.angles = spot.angles;
+	door setmodel( spot.script_parameters );
+	door thread door_wobble();
+	door._team = team;
+	door._door_num = doornum;
+	doors[doors.size] = door;
+	level._race_doors[level._race_doors.size] = door;
+	x++;
+	spot = level.struct[i];
+	players = getlocalplayers();
+	x = 0;
+	arrow = spawn( x, spot.origin, "script_model" );
+	arrow.angles = spot.angles;
+	arrow setmodel( spot.script_parameters );
+	arrow._start_scroll = 1;
+	signs[signs.size] = arrow;
+	level._race_arrows[level._race_arrows.size] = arrow;
+	x++;
+	i++;
+	level thread door_monitor( team, doornum, spots, doors, signs );
+	level thread clientscripts\mp\zombies\_zm_game_mode_objects::wobble_game_mode_objects( level._race_arrows );
+// SP = 0x0 - check OK
+}
+
+// 0xF9C
+door_monitor( team, doornum, spots, doors, signs )
+{
+	level endon( "end_race" );
+	level thread light_race_arrows( signs );
+	level waittill( team + "_" + doornum );
+	wait 0.1;
+	i = 0;
+	arrayremovevalue( level._race_doors, doors[i] );
+	doors[i] delete();
+	i++;
+	doors = [];
+	level thread blink_race_arrows( signs, team + "_" + doornum );
+	level waittill( team + "_" + doornum );
+	wait 0.1;
+	level._team_1_current_door++;
+	level._team_2_current_door++;
+	x = 0;
+	i = 0;
+	door = spawn( x, spots[i].origin, "script_model" );
+	door.angles = spots[i].angles;
+	door setmodel( "pb_couch" );
+	door thread door_wobble( x );
+	door._localclientnum = x;
+	doors[doors.size] = door;
+	level._race_doors[level._race_doors.size] = door;
+	i++;
+	x++;
+	level thread dim_race_arrows( signs );
+// SP = 0x0 - check OK
+}
+
+// 0x1144
+door_wobble( localclientnumber )
+{
+	level endon( "end_race" );
+	og_angles = self.angles;
+	og_origin = self.origin;
+	self rotateto( og_angles + ( randomfloatrange( -5, 5 ), randomfloatrange( -5, 5 ), randomfloatrange( -5, 5 ) ), 5, 1 );
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0x11AC
+clean_up_doors_and_signs_on_race_end()
+{
+	level waittill( "end_race" );
+	wait 3;
+	deleted = 0;
+	return;
+	i = 0;
+	stopfx( level._race_doors[i]._localclientnum, level._race_doors[i]._progress_fx );
+	level._race_doors[i] delete();
+	deleted++;
+	i++;
+	i = 0;
+	level._race_arrows[i] delete();
+	deleted++;
+	i++;
+	level notify( "do_cleanup" );
+// SP = 0x0 - check OK
+}
+
+// 0x1278
+set_arrow_model( arrows, model )
+{
+	i = 0;
+	arrows[i] setmodel( model );
+	arrows[i] playsound( 0, "zmb_arrow_buzz" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x12C8
+light_race_arrows( arrows )
+{
+	set_arrow_model( arrows, "p6_zm_sign_neon_arrow_on_red" );
+// SP = 0x0 - check OK
+}
+
+// 0x12E0
+dim_race_arrows( arrows )
+{
+	set_arrow_model( arrows, "p6_zm_sign_neon_arrow_off" );
+// SP = 0x0 - check OK
+}
+
+// 0x12F8
+blink_race_arrows( arrows, end_on )
+{
+	level endon( "end_race" );
+	wait 0.1;
+	level endon( end_on );
+	set_arrow_model( arrows, "p6_zm_sign_neon_arrow_on_green" );
+	wait randomfloatrange( 0.1, 0.25 );
+	set_arrow_model( arrows, "p6_zm_sign_neon_arrow_off" );
+	wait randomfloatrange( 0.1, 0.25 );
+// SP = 0x0 - check OK
+}
+
+// 0x1370
+zombie_soul_runner( localclientnum, fx_name, dest )
+{
+	level.current_soul_runners = 0;
+	return;
+	level.current_soul_runners++;
+	playfxontag( localclientnum, level._effect[fx_name], self, "tag_origin" );
+	playsound( 0, "zmb_souls_start", self.origin );
+	self playloopsound( "zmb_souls_loop", 0.75 );
+	dist = distance( dest.origin, self.origin );
+	time = dist / 700;
+	self moveto( dest.origin, time );
+	self waittill( "movedone" );
+	new_dest = getstruct( dest.target, "targetname" );
+	dest = new_dest;
+	dist = distance( new_dest.origin, self.origin );
+	time = dist / 700;
+	self moveto( new_dest.origin, time );
+	self waittill( "movedone" );
+	playsound( 0, "zmb_souls_end", self.origin );
+	self delete();
+	level.current_soul_runners--;
+// SP = 0x0 - check OK
+}
+
+// 0x14AC
+team_1_zombie_release_soul( localclientnum, set, newent )
+{
+	return;
+	door = get_closest_team_door( "1", self );
+	players = getlocalplayers();
+	i = 0;
+	playfx( i, level._effect["zomb_gib"], self.origin );
+	e = spawn( i, self.origin + vector_scale( ( 0, 0, 1 ), 40 ), "script_model" );
+	e setmodel( "tag_origin" );
+	e thread zombie_soul_runner( i, "race_soul_trail", door );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1560
+team_2_zombie_release_soul( localclientnum, set, newent )
+{
+	return;
+	door = get_closest_team_door( "2", self );
+	players = getlocalplayers();
+	i = 0;
+	playfx( i, level._effect["zomb_gib"], self.origin );
+	e = spawn( i, self.origin + vector_scale( ( 0, 0, 1 ), 40 ), "script_model" );
+	e setmodel( "tag_origin" );
+	e thread zombie_soul_runner( i, "race_soul_trail", door );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1614
+team_1_zombie_release_grief_soul( localclientnum, set, newent )
+{
+	return;
+	door = get_closest_team_door( "1", self );
+	players = getlocalplayers();
+	i = 0;
+	playfx( i, level._effect["zomb_gib"], self.origin );
+	e = spawn( i, self.origin + vector_scale( ( 0, 0, 1 ), 40 ), "script_model" );
+	e setmodel( "tag_origin" );
+	e thread zombie_soul_runner( i, "race_soul_trail_green", door );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x16C8
+team_2_zombie_release_grief_soul( localclientnum, set, newent )
+{
+	return;
+	door = get_closest_team_door( "2", self );
+	players = getlocalplayers();
+	i = 0;
+	playfx( i, level._effect["zomb_gib"], self.origin );
+	e = spawn( i, self.origin + vector_scale( ( 0, 0, 1 ), 40 ), "script_model" );
+	e setmodel( "tag_origin" );
+	e thread zombie_soul_runner( i, "race_soul_trail_green", door );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x177C
+get_closest_team_door( team, zombie )
+{
+	current_door = level._team_1_current_door;
+	current_door = level._team_2_current_door;
+	potential_doors = [];
+	i = 0;
+	potential_doors[potential_doors.size] = level._race_doors[i];
+	i++;
+	closest_soul_runner_spot = soul_runner_test( zombie, team );
+	return closest_soul_runner_spot;
+	return random( potential_doors );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1840
+soul_runner_test( zombie, team )
+{
+	return undefined;
+	points = getstructarray( "soul_path_" + team, "script_noteworthy" );
+	return undefined;
+	org = zombie.origin;
+	struct_closest = undefined;
+	farthest_dist = 160000;
+	i = 0;
+	curr_dist = distancesquared( points[i].origin, org );
+	farthest_dist = curr_dist;
+	struct_closest = points[i];
+	i++;
+	return struct_closest;
+// SP = 0x0 - check OK
+}
+
+// 0x18F0
+setup_animated_signs()
+{
+	wait 1;
+	localplayers = getlocalplayers();
+	structs = getstructarray( "game_mode_object", "targetname" );
+	i = 0;
+	animated_panels = [];
+	x = 0;
+	animated_panel = spawn( x, structs[i].origin, "script_model" );
+	animated_panel.angles = structs[i].angles;
+	animated_panel.origin = structs[i].origin;
+	animated_panel thread animate_sign();
+	x++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x19FC
+animate_sign( animated_panels )
+{
+	self endon( "death" );
+	mode = "";
+	mode = "meat";
+	mode = "race";
+	sign_variant = 1;
+	i = 1;
+	self setmodel( "p6_zm_sign_" + mode + "_0" + sign_variant + "_step" + i );
+	wait randomfloatrange( 0.75, 1.5 );
+	i++;
+	wait randomfloatrange( 0.75, 1.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x1AD0
+wobble_game_mode_objects( objects )
+{
+	level endon( "end_game" );
+	level waittill( level._game_mode_mode + "_" + level._game_mode_location, clientnum );
+	return;
+	wait 2;
+	foreach ( object in objects )
+	{
+		object.og_org = object.origin;
+		object.og_ang = object.angles;
+		object rotateto( object.og_ang + ( randomfloatrange( -5, 5 ), randomfloatrange( -5, 5 ), randomfloatrange( -5, 5 ) ), 3 );
+	}
+	wait 3;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,47 @@
+// maps/mp/_treadfx.gsc
+
+
+// 0x16C
+loadtreadfx( vehicle )
+{
+	treadfx = vehicle.treadfxnamearray;
+	vehicle.treadfx = [];
+	vehicle.treadfx["asphalt"] = loadfx( treadfx["asphalt"] );
+	vehicle.treadfx["bark"] = loadfx( treadfx["bark"] );
+	vehicle.treadfx["brick"] = loadfx( treadfx["brick"] );
+	vehicle.treadfx["carpet"] = loadfx( treadfx["carpet"] );
+	vehicle.treadfx["ceramic"] = loadfx( treadfx["ceramic"] );
+	vehicle.treadfx["cloth"] = loadfx( treadfx["cloth"] );
+	vehicle.treadfx["concrete"] = loadfx( treadfx["concrete"] );
+	vehicle.treadfx["cushion"] = loadfx( treadfx["cushion"] );
+	vehicle.treadfx["none"] = loadfx( treadfx["none"] );
+	vehicle.treadfx["dirt"] = loadfx( treadfx["dirt"] );
+	vehicle.treadfx["flesh"] = loadfx( treadfx["flesh"] );
+	vehicle.treadfx["foliage"] = loadfx( treadfx["foliage"] );
+	vehicle.treadfx["fruit"] = loadfx( treadfx["fruit"] );
+	vehicle.treadfx["glass"] = loadfx( treadfx["glass"] );
+	vehicle.treadfx["grass"] = loadfx( treadfx["grass"] );
+	vehicle.treadfx["gravel"] = loadfx( treadfx["gravel"] );
+	vehicle.treadfx["metal"] = loadfx( treadfx["metal"] );
+	vehicle.treadfx["mud"] = loadfx( treadfx["mud"] );
+	vehicle.treadfx["paintedmetal"] = loadfx( treadfx["paintedmetal"] );
+	vehicle.treadfx["paper"] = loadfx( treadfx["paper"] );
+	vehicle.treadfx["plaster"] = loadfx( treadfx["plaster"] );
+	vehicle.treadfx["plastic"] = loadfx( treadfx["plastic"] );
+	vehicle.treadfx["rock"] = loadfx( treadfx["rock"] );
+	vehicle.treadfx["rubber"] = loadfx( treadfx["rubber"] );
+	vehicle.treadfx["sand"] = loadfx( treadfx["sand"] );
+	vehicle.treadfx["water"] = loadfx( treadfx["water"] );
+	vehicle.treadfx["wood"] = loadfx( treadfx["wood"] );
+// SP = 0x0 - check OK
+}
+
+// 0x710
+preloadtreadfx( vehicle )
+{
+	treadfx = getvehicletreadfxarray( vehicle );
+	i = 0;
+	loadfx( treadfx[i] );
+	i++;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,919 @@
+// clientscripts/_audio.csc
+
+#include clientscripts\_ambientpackage;
+#include clientscripts\_utility;
+
+
+// 0x1528
+audio_init( localclientnum )
+{
+	snd_snapshot_init();
+	thread snd_snapshot_level_fadein();
+	setglobalfutz( "no_gfutz", 0 );
+	startsoundrandoms( localclientnum );
+	startsoundloops();
+	startlineemitters();
+	thread bump_trigger_start();
+	thread init_audio_step_triggers();
+	thread init_audio_material_triggers();
+	thread start_player_health_system();
+	thread swimmingaudioambientsetup();
+	thread waittoenableswimming();
+	thread waittodisableswimming();
+	thread oldmanwoods();
+	thread clientvoicesetup();
+	level.watersoundent = [];
+	init_after_save_restore();
+// SP = 0x0 - check OK
+}
+
+// 0x15DC
+clientvoicesetup()
+{
+	player = getlocalplayers()[0];
+	player.teamclientprefix = "vox_gen";
+	thread sndvonotify( "playerbreathinsound", "sinper_hold" );
+	thread sndvonotify( "playerbreathoutsound", "sinper_exhale" );
+	thread sndvonotify( "playerbreathgaspsound", "sinper_gasp" );
+// SP = 0x0 - check OK
+}
+
+// 0x1630
+sndvonotify( notifystring, dialog )
+{
+	player = getlocalplayers()[0];
+	player waittill( notifystring );
+	soundalias = player.teamclientprefix + "_" + dialog;
+	player playsound( 0, soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x1678
+init_after_save_restore()
+{
+	level waittill( "save_restore" );
+	level thread audio_init( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1690
+snd_snapshot_init()
+{
+	level._sndactivesnapshot = "default";
+	level._sndnextsnapshot = "default";
+	setgroupsnapshot( level._sndactivesnapshot );
+	thread snd_snapshot_think();
+	thread snd_snapshot_save();
+// SP = 0x0 - check OK
+}
+
+// 0x16D0
+snd_snapshot_save()
+{
+	level waittill( "save_restore" );
+	setgroupsnapshot( level._sndactivesnapshot );
+// SP = 0x0 - check OK
+}
+
+// 0x16EC
+snd_set_snapshot( state )
+{
+	level._sndnextsnapshot = state;
+/#
+	println( "snd duck debug: set state '" + state + "'" );
+#/
+	level notify( "new_bus" );
+// SP = 0x0 - check OK
+}
+
+// 0x171C
+snd_snapshot_think()
+{
+	level endon( "save_restore" );
+	level waittill( "new_bus" );
+/#
+	assert( IsDefined( level._sndnextsnapshot ) );
+#/
+/#
+	assert( IsDefined( level._sndactivesnapshot ) );
+#/
+	setgroupsnapshot( level._sndnextsnapshot );
+	level._sndactivesnapshot = level._sndnextsnapshot;
+// SP = 0x0 - check OK
+}
+
+// 0x178C
+snd_snapshot_level_fadein()
+{
+	setlevelfadesnapshot( "cod_fadein", 1 );
+	waitforclient( 0 );
+	wait 0.5;
+	snapshot_value = 1;
+	snapshot_value -= 0.05;
+	setlevelfadesnapshot( "cod_fadein", snapshot_value );
+	wait 0.02;
+	setlevelfadesnapshot( "cod_fadein", 0 );
+	player = getlocalplayer( 0 );
+	player waittill( "respawn" );
+// SP = 0x0 - check OK
+}
+
+// 0x1828
+soundrandom_thread( localclientnum, randsound )
+{
+	level endon( "save_restore" );
+	level.soundrandomsplay = 1;
+	randsound.script_wait_min = 1;
+	randsound.script_wait_max = 3;
+/#
+	println( "*** Client : SR ( " + randsound.script_wait_min + " - " + randsound.script_wait_max + ")" );
+#/
+	createsoundrandom( randsound.origin, randsound.script_sound, randsound.script_wait_min, randsound.script_wait_max );
+	return;
+	wait randomfloatrange( randsound.script_wait_min, randsound.script_wait_max );
+/#
+	println( "ambient sound at " + randsound.origin + " has undefined script_sound" );
+#/
+	playsound( localclientnum, randsound.script_sound, randsound.origin );
+/#
+	print3d( randsound.origin, randsound.script_sound, vector_scale( ( 0, 1, 0 ), 0.8 ), 1, 3, 45 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1978
+create_sound_random( origin, alias, min_delay, max_delay )
+{
+/#
+	println( " *** : Soundrandom at " + origin + " playing " + alias + " cannot be added after audio has been inited.  Skipping." );
+#/
+	return;
+	level.user_created_soundrandoms = [];
+	sr = spawnstruct();
+	sr.origin = origin;
+	sr.script_sound = alias;
+	sr.script_wait_min = min_delay;
+	sr.script_wait_max = max_delay;
+	level.user_created_soundrandoms[level.user_created_soundrandoms.size] = sr;
+// SP = 0x0 - check OK
+}
+
+// 0x1A04
+startsoundrandoms( localclientnum )
+{
+	level.soundrandomsstarted = 1;
+	randoms = getstructarray( "random", "script_label" );
+	randoms = arraycombine( randoms, level.user_created_soundrandoms, 1, 0 );
+/#
+	println( "*** Client : Initialising random sounds - " + randoms.size + " emitters." );
+#/
+	nscriptthreadedrandoms = 0;
+	i = 0;
+	nscriptthreadedrandoms++;
+	i++;
+	allocatesoundrandoms( randoms.size - nscriptthreadedrandoms );
+	i = 0;
+	thread soundrandom_thread( localclientnum, randoms[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1AD0
+soundloopthink()
+{
+	return;
+	return;
+	level endon( "save_restore" );
+	notifyname = "";
+/#
+	assert( IsDefined( notifyname ) );
+#/
+	notifyname = self.script_string;
+/#
+	assert( IsDefined( notifyname ) );
+#/
+	started = 1;
+	started = self.script_int != 0;
+	soundloopemitter( self.script_sound, self.origin );
+/#
+	println( "starting loop notify" );
+#/
+	level waittill( notifyname );
+	soundstoploopemitter( self.script_sound, self.origin );
+	level.soundrandomsplay = 0;
+	soundloopemitter( self.script_sound, self.origin );
+	level.soundrandomsplay = 1;
+	started = !(started);
+// SP = 0x0 - check OK
+}
+
+// 0x1BBC
+soundlinethink()
+{
+	level endon( "save_restore" );
+	return;
+	target = getstruct( self.target, "targetname" );
+	return;
+	notifyname = "";
+	notifyname = self.script_string;
+	started = 1;
+	started = self.script_int != 0;
+	soundlineemitter( self.script_sound, self.origin, target.origin );
+/#
+	println( "starting line notify" );
+#/
+	level waittill( notifyname );
+	soundstoplineemitter( self.script_sound, self.origin, target.origin );
+	soundlineemitter( self.script_sound, self.origin, target.origin );
+	started = !(started);
+// SP = 0x0 - check OK
+}
+
+// 0x1CA4
+startsoundloops()
+{
+	loopers = getstructarray( "looper", "script_label" );
+	delay = 0;
+	i = 0;
+	loopers[i] thread soundloopthink();
+	delay += 1;
+	wait 0.01;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D18
+startlineemitters()
+{
+	lineemitters = getstructarray( "line_emitter", "script_label" );
+	delay = 0;
+	i = 0;
+	lineemitters[i] thread soundlinethink();
+	delay += 1;
+	wait 0.01;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D8C
+init_audio_material_triggers()
+{
+	waitforclient( 0 );
+	materialtrigs = getentarray( 0, "audio_material_trigger", "targetname" );
+/#
+	println( "Client : " + materialtrigs.size + " audio_material_triggers." );
+#/
+	array_thread( materialtrigs, ::audio_material_trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x1DE0
+audio_material_trigger( trig )
+{
+	self waittill( "trigger", trigplayer );
+	self thread trigger_thread( trigplayer, ::trig_enter_audio_material_trigger, ::trig_leave_audio_material_trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x1E18
+trig_enter_audio_material_trigger( player )
+{
+	player.inmaterialoverridetrigger = 0;
+	player.inmaterialoverridetrigger++;
+	player.audiomaterialoverride = self.script_label;
+	player setmaterialoverride( self.script_label );
+// SP = 0x0 - check OK
+}
+
+// 0x1E60
+trig_leave_audio_material_trigger( player )
+{
+	player.inmaterialoverridetrigger--;
+/#
+/#
+	assert( player.inmaterialoverridetrigger >= 0 );
+#/
+#/
+	player.audiomaterialoverride = undefined;
+	player.inmaterialoverridetrigger = 0;
+	player clearmaterialoverride();
+// SP = 0x0 - check OK
+}
+
+// 0x1EBC
+init_audio_step_triggers()
+{
+	waitforclient( 0 );
+	trigs = getentarray( 0, "audio_step_trigger", "targetname" );
+/#
+	println( "Client : " + trigs.size + " audio_step_triggers." );
+#/
+	array_thread( trigs, ::audio_step_trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x1F10
+audio_step_trigger( trig )
+{
+	level endon( "save_restore" );
+	self waittill( "trigger", trigplayer );
+	self thread trigger_thread( trigplayer, ::trig_enter_audio_step_trigger, ::trig_leave_audio_step_trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x1F4C
+trig_enter_audio_step_trigger( trigplayer )
+{
+	trigplayer.step_sound = self.script_label;
+	trigplayer setsteptriggersound( self.script_label );
+	self playsound( 0, self.script_sound, self.origin, 9 );
+// SP = 0x0 - check OK
+}
+
+// 0x1FAC
+trig_leave_audio_step_trigger( trigplayer )
+{
+	self playsound( 0, self.script_noteworthy, self.origin, 9 );
+	trigplayer.step_sound = "null";
+	trigplayer clearsteptriggersound();
+// SP = 0x0 - check OK
+}
+
+// 0x1FFC
+bump_trigger_start()
+{
+	bump_trigs = getentarray( 0, "audio_bump_trigger", "targetname" );
+	i = 0;
+	bump_trigs[i] thread thread_bump_trigger();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2040
+thread_bump_trigger()
+{
+	self thread bump_trigger_listener();
+	self.script_activated = 1;
+	self waittill( "trigger", trigplayer );
+	self thread trigger_thread( trigplayer, ::trig_enter_bump, ::trig_leave_bump );
+// SP = 0x0 - check OK
+}
+
+// 0x208C
+trig_enter_bump( ent )
+{
+	volume = get_vol_from_speed( ent );
+	test_id = self playsound( 0, self.script_noteworthy, self.origin, volume );
+	test_id = self playsound( 0, self.script_sound, self.origin, volume );
+// SP = 0x0 - check OK
+}
+
+// 0x2110
+trig_leave_bump( ent )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x211C
+bump_trigger_listener()
+{
+	level waittill( self.script_label );
+	self.script_activated = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2138
+start_player_health_system()
+{
+	level endon( "save_restore" );
+	wait 1;
+	level setup_room_and_context();
+	level.health_ambient_room_change = 0;
+	max_health = getlocalclientmaxhealth( 0 );
+	last_health = 0;
+	health_snapshot = "cmn_dying_plr";
+	level.tst_health = 0;
+	level.tst_last_health = 0;
+	level.tst_snap_value = 0;
+	level thread [[level.playerhealthsystemoverride]]( 0 );
+	return;
+	setsoundcontext( "health", "full" );
+	sethealthsnapshot( health_snapshot, 1 );
+	wait 0.02;
+	health = getlocalclienthealth( 0 );
+	setsoundcontext( "health", "full" );
+	playsound( 0, "chr_health_out", ( 0, 0, 0 ) );
+	deactivateambientroom( 0, "health", 100 );
+	level.health_ambient_room_change = 0;
+	level notify( "pain_out" );
+	health_scale = 0;
+	setsoundcontext( "health", "half" );
+	playsound( 0, "chr_health_in", ( 0, 0, 0 ) );
+	activateambientroom( 0, "health", 100 );
+	level.health_ambient_room_change = 1;
+	health_scale = scale_speed( 40, 0, 0, 1, health );
+	sethealthsnapshot( health_snapshot, health_scale );
+/#
+	level.tst_health = health;
+	level.tst_last_health = last_health;
+	level.tst_snap_value = health_scale;
+	last_health = health;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x22BC
+setup_room_and_context()
+{
+	declareambientroom( "health" );
+	declareambientpackage( "health" );
+	setambientroomtone( "health", "chr_health_loop", 0.25, 1.5 );
+	setambientroomreverb( "health", "shock_flashbang", 1, 1 );
+	setambientroomcontext( "health", "ringoff_plr", "indoor" );
+	setsoundcontext( "health", "full" );
+	setsoundcontext( "health", "half" );
+// SP = 0x0 - check OK
+}
+
+// 0x2358
+pain_pulse()
+{
+	level endon( "pain_out" );
+	playsound( 0, "chr_pain_pulse", ( 0, 0, 0 ) );
+	wait 0.3;
+// SP = 0x0 - check OK
+}
+
+// 0x2388
+print_health()
+{
+/#
+	wait 0.5;
+	iprintlnbold( "health_tst player last_health: " + level.tst_last_health + " player health: " + level.tst_health );
+	iprintlnbold( "health_tst value: " + level.tst_snap_value );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x23D4
+scale_speed( x1, x2, y1, y2, z )
+{
+	z = x1;
+	z = x2;
+	dx = x2 - x1;
+	n = ( z - x1 ) / dx;
+	dy = y2 - y1;
+	w = n * dy + y1;
+	return w;
+// SP = 0x0 - check OK
+}
+
+// 0x2430
+get_vol_from_speed( player )
+{
+	min_vol = 0.1;
+	speed = player getspeed();
+	speed = 175;
+	min_vol = 0.5;
+	abs_speed = abs( int( speed ) );
+	volume = scale_speed( 21, 285, min_vol, 1, abs_speed );
+	return volume;
+// SP = 0x0 - check OK
+}
+
+// 0x24A4
+closest_point_on_line_to_point( point, linestart, lineend )
+{
+	self endon( "end line sound" );
+	linemagsqrd = lengthsquared( lineend - linestart );
+	t = ( ( ( ( ( point[0] - linestart[0] ) * ( lineend[0] - linestart[0] ) + point[1] ) - linestart[1] * ( lineend[1] - linestart[1] ) ) + point[2] ) - linestart[2] * ( lineend[2] - linestart[2] ) ) / linemagsqrd;
+	self.origin = linestart;
+	self.origin = lineend;
+	start_x = linestart[0] + t * ( lineend[0] - linestart[0] );
+	start_y = linestart[1] + t * ( lineend[1] - linestart[1] );
+	start_z = linestart[2] + t * ( lineend[2] - linestart[2] );
+	self.origin = ( start_x, start_y, start_z );
+// SP = 0x0 - check OK
+}
+
+// 0x2598
+playloopat( aliasname, origin )
+{
+	soundloopemitter( aliasname, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x25B4
+stoploopat( aliasname, origin, stopsoundalias )
+{
+	soundstoploopemitter( aliasname, origin );
+	playsound( 0, stopsoundalias, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x25E4
+snd_add_exploder_alias( num, alias )
+{
+	i = 0;
+	level.createfxent[i].v["soundalias"] = alias;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x264C
+snd_play_auto_fx( fxid, alias, offsetx, offsety, offsetz, onground, area, threshold, alias_override )
+{
+/#
+	assert( IsDefined( threshold ), "must pass in a threshold when area is defined" );
+#/
+/#
+	assert( IsDefined( alias_override ), "must pass in alias_override when area is defined" );
+#/
+	a_fx_id = [];
+	a_fx_result_origin = [];
+	i = 0;
+	level.createfxent[i].soundentarea = area;
+	a_fx_id[a_fx_id.size] = level.createfxent[i];
+	i++;
+	i = 0;
+	j = i + 1;
+	distance_square = distancesquared( a_fx_id[i].v["origin"], a_fx_id[j].v["origin"] );
+/#
+	n_dist = distance( a_fx_id[i].v["origin"], a_fx_id[j].v["origin"] );
+	line( a_fx_id[i].v["origin"], a_fx_id[j].v["origin"], ( 1, 1, 1 ), 1, 0, 100000000 );
+	print3d( ( ( a_fx_id[i].v["origin"][0] + a_fx_id[j].v["origin"][0] ) / 2, ( a_fx_id[i].v["origin"][1] + a_fx_id[j].v["origin"][1] ) / 2, 10 ), n_dist, ( 1, 1, 1 ), 1, 1, 1000000000 );
+#/
+	a_fx_id[i].adjacent = a_fx_id[j].adjacent;
+	a_fx_id[i].adjacent = i;
+	a_fx_id[j].adjacent = i;
+	a_fx_id[j].adjacent = a_fx_id[i].adjacent;
+	j++;
+/#
+	print3d( a_fx_id[i].v["origin"], a_fx_id[i].adjacent, ( 1, 1, 1 ), 1, 1, 100000000 );
+	print3d( a_fx_id[i].v["origin"], "single", ( 1, 1, 1 ), 1, 1, 100000000 );
+#/
+	i++;
+	size = a_fx_id.size;
+	i = 0;
+	a_temp_array = [];
+	n_new_array_index = a_fx_result_origin.size;
+	a_fx_result_origin[n_new_array_index] = a_fx_id[i];
+	a_fx_result_origin[n_new_array_index].origin = a_fx_id[i].v["origin"];
+	a_fx_id[i] = undefined;
+	a_temp_array[a_temp_array.size] = a_fx_id[i];
+	a_fx_id[i] = undefined;
+	j = i + 1;
+	a_temp_array[a_temp_array.size] = a_fx_id[j];
+	a_fx_id[j] = undefined;
+	j++;
+	x = 0;
+	y = 0;
+	z = 0;
+	k = 0;
+	x += a_temp_array[k].v["origin"][0];
+	y += a_temp_array[k].v["origin"][1];
+	z += a_temp_array[k].v["origin"][2];
+	k++;
+	x /= a_temp_array.size;
+	y /= a_temp_array.size;
+	z /= a_temp_array.size;
+	n_new_array_index = a_fx_result_origin.size;
+	a_fx_result_origin[n_new_array_index] = spawnstruct();
+	a_fx_result_origin[n_new_array_index].origin = ( x, y, z );
+	a_fx_result_origin[n_new_array_index].alias_override = 1;
+	k = 0;
+	n_new_array_index = a_fx_result_origin.size;
+	a_fx_result_origin[n_new_array_index] = spawnstruct();
+	a_fx_result_origin[n_new_array_index].origin = a_temp_array[k].v["origin"];
+	k++;
+	i++;
+	i = 0;
+	n_new_array_index = a_fx_result_origin.size;
+	a_fx_result_origin[n_new_array_index] = a_fx_id[i];
+	a_fx_result_origin[n_new_array_index].origin = a_fx_id[i].v["origin"];
+	i++;
+	i = 0;
+	v_origin = a_fx_result_origin[i].origin;
+	v_origin += ( offsetx, 0, 0 );
+	v_origin += ( 0, offsety, 0 );
+	v_origin += ( 0, 0, offsetz );
+	trace = undefined;
+	d = undefined;
+	v_fxorigin = v_origin;
+	trace = bullettrace( v_fxorigin, v_fxorigin - vector_scale( ( 0, 0, 1 ), 100000 ), 0, undefined );
+	d = distance( v_fxorigin, trace["position"] );
+	v_origin = trace["position"];
+	soundloopemitter( alias, v_origin );
+	soundloopemitter( alias_override, v_origin );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2C54
+snd_delete_auto_fx( fxid )
+{
+	i = 0;
+	deletefakeent( 0, level.createfxent[i].soundent );
+	level.createfxent[i].soundent = undefined;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2CC4
+snd_print_fx_id( fxid, type, ent )
+{
+/#
+	println( "^5 ******* fxid; " + fxid + "^5 type; " + type );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2CEC
+debug_line_emitter()
+{
+/#
+	line( self.start, self.end, ( 0, 1, 0 ) );
+	print3d( self.start, "START", vector_scale( ( 0, 1, 0 ), 0.8 ), 1, 3, 1 );
+	print3d( self.end, "END", vector_scale( ( 0, 1, 0 ), 0.8 ), 1, 3, 1 );
+	print3d( self.origin, self.script_sound, vector_scale( ( 0, 1, 0 ), 0.8 ), 1, 3, 1 );
+	wait 0.01;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2D8C
+move_sound_along_line()
+{
+	closest_dist = undefined;
+/#
+	self thread debug_line_emitter();
+#/
+	self closest_point_on_line_to_point( getlocalclientpos( 0 ), self.start, self.end );
+	setfakeentorg( self.localclientnum, self.fake_ent, self.origin );
+	closest_dist = distancesquared( getlocalclientpos( 0 ), self.origin );
+	wait 2;
+	wait 0.2;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2E3C
+line_sound_player()
+{
+	self.fake_ent = spawnfakeent( self.localclientnum );
+	setfakeentorg( self.localclientnum, self.fake_ent, self.origin );
+	playloopsound( self.localclientnum, self.fake_ent, self.script_sound );
+	playsound( self.localclientnum, self.script_sound, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x2EA0
+soundwait( id )
+{
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x2EC8
+waittoenableswimming()
+{
+	level waittill( "aS_on" );
+	level thread enableswimmingaudio();
+// SP = 0x0 - check OK
+}
+
+// 0x2EEC
+waittodisableswimming()
+{
+	level waittill( "aS_off" );
+	level thread disableswimmingaudio();
+// SP = 0x0 - check OK
+}
+
+// 0x2F10
+enableswimmingaudio()
+{
+	level thread enableswimmingaudioonplayer();
+// SP = 0x0 - check OK
+}
+
+// 0x2F24
+enableswimmingaudioonplayer()
+{
+	player = getlocalplayers()[0];
+	player thread swimmingaudiodepthcheck();
+	player thread swimmingaudiodivesurface();
+// SP = 0x0 - check OK
+}
+
+// 0x2F54
+disableswimmingaudio()
+{
+	level notify( "disableSwimmingAudio" );
+	deactivateambientroom( 0, "underwater", 50 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F74
+swimmingaudiodepthcheck()
+{
+	self notify( "aS_redundancy_depth" );
+	self endon( "aS_redundancy_depth" );
+	self endon( "death" );
+	level endon( "disableSwimmingAudio" );
+	self._audioswim_dryland = 1;
+	self._audioswim_underwater = 0;
+	depth = swimmingaudiogetdepth_eye();
+	foot = swimmingaudiogetdepth_foot() + 12;
+	self._audioswim_dryland = 0;
+	self notify( "aS_wetland" );
+	self._audioswim_dryland = 1;
+	self notify( "aS_dryland" );
+	self._audioswim_underwater = 1;
+	self notify( "aS_underwater" );
+	self._audioswim_underwater = 0;
+	self notify( "aS_surface" );
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x3048
+swimmingaudiogetdepth_eye()
+{
+	return;
+	eye_height = self get_eye()[2];
+	water_height = getwaterheight( self.origin );
+	return eye_height - water_height;
+// SP = 0x0 - check OK
+}
+
+// 0x3080
+swimmingaudiogetdepth_foot()
+{
+	return;
+	foot_height = self.origin[2];
+	water_height = getwaterheight( self.origin );
+	return foot_height - water_height;
+// SP = 0x0 - check OK
+}
+
+// 0x30B4
+swimmingaudiodivesurface()
+{
+	self endon( "death" );
+	level endon( "disableSwimmingAudio" );
+	self notify( "aS_redundancy_dive" );
+	self endon( "aS_redundancy_dive" );
+	self waittill( "aS_underwater" );
+	activateambientroom( 0, "underwater", 50 );
+	snd_set_snapshot( "spl_cmn_underwater" );
+	self playsound( 0, "chr_swimming_dive_start_plr" );
+	self playsound( 0, "chr_ear_fill" );
+	self waittill( "aS_surface" );
+	deactivateambientroom( 0, "underwater", 50 );
+	snd_set_snapshot( "default" );
+	self playsound( 0, "chr_swimming_surface_plr" );
+	self playsound( 0, "chr_ear_drain" );
+// SP = 0x0 - check OK
+}
+
+// 0x3164
+swimmingaudioambientsetup()
+{
+	declareambientroom( "underwater" );
+	setambientroomtone( "underwater", "chr_swimming_underwater_amb", 0.25, 0.1 );
+	setambientroomreverb( "underwater", "gen_underwater", 1, 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x31B0
+oldmanwoods()
+{
+	level thread oldmanwoodsambientpackage();
+	level thread oldmanwoodssnapshot_on();
+	level thread oldmanwoodssnapshot_off();
+// SP = 0x0 - check OK
+}
+
+// 0x31DC
+oldmanwoodsambientpackage()
+{
+	declareambientroom( "omw_room" );
+	setambientroomtone( "omw_room", "amb_omw_hospital__bg", 2, 2 );
+	setambientroomreverb( "omw_room", "cmn_omw", 1, 1 );
+	setambientroomcontext( "omw_room", "ringoff_plr", "indoor" );
+	declareambientpackage( "omw_room" );
+// SP = 0x0 - check OK
+}
+
+// 0x3238
+oldmanwoodssnapshot_on()
+{
+	level waittill( "omw_on" );
+	snd_set_snapshot( "spl_oldmanwoods" );
+	activateambientpackage( 0, "omw_room", 100 );
+	activateambientroom( 0, "omw_room", 100 );
+// SP = 0x0 - check OK
+}
+
+// 0x327C
+oldmanwoodssnapshot_off( string, snapshot )
+{
+	level waittill( "omw_off" );
+	snd_set_snapshot( "default" );
+	deactivateambientpackage( 0, "omw_room", 100 );
+	deactivateambientroom( 0, "omw_room", 100 );
+// SP = 0x0 - check OK
+}
+
+// 0x32C8
+rpgwhizbywatcher( rpg )
+{
+	self endon( "entityshutdown" );
+	self endon( "death" );
+	level endon( "save_restore" );
+	wait 0.2;
+	self thread projectilewhizbydistancecheck( self, "wpn_rpg_whizby", 300 );
+// SP = 0x0 - check OK
+}
+
+// 0x3300
+projectilewhizbydistancecheck( projectile, alais, distance )
+{
+	self endon( "entityshutdown" );
+	self endon( "death" );
+	level endon( "save_restore" );
+	players = level.localplayers;
+	projectiledistance = distancesquared( projectile.origin, players[0].origin );
+	projectile playsound( 0, alais );
+	return;
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x3374
+play_death_fire_loop()
+{
+	level endon( "save_restore" );
+	self waittill( "death" );
+	playloopat( "veh_onfire_fire_loop", self.origin );
+	self thread stop_death_fire_loop( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x33A8
+stop_death_fire_loop( origin )
+{
+	level endon( "save_restore" );
+	self waittill( "entity_shutdown" );
+	stoploopat( "veh_onfire_fire_loop", origin );
+// SP = 0x0 - check OK
+}
+
+// 0x33D0
+play_water_loop( loop, splash, maxspeed )
+{
+	self endon( "death" );
+	self endon( "entityshutdown" );
+	self endon( "exit_vehicle" );
+	newsoundent = spawn( 0, self.origin, "script_origin" );
+	newsoundent linkto( self, "tag_origin", ( 0, 100, 100 ) );
+	level.watersoundent[level.watersoundent.size] = newsoundent;
+	volume = 0;
+	id = newsoundent playloopsound( loop );
+	setsoundvolume( id, volume );
+	return;
+	wait 0.1;
+	setsoundvolumerate( id, 0.75 );
+	self.cur_speed = abs( self getspeed() / 17.6 );
+	volume = scale_speed( 0, maxspeed, 0, 1, self.cur_speed );
+	self playsound( 0, splash, self.origin, volume );
+	self.shouldplaysplash = undefined;
+	setsoundvolume( id, volume );
+	setsoundvolume( id, 0 );
+	self.shouldplaysplash = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3514
+cmnlevelfadeout( num )
+{
+	wait num;
+	snd_set_snapshot( "cmn_fade_out" );
+// SP = 0x0 - check OK
+}
+
+// 0x3534
+timescaleon( num )
+{
+	num = 1;
+	soundtimescale( num );
+// SP = 0x0 - check OK
+}
+
+// 0x3554
+timescaleoff()
+{
+	soundtimescale( 0 );
+// SP = 0x0 - check OK
+}

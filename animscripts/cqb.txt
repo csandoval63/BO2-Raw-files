@@ -1,0 +1,118 @@
+// animscripts/cqb.gsc
+
+#include common_scripts\utility;
+#include animscripts\shared;
+#include animscripts\combat_utility;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x408
+shouldcqb()
+{
+	return !(usingpistol());
+// SP = 0x0 - check OK
+}
+
+// 0x444
+setupcqbpointsofinterest()
+{
+	level.cqbpointsofinterest = [];
+	level.cqbsetupcomplete = 0;
+	wait 0.05;
+	level.cqbsetupcomplete = 1;
+	pointents = getentarray( "cqb_point_of_interest", "targetname" );
+	pointstructs = getstructarray( "cqb_point_of_interest", "targetname" );
+	points = arraycombine( pointents, pointstructs, 1, 0 );
+	i = 0;
+	level.cqbpointsofinterest[i] = points[i].origin;
+	points[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x520
+findcqbpointsofinterest()
+{
+	return;
+	anim.findingcqbpointsofinterest = 1;
+	wait 0.05;
+	return;
+	ai = getaiarray();
+	waited = 0;
+	i = 0;
+	moving = ai[i].a.movement != "stop";
+	shootatpos = ai[i] getshootatpos();
+	lookaheadpoint = shootatpos;
+	forward = anglestoforward( ai[i].angles );
+	trace = bullettrace( lookaheadpoint, lookaheadpoint + forward * 128, 0, undefined );
+	lookaheadpoint = trace["position"];
+	best = -1;
+	bestdist = 1048576;
+	j = 0;
+	point = level.cqbpointsofinterest[j];
+	dist = distancesquared( point, lookaheadpoint );
+	dot = vectordot( vectornormalize( point - shootatpos ), forward );
+	bestdist = dist;
+	best = j;
+	j++;
+	ai[i].cqb_point_of_interest = undefined;
+	ai[i].cqb_point_of_interest = level.cqbpointsofinterest[best];
+	wait 0.05;
+	waited = 1;
+	i++;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x774
+cqbdebug()
+{
+/#
+	self notify( "end_cqb_debug" );
+	self endon( "end_cqb_debug" );
+	self endon( "death" );
+	setdvar( "scr_cqbdebug", "off" );
+	level thread cqbdebugglobal();
+	line( self getshootatpos(), self.shootpos, ( 1, 1, 1 ) );
+	print3d( self.shootpos, "shootPos", ( 1, 1, 1 ), 1, 0.5 );
+	record3dtext( "cqb_target", self.shootpos + vector_scale( ( 0, 0, 1 ), 20 ), ( 0.5, 1, 0.5 ), "Animscript" );
+	line( self getshootatpos(), self.cqb_target.origin, ( 0.5, 1, 0.5 ) );
+	print3d( self.cqb_target.origin, "cqb_target", ( 0.5, 1, 0.5 ), 1, 0.5 );
+	record3dtext( "cqb_target", self.cqb_target.origin + vector_scale( ( 0, 0, 1 ), 70 ), ( 0.5, 1, 0.5 ), "Animscript" );
+	moving = self.a.movement != "stop";
+	forward = anglestoforward( self.angles );
+	shootatpos = self getshootatpos();
+	lookaheadpoint = shootatpos;
+	lookaheadpoint += forward * 128;
+	line( shootatpos, lookaheadpoint, ( 0.7, 0.5, 0.5 ) );
+	right = anglestoright( self.angles );
+	leftscanarea = ( shootatpos + forward ) * 0.643 - ( right * 64 );
+	rightscanarea = ( shootatpos + forward ) * 0.643 + ( right * 64 );
+	line( shootatpos, leftscanarea, vector_scale( ( 1, 1, 1 ), 0.5 ), 0.7 );
+	recordline( shootatpos, leftscanarea, vector_scale( ( 1, 1, 1 ), 0.5 ), "Animscript", self );
+	line( shootatpos, rightscanarea, vector_scale( ( 1, 1, 1 ), 0.5 ), 0.7 );
+	recordline( shootatpos, rightscanarea, vector_scale( ( 1, 1, 1 ), 0.5 ), "Animscript", self );
+	line( lookaheadpoint, self.cqb_point_of_interest, ( 1, 0.5, 0.5 ) );
+	print3d( self.cqb_point_of_interest, "cqb_point_of_interest", ( 1, 0.5, 0.5 ), 1, 0.5 );
+	record3dtext( "cqb_point_of_interest", self.cqb_point_of_interest, ( 1, 0.5, 0.5 ), "Animscript" );
+	wait 0.05;
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA94
+cqbdebugglobal()
+{
+/#
+	level.cqbdebugglobal = 1;
+	wait 1;
+	i = 0;
+	print3d( level.cqbpointsofinterest[i], ".", ( 0.7, 0.7, 1 ), 0.7, 3 );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}

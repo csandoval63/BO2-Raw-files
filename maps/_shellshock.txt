@@ -1,0 +1,149 @@
+// maps/_shellshock.gsc
+
+#include common_scripts\utility;
+
+
+// 0x37C
+main( origin, duration, shock_range, nmaxdamagebase, nrandamagebase, nmindamagebase, nexposed, customshellshock, stancelockduration )
+{
+/#
+	assert( IsDefined( origin ), "_shellshock::main() needs a origin passed in now for coop consideration." );
+#/
+	shock_range = 500;
+	duration = 12;
+	duration = 7;
+	nmaxdamagebase = 150;
+	nrandamagebase = 100;
+	nmindamagebase = 100;
+	customshellshock = "default";
+	players = get_players();
+	q = 0;
+	players[q] thread shellshock_thread( duration, nmaxdamagebase, nrandamagebase, nmindamagebase, nexposed, customshellshock, stancelockduration );
+	q++;
+// SP = 0x0 - check OK
+}
+
+// 0x464
+shellshock_thread( duration, nmaxdamagebase, nrandamagebase, nmindamagebase, nexposed, customshellshock, stancelockduration )
+{
+	origin = self getorigin() + ( 0, 8, 2 );
+	maxdamage = nmaxdamagebase + randomint( nrandamagebase );
+	maxdamage = nmaxdamagebase;
+	mindamage = nmindamagebase;
+	wait 0.25;
+	radiusdamage( origin, 320, maxdamage, mindamage );
+	earthquake( 0.75, 2, origin, 2250 );
+	self allowstand( 0 );
+	self allowcrouch( 0 );
+	self allowprone( 1 );
+	wait 0.15;
+	self viewkick( 127, self.origin );
+	self shellshock( customshellshock, duration );
+	level thread playerhitable( duration );
+	stancelockduration = 1.5;
+	wait stancelockduration;
+	self allowstand( 1 );
+	self allowcrouch( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x59C
+playerhitable( duration )
+{
+	self.shellshocked = 1;
+	self.ignoreme = 1;
+	level notify( "player is shell shocked" );
+	level endon( "player is shell shocked" );
+	wait duration - 1;
+	self.shellshocked = 0;
+	self.ignoreme = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5D4
+endondeath()
+{
+	self waittill( "death" );
+	waittillframeend;
+	self notify( "end_explode" );
+// SP = 0x0 - check OK
+}
+
+// 0x5E8
+grenade_earthquake()
+{
+	self thread endondeath();
+	self endon( "end_explode" );
+	self waittill( "explode", position );
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x638
+c4_earthquake()
+{
+	self thread endondeath();
+	self endon( "end_explode" );
+	self waittill( "explode", position );
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x688
+satchel_earthquake()
+{
+	self thread endondeath();
+	self endon( "end_explode" );
+	self waittill( "explode", position );
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x6D8
+barrel_earthquake()
+{
+	playrumbleonposition( "grenade_rumble", self.origin );
+	earthquake( 0.5, 0.5, self.origin, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x710
+artillery_earthquake()
+{
+	playrumbleonposition( "artillery_rumble", self.origin );
+	earthquake( 0.7, 0.5, self.origin, 800 );
+// SP = 0x0 - check OK
+}
+
+// 0x748
+rocket_earthquake()
+{
+	self thread endondeath();
+	self endon( "end_explode" );
+	self waittill( "projectile_impact", weapon_name, position, explosion_radius, rocket_entity );
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x7A8
+explosive_bolt_earthquake()
+{
+	self thread endondeath();
+	self endon( "end_explode" );
+	self waittill( "explode", position );
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x7F8
+mortar_earthquake( position )
+{
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, position, 800 );
+// SP = 0x0 - check OK
+}

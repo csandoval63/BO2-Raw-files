@@ -1,0 +1,94 @@
+// clientscripts/mp/_tacticalinsertion.csc
+
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x384
+init()
+{
+	level._effect["tacticalInsertionFriendly"] = loadfx( "misc/fx_equip_tac_insert_light_grn" );
+	level._effect["tacticalInsertionEnemy"] = loadfx( "misc/fx_equip_tac_insert_light_red" );
+	level._client_flag_callbacks["scriptmover"][2] = ::spawned;
+	latlongstruct = getstruct( "lat_long", "targetname" );
+	mapx = latlongstruct.origin[0];
+	mapy = latlongstruct.origin[1];
+	lat = latlongstruct.script_vector[0];
+	long = latlongstruct.script_vector[1];
+	mapx = level.worldmapx;
+	mapy = level.worldmapy;
+	mapx = 0;
+	mapy = 0;
+	lat = level.worldlat;
+	long = level.worldlong;
+	lat = 34.0216;
+	long = -118.449;
+	setmaplatlong( mapx, mapy, long, lat );
+// SP = 0x0 - check OK
+}
+
+// 0x49C
+spawned( localclientnum, set )
+{
+	return;
+	self thread tactical_insertion_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x4BC
+tactical_insertion_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	waittillsnapprocessed( localclientnum );
+	fx_handle = self playflarefx( localclientnum );
+	self notify( "teamBased_fx_reinitialized" );
+	self thread checkforplayerswitch( localclientnum );
+	level thread watchforplayerrespawnforteambasedfx( localclientnum, self, ::tactical_insertion_fx, fx_handle );
+// SP = 0x0 - check OK
+}
+
+// 0x520
+playflarefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	self.tacticalinsertionfx = playfxontag( localclientnum, level._effect["tacticalInsertionFriendly"], self, "tag_flash" );
+	self.tacticalinsertionfx = playfxontag( localclientnum, level._effect["tacticalInsertionEnemy"], self, "tag_flash" );
+	self thread watchtacinsertshutdown( localclientnum, self.tacticalinsertionfx );
+	looporigin = self.origin;
+	playloopat( "fly_tinsert_beep", looporigin );
+	self thread stopflareloopwatcher( looporigin );
+	return self.tacticalinsertionfx;
+// SP = 0x0 - check OK
+}
+
+// 0x5BC
+watchtacinsertshutdown( localclientnum, fxhandle )
+{
+	self waittill( "entityshutdown" );
+	stopfx( localclientnum, fxhandle );
+// SP = 0x0 - check OK
+}
+
+// 0x5DC
+stopflareloopwatcher( looporigin )
+{
+	stoploopat( "fly_tinsert_beep", looporigin );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x614
+checkforplayerswitch( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "teamBased_fx_reinitialized" );
+	level waittill( "player_switch" );
+	stopfx( localclientnum, self.tacticalinsertionfx );
+	self.tacticalinsertionfx = undefined;
+	waittillframeend;
+	self thread playflarefx( localclientnum );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,248 @@
+// clientscripts/_face_utility.csc
+
+
+// 0x6E0
+setfaceroot( root )
+{
+	level.facestates = [];
+	level.facestates[self.face_anim_tree] = [];
+	level.facestates[self.face_anim_tree]["face_root"] = root;
+// SP = 0x0 - check OK
+}
+
+// 0x724
+buildfacestate( face_state, looping, timer, priority, statetype, animation_list )
+{
+	animation_list = array( undefined );
+	level.facestates[self.face_anim_tree][face_state]["looping"] = looping;
+	level.facestates[self.face_anim_tree][face_state]["timer"] = timer;
+	level.facestates[self.face_anim_tree][face_state]["priority"] = priority;
+	level.facestates[self.face_anim_tree][face_state]["statetype"] = statetype;
+	level.facestates[self.face_anim_tree][face_state]["animation"] = animation_list;
+// SP = 0x0 - check OK
+}
+
+// 0x7AC
+addanimtofacestate( face_state, animation )
+{
+/#
+	assert( IsDefined( level.facestates[self.face_anim_tree][face_state] ) );
+#/
+/#
+	assert( IsDefined( level.facestates[self.face_anim_tree][face_state]["animation"] ) );
+#/
+	curr_size = level.facestates[self.face_anim_tree][face_state]["animation"].size;
+	level.facestates[self.face_anim_tree][face_state]["animation"][curr_size] = animation;
+// SP = 0x0 - check OK
+}
+
+// 0x81C
+ishigherpriority( new_state, old_state )
+{
+	return 0;
+/#
+	println( "FaceState " + new_state + " is higher priority than " + old_state + " for entity " + self getentitynumber() );
+#/
+	return 1;
+/#
+	println( "FaceState " + new_state + " is not higher priority than " + old_state + " for entity " + self getentitynumber() );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8E0
+faceframeendnotify()
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_facial_anims" );
+	waittillframeend;
+	self notify( "face", "frameend" );
+// SP = 0x0 - check OK
+}
+
+// 0x900
+waitforanypriorityreturn( prevstate )
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_facial_anims" );
+/#
+	println( "Waiting for priority return for " + prevstate + " for entity " + self getentitynumber() );
+#/
+	self waittill( "face", newstate );
+	self thread faceframeendnotify();
+	self waittill( "face", tempstate );
+	newstate = tempstate;
+	return newstate;
+// SP = 0x0 - check OK
+}
+
+// 0x9B0
+waitforfaceeventrepeat( base_time )
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_face_anims" );
+	self endon( "new_face_event" );
+	self endon( "face_timer_expired" );
+	state = self.face_curr_event;
+	self waittill( "face", newstate );
+	self.face_timer = base_time;
+// SP = 0x0 - check OK
+}
+
+// 0xA00
+waitforfaceeventcomplete()
+{
+	self notify( "new_face_event" );
+	self endon( "entityshutdown" );
+	self endon( "stop_face_anims" );
+	self endon( "new_face_event" );
+	currevent = self.face_curr_event;
+	curridx = self.face_curr_event_idx;
+/#
+	println( "Trying to get animation for state " + currevent + " # " + curridx + " for entity " + self getentitynumber() );
+#/
+/#
+	assert( IsDefined( level.facestates[self.face_anim_tree][self.face_curr_event]["animation"][self.face_curr_event_idx] ) );
+#/
+	self.face_timer = level.facestates[self.face_anim_tree][self.face_curr_event]["timer"];
+	self.face_timer = getanimlength( level.facestates[self.face_anim_tree][self.face_curr_event]["animation"][self.face_curr_event_idx] );
+	base_time = self.face_timer;
+	self thread waitforfaceeventrepeat( self.face_timer );
+	wait self.face_timer;
+	self notify( "face_timer_expired" );
+/#
+	println( "Timing out face state " + currevent + " # " + curridx + " for entity " + self getentitynumber() + " after " + base_time );
+#/
+	self.face_curr_event = undefined;
+	self.face_curr_event_idx = undefined;
+	self setanimknob( level.facestates[self.face_anim_tree][self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+	self notify( "face", "face_advance" );
+// SP = 0x0 - check OK
+}
+
+// 0xBC8
+shouldplayfaceevent( player, face_state )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC50
+processfaceevents( localclientnum )
+{
+	self endon( "entityshutdown" );
+	state = "face_alert";
+	self.face_curr_base = "face_alert";
+	numanims = level.facestates[self.face_anim_tree][state]["animation"].size;
+	self.face_curr_base_idx = randomint( numanims );
+/#
+	println( "Starting entity " + self getentitynumber() + " in state face_alert" );
+	println( "Found " + numanims + " anims for state face_alert for entity " + self getentitynumber() );
+	println( "Selected anim " + self.face_curr_base_idx + " for entity " + self getentitynumber() );
+#/
+	self setanimknob( level.facestates[self.face_anim_tree][self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0, 1 );
+	state = "face_death";
+	self.face_state = state;
+/#
+	self thread showstate();
+#/
+	self thread watchfor_death();
+/#
+	println( "No face state array!\n" );
+	println( "No face anim tree for entity " + self getentitynumber() );
+	println( "No face state for entity " + self getentitynumber() );
+	println( "No face state array for anim tree " + self.face_anim_tree + " used by entity " + self getentitynumber() );
+	println( "No face state array entry for state " + state + " in anim tree " + self.face_anim_tree + " for entity " + self getentitynumber() );
+	println( "Found " + numanims + " anims for state " + state + " for entity " + self getentitynumber() );
+#/
+/#
+	println( "Disabling face anims for entity " + self getentitynumber() );
+#/
+	setfacestate( "face_disabled" );
+	self clearanim( level.facestates[self.face_anim_tree]["face_root"], 0 );
+	self notify( "stop_face_anims" );
+	self.face_curr_event = undefined;
+	self.face_curr_event_idx = undefined;
+	wait 0.05;
+	player = getlocalplayers()[0];
+	numanims = level.facestates[self.face_anim_tree][state]["animation"].size;
+	setfacestate( state );
+	switch ( level.facestates[self.face_anim_tree][state]["statetype"] )
+	{
+		case "basestate":
+			self setanimknob( level.facestates[self.face_anim_tree][self.face_curr_event]["animation"][self.face_curr_event_idx], 1, 0.1, 1 );
+			self setanimknob( level.facestates[self.face_anim_tree][self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+			break;
+		case "eventstate":
+/#
+			println( "Exitstate found, returning for entity " + self getentitynumber() );
+#/
+			self setanimknob( level.facestates[self.face_anim_tree][state]["animation"][randomint( numanims )], 1, 0.1, 1 );
+			self notify( "stop_face_anims" );
+			self.face_curr_event = undefined;
+			self.face_curr_event_idx = undefined;
+		case "exitstate":
+			self.face_curr_base = state;
+			self.face_curr_base_idx = randomint( numanims );
+/#
+			println( "New base face anim state " + self.face_curr_base + " anim # " + self.face_curr_base_idx + "  for entity " + self getentitynumber() );
+#/
+/#
+			println( "trying to play animation for state " + self.face_curr_base + " w/ index " + self.face_curr_base_idx + " for entity " + self getentitynumber() );
+#/
+			self setanimknob( level.facestates[self.face_anim_tree][self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+			break;
+		case "nullstate":
+			self.face_curr_event = state;
+			self.face_curr_event_idx = randomint( numanims );
+/#
+			println( "New face anim event " + self.face_curr_event + " anim # " + self.face_curr_event_idx + " for entity " + self getentitynumber() );
+#/
+			self setflaggedanimknob( "face_event", level.facestates[self.face_anim_tree][self.face_curr_event]["animation"][self.face_curr_event_idx], 1, 0.1, 1 );
+			self thread waitforfaceeventcomplete();
+			break;
+	}
+	state = self waitforanypriorityreturn( self.face_curr_event );
+	state = self waitforanypriorityreturn( self.face_curr_base );
+// SP = 0x0 - check OK
+}
+
+// 0x1258
+showstate( state )
+{
+/#
+	self endon( "entityshutdown" );
+	entnum = self getentitynumber();
+	entnum = "?";
+	disablechar = "-";
+	disablechar = "+";
+	deathchar = "D";
+	deathchar = "A";
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 72 ), disablechar + deathchar + "[" + entnum + "]" + self.face_state, ( 1, 1, 1 ), 1, 0.25 );
+	wait 0.01667;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x133C
+setfacestate( state )
+{
+	self.face_state = self.face_curr_event;
+	self.face_state = self.face_curr_base;
+	return;
+	self.face_state = state;
+// SP = 0x0 - check OK
+}
+
+// 0x137C
+watchfor_death()
+{
+	self endon( "entityshutdown" );
+	self waittillmatch( "face" );
+	return "face_death";
+	self.face_death = 1;
+// SP = 0x0 - check OK
+}

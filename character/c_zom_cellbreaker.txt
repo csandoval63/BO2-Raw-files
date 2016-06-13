@@ -1,0 +1,21 @@
+// character/c_zom_cellbreaker.gsc
+
+
+// 0xE8
+main()
+{
+	self setmodel( "c_zom_cellbreaker_fb" );
+	self.hatmodel = "c_zom_cellbreaker_helmet";
+	self attach( self.hatmodel );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0x128
+precache()
+{
+	precachemodel( "c_zom_cellbreaker_fb" );
+	precachemodel( "c_zom_cellbreaker_helmet" );
+// SP = 0x0 - check OK
+}

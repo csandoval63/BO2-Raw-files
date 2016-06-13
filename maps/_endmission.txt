@@ -1,0 +1,295 @@
+// maps/_endmission.gsc
+
+#include maps\_cheat;
+#include maps\_cooplogic;
+#include maps\_hud_message;
+#include maps\_endmission;
+#include maps\_laststand;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x940
+main()
+{
+	thread restartmissionlistener();
+// SP = 0x0 - check OK
+}
+
+// 0x950
+restartmissionluilistener()
+{
+	level.player waittill( "menuresponse", menu_action, action_arg );
+	maps\_endmission::strikeforce_decrement_unit_tokens();
+	luinotifyevent( &"rts_restart_mission" );
+// SP = 0x0 - check OK
+}
+
+// 0x9A4
+restartmissionlistener()
+{
+	level waittill( "restartmission" );
+	root_level = get_root_level( level.script );
+	initchallengestats( level.script );
+	fastrestart();
+	changelevel( root_level, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xA00
+get_root_level( cur_level )
+{
+	root_level_index = tablelookup( "sp/levelLookup.csv", 1, cur_level, 11 );
+	return tablelookup( "sp/levelLookup.csv", 0, root_level_index, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xA34
+_nextmission()
+{
+	level.nextmission = 1;
+	level notify( "nextmission" );
+	players = get_players();
+	i = 0;
+	players[i] notify( "check_challenge" );
+	players[i] notify( "player_revived" );
+	setclientsysstate( "lsm", "0", players[i] );
+	players[i] enableinvulnerability();
+	i++;
+	cur_level = int( tablelookup( "sp/levelLookup.csv", 1, level.script, 0 ) );
+	maps\_hud_message::waittillnotifiesdone();
+	setdvar( "skipto", "default" );
+	maps\_cooplogic::endgame();
+	return;
+	dostat = int( tablelookup( "sp/levelLookup.csv", 0, cur_level, 16 ) );
+	complete_level( cur_level, dostat );
+	set_next_level( cur_level, dostat );
+	updategamerprofile();
+// SP = 0x0 - check OK
+}
+
+// 0xB48
+complete_level( cur_level, dostat )
+{
+	mission = tablelookup( "sp/levelLookup.csv", 0, cur_level, 2 );
+	level_complete_achievement = tablelookup( "sp/levelLookup.csv", 0, cur_level, 10 );
+	update_level_completed( mission );
+	players = get_players();
+	players[0] giveachievement_wrapper( level_complete_achievement );
+	level_veteran_achievement = tablelookup( "sp/levelLookup.csv", 0, cur_level, 12 );
+	players = get_players();
+	players[0] giveachievement_wrapper( level_veteran_achievement );
+	players[0] giveachievement_wrapper( "SP_RTS_CARRIER" );
+	level.posttutmission = GetDvar( #"0xD614D075" );
+	setdvar( "ui_aarmapname", level.script );
+	setdvarint( "ui_dofrontendsave", 1 );
+	check_for_achievements( mission );
+	dosplevelwrapup();
+// SP = 0x0 - check OK
+}
+
+// 0xCB4
+check_for_achievements( mission )
+{
+	player = get_players()[0];
+	cur_level_type = tablelookup( "sp/levelLookup.csv", 2, mission, 8 );
+	player giveachievement_wrapper( "SP_MISC_WEAPONS" );
+	player giveachievement_wrapper( "SP_BACK_TO_FUTURE" );
+// SP = 0x0 - check OK
+}
+
+// 0xD44
+check_for_achievements_frontend( levelname )
+{
+	player = get_players()[0];
+	mission = tablelookup( "sp/levelLookup.csv", 1, levelname, 2 );
+	cur_level_type = tablelookup( "sp/levelLookup.csv", 2, mission, 8 );
+	return;
+	player giveachievement_wrapper( "SP_MISC_10K_SCORE_ALL" );
+	currchallenges = player getnumchallengescomplete( mission );
+	player giveachievement_wrapper( "SP_ONE_CHALLENGE" );
+	player giveachievement_wrapper( "SP_ALL_CHALLENGES_IN_LEVEL" );
+	player giveachievement_wrapper( "SP_ALL_CHALLENGES_IN_GAME" );
+	player giveachievement_wrapper( "SP_MISC_ALL_INTEL" );
+// SP = 0x0 - check OK
+}
+
+// 0xE34
+get_strikeforce_tokens_remaining()
+{
+	saved_num = level.player getdstat( "PlayerCareerStats", "unitsAvailable" );
+	return saved_num;
+// SP = 0x0 - check OK
+}
+
+// 0xE58
+strikeforce_decrement_unit_tokens()
+{
+	saved_num = get_strikeforce_tokens_remaining();
+	saved_num -= 1;
+	level.player setdstat( "PlayerCareerStats", "unitsAvailable", saved_num );
+	return saved_num;
+// SP = 0x0 - check OK
+}
+
+// 0xE8C
+strikeforce_increment_unit_tokens()
+{
+	saved_num = get_strikeforce_tokens_remaining();
+	saved_num += 1;
+	level.player setdstat( "PlayerCareerStats", "unitsAvailable", saved_num );
+	return saved_num;
+// SP = 0x0 - check OK
+}
+
+// 0xEC0
+is_any_new_strikeforce_maps( cur_level )
+{
+	m_rts_map_list = [];
+	level_index = 1;
+	max_index = int( tablelookup( "sp/levelLookup.csv", 0, "map_count", 1 ) );
+	num_territories_claimed = 0;
+	start_index = int( tablelookup( "sp/levelLookup.csv", 0, level_index, 13 ) );
+	m_rts_map_list[m_rts_map_list.size] = tablelookup( "sp/levelLookup.csv", 0, level_index, 1 );
+	territory = tablelookup( "sp/levelLookup.csv", 0, level_index, 18 );
+	num_territories_claimed++;
+	level_index++;
+	karma_captured = level.player get_story_stat( "KARMA_CAPTURED" );
+	arrayremovevalue( m_rts_map_list, "so_rts_mp_socotra" );
+	arrayremovevalue( m_rts_map_list, "so_rts_mp_overflow" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1018
+get_strikeforce_available_level_list( cur_level )
+{
+	level.m_rts_map_list = [];
+/#
+	level.m_rts_map_list = level.m_strikeforce_override_list;
+	return level.m_strikeforce_override_list;
+#/
+	tokens_remaining = get_strikeforce_tokens_remaining();
+	return level.m_rts_map_list;
+	level_index = 1;
+	max_index = int( tablelookup( "sp/levelLookup.csv", 0, "map_count", 1 ) );
+	num_territories_claimed = 0;
+	start_index = int( tablelookup( "sp/levelLookup.csv", 0, level_index, 13 ) );
+	end_index = int( tablelookup( "sp/levelLookup.csv", 0, level_index, 14 ) );
+/#
+	level.m_rts_map_list[level.m_rts_map_list.size] = tablelookup( "sp/levelLookup.csv", 0, level_index, 1 );
+	level_index++;
+#/
+	level.m_rts_map_list[level.m_rts_map_list.size] = tablelookup( "sp/levelLookup.csv", 0, level_index, 1 );
+	territory = tablelookup( "sp/levelLookup.csv", 0, level_index, 18 );
+	num_territories_claimed++;
+	level_index++;
+/#
+	return level.m_rts_map_list;
+#/
+	karma_captured = level.player get_story_stat( "KARMA_CAPTURED" );
+	arrayremovevalue( level.m_rts_map_list, "so_rts_mp_socotra" );
+	arrayremovevalue( level.m_rts_map_list, "so_rts_mp_overflow" );
+	prev_map = tablelookup( "sp/levelLookup.csv", 0, cur_level, 1 );
+	last_map_index = undefined;
+	i = 0;
+	last_map_index = i;
+	i++;
+	level.m_rts_map_list[i] = level.m_rts_map_list[0];
+	level.m_rts_map_list[0] = prev_map;
+	return level.m_rts_map_list;
+// SP = 0x0 - check OK
+}
+
+// 0x1288
+set_next_level( cur_level, dostat )
+{
+	curr_map_type = tablelookup( "sp/levelLookup.csv", 0, cur_level, 8 );
+	cur_level = level.player getdstat( "PlayerStatsList", "HIGHESTLEVELCOMPLETED", "statValue" );
+	next_level = cur_level + 1;
+	map_type = tablelookup( "sp/levelLookup.csv", 0, next_level, 8 );
+	next_level = cur_level;
+	next_level_name = tablelookup( "sp/levelLookup.csv", 0, next_level, 1 );
+	map_type = tablelookup( "sp/levelLookup.csv", 0, next_level, 8 );
+	strikeforce_increment_unit_tokens();
+	rts_array = get_strikeforce_available_level_list( next_level );
+	root_level = tablelookup( "sp/levelLookup.csv", 0, cur_level, 11 );
+	next_level_name = tablelookup( "sp/levelLookup.csv", 0, root_level, 1 );
+	setuinextlevel( next_level_name );
+	setdvar( "ui_aarmapname", level.posttutmission );
+	setuinextlevel( level.posttutmission );
+	changelevel( level.posttutmission, 0 );
+	setuinextlevel( "credits" );
+	changelevel( "" );
+	changelevel( next_level_name, !(dostat) );
+	changelevel( "", !(dostat) );
+// SP = 0x0 - check OK
+}
+
+// 0x1458
+get_level_completed( mission_name )
+{
+	players = get_players();
+	return players[0] getdstat( "PlayerLevelStats", mission_name, "highestDifficulty" );
+// SP = 0x0 - check OK
+}
+
+// 0x1488
+update_level_completed( mission_name )
+{
+	return;
+	return;
+	players = get_players();
+	players[0] setsessstat( "PlayerSessionStats", "difficulty", level.gameskill );
+// SP = 0x0 - check OK
+}
+
+// 0x14E0
+check_other_haslevelveteranachievement( level_index )
+{
+	count = int( tablelookup( "sp/levelLookup.csv", 0, "map_count", 1 ) );
+	veteran_achievement = tablelookup( "sp/levelLookup.csv", 0, level_index, 12 );
+	i = 0;
+	level_vet_achievement = tablelookup( "sp/levelLookup.csv", 0, i, 12 );
+	mission_name = tablelookup( "sp/levelLookup.csv", 0, i, 2 );
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x15AC
+check_other_veterancompletion( level_index )
+{
+	count = int( tablelookup( "sp/levelLookup.csv", 0, "map_count", 1 ) );
+	i = 0;
+	level_vet_achievement = tablelookup( "sp/levelLookup.csv", 0, i, 12 );
+	mission_name = tablelookup( "sp/levelLookup.csv", 0, i, 2 );
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1664
+force_all_complete()
+{
+/#
+	println( "tada!" );
+#/
+	count = int( tablelookup( "sp/levelLookup.csv", 0, "map_count", 1 ) );
+	i = 0;
+	mission_name = tablelookup( "sp/levelLookup.csv", 0, i, 2 );
+	update_level_completed( mission_name );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x16D4
+clearall()
+{
+	players = get_players();
+	players[0] setdstat( "PlayerStatsList", "HIGHESTLEVELCOMPLETED", "statValue", 0 );
+// SP = 0x0 - check OK
+}

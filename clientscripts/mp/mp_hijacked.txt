@@ -1,0 +1,60 @@
+// clientscripts/mp/mp_hijacked.csc
+
+#include clientscripts\mp\mp_hijacked_amb;
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\mp_hijacked_fx;
+#include clientscripts\mp\_load;
+#include clientscripts\mp\_utility;
+
+
+// 0x234
+main()
+{
+	level.worldmapx = -239;
+	level.worldmapy = -16;
+	level.worldlat = -37.6447;
+	level.worldlong = 77.8777;
+	clientscripts\mp\_load::main();
+	clientscripts\mp\mp_hijacked_fx::main();
+	thread clientscripts\mp\_audio::audio_init( 0 );
+	thread clientscripts\mp\mp_hijacked_amb::main();
+	setsaveddvar( "compassmaxrange", "2100" );
+	level.overridemapdefinedhardpointsfunc = ::overridemapdefinedhardpointsfunc;
+	waitforclient( 0 );
+/#
+	println( "*** Client : mp_hijacked running..." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2C0
+overridemapdefinedhardpointsfunc()
+{
+	level.visuals[3][3] = copykothvisual( level.visuals[3][0] );
+	level.visuals[3][4] = copykothvisual( level.visuals[3][0] );
+	level.visuals[3][0].origin = ( 865, 256, 27 );
+	level.visuals[3][0].angles = vector_scale( ( 0, 1, 0 ), 180 );
+	level.visuals[3][1].origin = ( 865, 305, 27 );
+	level.visuals[3][1].angles = vector_scale( ( 0, 1, 0 ), 180 );
+	level.visuals[3][2].origin = ( -1241, 166, -39 );
+	level.visuals[3][2].angles = ( 0, 0, 0 );
+	level.visuals[3][3].origin = ( -1241, 210, -39 );
+	level.visuals[3][3].angles = ( 0, 0, 0 );
+	level.visuals[3][4].origin = ( -1210, 230, -37 );
+	level.visuals[3][4].angles = vector_scale( ( 0, 1, 0 ), 270 );
+// SP = 0x0 - check OK
+}
+
+// 0x3E4
+copykothvisual( visual )
+{
+	copyofvisual = spawnstruct();
+	copyofvisual.angles = visual.angles;
+	copyofvisual.classname = visual.classname;
+	copyofvisual.origin = visual.origin;
+	copyofvisual.script_fxid = visual.script_fxid;
+	copyofvisual.script_gameobjectname = visual.script_gameobjectname;
+	copyofvisual.targetname = visual.targetname;
+	return copyofvisual;
+// SP = 0x0 - check OK
+}

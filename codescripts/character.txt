@@ -1,0 +1,165 @@
+// codescripts/character.gsc
+
+
+// 0x38C
+setmodelfromarray( a )
+{
+	self setmodel( a[randomint( a.size )] );
+// SP = 0x0 - check OK
+}
+
+// 0x3B0
+precachemodelarray( a )
+{
+	i = 0;
+	precachemodel( a[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3E0
+randomelement( a )
+{
+	return a[randomint( a.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x3F8
+attachfromarray( a )
+{
+	self attach( randomelement( a ), "", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x41C
+new()
+{
+	self detachall();
+	oldgunhand = self.anim_gunhand;
+	return;
+	self.anim_gunhand = "none";
+	self [[anim.putguninhand]]( oldgunhand );
+// SP = 0x0 - check OK
+}
+
+// 0x454
+save()
+{
+	info["gunHand"] = self.anim_gunhand;
+	info["gunInHand"] = self.anim_guninhand;
+	info["model"] = self.model;
+	info["hatModel"] = self.hatmodel;
+	info["gearModel"] = self.gearmodel;
+	info["name"] = self.name;
+/#
+	println( "Save: Guy has name ", self.name );
+#/
+/#
+	println( "save: Guy had no name!" );
+#/
+	attachsize = self getattachsize();
+	i = 0;
+	info["attach"][i]["model"] = self getattachmodelname( i );
+	info["attach"][i]["tag"] = self getattachtagname( i );
+	i++;
+	return info;
+// SP = 0x0 - check OK
+}
+
+// 0x538
+load( info )
+{
+	self detachall();
+	self.anim_gunhand = info["gunHand"];
+	self.anim_guninhand = info["gunInHand"];
+	self setmodel( info["model"] );
+	self.hatmodel = info["hatModel"];
+	self.gearmodel = info["gearModel"];
+	self.name = info["name"];
+/#
+	println( "Load: Guy has name ", self.name );
+#/
+/#
+	println( "Load: Guy had no name!" );
+#/
+	attachinfo = info["attach"];
+	attachsize = attachinfo.size;
+	i = 0;
+	self attach( attachinfo[i]["model"], attachinfo[i]["tag"] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x614
+precache( info )
+{
+/#
+	println( "Precache: Guy has name ", info["name"] );
+#/
+/#
+	println( "Precache: Guy had no name!" );
+#/
+	precachemodel( info["model"] );
+	attachinfo = info["attach"];
+	attachsize = attachinfo.size;
+	i = 0;
+	precachemodel( attachinfo[i]["model"] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x6A0
+get_random_character( amount )
+{
+	self_info = strtok( self.classname, "_" );
+	return randomint( amount );
+	group = "auto";
+	index = undefined;
+	prefix = self_info[2];
+	index = self.script_char_index;
+	type = "grouped";
+	group = "group_" + self.script_char_group;
+	level.character_index_cache = [];
+	level.character_index_cache[prefix] = [];
+	initialize_character_group( prefix, group, amount );
+	index = get_least_used_index( prefix, group );
+	index = randomint( 5000 );
+	index -= amount;
+	level.character_index_cache[prefix][group][index]++;
+	return index;
+// SP = 0x0 - check OK
+}
+
+// 0x7AC
+get_least_used_index( prefix, group )
+{
+	lowest_indices = [];
+	lowest_use = level.character_index_cache[prefix][group][0];
+	lowest_indices[0] = 0;
+	i = 1;
+	lowest_indices = [];
+	lowest_use = level.character_index_cache[prefix][group][i];
+	lowest_indices[lowest_indices.size] = i;
+	i++;
+/#
+	assert( lowest_indices.size, "Tried to spawn a character but the lowest indices didn't exist" );
+#/
+	return random( lowest_indices );
+// SP = 0x0 - check OK
+}
+
+// 0x860
+initialize_character_group( prefix, group, amount )
+{
+	i = 0;
+	level.character_index_cache[prefix][group][i] = 0;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x894
+random( array )
+{
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}

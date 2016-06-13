@@ -1,0 +1,242 @@
+// animscripts/cover_utility.gsc
+
+#include animscripts\combat;
+#include animscripts\weaponlist;
+#include maps\_dds;
+#include animscripts\cover_corner;
+#include animscripts\debug;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include animscripts\shared;
+#include animscripts\anims;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x970
+blindfire()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no blind fire anim" );
+#/
+	return 0;
+	blindfiremodes = [];
+	blindfiremodes[blindfiremodes.size] = "blind_fire";
+	modes = self.covernode getvalidcoverpeekouts();
+	blindfiremodes[blindfiremodes.size] = "blind_over";
+	animscripts\cover_corner::setstepoutanimspecial( "blindfire" );
+	blindfiremode = blindfiremodes[randomintrange( 0, blindfiremodes.size )];
+	pitch = getshootpospitch( self.covernode.origin + getnodeoffset( self.covernode ) );
+/#
+	self animscripts\debug::debugpopstate( undefined, "can't blind fire at a target below" );
+#/
+	return 0;
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	self.a.cornermode = "blindfire";
+	self.a.prevattack = self.a.cornermode;
+	blindfireanim = animarraypickrandom( blindfiremode );
+	self setflaggedanimknoballrestart( blindfiremode, blindfireanim, %body, 1, 0.2, 1 );
+	self animscripts\shared::updatelaserstatus( 1, 1 );
+	self thread startblindaiming( blindfireanim, blindfiremode );
+	self thread stopblindaiming( blindfireanim, blindfiremode );
+	stopblindaiming();
+	self maps\_dds::dds_notify( "react_cover", self.team == "allies" );
+	self animscripts\shared::donotetracks( blindfiremode );
+	self.keepclaimednodeifvalid = 0;
+	self animscripts\shared::updatelaserstatus( 0 );
+	waittillframeend;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBD4
+canuseblindaiming( blindfiremode )
+{
+/#
+	return 0;
+#/
+	return 0;
+	blindfireaimexist = animarrayanyexist( blindfiremode + "_add_aim_up" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC38
+startblindaiming( aimanim, type )
+{
+	self animscripts\shared::setaiminganims( %blind_aim_2, %blind_aim_4, %blind_aim_6, %blind_aim_8 );
+	self animscripts\shared::setanimaimweight( 1, 0 );
+	self waittillmatch( type );
+	return "start_aim";
+	playadditiveaiminganims( type + "_add", 0.2 );
+	self animscripts\shared::trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0xCB8
+getanimaimlimit( aimanim, defaultlimit )
+{
+	defaultlimit = 20;
+	aimlimit = defaultlimit;
+	notetracks = getnotetracksindelta( aimanim, 0, 1 );
+	foreach ( note in notetracks )
+	{
+/#
+		assert( IsDefined( note[1] ) );
+#/
+		tokens = strtok( note[1], " " );
+		aimlimit = tokens[1];
+	}
+	return int( aimlimit );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+stopblindaiming( fireanim, animname )
+{
+	self endon( "death" );
+	self endon( "killanimscript" );
+	self waittillmatch( animname );
+	return "stop_aim";
+	self waittillmatch( animname );
+	return "end";
+	self animscripts\shared::stoptracking();
+	self animscripts\shared::setanimaimweight( 0, 0 );
+	self clearanim( %blind_aim_2, 0.2 );
+	self clearanim( %blind_aim_4, 0.2 );
+	self clearanim( %blind_aim_6, 0.2 );
+	self clearanim( %blind_aim_8, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0xE44
+canblindfire()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xEB0
+canrambo()
+{
+	ramboanimsexist = animarrayanyexist( "rambo" );
+/#
+	return ramboanimsexist;
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF28
+debugrambooutposition( rambooutpos )
+{
+/#
+	self endon( "death" );
+	i = 0;
+	recordline( self.origin, rambooutpos, ( 1, 1, 1 ), "Animscript", self );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF78
+canswitchsides()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+turntomatchnodedirection( nodeangleoffset )
+{
+	node = self.node;
+	absrelyaw = abs( angleclamp180( self.angles[1] - ( node.angles[1] + nodeangleoffset ) ) );
+	self orientmode( "face angle", self.angles[1] );
+	self orientmode( "face current" );
+	standtocrouchanim = animarray( "stand_2_crouch", "combat" );
+	notetime = getnotetracktimes( standtocrouchanim, "anim_pose = \"crouch\"" )[0];
+	notetime = min( 1, notetime * 1.1 );
+	time = notetime * getanimlength( standtocrouchanim ) / 1.5;
+	self setflaggedanimknoballrestart( "crouchanim", standtocrouchanim, %body, 1, 0.2, 1.5 );
+	self donotetracksfortime( time, "crouchanim" );
+	self clearanim( %body, 0.2 );
+	self orientmode( "face angle", self.angles[1] );
+	relyaw = angleclamp180( self.angles[1] - ( node.angles[1] + nodeangleoffset ) );
+	self.turnthreshold = 45;
+	self.turntomatchnode = 1;
+	animscripts\combat::turntofacerelativeyaw( relyaw );
+	self.turntomatchnode = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1134
+getrandomcovermode( modes )
+{
+	return undefined;
+	return modes[0];
+	foreach ( mode in modes )
+	{
+		modes[i] = modes[modes.size - 1];
+		modes[modes.size - 1] = undefined;
+	}
+	return modes[randomint( modes.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x11E4
+playadditiveaiminganims( prefix, transtime, defaultaimlimit )
+{
+	aimupanim = animarray( prefix + "_aim_up" );
+	aimdownanim = animarray( prefix + "_aim_down" );
+	aimleftanim = animarray( prefix + "_aim_left" );
+	aimrightanim = animarray( prefix + "_aim_right" );
+	self.rightaimlimit = getanimaimlimit( aimrightanim, defaultaimlimit );
+	self.leftaimlimit = getanimaimlimit( aimleftanim, defaultaimlimit ) * -1;
+	self.upaimlimit = getanimaimlimit( aimupanim, defaultaimlimit );
+	self.downaimlimit = getanimaimlimit( aimdownanim, defaultaimlimit ) * -1;
+	self setanimknoblimited( aimupanim, 1, transtime );
+	self setanimknoblimited( aimdownanim, 1, transtime );
+	self setanimknoblimited( aimleftanim, 1, transtime );
+	self setanimknoblimited( aimrightanim, 1, transtime );
+// SP = 0x0 - check OK
+}
+
+// 0x12D4
+getshootpospitch( frompos )
+{
+	shootpos = getenemyeyepos();
+	return angleclamp180( vectortoangles( shootpos - frompos )[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x12F8
+resetanimspecial( delay )
+{
+	self endon( "killanimscript" );
+	wait delay;
+	self.a.special = "none";
+// SP = 0x0 - check OK
+}
+
+// 0x1324
+canthrowgrenade()
+{
+	return 1;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}

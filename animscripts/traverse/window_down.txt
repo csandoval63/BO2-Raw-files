@@ -1,0 +1,95 @@
+// animscripts/traverse/window_down.gsc
+
+#include animscripts\run;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\anims;
+#include animscripts\traverse\shared;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x400
+main()
+{
+	preparefortraverse();
+	traverseanim = animarray( "window_climb_start", "move" );
+	landanim = animarray( "window_climb_end", "move" );
+	self.desired_anim_pose = "crouch";
+	animscripts\utility::updateanimpose();
+	self.old_anim_movement = self.a.movement;
+	self endon( "killanimscript" );
+	self traversemode( "noclip" );
+	startnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( startnode ) );
+#/
+	self orientmode( "face angle", startnode.angles[1] );
+	realheight = startnode.traverse_height - startnode.origin[2];
+	self setflaggedanimknoballrestart( "traverse", traverseanim, %body, 1, 0.15, 1 );
+	thread animscripts\shared::donotetracksforever( "traverse", "stop_traverse_notetracks" );
+	wait 1.5;
+	angles = ( 0, startnode.angles[1], 0 );
+	forward = anglestoforward( angles );
+	forward = vector_scale( forward, 85 );
+	trace = bullettrace( startnode.origin + forward, startnode.origin + forward + vector_scale( ( 0, 0, -1 ), 500 ), 0, undefined );
+	endheight = trace["position"][2];
+	finaldif = startnode.origin[2] - endheight;
+	heightchange = 0;
+	i = 0;
+	heightchange = finaldif - level.window_down_height[i];
+	i++;
+/#
+	assert( heightchange > 0, "window_jump at " + startnode.origin + " is too high off the ground" );
+#/
+	self thread teleportthread( heightchange * -1 );
+	oldheight = self.origin[2];
+	change = 0;
+	level.traversefall = [];
+	change = oldheight - self.origin[2];
+	oldheight = self.origin[2];
+	wait 0.05;
+	self playsound( "Land_" + self.groundtype );
+	self notify( "stop_traverse_notetracks" );
+	self setflaggedanimknoballrestart( "traverse", landanim, %body, 1, 0.15, 1 );
+	self traversemode( "gravity" );
+	self animscripts\shared::donotetracks( "traverse" );
+	self.a.movement = self.old_anim_movement;
+	self setanimknoballrestart( animscripts\run::getrunanim(), %body, 1, 0.2, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x6B8
+printer( org )
+{
+	level notify( "print_this_" + org );
+	level endon( "print_this_" + org );
+/#
+	print3d( org, ".", ( 1, 1, 1 ), 5 );
+#/
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+showline( start, end )
+{
+/#
+	line( start, end + ( -1, -1, -1 ), ( 1, 0, 0 ) );
+#/
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x724
+printerdebugger( msg, org )
+{
+	level notify( "prrint_this_" + org );
+	level endon( "prrint_this_" + org );
+/#
+	print3d( org, msg, ( 1, 1, 1 ), 5 );
+#/
+	wait 0.05;
+// SP = 0x0 - check OK
+}

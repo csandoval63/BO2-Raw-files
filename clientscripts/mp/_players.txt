@@ -1,0 +1,46 @@
+// clientscripts/mp/_players.csc
+
+#include clientscripts\mp\_multi_extracam;
+#include clientscripts\mp\_rotating_object;
+#include clientscripts\mp\_ambient;
+#include clientscripts\mp\_fxanim;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_acousticsensor;
+#include clientscripts\mp\_filter;
+#include clientscripts\mp\_utility;
+
+
+// 0x2F4
+on_connect( localclientnum )
+{
+	thread clientscripts\mp\_acousticsensor::init( localclientnum );
+	player = getlocalplayer( localclientnum );
+/#
+	assert( IsDefined( player ) );
+#/
+	init_filter_zm_turned( player );
+	thread clientscripts\mp\_fx::fx_init( localclientnum );
+	thread clientscripts\mp\_fx::fx_init( localclientnum );
+	thread clientscripts\mp\_fxanim::fxanim_init( localclientnum );
+	thread clientscripts\mp\_ambient::ceiling_fans_init( localclientnum );
+	thread clientscripts\mp\_ambient::clocks_init( localclientnum );
+	thread clientscripts\mp\_ambient::spin_anemometers( localclientnum );
+	thread clientscripts\mp\_rotating_object::init( localclientnum );
+	thread clientscripts\mp\_multi_extracam::init( localclientnum );
+	init_code_filters( player );
+	player setinfraredvisionset( level.infraredvisionset );
+	level thread [[level.onplayerconnect]]( localclientnum );
+	[[level._customplayerconnectfuncs]]( player, localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x400
+dtp_effects()
+{
+	self endon( "entityshutdown" );
+	self waittill( "dtp_land", localclientnum );
+	localplayer = getlocalplayer( localclientnum );
+	animateui( localclientnum, "fullscreen_snow", "dirt", "in", 0 );
+	animateui( localclientnum, "fullscreen_dirt", "dirt", "in", 0 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,532 @@
+// maps/mp/_hacker_tool.gsc
+
+#include maps\mp\gametypes\_weaponobjects;
+#include maps\mp\killstreaks\_supplydrop;
+#include maps\mp\_heatseekingmissile;
+#include maps\mp\gametypes\_hud_util;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x1188
+init()
+{
+	level.hackertoolmaxequipmentdistance = 2000;
+	level.hackertoolmaxequipmentdistancesq = level.hackertoolmaxequipmentdistance * level.hackertoolmaxequipmentdistance;
+	level.hackertoolnosighthackdistance = 750;
+	level.hackertoollostsightlimitms = 450;
+	level.hackertoollockonradius = 20;
+	level.hackertoollockonfov = 65;
+	level.hackertoolhacktimems = 0.5;
+	level.equipmenthackertoolradius = 60;
+	level.equipmenthackertooltimems = 50;
+	level.carepackagehackertoolradius = 60;
+	level.carepackagehackertooltimems = getgametypesetting( "crateCaptureTime" ) * 500;
+	level.carepackagefriendlyhackertooltimems = getgametypesetting( "crateCaptureTime" ) * 2000;
+	level.carepackageownerhackertooltimems = 250;
+	level.sentryhackertoolradius = 80;
+	level.sentryhackertooltimems = 4000;
+	level.microwavehackertoolradius = 80;
+	level.microwavehackertooltimems = 4000;
+	level.vehiclehackertoolradius = 80;
+	level.vehiclehackertooltimems = 4000;
+	level.rcxdhackertooltimems = 1500;
+	level.rcxdhackertoolradius = 20;
+	level.uavhackertooltimems = 4000;
+	level.uavhackertoolradius = 40;
+	level.cuavhackertooltimems = 4000;
+	level.cuavhackertoolradius = 40;
+	level.carepackagechopperhackertooltimems = 3000;
+	level.carepackagechopperhackertoolradius = 60;
+	level.littlebirdhackertooltimems = 4000;
+	level.littlebirdhackertoolradius = 80;
+	level.qrdronehackertooltimems = 3000;
+	level.qrdronehackertoolradius = 60;
+	level.aitankhackertooltimems = 4000;
+	level.aitankhackertoolradius = 60;
+	level.stealthchopperhackertooltimems = 4000;
+	level.stealthchopperhackertoolradius = 80;
+	level.warthoghackertooltimems = 4000;
+	level.warthoghackertoolradius = 80;
+	level.lodestarhackertooltimems = 4000;
+	level.lodestarhackertoolradius = 60;
+	level.choppergunnerhackertooltimems = 4000;
+	level.choppergunnerhackertoolradius = 260;
+	thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x130C
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x1330
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self clearhackertarget();
+	self thread watchhackertooluse();
+	self thread watchhackertoolfired();
+// SP = 0x0 - check OK
+}
+
+// 0x136C
+clearhackertarget()
+{
+	self notify( "stop_lockon_sound" );
+	self notify( "stop_locked_sound" );
+	self.stingerlocksound = undefined;
+	self stoprumble( "stinger_lock_rumble" );
+	self.hackertoollockstarttime = 0;
+	self.hackertoollockstarted = 0;
+	self.hackertoollockfinalized = 0;
+	self.hackertoollocktimeelapsed = 0;
+	self setweaponheatpercent( "pda_hack_mp", 0 );
+	lockingon( self.hackertooltarget, 0 );
+	lockedon( self.hackertooltarget, 0 );
+	self.hackertooltarget = undefined;
+	self weaponlockfree();
+	self weaponlocktargettooclose( 0 );
+	self weaponlocknoclearance( 0 );
+	self stoplocalsound( game["locking_on_sound"] );
+	self stoplocalsound( game["locked_on_sound"] );
+	self destroylockoncanceledmessage();
+// SP = 0x0 - check OK
+}
+
+// 0x1440
+watchhackertoolfired()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "hacker_tool_fired", hackertooltarget );
+	maps\mp\killstreaks\_supplydrop::givecratecapturemedal( hackertooltarget, self );
+	hackertooltarget notify( "captured", self, 1 );
+	hackertooltarget.hackertrigger notify( "trigger", self, 1 );
+	damage = 1;
+	damage = hackertooltarget.maxhealth + 1;
+	damage = 999999;
+	damage = 1;
+	hackertooltarget.numflares--;
+	hackertooltarget maps\mp\_heatseekingmissile::missiletarget_playflarefx();
+	hackertooltarget dodamage( damage, self.origin, self, self, 0, "MOD_UNKNOWN", 0, "pda_hack_mp" );
+	self addplayerstat( "hack_enemy_target", 1 );
+	self addweaponstat( "pda_hack_mp", "used", 1 );
+	clearhackertarget();
+	self forceoffhandend();
+	clip_ammo = self getweaponammoclip( "pda_hack_mp" );
+	clip_ammo--;
+/#
+/#
+	assert( clip_ammo >= 0 );
+#/
+#/
+	self setweaponammoclip( "pda_hack_mp", clip_ammo );
+	self switchtoweapon( self getlastweapon() );
+// SP = 0x0 - check OK
+}
+
+// 0x15D8
+watchhackertooluse()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "grenade_pullback", weapon );
+	wait 0.05;
+	self thread hackertooltargetloop();
+	self thread watchhackertoolend();
+	self thread watchforgrenadefire();
+	self thread watchhackertoolinterrupt();
+// SP = 0x0 - check OK
+}
+
+// 0x1658
+watchhackertoolinterrupt()
+{
+	self endon( "disconnect" );
+	self endon( "hacker_tool_fired" );
+	self endon( "death" );
+	self endon( "weapon_change" );
+	self endon( "grenade_fire" );
+	level waittill( "use_interrupt", interrupttarget );
+	clearhackertarget();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16B0
+watchhackertoolend()
+{
+	self endon( "disconnect" );
+	self endon( "hacker_tool_fired" );
+	msg = self waittill_any_return( "weapon_change", "death" );
+	clearhackertarget();
+// SP = 0x0 - check OK
+}
+
+// 0x16E4
+watchforgrenadefire()
+{
+	self endon( "disconnect" );
+	self endon( "hacker_tool_fired" );
+	self endon( "weapon_change" );
+	self endon( "death" );
+	self waittill( "grenade_fire", grenade, grenadename, respawnfromhack );
+	clearhackertarget();
+	clip_ammo = self getweaponammoclip( "pda_hack_mp" );
+	clip_max_ammo = weaponclipsize( "pda_hack_mp" );
+	clip_ammo++;
+	self setweaponammoclip( "pda_hack_mp", clip_ammo );
+// SP = 0x0 - check OK
+}
+
+// 0x1784
+hackertooltargetloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "weapon_change" );
+	self endon( "grenade_fire" );
+	wait 0.05;
+	self clearhackertarget();
+	passed = self hackersoftsighttest();
+	lockingon( self.hackertooltarget, 0 );
+	lockedon( self.hackertooltarget, 1 );
+	thread looplocallocksound( game["locked_on_sound"], 0.75 );
+	self notify( "hacker_tool_fired", self.hackertooltarget );
+	return;
+	self clearhackertarget();
+	locklengthms = self gethacktime( self.hackertooltarget );
+	self clearhackertarget();
+	self playlocalsound( "evt_hacker_hacking" );
+	lockingon( self.hackertooltarget, 1 );
+	lockedon( self.hackertooltarget, 0 );
+	passed = self hackersoftsighttest();
+	self.hackertoollocktimeelapsed += 0.05;
+	hackpercentage = self.hackertoollocktimeelapsed / ( locklengthms / 1000 );
+	self setweaponheatpercent( "pda_hack_mp", hackpercentage );
+/#
+	assert( IsDefined( self.hackertooltarget ) );
+#/
+	self notify( "stop_lockon_sound" );
+	self.hackertoollockfinalized = 1;
+	self weaponlockfinalize( self.hackertooltarget );
+	besttarget = self getbesthackertooltarget();
+	self destroylockoncanceledmessage();
+	self destroylockoncanceledmessage();
+	self displaylockoncanceledmessage();
+	self destroylockoncanceledmessage();
+	initlockfield( besttarget );
+	self.hackertooltarget = besttarget;
+	self.hackertoollockstarttime = GetTime();
+	self.hackertoollockstarted = 1;
+	self.hackertoollostsightlinetime = 0;
+	self.hackertoollocktimeelapsed = 0;
+	self setweaponheatpercent( "pda_hack_mp", 0 );
+	self thread looplocalseeksound( game["locking_on_sound"], 0.6 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A50
+getbesthackertooltarget()
+{
+	targetsvalid = [];
+	targetsall = arraycombine( target_getarray(), level.missileentities, 0, 0 );
+	targetsall = arraycombine( targetsall, level.hackertooltargets, 0, 0 );
+	idx = 0;
+	target_ent = targetsall[idx];
+/#
+	targetsvalid[targetsvalid.size] = targetsall[idx];
+#/
+	targetsvalid[targetsvalid.size] = target_ent;
+	targetsvalid[targetsvalid.size] = target_ent;
+	targetsvalid[targetsvalid.size] = target_ent;
+	targetsvalid[targetsvalid.size] = target_ent;
+	targetsvalid[targetsvalid.size] = target_ent;
+	idx++;
+	chosenent = undefined;
+	chosenent = targetsvalid[0];
+	return chosenent;
+// SP = 0x0 - check OK
+}
+
+// 0x1C04
+iswithinhackertoolreticle( target )
+{
+	radius = gethackertoolradius( target );
+	return target_isincircle( target, self, level.hackertoollockonfov, radius, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1C38
+isentityhackableweaponobject( entity )
+{
+	watcher = maps\mp\gametypes\_weaponobjects::getweaponobjectwatcherbyweapon( entity.name );
+/#
+/#
+	assert( IsDefined( watcher.hackertoolradius ) );
+#/
+/#
+	assert( IsDefined( watcher.hackertooltimems ) );
+#/
+#/
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1CBC
+getweaponobjecthackerradius( entity )
+{
+/#
+/#
+	assert( IsDefined( entity.classname ) );
+#/
+/#
+	assert( IsDefined( entity.name ) );
+#/
+#/
+	watcher = maps\mp\gametypes\_weaponobjects::getweaponobjectwatcherbyweapon( entity.name );
+/#
+/#
+	assert( watcher.hackable );
+#/
+/#
+	assert( IsDefined( watcher.hackertoolradius ) );
+#/
+#/
+	return watcher.hackertoolradius;
+// SP = 0x0 - check OK
+}
+
+// 0x1D3C
+getweaponobjecthacktimems( entity )
+{
+/#
+/#
+	assert( IsDefined( entity.classname ) );
+#/
+/#
+	assert( IsDefined( entity.name ) );
+#/
+#/
+	watcher = maps\mp\gametypes\_weaponobjects::getweaponobjectwatcherbyweapon( entity.name );
+/#
+/#
+	assert( watcher.hackable );
+#/
+/#
+	assert( IsDefined( watcher.hackertooltimems ) );
+#/
+#/
+	return watcher.hackertooltimems;
+// SP = 0x0 - check OK
+}
+
+// 0x1DBC
+isentityhackablecarepackage( entity )
+{
+	return entity.model == "t6_wpn_supply_drop_ally";
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1DE4
+isvalidhackertooltarget( ent )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E78
+hackersoftsighttest()
+{
+	passed = 1;
+	locklengthms = 0;
+	locklengthms = self gethacktime( self.hackertooltarget );
+	self clearhackertarget();
+	passed = 0;
+	self.hackertoollostsightlinetime = 0;
+	self.hackertoollostsightlinetime = GetTime();
+	timepassed = GetTime() - self.hackertoollostsightlinetime;
+	self clearhackertarget();
+	passed = 0;
+	return passed;
+// SP = 0x0 - check OK
+}
+
+// 0x1F1C
+registerwithhackertool( radius, hacktimems )
+{
+	self endon( "death" );
+	self.hackertoolradius = radius;
+	self.hackertoolradius = level.hackertoollockonradius;
+	self.hackertooltimems = hacktimems;
+	self.hackertooltimems = level.hackertoolhacktimems;
+	self thread watchhackableentitydeath();
+	level.hackertooltargets[level.hackertooltargets.size] = self;
+// SP = 0x0 - check OK
+}
+
+// 0x1F78
+watchhackableentitydeath()
+{
+	self waittill( "death" );
+	arrayremovevalue( level.hackertooltargets, self );
+// SP = 0x0 - check OK
+}
+
+// 0x1F94
+gethackertoolradius( target )
+{
+	radius = 20;
+/#
+/#
+	assert( IsDefined( target.hackertoolradius ) );
+#/
+#/
+	radius = target.hackertoolradius;
+	radius = getweaponobjecthackerradius( target );
+	radius = target.hackertoolradius;
+	radius = level.vehiclehackertoolradius;
+	switch ( target.model )
+	{
+		case "t5_veh_rcbomb_axis":
+			radius = level.uavhackertoolradius;
+			break;
+		case "veh_iw_air_apache_killstreak":
+			radius = level.cuavhackertoolradius;
+			break;
+		case "veh_iw_mh6_littlebird_mp":
+			radius = level.rcxdhackertoolradius;
+			break;
+		case "veh_t6_air_a10f":
+			radius = level.carepackagechopperhackertoolradius;
+			break;
+		case "veh_t6_air_a10f_alt":
+		case "veh_t6_air_attack_heli_mp_dark":
+			radius = level.qrdronehackertoolradius;
+			break;
+		case "veh_t6_air_attack_heli_mp_light":
+		case "veh_t6_drone_cuav":
+			radius = level.aitankhackertoolradius;
+			break;
+		case "veh_t6_drone_overwatch_dark":
+		case "veh_t6_drone_overwatch_light":
+			radius = level.stealthchopperhackertoolradius;
+			break;
+		case "veh_t6_drone_pegasus":
+		case "veh_t6_drone_quad_rotor_mp":
+			radius = level.littlebirdhackertoolradius;
+			break;
+		case "veh_t6_drone_quad_rotor_mp_alt":
+			radius = level.lodestarhackertoolradius;
+			break;
+		case "veh_t6_drone_tank":
+			radius = level.choppergunnerhackertoolradius;
+			break;
+		case "veh_t6_drone_tank_alt":
+		case "veh_t6_drone_uav":
+			radius = level.warthoghackertoolradius;
+			break;
+	}
+	return radius;
+// SP = 0x0 - check OK
+}
+
+// 0x2118
+gethacktime( target )
+{
+	time = 500;
+/#
+/#
+	assert( IsDefined( target.hackertooltimems ) );
+#/
+#/
+	time = level.carepackageownerhackertooltimems;
+	time = level.carepackagefriendlyhackertooltimems;
+	time = level.carepackagehackertooltimems;
+	time = getweaponobjecthacktimems( target );
+	time = target.hackertooltimems;
+	time = level.vehiclehackertooltimems;
+	switch ( target.model )
+	{
+		case "t5_veh_rcbomb_axis":
+			time = level.uavhackertooltimems;
+			break;
+		case "veh_t6_air_a10f":
+			time = level.cuavhackertooltimems;
+			break;
+		case "veh_t6_air_a10f_alt":
+			time = level.rcxdhackertooltimems;
+			break;
+		case "veh_t6_air_attack_heli_mp_dark":
+		case "veh_t6_air_attack_heli_mp_light":
+			time = level.carepackagechopperhackertooltimems;
+			break;
+		case "veh_t6_air_v78_vtol_killstreak":
+		case "veh_t6_air_v78_vtol_killstreak_alt":
+			time = level.qrdronehackertooltimems;
+			break;
+		case "veh_t6_drone_cuav":
+		case "veh_t6_drone_overwatch_dark":
+			time = level.aitankhackertooltimems;
+			break;
+		case "veh_t6_drone_overwatch_light":
+		case "veh_t6_drone_pegasus":
+			time = level.stealthchopperhackertooltimems;
+			break;
+		case "veh_t6_drone_quad_rotor_mp":
+		case "veh_t6_drone_quad_rotor_mp_alt":
+			time = level.littlebirdhackertooltimems;
+			break;
+		case "veh_t6_drone_supply_alt":
+			time = level.lodestarhackertooltimems;
+			break;
+		case "veh_t6_drone_supply_alt":
+		case "veh_t6_drone_tank":
+			time = level.choppergunnerhackertooltimems;
+			break;
+		case "veh_t6_drone_tank_alt":
+		case "veh_t6_drone_uav":
+			time = level.warthoghackertooltimems;
+			break;
+	}
+	return time;
+// SP = 0x0 - check OK
+}
+
+// 0x22F4
+tunables()
+{
+/#
+	level.hackertoollostsightlimitms = weapons_get_dvar_int( "scr_hackerToolLostSightLimitMs", 1000 );
+	level.hackertoollockonradius = weapons_get_dvar( "scr_hackerToolLockOnRadius", 20 );
+	level.hackertoollockonfov = weapons_get_dvar_int( "scr_hackerToolLockOnFOV", 65 );
+	level.rcxd_time = weapons_get_dvar( "scr_rcxd_time", 1.5 );
+	level.uav_time = weapons_get_dvar_int( "scr_uav_time", 4 );
+	level.cuav_time = weapons_get_dvar_int( "scr_cuav_time", 4 );
+	level.care_package_chopper_time = weapons_get_dvar_int( "scr_care_package_chopper_time", 3 );
+	level.guardian_time = weapons_get_dvar_int( "scr_guardian_time", 5 );
+	level.sentry_time = weapons_get_dvar_int( "scr_sentry_time", 5 );
+	level.wasp_time = weapons_get_dvar_int( "scr_wasp_time", 5 );
+	level.agr_time = weapons_get_dvar_int( "scr_agr_time", 5 );
+	level.stealth_helicopter_time = weapons_get_dvar_int( "scr_stealth_helicopter_time", 7 );
+	level.escort_drone_time = weapons_get_dvar_int( "scr_escort_drone_time", 7 );
+	level.warthog_time = weapons_get_dvar_int( "scr_warthog_time", 7 );
+	level.lodestar_time = weapons_get_dvar_int( "scr_lodestar_time", 7 );
+	level.chopper_gunner_time = weapons_get_dvar_int( "scr_chopper_gunner_time", 7 );
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}

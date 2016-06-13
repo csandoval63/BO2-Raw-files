@@ -1,0 +1,18 @@
+// character/c_zom_deluca.gsc
+
+
+// 0xBC
+main()
+{
+	self setmodel( "c_zom_player_deluca_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xE4
+precache()
+{
+	precachemodel( "c_zom_player_deluca_fb" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,280 @@
+// maps/mp/gametypes/_hostmigration.gsc
+
+#include maps\mp\gametypes\_hud;
+#include maps\mp\gametypes\_hud_util;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x6FC
+debug_script_structs()
+{
+/#
+	println( "*** Num structs " + level.struct.size );
+	println( "" );
+	i = 0;
+	struct = level.struct[i];
+	println( "---" + i + " : " + struct.targetname );
+	println( "---" + i + " : " + "NONE" );
+	i++;
+	println( "*** No structs defined." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7A8
+updatetimerpausedness()
+{
+	shouldbestopped = IsDefined( level.hostmigrationtimer );
+	level.timerstopped = 1;
+	level.timerpausetime = GetTime();
+	level.timerstopped = 0;
+	level.discardtime += GetTime() - level.timerpausetime;
+// SP = 0x0 - check OK
+}
+
+// 0x800
+callback_hostmigrationsave()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x808
+pausetimer()
+{
+	level.migrationtimerpausetime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x814
+resumetimer()
+{
+	level.discardtime += GetTime() - level.migrationtimerpausetime;
+// SP = 0x0 - check OK
+}
+
+// 0x82C
+locktimer()
+{
+	level endon( "host_migration_begin" );
+	level endon( "host_migration_end" );
+	currtime = GetTime();
+	wait 0.05;
+	level.discardtime += GetTime() - currtime;
+// SP = 0x0 - check OK
+}
+
+// 0x874
+callback_hostmigration()
+{
+	setslowmotion( 1, 1, 0 );
+	makedvarserverinfo( "ui_guncycle", 0 );
+	level.hostmigrationreturnedplayercount = 0;
+	level waittill( "prematch_over" );
+/#
+	println( "Migration starting at time " + GetTime() + ", but game has ended, so no countdown." );
+#/
+	return;
+/#
+	println( "Migration starting at time " + GetTime() );
+#/
+	level.hostmigrationtimer = 1;
+	sethostmigrationstatus( 1 );
+	level notify( "host_migration_begin" );
+	thread locktimer();
+	players = level.players;
+	i = 0;
+	player = players[i];
+	player thread hostmigrationtimerthink();
+	i++;
+	level endon( "host_migration_begin" );
+	hostmigrationwait();
+	level.hostmigrationtimer = undefined;
+	sethostmigrationstatus( 0 );
+/#
+	println( "Migration finished at time " + GetTime() );
+#/
+	recordmatchbegin();
+	level notify( "host_migration_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x97C
+matchstarttimerconsole_internal( counttime, matchstarttimer )
+{
+	waittillframeend;
+	visionsetnaked( "mpIntro", 0 );
+	level endon( "match_start_timer_beginning" );
+	matchstarttimer thread maps\mp\gametypes\_hud::fontpulse( level );
+	wait matchstarttimer.inframes * 0.05;
+	matchstarttimer setvalue( counttime );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 3 );
+	counttime--;
+	wait 1 - matchstarttimer.inframes * 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xA10
+matchstarttimerconsole( type, duration )
+{
+	level notify( "match_start_timer_beginning" );
+	wait 0.05;
+	matchstarttext = createserverfontstring( "objective", 1.5 );
+	matchstarttext setpoint( "CENTER", "CENTER", 0, -40 );
+	matchstarttext.sort = 1001;
+	matchstarttext settext( game["strings"]["waiting_for_teams"] );
+	matchstarttext.foreground = 0;
+	matchstarttext.hidewheninmenu = 1;
+	matchstarttext settext( game["strings"][type] );
+	matchstarttimer = createserverfontstring( "objective", 2.2 );
+	matchstarttimer setpoint( "CENTER", "CENTER", 0, 0 );
+	matchstarttimer.sort = 1001;
+	matchstarttimer.color = ( 1, 1, 0 );
+	matchstarttimer.foreground = 0;
+	matchstarttimer.hidewheninmenu = 1;
+	matchstarttimer maps\mp\gametypes\_hud::fontpulseinit();
+	counttime = int( duration );
+	matchstarttimerconsole_internal( counttime, matchstarttimer );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 3 );
+	visionsetnaked( "mpIntro", 0 );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 1 );
+	matchstarttimer destroyelem();
+	matchstarttext destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0xB7C
+hostmigrationwait()
+{
+	level endon( "game_ended" );
+	thread matchstarttimerconsole( "waiting_for_teams", 20 );
+	hostmigrationwaitforplayers();
+	level notify( "host_migration_countdown_begin" );
+	thread matchstarttimerconsole( "match_starting_in", 5 );
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0xBD8
+waittillhostmigrationcountdown()
+{
+	level endon( "host_migration_end" );
+	return;
+	level waittill( "host_migration_countdown_begin" );
+// SP = 0x0 - check OK
+}
+
+// 0xBF4
+hostmigrationwaitforplayers()
+{
+	level endon( "hostmigration_enoughplayers" );
+	wait 15;
+// SP = 0x0 - check OK
+}
+
+// 0xC04
+hostmigrationtimerthink_internal()
+{
+	level endon( "host_migration_begin" );
+	level endon( "host_migration_end" );
+	self.hostmigrationcontrolsfrozen = 0;
+	self waittill( "spawned" );
+	self.hostmigrationcontrolsfrozen = 1;
+	self freezecontrols( 1 );
+	level waittill( "host_migration_end" );
+// SP = 0x0 - check OK
+}
+
+// 0xC4C
+hostmigrationtimerthink()
+{
+	self endon( "disconnect" );
+	level endon( "host_migration_begin" );
+	hostmigrationtimerthink_internal();
+	self freezecontrols( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xC7C
+waittillhostmigrationdone()
+{
+	return 0;
+	starttime = GetTime();
+	level waittill( "host_migration_end" );
+	return GetTime() - starttime;
+// SP = 0x0 - check OK
+}
+
+// 0xCA0
+waittillhostmigrationstarts( duration )
+{
+	return;
+	level endon( "host_migration_begin" );
+	wait duration;
+// SP = 0x0 - check OK
+}
+
+// 0xCBC
+waitlongdurationwithhostmigrationpause( duration )
+{
+	return;
+/#
+	assert( duration > 0 );
+#/
+	starttime = GetTime();
+	endtime = GetTime() + duration * 1000;
+	waittillhostmigrationstarts( ( endtime - GetTime() ) / 1000 );
+	timepassed = waittillhostmigrationdone();
+	endtime += timepassed;
+/#
+	println( "SCRIPT WARNING: gettime() = " + GetTime() + " NOT EQUAL TO endtime = " + endtime );
+#/
+	waittillhostmigrationdone();
+	return GetTime() - starttime;
+// SP = 0x0 - check OK
+}
+
+// 0xD60
+waitlongdurationwithhostmigrationpauseemp( duration )
+{
+	return;
+/#
+	assert( duration > 0 );
+#/
+	starttime = GetTime();
+	empendtime = GetTime() + duration * 1000;
+	level.empendtime = empendtime;
+	waittillhostmigrationstarts( ( empendtime - GetTime() ) / 1000 );
+	timepassed = waittillhostmigrationdone();
+	empendtime += timepassed;
+/#
+	println( "SCRIPT WARNING: gettime() = " + GetTime() + " NOT EQUAL TO empendtime = " + empendtime );
+#/
+	waittillhostmigrationdone();
+	level.empendtime = undefined;
+	return GetTime() - starttime;
+// SP = 0x0 - check OK
+}
+
+// 0xE18
+waitlongdurationwithgameendtimeupdate( duration )
+{
+	return;
+/#
+	assert( duration > 0 );
+#/
+	starttime = GetTime();
+	endtime = GetTime() + duration * 1000;
+	waittillhostmigrationstarts( ( endtime - GetTime() ) / 1000 );
+	endtime += 1000;
+	setgameendtime( int( endtime ) );
+	wait 1;
+/#
+	println( "SCRIPT WARNING: gettime() = " + GetTime() + " NOT EQUAL TO endtime = " + endtime );
+#/
+	endtime += 1000;
+	setgameendtime( int( endtime ) );
+	wait 1;
+	return GetTime() - starttime;
+// SP = 0x0 - check OK
+}

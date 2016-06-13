@@ -1,0 +1,69 @@
+// clientscripts/mp/_bouncingbetty.csc
+
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x28C
+init( localclientnum )
+{
+	level._effect["fx_betty_friendly_light"] = loadfx( "weapon/bouncing_betty/fx_betty_light_green" );
+	level._effect["fx_betty_enemy_light"] = loadfx( "weapon/bouncing_betty/fx_betty_light_red" );
+// SP = 0x0 - check OK
+}
+
+// 0x2C0
+spawned( localclientnum )
+{
+	return;
+	self thread bouncingbettyfx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x2E4
+bouncingbettyfx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	self waittill_dobj( localclientnum );
+	waittillsnapprocessed( localclientnum );
+	fx_handle = self playflarefx( localclientnum );
+	self notify( "teamBased_fx_reinitialized" );
+	self thread checkforplayerswitch( localclientnum, fx_handle );
+	level thread watchforplayerrespawnforteambasedfx( localclientnum, self, ::bouncingbettyfx, fx_handle );
+// SP = 0x0 - check OK
+}
+
+// 0x350
+playflarefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	fx_handle = playfxontag( localclientnum, level._effect["fx_betty_friendly_light"], self, "tag_origin" );
+	fx_handle = playfxontag( localclientnum, level._effect["fx_betty_enemy_light"], self, "tag_origin" );
+	self thread watchbettyshutdown( localclientnum, fx_handle );
+	return fx_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x3BC
+watchbettyshutdown( localclientnum, fxhandle )
+{
+	msg = self waittill_any_return( "entityshutdown", "team_changed", "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	self thread bouncingbettyfx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x404
+checkforplayerswitch( localclientnum, fxhandle )
+{
+	self endon( "entityshutdown" );
+	self endon( "teamBased_fx_reinitialized" );
+	level waittill( "player_switch" );
+	self notify( "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	waittillframeend;
+	self thread bouncingbettyfx( localclientnum );
+// SP = 0x0 - check OK
+}

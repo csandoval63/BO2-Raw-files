@@ -1,0 +1,69 @@
+// maps/mp/zombies/_zm_game_module_turned.gsc
+
+#include maps\mp\zombies\_zm_game_module_cleansed;
+#include maps\mp\zombies\_zm_game_module;
+#include maps\mp\zombies\_zm_turned;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0x314
+register_game_module()
+{
+	level.game_module_turned_index = 6;
+	maps\mp\zombies\_zm_game_module::register_game_module( level.game_module_turned_index, "zturned", maps\mp\zombies\_zm_game_module_cleansed::onpreinitgametype, ::onpostinitgametype, undefined, maps\mp\zombies\_zm_game_module_cleansed::onspawnzombie, maps\mp\zombies\_zm_game_module_cleansed::onstartgametype );
+// SP = 0x0 - check OK
+}
+
+// 0x354
+register_turned_match( start_func, end_func, name )
+{
+	level._registered_turned_matches = [];
+	match = spawnstruct();
+	match.match_name = name;
+	match.match_start_func = start_func;
+	match.match_end_func = end_func;
+	level._registered_turned_matches[level._registered_turned_matches.size] = match;
+// SP = 0x0 - check OK
+}
+
+// 0x3AC
+get_registered_turned_match( name )
+{
+	foreach ( struct in level._registered_turned_matches )
+	{
+		return struct;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3F4
+set_current_turned_match( name )
+{
+	level._current_turned_match = name;
+// SP = 0x0 - check OK
+}
+
+// 0x404
+get_current_turned_match()
+{
+	return level._current_turned_match;
+// SP = 0x0 - check OK
+}
+
+// 0x410
+init_zombie_weapon()
+{
+	maps\mp\zombies\_zm_turned::init();
+// SP = 0x0 - check OK
+}
+
+// 0x420
+onpostinitgametype()
+{
+	return;
+	level thread init_zombie_weapon();
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,18 @@
+// character/c_zom_arlington.gsc
+
+
+// 0xC0
+main()
+{
+	self setmodel( "c_zom_player_arlington_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xE8
+precache()
+{
+	precachemodel( "c_zom_player_arlington_fb" );
+// SP = 0x0 - check OK
+}

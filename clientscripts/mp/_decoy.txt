@@ -1,0 +1,35 @@
+// clientscripts/mp/_decoy.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x114
+init()
+{
+	level thread levelwatchforfakefire();
+// SP = 0x0 - check OK
+}
+
+// 0x128
+spawned( localclientnum )
+{
+	self thread watchforfakefire( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x140
+watchforfakefire( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill( "fake_fire" );
+	playfxontag( localclientnum, level._effect["decoy_fire"], self, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x17C
+levelwatchforfakefire()
+{
+	self waittill( "fake_fire", origin );
+	playfx( 0, level._effect["decoy_fire"], origin );
+// SP = 0x0 - check OK
+}

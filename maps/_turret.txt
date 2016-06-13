@@ -1,0 +1,1300 @@
+// maps/_turret.gsc
+
+#include maps\_drones;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "turret" );
+
+
+// 0x1B74
+_init_turrets()
+{
+	level._turrets = spawnstruct();
+	a_turrets = getentarray( "misc_turret", "classname" );
+	foreach ( e_turret in a_turrets )
+	{
+		e_turret thread _auto_init_misc_turret();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1BD8
+_auto_init_misc_turret()
+{
+	waittill_asset_loaded( "xmodel", self.model );
+	nd_turret = getnode( self.targetname, "target" );
+	nd_turret.turret = self;
+	self.node = nd_turret;
+	self thread _turret_node_think();
+	self enable_turret();
+// SP = 0x0 - check OK
+}
+
+// 0x1C48
+get_turret_weapon_name( n_index )
+{
+	str_weapon = self seatgetweapon( n_index );
+	str_weapon = self.weaponinfo;
+	return str_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x1C80
+get_turret_parent( n_index )
+{
+	return _get_turret_data( n_index ).e_parent;
+// SP = 0x0 - check OK
+}
+
+// 0x1C9C
+laser_death_watcher()
+{
+	self notify( "laser_death_thread_stop" );
+	self endon( "laser_death_thread_stop" );
+	self waittill( "death" );
+	self laseroff();
+// SP = 0x0 - check OK
+}
+
+// 0x1CC4
+enable_turret_laser( b_enable, n_index )
+{
+	_get_turret_data( n_index ).has_laser = 1;
+	self laseron();
+	self thread laser_death_watcher();
+	_get_turret_data( n_index ).has_laser = undefined;
+	self laseroff();
+	self notify( "laser_death_thread_stop" );
+// SP = 0x0 - check OK
+}
+
+// 0x1D24
+watch_for_flash()
+{
+	self endon( "watch_for_flash_and_stun" );
+	self endon( "death" );
+	self waittill( "flashbang", pct_dist, pct_angle, attacker, team );
+	self notify( "damage", 1, attacker, undefined, undefined, undefined, undefined, undefined, undefined, "flash_grenade_sp" );
+// SP = 0x0 - check OK
+}
+
+// 0x1D70
+watch_for_flash_and_stun( n_index )
+{
+	self notify( "watch_for_flash_and_stun_end" );
+	self endon( "watch_for_flash_and_stun" );
+	self endon( "death" );
+	self thread watch_for_flash();
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname );
+	self.stunned = 1;
+	stop_turret( n_index, 1 );
+	wait randomfloatrange( 5, 7 );
+	self.stunned = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1E28
+emp_watcher( n_index )
+{
+	self notify( "emp_thread_stop" );
+	self endon( "emp_thread_stop" );
+	self endon( "death" );
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname );
+	self.emped = 1;
+	self laseroff();
+	stop_turret( n_index, 1 );
+	wait randomfloatrange( 5, 7 );
+	self.emped = undefined;
+	self laseron();
+// SP = 0x0 - check OK
+}
+
+// 0x1EF0
+enable_turret_emp( b_enable, n_index )
+{
+	_get_turret_data( n_index ).can_emp = 1;
+	self thread emp_watcher( n_index );
+	self.takedamage = 1;
+	_get_turret_data( n_index ).can_emp = undefined;
+	self notify( "emp_thread_stop" );
+// SP = 0x0 - check OK
+}
+
+// 0x1F40
+set_turret_team( str_team, n_index )
+{
+	_get_turret_data( n_index ).str_team = str_team;
+	self setturretteam( str_team );
+// SP = 0x0 - check OK
+}
+
+// 0x1F6C
+get_turret_team( n_index )
+{
+	str_team = undefined;
+	s_turret = _get_turret_data( n_index );
+	str_team = self.vteam;
+	s_turret.str_team = str_team;
+	ai_user = get_turret_user( n_index );
+	str_team = ai_user getteam();
+	s_turret.str_team = str_team;
+	str_team = s_turret.str_team;
+	return str_team;
+// SP = 0x0 - check OK
+}
+
+// 0x2004
+is_turret_enabled( n_index )
+{
+	return _get_turret_data( n_index ).is_enabled;
+// SP = 0x0 - check OK
+}
+
+// 0x2020
+does_turret_need_user( n_index )
+{
+	return _get_turret_data( n_index ).b_needs_user;
+	return IsDefined( self.node );
+// SP = 0x0 - check OK
+}
+
+// 0x206C
+does_turret_have_user( n_index )
+{
+	return IsDefined( get_turret_user( n_index ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2084
+get_turret_user( n_index )
+{
+	ai_current_user = undefined;
+	s_turret = _get_turret_data( n_index );
+	ai_current_user = _get_turret_data( n_index ).ai_user;
+	e_user = self getturretowner();
+	ai_current_user = e_user;
+	e_user = _get_turret_data( n_index ).ai_user;
+	ai_current_user = e_user;
+	return ai_current_user;
+// SP = 0x0 - check OK
+}
+
+// 0x2148
+_set_turret_user( ai_user, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.ai_user = ai_user;
+	s_turret notify( "turretownerchange" );
+// SP = 0x0 - check OK
+}
+
+// 0x218C
+_set_turret_needs_user( n_index, b_needs_user )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.b_needs_user = 1;
+	self thread watch_for_flash_and_stun( n_index );
+	self notify( "watch_for_flash_and_stun_end" );
+	s_turret.b_needs_user = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x21D4
+set_turret_target_ent_array( a_ents, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.priority_target_array = a_ents;
+// SP = 0x0 - check OK
+}
+
+// 0x21FC
+add_turret_priority_target( ent_or_ent_array, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	a_new_targets = [];
+	a_new_targets[0] = ent_or_ent_array;
+	a_new_targets = ent_or_ent_array;
+	a_new_targets = arraycombine( s_turret.priority_target_array, a_new_targets, 1, 0 );
+	s_turret.priority_target_array = a_new_targets;
+// SP = 0x0 - check OK
+}
+
+// 0x2264
+clear_turret_target_ent_array( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.priority_target_array = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2284
+set_turret_ignore_ent_array( a_ents, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.a_ignore_target_array = a_ents;
+// SP = 0x0 - check OK
+}
+
+// 0x22AC
+clear_turret_ignore_ent_array( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.a_ignore_target_array = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x22CC
+use_turret( e_turret, b_stay_on, n_index )
+{
+/#
+	assert( isalive( self ), "Dead user passed into use_turret." );
+#/
+	e_turret _use_turret( self, b_stay_on, n_index, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2304
+use_turret_teleport( e_turret, b_stay_on, n_index )
+{
+/#
+	assert( isalive( self ), "Dead user passed into use_turret_teleport." );
+#/
+	e_turret _use_turret( self, b_stay_on, n_index, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2340
+_use_turret( ai_user, b_stay_on, n_index, b_teleport )
+{
+	ai_user endon( "death" );
+	ai_user endon( "stop_use_turret" );
+	self endon( "turret_disabled" + _index( n_index ) );
+	return 0;
+/#
+	assert( IsDefined( self.node ), "Turret does not have node at " + self.origin );
+#/
+	ai_user._turret_stay_on = is_true( b_stay_on );
+	self setturretignoregoals( ai_user._turret_stay_on );
+	ai_current_user = self getturretowner();
+	_wait_for_current_user_to_finish( n_index );
+	setenablenode( self.node, 1 );
+	_set_turret_user( ai_user, n_index );
+	self thread _disable_turret_when_user_is_done( ai_user );
+	enable_turret( n_index );
+	ai_user forceteleport( self.node.origin, self.node.angles );
+	ai_user force_goal( self.node, 16 );
+	set_turret_team( ai_user getteam(), n_index );
+	self setmode( "manual_ai" );
+	ai_user.a.disablelongdeath = 1;
+	self notify( "user_using_turret" + _index( n_index ) );
+	ai_user useturret( self );
+	self waittill( "turretownerchange" );
+// SP = 0x0 - check OK
+}
+
+// 0x2504
+_disable_turret_when_user_is_done( ai_user, n_index )
+{
+	self endon( "death" );
+	self endon( "turret_disabled" + _index( n_index ) );
+	ai_user waittill_any( "death", "stop_use_turret" );
+	disable_turret( n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x2548
+_wait_for_current_user_to_finish( n_index )
+{
+	self endon( "death" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x257C
+is_turret_current_user( e_user, n_index )
+{
+	e_current_user = get_turret_user( n_index );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x25B4
+is_current_user( ai_user, n_index )
+{
+	ai_current_user = get_turret_user( n_index );
+	return ai_user == ai_current_user;
+// SP = 0x0 - check OK
+}
+
+// 0x25E4
+_animscripts_init( ai_user )
+{
+	self show();
+	_init_animations( ai_user );
+	enable_turret();
+// SP = 0x0 - check OK
+}
+
+// 0x260C
+stop_use_turret()
+{
+	e_turret = self getturret();
+	self stopusingturret();
+	self stopuseturret();
+	e_turret _set_turret_user( undefined );
+	self._turret_stay_on = undefined;
+	self notify( "stop_use_turret" );
+// SP = 0x0 - check OK
+}
+
+// 0x2688
+set_turret_burst_parameters( n_fire_min, n_fire_max, n_wait_min, n_wait_max, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.n_burst_fire_min = n_fire_min;
+	s_turret.n_burst_fire_max = n_fire_max;
+	s_turret.n_burst_wait_min = n_wait_min;
+	s_turret.n_burst_wait_max = n_wait_max;
+// SP = 0x0 - check OK
+}
+
+// 0x26D0
+set_turret_on_target_angle( n_angle, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	n_angle = 10;
+	n_angle = 2;
+	self setontargetangle( n_angle, n_index - 1 );
+	self setontargetangle( n_angle );
+// SP = 0x0 - check OK
+}
+
+// 0x2738
+set_turret_target( e_target, v_offset, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	v_offset = _get_default_target_offset( e_target, n_index );
+	self setmode( "manual_ai" );
+	self setmode( "manual" );
+	self settargetentity( e_target, v_offset );
+	self settargetentity( e_target, v_offset, n_index - 1 );
+	s_turret.e_target = e_target;
+	s_turret.v_offset = v_offset;
+// SP = 0x0 - check OK
+}
+
+// 0x27F4
+_get_default_target_offset( e_target, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	z_offset = randomintrange( 40, 50 );
+	z_offset = randomintrange( 20, 60 );
+	z_offset = 0;
+	z_offset += e_target.z_target_offset_override;
+	z_offset = 0;
+	v_offset = ( 0, 0, z_offset );
+	return v_offset;
+// SP = 0x0 - check OK
+}
+
+// 0x28C8
+get_turret_target( n_index )
+{
+	return _get_turret_data( n_index ).e_target;
+// SP = 0x0 - check OK
+}
+
+// 0x28E4
+is_turret_target( e_target, n_index )
+{
+	e_current_target = get_turret_target( n_index );
+	return e_current_target == e_target;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2910
+clear_turret_target( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret ent_flag_clear( "turret manual" );
+	s_turret.e_next_target = undefined;
+	s_turret.e_target = undefined;
+	self clearturrettarget();
+	self cleargunnertarget( n_index - 1 );
+	self cleartargetentity();
+// SP = 0x0 - check OK
+}
+
+// 0x2994
+set_turret_target_flags( n_flags, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.n_target_flags = n_flags;
+// SP = 0x0 - check OK
+}
+
+// 0x29BC
+_has_target_flags( n_flags, n_index )
+{
+	n_current_flags = _get_turret_data( n_index ).n_target_flags;
+	return ( n_current_flags & n_flags ) == n_flags;
+// SP = 0x0 - check OK
+}
+
+// 0x29E4
+set_turret_max_target_distance( n_distance, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.n_max_target_distance = n_distance;
+// SP = 0x0 - check OK
+}
+
+// 0x2A0C
+fire_turret( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+/#
+	assert( n_index >= 0, "Invalid index specified to fire vehicle turret." );
+#/
+	self fireweapon( s_turret.e_target );
+	self fireweapon();
+	self setgunnertargetent( s_turret.e_target, s_turret.v_offset, n_index - 1 );
+	self firegunnerweapon( n_index - 1 );
+	self shootturret();
+	s_turret.n_last_fire_time = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x2AD0
+stop_turret( n_index, b_clear_target )
+{
+	b_clear_target = 0;
+	s_turret = _get_turret_data( n_index );
+	s_turret.e_next_target = undefined;
+	s_turret.e_target = undefined;
+	s_turret ent_flag_clear( "turret manual" );
+	clear_turret_target( n_index );
+	self notify( "_stop_turret" + _index( n_index ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2B30
+fire_turret_for_time( n_time, n_index )
+{
+/#
+	assert( IsDefined( n_time ), "n_time is a required parameter for _turet::fire_turret_for_time." );
+#/
+	self endon( "death" );
+	self endon( "drone_death" );
+	self endon( "_stop_turret" + _index( n_index ) );
+	self endon( "turret_disabled" + _index( n_index ) );
+	self notify( "_fire_turret_for_time" + _index( n_index ) );
+	self endon( "_fire_turret_for_time" + _index( n_index ) );
+	b_fire_forever = 0;
+	b_fire_forever = 1;
+/#
+	n_fire_time = weaponfiretime( get_turret_weapon_name( n_index ) );
+/#
+	assert( n_time >= n_fire_time, "Fire time (" + n_time + ") must be greater than the weapon's fire time. weapon fire time = " + n_fire_time );
+#/
+#/
+	n_burst_time = _burst_fire( n_time, n_index );
+	n_time -= n_burst_time;
+// SP = 0x0 - check OK
+}
+
+// 0x2C24
+shoot_turret_at_target( e_target, n_time, v_offset, n_index, b_just_once )
+{
+/#
+	assert( IsDefined( e_target ), "Undefined target passed to shoot_turret_at_target()." );
+#/
+	self endon( "drone_death" );
+	self endon( "death" );
+	s_turret = _get_turret_data( n_index );
+	s_turret ent_flag_set( "turret manual" );
+	_shoot_turret_at_target( e_target, n_time, v_offset, n_index, b_just_once );
+	s_turret ent_flag_clear( "turret manual" );
+// SP = 0x0 - check OK
+}
+
+// 0x2C98
+_shoot_turret_at_target( e_target, n_time, v_offset, n_index, b_just_once )
+{
+	self endon( "drone_death" );
+	self endon( "death" );
+	self endon( "_stop_turret" + _index( n_index ) );
+	self notify( "_shoot_turret_at_target" + _index( n_index ) );
+	self endon( "_shoot_turret_at_target" + _index( n_index ) );
+	e_target endon( "death" );
+	b_just_once = 0;
+	set_turret_target( e_target, v_offset, n_index );
+	_waittill_turret_on_target( e_target, n_index );
+	fire_turret( n_index );
+	fire_turret_for_time( n_time, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x2D44
+_waittill_turret_on_target( e_target, n_index )
+{
+	wait 0.5;
+	self waittill( "turret_on_target" );
+	self waittill( "gunner_turret_on_target" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D90
+shoot_turret_at_target_once( e_target, v_offset, n_index )
+{
+	shoot_turret_at_target( e_target, 0, v_offset, n_index, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2DB0
+enable_turret( n_index, b_user_required, v_offset )
+{
+	_set_turret_user( self.ai_node_user );
+	_get_turret_data( n_index ).is_enabled = 1;
+	self thread _turret_think( n_index, v_offset );
+	self notify( "turret_enabled" + _index( n_index ) );
+	_set_turret_needs_user( n_index, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2E30
+disable_turret( n_index )
+{
+	_drop_turret( n_index );
+	clear_turret_target( n_index );
+	_get_turret_data( n_index ).is_enabled = 0;
+	self notify( "turret_disabled" + _index( n_index ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2E84
+pause_turret( time, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	time *= 1000;
+	s_turret.pause_time += time;
+	s_turret.pause = 1;
+	s_turret.pause_time = time;
+	stop_turret( n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x2EF0
+unpause_turret( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.pause = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2F10
+_turret_think( n_index, v_offset )
+{
+	no_target_start_time = 0;
+	self endon( "death" );
+	self endon( "turret_disabled" + _index( n_index ) );
+	self notify( "_turret_think" + _index( n_index ) );
+	self endon( "_turret_think" + _index( n_index ) );
+/#
+	self thread _debug_turret_think( n_index );
+#/
+	self thread _turret_user_think( n_index );
+	self thread _turret_new_user_think( n_index );
+	s_turret = _get_turret_data( n_index );
+	self laseron();
+	s_turret ent_flag_waitopen( "turret manual" );
+	n_time_now = GetTime();
+	wait 1.5;
+	a_potential_targets = _get_potential_targets( n_index );
+	stop_turret( n_index );
+	s_turret.e_next_target = _get_best_target_from_potential( a_potential_targets, n_index );
+	s_turret.b_target_out_of_range = undefined;
+	s_turret.n_time_lose_sight = undefined;
+	no_target_start_time = 0;
+	self thread _shoot_turret_at_target( s_turret.e_next_target, -2, v_offset, n_index );
+	no_target_start_time = n_time_now;
+	target_wait_time = ( n_time_now - no_target_start_time ) / 1000;
+	occupy_time = s_turret.occupy_no_target_time;
+	occupy_time = 3600;
+	_drop_turret( n_index );
+	wait 1.5;
+// SP = 0x0 - check OK
+}
+
+// 0x3130
+_did_turret_lose_target( n_time_now )
+{
+	return 1;
+	return n_time_now - self.n_time_lose_sight > 3000;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3164
+_turret_user_think( n_index )
+{
+	self endon( "death" );
+	self endon( "turret_disabled" + _index( n_index ) );
+	self endon( "_turret_think" + _index( n_index ) );
+	s_turret = _get_turret_data( n_index );
+	waittill_any_ents( self, "turretownerchange", s_turret, "turretownerchange", s_turret.ai_user, "death" );
+	stop_turret( n_index, 1 );
+	_clear_animations( n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x31F4
+_check_for_paused( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.pause_start_time = GetTime();
+	time = GetTime();
+	paused_time = time - s_turret.pause_start_time;
+	s_turret.pause = undefined;
+	return 1;
+	wait 0.05;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3260
+_drop_turret( n_index )
+{
+	ai_user = get_turret_user( n_index );
+	player = get_players()[0];
+	return;
+	ai_user stopuseturret();
+// SP = 0x0 - check OK
+}
+
+// 0x32D4
+_turret_new_user_think( n_index )
+{
+	self endon( "death" );
+	self endon( "_turret_think" + _index( n_index ) );
+	self endon( "turret_disabled" + _index( n_index ) );
+	s_turret = _get_turret_data( n_index );
+	wait 3;
+	ai_user = get_turret_user( n_index );
+	ai_user thread use_turret( self, n_index );
+	str_team = get_turret_team( n_index );
+	a_users = getaiarray( str_team );
+	a_users = array_removedead( a_users );
+	ai_closest = getclosest( self.origin, a_users );
+	ai_user = ai_closest;
+	ai_user = ai_closest;
+	ai_user thread use_turret( self, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x3428
+does_turret_have_target( n_index )
+{
+	return IsDefined( _get_turret_data( n_index ).e_next_target );
+// SP = 0x0 - check OK
+}
+
+// 0x3444
+_turret_node_think( n_index )
+{
+	self endon( "death" );
+	wait 0.05;
+	b_enable_node = does_turret_have_target( n_index );
+	setenablenode( self.node, b_enable_node );
+// SP = 0x0 - check OK
+}
+
+// 0x34A0
+_stop_turret_when_user_changes( n_index )
+{
+	self endon( "death" );
+	s_turret = _get_turret_data( n_index );
+	waittill_any_ents( self, "turretownerchange", s_turret, "turretownerchange", s_turret.ai_user, "death" );
+	stop_turret( n_index, 1 );
+	_clear_animations( n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x34F8
+_user_check( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	ai_user = s_turret.ai_user;
+	b_needs_user = does_turret_need_user( n_index );
+	b_has_user = 0;
+	b_has_user = isalive( s_turret.ai_user );
+	e_user = self getturretowner();
+	b_has_user = IsDefined( e_user );
+	b_has_user = 0;
+	return b_has_user;
+// SP = 0x0 - check OK
+}
+
+// 0x3598
+_get_user_target( n_index )
+{
+	ai_user = self getturretowner();
+	return ai_user.enemy;
+// SP = 0x0 - check OK
+}
+
+// 0x35D4
+_debug_turret_think( n_index )
+{
+/#
+	self endon( "death" );
+	self endon( "_turret_think" + _index( n_index ) );
+	self endon( "turret_disabled" + _index( n_index ) );
+	s_turret = _get_turret_data( n_index );
+	v_color = ( 0, 0, 1 );
+	wait 0.2;
+	has_target = IsDefined( get_turret_target( n_index ) );
+	v_color = ( 1, 1, 0 );
+	v_color = ( 0, 1, 0 );
+	str_team = get_turret_team( n_index );
+	str_team = "no team";
+	str_target = "target > ";
+	e_target = s_turret.e_next_target;
+	str_target += "ai";
+	str_target += "player";
+	str_target += "vehicle";
+	str_target += "drone";
+	str_target += e_target.classname;
+	str_target += "none";
+	str_debug = self getentnum() + ":" + str_team + ":" + str_target;
+	record3dtext( str_debug, self.origin, v_color, "Script", self );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x37A4
+create_turret( position, angles, team, weaponinfo, turret_model, offset )
+{
+	angles = ( 0, 0, 0 );
+	origin = position;
+	origin += offset;
+	e_turret = spawnturret( "misc_turret", origin, weaponinfo );
+	e_turret setmodel( turret_model );
+	e_turret.angles = angles;
+	e_turret.weaponinfo = weaponinfo;
+	e_turret setdefaultdroppitch( 0 );
+	e_turret set_turret_team( team );
+	e_turret enable_turret();
+	return e_turret;
+// SP = 0x0 - check OK
+}
+
+// 0x3834
+_get_turret_data( n_index )
+{
+	s_turret = undefined;
+	s_turret = self.a_turrets[n_index];
+	s_turret = self._turret;
+	s_turret = _init_turret( n_index );
+	return s_turret;
+// SP = 0x0 - check OK
+}
+
+// 0x3898
+_init_turret( n_index )
+{
+	n_index = 0;
+	self endon( "death" );
+	str_weapon = get_turret_weapon_name( n_index );
+/#
+	assertmsg( "Cannot initialize turret. No weapon info." );
+#/
+	return;
+	waittill_asset_loaded( "xmodel", self.model );
+	s_turret = _init_vehicle_turret( n_index );
+	n_index = 0;
+	s_turret = _init_misc_turret();
+	s_turret.str_weapon = str_weapon;
+	_update_turret_arcs( n_index );
+	s_turret.is_enabled = 0;
+	s_turret.e_parent = self;
+	s_turret.e_target = undefined;
+	s_turret.b_ignore_line_of_sight = 0;
+	s_turret.v_offset = ( 0, 0, 0 );
+	s_turret.n_burst_fire_time = 0;
+	s_turret.n_max_target_distance = undefined;
+	s_turret.str_weapon_type = "bullet";
+	s_turret.str_guidance_type = "none";
+	str_weapon = self get_turret_weapon_name( n_index );
+	weapon_type = weapontype( str_weapon );
+	s_turret.str_weapon_type = weapon_type;
+	s_turret.str_guidance_type = weaponguidedmissiletype( str_weapon );
+	set_turret_on_target_angle( undefined, n_index );
+	s_turret.n_target_flags = 3;
+	set_turret_best_target_func_from_weapon_type( n_index );
+	s_turret ent_flag_init( "turret manual" );
+	return s_turret;
+// SP = 0x0 - check OK
+}
+
+// 0x3A00
+_update_turret_arcs( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.rightarc = weaponrightarc( s_turret.str_weapon );
+	s_turret.leftarc = weaponleftarc( s_turret.str_weapon );
+	s_turret.toparc = weapontoparc( s_turret.str_weapon );
+	s_turret.bottomarc = weaponbottomarc( s_turret.str_weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x3A68
+set_turret_best_target_func_from_weapon_type( n_index )
+{
+	switch ( _get_turret_data( n_index ).str_weapon_type )
+	{
+		case "bullet":
+			set_turret_best_target_func( ::_get_best_target_bullet, n_index );
+			break;
+		case "gas":
+			set_turret_best_target_func( ::_get_best_target_gas, n_index );
+			break;
+		case "grenade":
+			set_turret_best_target_func( ::_get_best_target_grenade, n_index );
+			break;
+		case "projectile":
+			set_turret_best_target_func( ::_get_best_target_projectile, n_index );
+			break;
+		default:
+/#
+			assertmsg( "unsupported turret weapon type." );
+#/
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3B1C
+set_turret_best_target_func( func_get_best_target, n_index )
+{
+	_get_turret_data( n_index ).func_get_best_target = func_get_best_target;
+// SP = 0x0 - check OK
+}
+
+// 0x3B3C
+_init_misc_turret()
+{
+	self useanimtree( -1 );
+	_init_animations();
+	s_turret = spawnstruct();
+	s_turret.str_team = self.script_team;
+	s_turret.n_rest_angle_pitch = 0;
+	s_turret.n_rest_angle_yaw = 0;
+	s_turret.str_tag_flash = "tag_flash";
+	s_turret.str_tag_pivot = "tag_barrel";
+	s_turret.str_tag_pivot = "mg01";
+	s_turret.str_tag_pivot = "tag_dummy";
+/#
+	assertmsg( "No pivot tag found for turret." );
+#/
+	self._turret = s_turret;
+	return s_turret;
+// SP = 0x0 - check OK
+}
+
+// 0x3C10
+_init_vehicle_turret( n_index )
+{
+/#
+	assert( n_index >= 0, "Invalid index specified to initialize vehicle turret." );
+#/
+	s_turret = spawnstruct();
+	v_angles = self getseatfiringangles( n_index );
+	s_turret.n_rest_angle_pitch = angleclamp180( v_angles[0] - self.angles[0] );
+	s_turret.n_rest_angle_yaw = angleclamp180( v_angles[1] - self.angles[1] );
+	switch ( n_index )
+	{
+		case 0:
+			s_turret.str_tag_flash = "tag_flash";
+			s_turret.str_tag_pivot = "tag_barrel";
+			break;
+		case 1:
+			s_turret.str_tag_flash = "tag_flash_gunner1";
+			s_turret.str_tag_pivot = "tag_gunner_barrel1";
+			break;
+		case 2:
+			s_turret.str_tag_flash = "tag_flash_gunner2";
+			s_turret.str_tag_pivot = "tag_gunner_barrel2";
+			break;
+		case 3:
+			s_turret.str_tag_flash = "tag_flash_gunner3";
+			s_turret.str_tag_pivot = "tag_gunner_barrel3";
+			break;
+		case 4:
+			s_turret.str_tag_flash = "tag_flash_gunner4";
+			s_turret.str_tag_pivot = "tag_gunner_barrel4";
+			break;
+	}
+	s_turret.e_trace_ignore = self;
+	self.a_turrets = [];
+	self.a_turrets[n_index] = s_turret;
+	tag_origin = self gettagorigin( _get_gunner_tag_for_turret_index( n_index ) );
+	_set_turret_needs_user( n_index, 1 );
+	return s_turret;
+// SP = 0x0 - check OK
+}
+
+// 0x3D9C
+_burst_fire( n_max_time, n_index )
+{
+	self endon( "terminate_all_turrets_firing" );
+	n_max_time = 9999;
+	s_turret = _get_turret_data( n_index );
+	n_burst_time = _get_burst_fire_time( n_index );
+	n_burst_wait = _get_burst_wait_time( n_index );
+	n_burst_time = n_max_time;
+	s_turret.n_burst_fire_time = 0;
+	n_time_since_last_shot = ( GetTime() - s_turret.n_last_fire_time ) / 1000;
+	wait n_burst_wait - n_time_since_last_shot;
+	n_burst_time -= s_turret.n_burst_fire_time;
+	self thread _animate_fire_for_time( n_burst_time, n_index );
+	n_fire_time = weaponfiretime( get_turret_weapon_name( n_index ) );
+	n_total_time = 0;
+	fire_turret( n_index );
+	n_total_time += n_fire_time;
+	s_turret.n_burst_fire_time += n_fire_time;
+	wait n_fire_time;
+	wait n_burst_wait;
+	return n_burst_time + n_burst_wait;
+// SP = 0x0 - check OK
+}
+
+// 0x3EB4
+_animate_fire_for_time( n_time, n_index )
+{
+	_animate_fire( n_index );
+	self waittill_any_or_timeout( n_time, "death", "drone_death", "_stop_turret" + _index( n_index ), "turret_disabled" + _index( n_index ) );
+	_animate_idle( n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x3F10
+_get_burst_fire_time( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	n_time = undefined;
+	n_time = s_turret.n_burst_fire_min;
+	n_time = randomfloatrange( s_turret.n_burst_fire_min, s_turret.n_burst_fire_max );
+	n_time = randomfloatrange( 0, s_turret.n_burst_fire_max );
+	return n_time;
+// SP = 0x0 - check OK
+}
+
+// 0x3F9C
+_get_burst_wait_time( n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	n_time = 0;
+	n_time = s_turret.n_burst_wait_min;
+	n_time = randomfloatrange( s_turret.n_burst_wait_min, s_turret.n_burst_wait_max );
+	n_time = randomfloatrange( 0, s_turret.n_burst_wait_max );
+	return n_time;
+// SP = 0x0 - check OK
+}
+
+// 0x4028
+_index( n_index )
+{
+	return string( n_index );
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x404C
+_get_potential_targets( n_index )
+{
+	s_turret = self _get_turret_data( n_index );
+	a_priority_targets = self _get_any_priority_targets( n_index );
+	return a_priority_targets;
+	a_potential_targets = [];
+	a_potential_targets[a_potential_targets.size] = s_turret.e_target;
+	str_team = get_turret_team( n_index );
+	str_opposite_team = "allies";
+	str_opposite_team = "axis";
+	a_ai_targets = getaiarray( str_opposite_team );
+	a_potential_targets = arraycombine( a_potential_targets, a_ai_targets, 1, 0 );
+	a_player_targets = get_players( str_opposite_team );
+	a_potential_targets = arraycombine( a_potential_targets, a_player_targets, 1, 0 );
+	a_drone_targets = maps\_drones::drones_get_array( str_opposite_team );
+	a_potential_targets = arraycombine( a_potential_targets, a_drone_targets, 1, 0 );
+	a_vehicle_targets = getvehiclearray( str_opposite_team );
+	a_potential_targets = arraycombine( a_potential_targets, a_vehicle_targets, 1, 0 );
+	a_valid_targets = [];
+	i = 0;
+	e_target = a_potential_targets[i];
+	ignore_target = 0;
+/#
+	assert( IsDefined( e_target ), "Undefined potential turret target." );
+#/
+	ignore_target = 1;
+	ignore_target = 1;
+	ignore_target = 1;
+	a_valid_targets[a_valid_targets.size] = e_target;
+	i++;
+	a_potential_targets = a_valid_targets;
+	a_targets = a_potential_targets;
+	found_bad_target = 0;
+	a_targets = a_potential_targets;
+	i = 0;
+	e_target = a_targets[i];
+	found_bad_target = 0;
+	j = 0;
+	arrayremovevalue( a_potential_targets, e_target );
+	found_bad_target = 1;
+	j++;
+	i++;
+	return a_potential_targets;
+// SP = 0x0 - check OK
+}
+
+// 0x4310
+_is_target_within_range( e_target, s_turret )
+{
+	n_dist = distance( e_target.origin, self.origin );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x435C
+_get_any_priority_targets( n_index )
+{
+	a_targets = undefined;
+	s_turret = _get_turret_data( n_index );
+	found_bad_target = 0;
+	a_targets = s_turret.priority_target_array;
+	i = 0;
+	e_target = a_targets[i];
+	bad_index = undefined;
+	bad_index = i;
+	bad_index = i;
+	bad_index = i;
+	bad_index = i;
+	s_turret.priority_target_array = a_targets;
+	arrayremovevalue( s_turret.priority_target_array, e_target );
+	found_bad_target = 1;
+	i++;
+	return s_turret.priority_target_array;
+	s_turret.priority_target_array = undefined;
+	self notify( "target_array_destroyed" );
+	return a_targets;
+// SP = 0x0 - check OK
+}
+
+// 0x4480
+_get_best_target_from_potential( a_potential_targets, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	return [[s_turret.func_get_best_target]]( a_potential_targets, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x44AC
+_get_best_target_bullet( a_potential_targets, n_index )
+{
+	e_best_target = undefined;
+	e_closest_target = getclosest( self.origin, a_potential_targets );
+	e_best_target = e_closest_target;
+	arrayremovevalue( a_potential_targets, e_closest_target );
+	return e_best_target;
+// SP = 0x0 - check OK
+}
+
+// 0x450C
+_get_best_target_gas( a_potential_targets, n_index )
+{
+	return _get_best_target_bullet( a_potential_targets, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x4528
+_get_best_target_grenade( a_potential_targets, n_index )
+{
+	return _get_best_target_bullet( a_potential_targets, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x4544
+_get_best_target_projectile( a_potential_targets, n_index )
+{
+	return _get_best_target_bullet( a_potential_targets, n_index );
+// SP = 0x0 - check OK
+}
+
+// 0x4560
+can_turret_hit_target( e_target, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	v_offset = _get_default_target_offset( e_target, n_index );
+	b_current_target = is_turret_target( e_target, n_index );
+	b_target_in_view = is_target_in_turret_view( e_target.origin + v_offset, n_index );
+	b_trace_passed = 1;
+	b_trace_passed = turret_trace_test( e_target, v_offset, n_index );
+	s_turret.n_time_lose_sight = GetTime();
+	s_turret.b_target_out_of_range = 1;
+	return b_trace_passed;
+// SP = 0x0 - check OK
+}
+
+// 0x4620
+is_target_in_turret_view( v_target, n_index )
+{
+/#
+	_update_turret_arcs( n_index );
+#/
+	s_turret = _get_turret_data( n_index );
+	v_pivot_pos = self gettagorigin( s_turret.str_tag_pivot );
+	v_angles_to_target = vectortoangles( v_target - v_pivot_pos );
+	n_rest_angle_pitch = s_turret.n_rest_angle_pitch + self.angles[0];
+	n_rest_angle_yaw = s_turret.n_rest_angle_yaw + self.angles[1];
+	n_ang_pitch = angleclamp180( v_angles_to_target[0] - n_rest_angle_pitch );
+	n_ang_yaw = angleclamp180( v_angles_to_target[1] - n_rest_angle_yaw );
+	b_out_of_range = 0;
+	b_out_of_range = 1;
+	b_out_of_range = 1;
+	b_out_of_range = 1;
+	b_out_of_range = 1;
+	return !(b_out_of_range);
+// SP = 0x0 - check OK
+}
+
+// 0x4714
+turret_trace_test( e_target, v_offset, n_index )
+{
+	v_offset = ( 0, 0, 0 );
+	s_turret = _get_turret_data( n_index );
+	v_start_org = self gettagorigin( s_turret.str_tag_pivot );
+	v_target = e_target.origin + v_offset;
+	v_start_org += vectornormalize( v_target - v_start_org ) * 15;
+	a_trace = bullettrace( v_start_org, v_target, 1, s_turret.e_trace_ignore, 1, 1, e_target );
+	return 1;
+	return 0;
+	s_turret = _get_turret_data( n_index );
+	v_start_org = self gettagorigin( s_turret.str_tag_pivot );
+	v_target = e_target.origin + v_offset;
+	return 1;
+	v_dir_to_target = vectornormalize( v_target - v_start_org );
+	v_start_org += v_dir_to_target * 15;
+	v_target -= v_dir_to_target * 75;
+	a_trace = bullettrace( v_start_org, v_target, 1, s_turret.e_trace_ignore, 1, 1, e_target );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4884
+set_turret_ignore_line_of_sight( b_ignore, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.b_ignore_line_of_sight = b_ignore;
+// SP = 0x0 - check OK
+}
+
+// 0x48AC
+set_turret_occupy_no_target_time( time, n_index )
+{
+	s_turret = _get_turret_data( n_index );
+	s_turret.occupy_no_target_time = time;
+// SP = 0x0 - check OK
+}
+
+// 0x48D4
+_vehicle_turret_set_user( ai_user, str_tag )
+{
+	turret_id = _get_turret_index_for_tag( str_tag );
+	self _set_turret_user( ai_user, turret_id );
+// SP = 0x0 - check OK
+}
+
+// 0x4908
+_vehicle_turret_clear_user( ai_user, str_tag )
+{
+	turret_id = _get_turret_index_for_tag( str_tag );
+	self _set_turret_user( undefined, turret_id );
+// SP = 0x0 - check OK
+}
+
+// 0x493C
+_get_gunner_tag_for_turret_index( n_index )
+{
+	switch ( n_index )
+	{
+		case 1:
+			return "tag_gunner1";
+		case 2:
+			return "tag_gunner2";
+		case 3:
+			return "tag_gunner3";
+		case 4:
+			return "tag_gunner4";
+		default:
+/#
+			assertmsg( "unsupported turret index for getting gunner tag." );
+#/
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x49A0
+_get_turret_index_for_tag( str_tag )
+{
+	switch ( str_tag )
+	{
+		case "tag_gunner1":
+			return 1;
+		case "tag_gunner2":
+			return 2;
+		case "tag_gunner3":
+			return 3;
+		case "tag_gunner4":
+			return 4;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x49E8
+_init_animations( ai_user, n_index )
+{
+	self setanimknoblimitedrestart( %saw_gunner_idle_mg );
+	self setanimknoblimitedrestart( %saw_gunner_firing_mg_add );
+	self setanimknoblimitedrestart( %saw_gunner_lowwall_idle_mg );
+	self setanimknoblimitedrestart( %saw_gunner_lowwall_firing_mg );
+// SP = 0x0 - check OK
+}
+
+// 0x4A64
+_animate_idle( n_index )
+{
+	self setanim( %additive_idle, 1, 0.1 );
+	self setanim( %additive_fire, 0, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4AC8
+_animate_fire( n_index )
+{
+	self setanim( %additive_idle, 0, 0.1 );
+	self setanim( %additive_fire, 1, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4B2C
+_clear_animations( n_index )
+{
+	self setanim( %additive_idle, 0, 0.1 );
+	self setanim( %additive_fire, 0, 0.1 );
+// SP = 0x0 - check OK
+}

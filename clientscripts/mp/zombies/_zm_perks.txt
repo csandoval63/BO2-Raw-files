@@ -1,0 +1,152 @@
+// clientscripts/mp/zombies/_zm_perks.csc
+
+#include clientscripts\mp\_filter;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0x6E4
+init()
+{
+	init_custom_perks();
+	perks_register_clientfield();
+	init_perk_custom_threads();
+// SP = 0x0 - check OK
+}
+
+// 0x710
+perks_register_clientfield()
+{
+	registerclientfield( "toplayer", "perk_additional_primary_weapon", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_dead_shot", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_double_tap", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_juggernaut", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_marathon", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_quick_revive", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_sleight_of_hand", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "toplayer", "perk_tombstone", 1, 2, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	registerclientfield( "scriptmover", "clientfield_perk_intro_fx", 1000, 1, "int", ::perk_meteor_fx, 0 );
+	registerclientfield( "toplayer", "perk_chugabud", 1000, 1, "int", level.zombies_global_perk_client_callback, 0, 1 );
+	a_keys = getarraykeys( level._custom_perks );
+	i = 0;
+	level [[level._custom_perks[a_keys[i]].clientfield_register]]();
+	i++;
+	level thread perk_init_code_callbacks();
+// SP = 0x0 - check OK
+}
+
+// 0x960
+perk_init_code_callbacks()
+{
+	wait 0.1;
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_additional_primary_weapon" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_dead_shot" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_double_tap" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_juggernaut" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_marathon" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_quick_revive" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_sleight_of_hand" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_tombstone" );
+	setupclientfieldcodecallbacks( "toplayer", 1, "perk_chugabud" );
+	a_keys = getarraykeys( level._custom_perks );
+	i = 0;
+	level [[level._custom_perks[a_keys[i]].clientfield_code_callback]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xAEC
+init_custom_perks()
+{
+	level._custom_perks = [];
+// SP = 0x0 - check OK
+}
+
+// 0xB04
+register_perk_clientfields( str_perk, func_clientfield_register, func_code_callback )
+{
+	_register_undefined_perk( str_perk );
+	level._custom_perks[str_perk].clientfield_register = func_clientfield_register;
+	level._custom_perks[str_perk].clientfield_code_callback = func_code_callback;
+// SP = 0x0 - check OK
+}
+
+// 0xB60
+register_perk_init_thread( str_perk, func_init_thread )
+{
+	_register_undefined_perk( str_perk );
+	level._custom_perks[str_perk].init_thread = func_init_thread;
+// SP = 0x0 - check OK
+}
+
+// 0xB98
+init_perk_custom_threads()
+{
+	a_keys = getarraykeys( level._custom_perks );
+	i = 0;
+	level thread [[level._custom_perks[a_keys[i]].init_thread]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xBFC
+_register_undefined_perk( str_perk )
+{
+	level._custom_perks = [];
+	level._custom_perks[str_perk] = spawnstruct();
+// SP = 0x0 - check OK
+}
+
+// 0xC34
+perk_meteor_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self.meteor_fx = playfxontag( localclientnum, level._effect["perk_meteor"], self, "tag_origin" );
+	stopfx( localclientnum, self.meteor_fx );
+// SP = 0x0 - check OK
+}
+
+// 0xC88
+chugabud_whos_who_shader( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self mapshaderconstant( localclientnum, 0, "scriptVector3" );
+	n_value = 1;
+	n_value = 0;
+	self setshaderconstant( localclientnum, 0, n_value, 0, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xCDC
+chugabud_setup_afterlife_filters()
+{
+	waitforallclients();
+	wait 1;
+	players = getlocalplayers();
+	i = 0;
+	init_filter_afterlife( players[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xD28
+init_filter_afterlife( player )
+{
+	clientscripts\mp\_filter::init_filter_indices();
+	map_material_helper( player, "generic_filter_afterlife" );
+// SP = 0x0 - check OK
+}
+
+// 0xD4C
+enable_filter_afterlife( player, filterid )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_afterlife"] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+disable_filter_afterlife( player, filterid )
+{
+	player set_filter_pass_enabled( filterid, 0, 0 );
+// SP = 0x0 - check OK
+}

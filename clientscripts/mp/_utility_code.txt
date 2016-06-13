@@ -1,0 +1,34 @@
+// clientscripts/mp/_utility_code.csc
+
+
+// 0x140
+struct_class_init()
+{
+/#
+	assert( !(IsDefined( level.struct_class_names )), "level.struct_class_names is being initialized in the wrong place! It shouldn't be initialized yet." );
+#/
+	level.struct_class_names = [];
+	level.struct_class_names["target"] = [];
+	level.struct_class_names["targetname"] = [];
+	level.struct_class_names["script_noteworthy"] = [];
+	level.struct_class_names["script_label"] = [];
+	level.struct_class_names["classname"] = [];
+	i = 0;
+	level.struct_class_names["targetname"][level.struct[i].targetname] = [];
+	size = level.struct_class_names["targetname"][level.struct[i].targetname].size;
+	level.struct_class_names["targetname"][level.struct[i].targetname][size] = level.struct[i];
+	level.struct_class_names["target"][level.struct[i].target] = [];
+	size = level.struct_class_names["target"][level.struct[i].target].size;
+	level.struct_class_names["target"][level.struct[i].target][size] = level.struct[i];
+	level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy] = [];
+	size = level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy].size;
+	level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy][size] = level.struct[i];
+	level.struct_class_names["script_label"][level.struct[i].script_label] = [];
+	size = level.struct_class_names["script_label"][level.struct[i].script_label].size;
+	level.struct_class_names["script_label"][level.struct[i].script_label][size] = level.struct[i];
+	level.struct_class_names["classname"][level.struct[i].classname] = [];
+	size = level.struct_class_names["classname"][level.struct[i].classname].size;
+	level.struct_class_names["classname"][level.struct[i].classname][size] = level.struct[i];
+	i++;
+// SP = 0x0 - check OK
+}

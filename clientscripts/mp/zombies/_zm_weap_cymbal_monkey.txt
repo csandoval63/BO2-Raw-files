@@ -1,0 +1,21 @@
+// clientscripts/mp/zombies/_zm_weap_cymbal_monkey.csc
+
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zombie_cymbal_monkey" );
+
+
+// 0x1D8
+init()
+{
+	level.cymbal_monkey_name = "cymbal_monkey_zm";
+	level.cymbal_monkey_model = "weapon_zombie_monkey_bomb";
+	level.cymbal_monkey_model = "t6_wpn_zmb_monkey_bomb_world";
+	return;
+	return;
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,1091 @@
+// animscripts/cover_corner.gsc
+
+#include animscripts\combat;
+#include animscripts\weaponlist;
+#include maps\_gameskill;
+#include animscripts\shoot_behavior;
+#include animscripts\debug;
+#include animscripts\cover_behavior;
+#include animscripts\shared;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include animscripts\cover_utility;
+#include animscripts\combat_utility;
+#include animscripts\anims;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x18BC
+corner_think( direction, nodeangleoffset )
+{
+	self endon( "killanimscript" );
+	self.covernode = self.node;
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+	self.waschangingcoverpos = 0;
+	setcornerdirection( direction );
+	self.covernode.desiredcornerdirection = direction;
+	self.a.cornermode = "unknown";
+	self.a.standidlethread = undefined;
+	animscripts\cover_utility::turntomatchnodedirection( nodeangleoffset );
+/#
+	assert( self.a.pose == "prone" );
+#/
+	self exitpronewrapper( 1 );
+	self.a.pose = "crouch";
+	self.isshooting = 0;
+	self.tracking = 0;
+	self.corneraiming = 0;
+	animscripts\shared::setanimaimweight( 0 );
+	self.havegonetocover = 0;
+	behaviorcallbacks = spawnstruct();
+	behaviorcallbacks.mainloopstart = ::mainloopstart;
+	behaviorcallbacks.reload = ::cornerreload;
+	behaviorcallbacks.leavecoverandshoot = ::stepoutandshootenemy;
+	behaviorcallbacks.look = ::lookforenemy;
+	behaviorcallbacks.fastlook = ::fastlook;
+	behaviorcallbacks.idle = ::idle;
+	behaviorcallbacks.flinch = ::flinch;
+	behaviorcallbacks.grenade = ::trythrowinggrenade;
+	behaviorcallbacks.grenadehidden = ::trythrowinggrenadestayhidden;
+	behaviorcallbacks.blindfire = animscripts\cover_utility::blindfire;
+	behaviorcallbacks.resetweaponanims = ::resetweaponanims;
+	behaviorcallbacks.switchsides = ::switchsides;
+	behaviorcallbacks.rambo = ::rambo;
+	animscripts\cover_behavior::main( behaviorcallbacks );
+// SP = 0x0 - check OK
+}
+
+// 0x1A50
+end_script_corner()
+{
+	self.blockingpain = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1A5C
+mainloopstart()
+{
+	desiredstance = "stand";
+	desiredstance = "crouch";
+	desiredstance = "stand";
+	desiredstance = "crouch";
+/#
+	desiredstance = "stand";
+	desiredstance = "crouch";
+#/
+	self transitiontostance( desiredstance );
+	gotocover( animarray( "alert_idle" ), 0.4, 0.4 );
+	stancechangeanim = animarray( "stance_change" );
+	gotocover( stancechangeanim, 0.4, getanimlength( stancechangeanim ) );
+/#
+	assert( self.a.pose == desiredstance );
+#/
+	self.havegonetocover = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1BE8
+shouldchangestanceforfun()
+{
+	return 0;
+	self.changestanceforfuntime = GetTime() + randomintrange( 5000, 20000 );
+	self.changestanceforfuntime = GetTime() + randomintrange( 5000, 20000 );
+	return 0;
+	self.a.prevattack = undefined;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1C60
+shootposoutsidelegalyawrange()
+{
+	return 0;
+	yaw = self.covernode getyawtoorigin( self.shootpos );
+	return self.rightaimlimit < yaw;
+	return self.rightaimlimit < yaw;
+	cornerleftdirection = self.cornerdirection == "right";
+	cornerleftdirection = self.cornerdirection == "left";
+	return yaw > 14;
+	return yaw > 0 - self.abanglecutoff;
+	return yaw < 0;
+/#
+	assert( self.a.cornermode == "lean" );
+#/
+	return yaw > 8;
+/#
+	assert( !(cornerleftdirection) );
+#/
+	return yaw < -12;
+	return yaw < self.abanglecutoff;
+	return yaw > 0;
+/#
+	assert( self.a.cornermode == "lean" );
+#/
+	return yaw < -8;
+// SP = 0x0 - check OK
+}
+
+// 0x1E30
+getcornermode( node, point )
+{
+	nostepout = 0;
+	yaw = 0;
+	yaw = node getyawtoorigin( point );
+/#
+	forcecornermode = shouldforcebehavior( "force_corner_mode" );
+	return forcecornermode;
+	stancesupported = !(self.a.atpillarnode);
+	modes = node getvalidcoverpeekouts();
+	return forcecornermode;
+#/
+	modes = [];
+	stancesupported = self.a.pose == "crouch";
+	modes = node getvalidcoverpeekouts();
+	modes = array_exclude( modes, array( "over" ) );
+	cornerleftdirection = self.cornerdirection == "right";
+	cornerleftdirection = self.cornerdirection == "left";
+	nostepout = shouldlean();
+	modes[modes.size] = "lean";
+	modes[modes.size] = "A";
+	modes[modes.size] = "B";
+/#
+	assert( !(cornerleftdirection) );
+#/
+	nostepout = shouldlean();
+	modes[modes.size] = "lean";
+	modes[modes.size] = "A";
+	modes[modes.size] = "B";
+	modes = array_exclude( modes, array( "over" ) );
+	modes = array_exclude( modes, array( "A" ) );
+	modes = array_exclude( modes, array( "B" ) );
+	return getrandomcovermode( modes );
+// SP = 0x0 - check OK
+}
+
+// 0x20F8
+getbeststepoutpos()
+{
+	yaw = 0;
+	yaw = self.covernode getyawtoorigin( getenemysightpos() );
+	yaw = self.covernode getyawtoorigin( self.shootpos );
+/#
+	dvarval = GetDvar( #"0xC84E4F62" );
+	return dvarval;
+#/
+	return "lean";
+	return "over";
+	return "A";
+	return "A";
+	return "B";
+	positiontoswitchto = "B";
+	return "B";
+	return "B";
+	return "A";
+// SP = 0x0 - check OK
+}
+
+// 0x2260
+changestepoutpos()
+{
+	self endon( "killanimscript" );
+	positiontoswitchto = getbeststepoutpos();
+	return 0;
+/#
+	assert( positiontoswitchto != "lean" );
+#/
+/#
+	assert( positiontoswitchto != "over" );
+#/
+	self.changingcoverpos = 1;
+	self notify( "done_changing_cover_pos" );
+	animname = self.a.cornermode + "_to_" + positiontoswitchto;
+/#
+	assert( animarrayanyexist( animname ) );
+#/
+	switchanim = animarraypickrandom( animname );
+	midpoint = getpredictedpathmidpoint();
+	return 0;
+	return 0;
+	self endstandidlethread();
+	hasstopaim = animhasnotetrack( switchanim, "stop_aim" );
+/#
+	println( "^2StopStartAim Debug - ", switchanim + " in corner_" + self.cornerdirection + " " + self.a.pose + " didn't have \"stop_aim\" notetrack" );
+#/
+	self stopaiming( 0.3 );
+	resetanimspecial( 0.3 );
+	self.blockingpain = 1;
+	prev_anim_pose = self.a.pose;
+	self setanimlimited( animarray( "straight_level" ), 0, 0.2 );
+	self setflaggedanimknob( "changeStepOutPos", switchanim, 1, 0.2, 1 );
+	self thread donotetrackswithendon( "changeStepOutPos" );
+	self waittillmatch( "changeStepOutPos" );
+	return "stop_aim";
+	self stopaiming( 0.1 );
+	resetanimspecial( 0.1 );
+	hasstartaim = animhasnotetrack( switchanim, "start_aim" );
+	self waittillmatch( "changeStepOutPos" );
+	return "start_aim";
+/#
+	println( "^2StopStartAim Debug - ", switchanim + " in corner_" + self.cornerdirection + " " + self.a.pose + " didn't have \"start_aim\" notetrack" );
+#/
+	self waittillmatch( "changeStepOutPos" );
+	return "end";
+	self startaiming( undefined, 0, 0.1 );
+	self waittillmatch( "changeStepOutPos" );
+	return "end";
+	self clearanim( switchanim, 0.1 );
+	self.a.cornermode = positiontoswitchto;
+	setstepoutanimspecial( positiontoswitchto );
+	self.blockingpain = 0;
+	self.changingcoverpos = 0;
+	self.coverposestablishedtime = GetTime();
+/#
+	assert( self.a.pose == "crouch" );
+#/
+	self changeaiming( undefined, 1, 0.3 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x259C
+canlean( yaw, yawmin, yawmax )
+{
+	return 0;
+	return yaw <= yawmax;
+// SP = 0x0 - check OK
+}
+
+// 0x25C4
+shouldlean()
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2620
+donotetrackswithendon( animname )
+{
+	self endon( "killanimscript" );
+	self animscripts\shared::donotetracks( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x263C
+startaiming( spot, fullbody, transtime )
+{
+/#
+	assert( !(self.corneraiming) );
+#/
+	self.corneraiming = 1;
+	self setaimingparams( spot, fullbody, transtime, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x267C
+changeaiming( spot, fullbody, transtime )
+{
+/#
+	assert( self.corneraiming );
+#/
+	self setaimingparams( spot, fullbody, transtime, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x26AC
+stopaiming( transtime )
+{
+/#
+	assert( self.corneraiming );
+#/
+	self.corneraiming = 0;
+	self clearanim( %add_fire, transtime );
+	animscripts\shared::setanimaimweight( 0, transtime );
+// SP = 0x0 - check OK
+}
+
+// 0x26EC
+setaimingparams( spot, fullbody, transtime, start )
+{
+/#
+	assert( IsDefined( fullbody ) );
+#/
+	self.spot = spot;
+	self setanimlimited( %exposed_modern, 1, transtime );
+	self setanimlimited( %exposed_aiming, 1, transtime );
+	animscripts\shared::setanimaimweight( 1, 0 );
+	aimanimprefix = "";
+	self setanimlimited( animarray( self.a.cornermode + "_aim_straight" ), 1, transtime );
+	aimanimprefix = self.a.cornermode;
+	self setanimlimited( animarray( "straight_level" ), 1, transtime );
+	aimanimprefix = "add";
+	self setanimlimited( animarray( "straight_level" ), 0, transtime );
+	aimanimprefix = "add_turn";
+	playadditiveaiminganims( aimanimprefix, transtime, 45 );
+// SP = 0x0 - check OK
+}
+
+// 0x2800
+stepoutandhidespeed()
+{
+	return 1;
+	return randomfasteranimspeed();
+// SP = 0x0 - check OK
+}
+
+// 0x2824
+stepout()
+{
+/#
+	self animscripts\debug::debugpushstate( "stepOut" );
+#/
+	self.a.cornermode = "alert";
+	self animmode( "zonly_physics" );
+	self.abanglecutoff = 38;
+/#
+	assert( self.a.pose == "crouch" );
+#/
+	self.abanglecutoff = 31;
+	thisnodepose = self.a.pose;
+	newcornermode = "none";
+	newcornermode = getcornermode( self.covernode, getenemysightpos() );
+	newcornermode = getcornermode( self.covernode );
+/#
+	self animscripts\debug::debugpopstate( "stepOut", "newCornerMode is undefined" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( "stepOut", "no room to lean out" );
+#/
+	return 0;
+	self animscripts\anims::clearanimcache();
+	animname = "alert_to_" + newcornermode;
+/#
+	assert( animarrayanyexist( animname ), "Animation " + animname + " not found" );
+#/
+	switchanim = animarraypickrandom( animname );
+/#
+	self animscripts\debug::debugpopstate( "stepOut", "no room to step out" );
+#/
+	return 0;
+	resetanimspecial();
+	self.a.cornermode = newcornermode;
+	self.a.prevattack = newcornermode;
+	self set_aiming_limits();
+	self.rightaimlimit = 0;
+	self.leftaimlimit = 0;
+	self.keepclaimednode = 1;
+	self.pushable = 0;
+	self.changingcoverpos = 1;
+	self notify( "done_changing_cover_pos" );
+	self.blockingpain = 1;
+	animrate = stepoutandhidespeed();
+	self setflaggedanimknoballrestart( "stepout", switchanim, %root, 1, 0.2, animrate );
+	self thread donotetrackswithendon( "stepout" );
+	hasstartaim = animhasnotetrack( switchanim, "start_aim" );
+	self waittillmatch( "stepout" );
+	return "start_aim";
+/#
+	println( "^2StopStartAim Debug - ", switchanim + " in corner_" + self.cornerdirection + " " + self.a.pose + " didn't have \"start_aim\" notetrack" );
+#/
+	self waittillmatch( "stepout" );
+	return "end";
+	fullbody = newcornermode == "over";
+	setstepoutanimspecial( newcornermode );
+	self startaiming( undefined, fullbody, 0.1 );
+	self thread animscripts\shared::trackshootentorpos();
+	self waittillmatch( "stepout" );
+	return "end";
+	self.blockingpain = 0;
+	self changeaiming( undefined, 1, 0.2 );
+	self clearanim( %cover, 0.2 );
+	self clearanim( %corner, 0.2 );
+	self.changingcoverpos = 0;
+	self.coverposestablishedtime = GetTime();
+	self.pushable = 1;
+/#
+	self animscripts\debug::debugpopstate( "stepOut" );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2BB0
+stepoutandshootenemy()
+{
+/#
+	self animscripts\debug::debugpushstate( "stepOutAndShootEnemy" );
+#/
+	self.keepclaimednode = 1;
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to step out" );
+#/
+	self.keepclaimednode = 0;
+	return 0;
+	shootastold();
+	animscripts\shared::throwdownweapon();
+	resetweaponanims();
+	self changeaiming( undefined, 1, 0.2 );
+	self animmode( "zonly_physics" );
+	shootastold();
+	returntocover();
+	self.keepclaimednode = 0;
+/#
+	self animscripts\debug::debugpopstate( "stepOutAndShootEnemy" );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2C70
+rambo()
+{
+/#
+	self animscripts\debug::debugpushstate( "rambo" );
+#/
+	return 0;
+	shouldrambo = randomfloat( 1 ) < self.rambochance;
+/#
+	self animscripts\debug::debugpopstate( "rambo" );
+#/
+	return 1;
+/#
+	self animscripts\debug::debugpopstate( "rambo", "not allowed or can't step out" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2D08
+rambostepout()
+{
+	animtype = "rambo";
+	animtype = "rambo_jam";
+	yawtoenemy = self.covernode getyawtoorigin( getenemysightpos() );
+	yawtoenemy *= -1;
+	animtype = "rambo_45";
+/#
+	assert( animarrayanyexist( animtype ) );
+#/
+	ramboanim = animarraypickrandom( animtype );
+	return 0;
+	resetanimspecial();
+	self animmode( "zonly_physics" );
+	self.keepclaimednode = 1;
+	self.keepclaimednodeifvalid = 1;
+	self.isramboing = 1;
+	self setflaggedanimknoballrestart( "rambo", ramboanim, %body, 1, 0 );
+	self thread startblindaiming( ramboanim, "rambo" );
+	self thread stopblindaiming( ramboanim, "rambo" );
+	self animscripts\shoot_behavior::setshootent( self.enemy );
+	self animscripts\shared::donotetracks( "rambo" );
+	self.keepclaimednode = 0;
+	self.keepclaimednodeifvalid = 0;
+	self.isramboing = 0;
+	self.a.prevattack = "rambo";
+	waittillframeend;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2EA8
+isrambopathclear( theanim )
+{
+	rambooutnotetrackcheck = animhasnotetrack( theanim, "rambo_out" );
+/#
+	assert( rambooutnotetrackcheck );
+#/
+	stepouttimearray = getnotetracktimes( theanim, "rambo_out" );
+/#
+	assert( stepouttimearray.size == 1 );
+#/
+	movedelta = getmovedelta( theanim, 0, stepouttimearray[0] );
+	rambooutpos = self localtoworldcoords( movedelta );
+	disttopos = distance2d( self.origin, rambooutpos );
+	angles = self.covernode.angles;
+	right = anglestoright( angles );
+	switch ( self.a.script )
+	{
+		case "cover_left":
+			rambooutpos = self.origin + vector_scale( right, disttopos * -1 );
+			break;
+		case "cover_right":
+			rambooutpos = self.origin + vector_scale( right, disttopos );
+			break;
+		default:
+/#
+			assert( "Rambo behavior is not supported on cover node " + self.a.script );
+#/
+	}
+/#
+	self thread debugrambooutposition( rambooutpos );
+#/
+	return self maymovetopoint( rambooutpos );
+// SP = 0x0 - check OK
+}
+
+// 0x2FD4
+debugrambooutposition( rambooutpos )
+{
+/#
+	self endon( "death" );
+	i = 0;
+	recordline( self.origin, rambooutpos, ( 1, 1, 1 ), "Animscript", self );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3024
+shootastold()
+{
+	self endon( "need_to_switch_weapons" );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpushstate( "shootAsTold" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shouldReturnToCover" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shouldSwitchSides" );
+#/
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	self waittill( "do_slow_things" );
+	waittillframeend;
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "no shootPos" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "no ammo" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shootPos outside yaw range and no better step out pos" );
+#/
+	shootuntilshootbehaviorchangefortime( 0.2 );
+	self flamethrower_stop_shoot();
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shootPos outside yaw range" );
+#/
+	shootuntilshootbehaviorchange_corner( 1 );
+	self flamethrower_stop_shoot();
+	self clearanim( %add_fire, 0.2 );
+	domidpointcheck = self.a.cornermode != "over";
+	shootuntilshootbehaviorchangefortime( 0.2 );
+	self flamethrower_stop_shoot();
+// SP = 0x0 - check OK
+}
+
+// 0x323C
+shootuntilshootbehaviorchangefortime( time )
+{
+	self thread notifystopshootingaftertime( time );
+	starttime = GetTime();
+	shootuntilshootbehaviorchange_corner( 0 );
+	self notify( "stopNotifyStopShootingAfterTime" );
+	timepassed = ( GetTime() - starttime ) / 1000;
+	wait time - timepassed;
+// SP = 0x0 - check OK
+}
+
+// 0x3288
+notifystopshootingaftertime( time )
+{
+	self endon( "killanimscript" );
+	self endon( "stopNotifyStopShootingAfterTime" );
+	wait time;
+	self notify( "stopShooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x32A8
+shootuntilshootbehaviorchange_corner( runanglerangethread )
+{
+	self endon( "return_to_cover" );
+	self thread anglerangethread();
+	self thread standidlethread();
+	shootuntilshootbehaviorchange();
+// SP = 0x0 - check OK
+}
+
+// 0x32DC
+standidlethread()
+{
+	self endon( "killanimscript" );
+	return;
+	self.a.standidlethread = 1;
+	self setanim( %add_idle, 1, 0.2 );
+	standidlethreadinternal();
+	self clearanim( %add_idle, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x333C
+endstandidlethread()
+{
+	self.a.standidlethread = undefined;
+	self notify( "end_stand_idle_thread" );
+// SP = 0x0 - check OK
+}
+
+// 0x3354
+standidlethreadinternal()
+{
+	self endon( "killanimscript" );
+	self endon( "end_stand_idle_thread" );
+	animarrayarg = "exposed_idle";
+	animarrayarg = "lean_idle";
+	animarrayarg = "over_idle";
+/#
+	assert( animarrayanyexist( animarrayarg ) );
+#/
+	i = 0;
+	flagname = "idle" + i;
+	idleanim = animarraypickrandom( animarrayarg );
+	self setflaggedanimknoblimitedrestart( flagname, idleanim, 1, 0.2 );
+	self waittillmatch( flagname );
+	return "end";
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3414
+anglerangethread()
+{
+	self endon( "killanimscript" );
+	self notify( "newAngleRangeCheck" );
+	self endon( "newAngleRangeCheck" );
+	self endon( "take_cover_at_corner" );
+	wait 0.1;
+	self notify( "stopShooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x345C
+canreturntocover( domidpointcheck )
+{
+	midpoint = getpredictedpathmidpoint();
+	return 0;
+	return self maymovefrompointtopoint( midpoint, self.covernode.origin );
+	return self maymovetopoint( self.covernode.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x34BC
+returntocover()
+{
+/#
+	self animscripts\debug::debugpushstate( "returnToCover" );
+#/
+/#
+	assert( self canreturntocover( self.a.cornermode != "over" ) );
+#/
+	self endstandidlethread();
+	suppressed = issuppressedwrapper();
+	self notify( "take_cover_at_corner" );
+	self.changingcoverpos = 1;
+	self notify( "done_changing_cover_pos" );
+	self thread resetanimspecial( 0.2 );
+	animname = self.a.cornermode + "_to_alert";
+/#
+	assert( animarrayanyexist( animname ) );
+#/
+	switchanim = animarraypickrandom( animname );
+	self stopaiming( 0.3 );
+	self clearanim( %add_fire, 0.2 );
+	reloading = 0;
+	switchanim = animarraypickrandom( animname + "_reload" );
+	reloading = 1;
+	self clearanim( animarray( self.a.cornermode + "_aim_straight" ), 0 );
+	self clearanim( animarray( "straight_level" ), 0 );
+	self.blockingpain = 1;
+	rate = stepoutandhidespeed();
+	self setflaggedanimrestart( "hide", switchanim, 1, 0.1, rate );
+	self animscripts\shared::donotetracks( "hide" );
+	self animscripts\weaponlist::refillclip();
+	self notify( "stop updating angles" );
+	self animscripts\shared::stoptracking();
+	self.changingcoverpos = 0;
+	setanimspecial();
+	self.keepclaimednode = 0;
+	self clearanim( %exposed_modern, 0.2 );
+	self.blockingpain = 0;
+/#
+	self animscripts\debug::debugpopstate( "returnToCover" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3730
+trythrowinggrenadestayhidden( throwat, forcethrow )
+{
+	return trythrowinggrenade( throwat, 1, forcethrow );
+// SP = 0x0 - check OK
+}
+
+// 0x374C
+trythrowinggrenade( throwat, safe, forcethrow )
+{
+	forcethrow = forcethrow;
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to throw" );
+#/
+	return 0;
+	theanim = undefined;
+	theanim = animarray( "grenade_rambo" );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no safe throw anim" );
+#/
+	return 0;
+	theanim = animarray( "grenade_safe" );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no exposed throw anim" );
+#/
+	return 0;
+	theanim = animarray( "grenade_exposed" );
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	threwgrenade = trygrenade( throwat, theanim, forcethrow );
+	self.keepclaimednodeifvalid = 0;
+	return threwgrenade;
+// SP = 0x0 - check OK
+}
+
+// 0x3874
+printyawtoenemy()
+{
+/#
+	println( "yaw: ", self getyawtoenemy() );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3898
+lookforenemy( looktime )
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no look anim" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "no pistol anims" );
+#/
+	return 0;
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	return 0;
+	animscripts\shared::playlookanimation( animarray( "look_idle" ), looktime, ::canstoppeeking );
+	lookanim = undefined;
+	lookanim = animarray( "look_to_alert_fast" );
+	lookanim = animarray( "look_to_alert" );
+	self setflaggedanimknoballrestart( "looking_end", lookanim, %body, 1, 0.1, 1 );
+	animscripts\shared::donotetracks( "looking_end" );
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x39A4
+ispeekoutposclear()
+{
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+	eyepos = self geteye();
+	rightdir = anglestoright( self.covernode.angles );
+	cornerleftdirection = self.cornerdirection == "right";
+	cornerleftdirection = self.cornerdirection == "left";
+	eyepos -= rightdir * anim.coverglobals.peekout_offset;
+	eyepos += rightdir * anim.coverglobals.peekout_offset;
+	lookatpos = eyepos + anglestoforward( self.covernode.angles ) * anim.coverglobals.peekout_offset;
+	return sighttracepassed( eyepos, lookatpos, 1, self );
+// SP = 0x0 - check OK
+}
+
+// 0x3A60
+peekout()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "cover node has script_dontpeek on" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "self.a.dontpeek on" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "nextPeekOutAttemptTime > GetTime()" );
+#/
+	return 0;
+	peekanim = animarray( "alert_to_look" );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to step out or looking at ent" );
+#/
+	self.nextpeekoutattempttime = GetTime() + 3000;
+	return 0;
+	self setflaggedanimknoball( "looking_start", peekanim, %body, 1, 0.2, 1 );
+	animscripts\shared::donotetracks( "looking_start" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3B50
+canstoppeeking()
+{
+	return self maymovetopoint( self.covernode.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x3B6C
+fastlook()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no fastlook anim" );
+#/
+	return 0;
+	peekanim = animarraypickrandom( "look" );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to fastlook out" );
+#/
+	return 0;
+	self setflaggedanimknoballrestart( "look", peekanim, %body, 1, 0.1 );
+	self animscripts\shared::donotetracks( "look" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3C10
+cornerreload()
+{
+	return flamethrower_reload();
+/#
+	assert( animarrayanyexist( "reload" ) );
+#/
+	reloadanim = animarraypickrandom( "reload" );
+	self setflaggedanimknobrestart( "cornerReload", reloadanim, 1, 0.2 );
+	self animscripts\shared::donotetracks( "cornerReload" );
+	self animscripts\weaponlist::refillclip();
+	self setanimrestart( animarray( "alert_idle" ), 1, 0.2 );
+	self clearanim( reloadanim, 0.2 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3CC0
+ispathclear( stepoutanim, domidpointcheck )
+{
+	midpoint = getpredictedpathmidpoint();
+/#
+	recordline( self.origin, midpoint, ( 0, 1, 0 ), "Animscript", self );
+	recordline( midpoint, getanimendpos( stepoutanim ), ( 1, 0, 0 ), "Animscript", self );
+	endpos = getanimendpos( stepoutanim );
+	movedelta = endpos - self.origin;
+	recordenttext( "Delta: " + movedelta[0] + ", " + movedelta[1] + ", " + movedelta[2], self, ( 0, 1, 0 ), "Animscript" );
+#/
+	return 0;
+	return self maymovefrompointtopoint( midpoint, getanimendpos( stepoutanim ) );
+	return self maymovetopoint( getanimendpos( stepoutanim ) );
+// SP = 0x0 - check OK
+}
+
+// 0x3DA4
+getpredictedpathmidpoint()
+{
+/#
+	assert( IsDefined( self.covernode ), "Covernode undefined, AI's current animscript is " + self.a.script );
+#/
+	angles = self.covernode.angles;
+	right = anglestoright( angles );
+	switch ( self.a.script )
+	{
+		case "cover_left":
+			right = vector_scale( right, -36 );
+			break;
+		case "cover_pillar":
+			right = vector_scale( right, 36 );
+			break;
+		case "cover_right":
+			right = vector_scale( right, -36 );
+			right = vector_scale( right, 36 );
+			break;
+		default:
+/#
+			assert( 0, "What kind of node is this????" );
+#/
+	}
+	return self.covernode.origin + ( right[0], right[1], 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3E7C
+idle()
+{
+	self endon( "end_idle" );
+	usetwitch = animarrayanyexist( "alert_idle_twitch" );
+	idleanim = animarraypickrandom( "alert_idle_twitch" );
+	idleanim = animarray( "alert_idle" );
+	playidleanimation( idleanim, usetwitch );
+// SP = 0x0 - check OK
+}
+
+// 0x3EF0
+flinch()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no flinch anim" );
+#/
+	return 0;
+	playidleanimation( animarraypickrandom( "alert_idle_flinch" ), 1 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3F30
+playidleanimation( idleanim, needsrestart )
+{
+	self setflaggedanimknoballrestart( "idle", idleanim, %body, 1, 0.2, 1 );
+	self setflaggedanimknoball( "idle", idleanim, %body, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "idle" );
+// SP = 0x0 - check OK
+}
+
+// 0x3F98
+transitiontostance( stance )
+{
+	return;
+	self setflaggedanimknoballrestart( "changeStance", animarray( "stance_change" ), %body );
+	self animscripts\shared::donotetracks( "changeStance" );
+/#
+	assert( self.a.pose == stance );
+#/
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x4004
+gotocover( coveranim, transtime, playtime )
+{
+	cornerangle = getnodedirection();
+	cornerorigin = getnodeorigin();
+	desiredyaw = cornerangle + self.hideyawoffset;
+	self orientmode( "face angle", angleclamp180( desiredyaw ) );
+	self animmode( "normal" );
+/#
+	assert( transtime <= playtime );
+#/
+	setanimspecial();
+	self thread animscripts\shared::movetooriginovertime( cornerorigin, transtime );
+	self setflaggedanimknoballrestart( "coveranim", coveranim, %body, 1, transtime );
+	self animscripts\shared::donotetracksfortime( playtime, "coveranim" );
+	self animscripts\shared::donotetracksfortime( 0.1, "coveranim" );
+	self animmode( "zonly_physics" );
+	setanimspecial();
+// SP = 0x0 - check OK
+}
+
+// 0x40F8
+drawoffset()
+{
+/#
+	self endon( "killanimscript" );
+	line( self.node.origin + vector_scale( ( 0, 0, 1 ), 20 ), vector_scale( ( 0, 0, 1 ), 20 ) + self.node.origin + vector_scale( anglestoright( self.node.angles + ( 0, 0, 0 ) ), 16 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4154
+set_aiming_limits()
+{
+	self.rightaimlimit = 45;
+	self.leftaimlimit = -45;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+// SP = 0x0 - check OK
+}
+
+// 0x417C
+runcombat()
+{
+	self notify( "killanimscript" );
+	waittillframeend;
+	self thread animscripts\combat::main();
+// SP = 0x0 - check OK
+}
+
+// 0x4198
+resetweaponanims()
+{
+/#
+	assert( self.a.pose == "crouch" );
+#/
+	self clearanim( %aim_4, 0 );
+	self clearanim( %aim_6, 0 );
+	self clearanim( %aim_2, 0 );
+	self clearanim( %aim_8, 0 );
+	self clearanim( %exposed_aiming, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x421C
+setcornerdirection( direction )
+{
+	self.cornerdirection = direction;
+	self.a.script_suffix = "_" + direction;
+// SP = 0x0 - check OK
+}
+
+// 0x4250
+switchsides()
+{
+	return 0;
+	setcornerdirection( "right" );
+	setcornerdirection( "left" );
+/#
+	forcecornermode = shouldforcebehavior( "force_corner_direction" );
+	setcornerdirection( forcecornermode );
+#/
+	self clearanim( %exposed_aiming, 0.2 );
+	self animscripts\anims::clearanimcache();
+	self notify( "dont_end_idle" );
+	wait 0.05;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x431C
+setstepoutanimspecial( newcornermode )
+{
+	self.a.special = "cover_pillar_lean";
+	self.a.special = "cover_pillar_" + self.cornerdirection + "_" + newcornermode;
+	setanimspecial();
+	self.a.special = "cover_right_" + newcornermode;
+	self.a.special = "cover_left_" + newcornermode;
+	self.a.special = "cover_" + self.cornerdirection + "_" + newcornermode;
+	self.a.special = "cover_" + self.cornerdirection + "_" + newcornermode;
+	self.a.special = "cover_" + self.cornerdirection + "_" + newcornermode;
+	self.a.special = "none";
+// SP = 0x0 - check OK
+}
+
+// 0x44A8
+setanimspecial()
+{
+	self.a.special = "cover_pillar";
+	self.a.special = "cover_right";
+	self.a.special = "cover_left";
+	self.a.special = "cover_left";
+	self.a.special = "cover_right";
+// SP = 0x0 - check OK
+}

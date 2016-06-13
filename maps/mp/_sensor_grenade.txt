@@ -1,0 +1,147 @@
+// maps/mp/_sensor_grenade.gsc
+
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\_utility;
+#include maps\mp\_scoreevents;
+#include maps\mp\_challenges;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\_hacker_tool;
+#include maps\mp\gametypes\_weaponobjects;
+#include common_scripts\utility;
+
+
+// 0x684
+init()
+{
+	level.isplayertrackedfunc = ::isplayertracked;
+// SP = 0x0 - check OK
+}
+
+// 0x698
+createsensorgrenadewatcher()
+{
+	watcher = self maps\mp\gametypes\_weaponobjects::createuseweaponobjectwatcher( "sensor_grenade", "sensor_grenade_mp", self.team );
+	watcher.headicon = 0;
+	watcher.onspawn = ::onspawnsensorgrenade;
+	watcher.detonate = ::sensorgrenadedestroyed;
+	watcher.stun = maps\mp\gametypes\_weaponobjects::weaponstun;
+	watcher.stuntime = 0;
+	watcher.reconmodel = "t6_wpn_motion_sensor_world_detect";
+	watcher.ondamage = ::watchsensorgrenadedamage;
+	watcher.enemydestroy = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x714
+onspawnsensorgrenade( watcher, player )
+{
+	self endon( "death" );
+	self thread maps\mp\gametypes\_weaponobjects::onspawnuseweaponobject( watcher, player );
+	self setowner( player );
+	self setteam( player.team );
+	self.owner = player;
+	self playloopsound( "fly_sensor_nade_lp" );
+	self maps\mp\_hacker_tool::registerwithhackertool( level.equipmenthackertoolradius, level.equipmenthackertooltimems );
+	player addweaponstat( "sensor_grenade_mp", "used", 1 );
+	self thread watchforstationary( player );
+	self thread watchforexplode( player );
+// SP = 0x0 - check OK
+}
+
+// 0x7A8
+watchforstationary( owner )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self endon( "explode" );
+	owner endon( "death" );
+	owner endon( "disconnect" );
+	self waittill( "stationary" );
+	checkfortracking( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x7E4
+watchforexplode( owner )
+{
+	self endon( "hacked" );
+	self endon( "delete" );
+	owner endon( "death" );
+	owner endon( "disconnect" );
+	self waittill( "explode", origin );
+	checkfortracking( origin + ( 0, 0, 1 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x820
+checkfortracking( origin )
+{
+	return;
+	players = level.players;
+	foreach ( player in level.players )
+	{
+		trace = bullettrace( origin, player.origin + vector_scale( ( 0, 0, 1 ), 12 ), 0, player );
+		self.owner tracksensorgrenadevictim( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x8EC
+tracksensorgrenadevictim( victim )
+{
+	self.sensorgrenadedata = [];
+	self.sensorgrenadedata[victim.clientid] = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x924
+isplayertracked( player, time )
+{
+	playertracked = 0;
+	playertracked = 1;
+	return playertracked;
+// SP = 0x0 - check OK
+}
+
+// 0x96C
+sensorgrenadedestroyed( attacker, weaponname )
+{
+	from_emp = maps\mp\killstreaks\_emp::isempweapon( weaponname );
+	playfx( level._equipment_explode_fx, self.origin );
+	attacker maps\mp\_challenges::destroyedequipment( weaponname );
+	maps\mp\_scoreevents::processscoreevent( "destroyed_motion_sensor", attacker, self.owner, weaponname );
+	playsoundatposition( "dst_equipment_destroy", self.origin );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x9F8
+watchsensorgrenadedamage( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self setcandamage( 1 );
+	damagemax = 1;
+	self.damagetaken = 0;
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname, idflags );
+	switch ( weaponname )
+	{
+		case "concussion_grenade_mp":
+		case "emp_grenade_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "flash_grenade_mp":
+			damage = damagemax;
+		default:
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+	}
+	weaponname = "";
+	self.damagetaken = damagemax;
+	self.damagetaken += damage;
+	watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( self, 0, attacker, weaponname );
+	return;
+// SP = 0x0 - check OK
+}

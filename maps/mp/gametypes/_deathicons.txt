@@ -1,0 +1,80 @@
+// maps/mp/gametypes/_deathicons.gsc
+
+#include maps\mp\gametypes\_deathicons;
+#include maps\mp\gametypes\_globallogic_utils;
+
+
+// 0x2EC
+init()
+{
+	level.ragdoll_override = ::ragdoll_override;
+	return;
+	precacheshader( "headicon_dead" );
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x32C
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player.selfdeathicons = [];
+// SP = 0x0 - check OK
+}
+
+// 0x34C
+updatedeathiconsenabled()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x354
+adddeathicon( entity, dyingplayer, team, timeout )
+{
+	return;
+	iconorg = entity.origin;
+	dyingplayer endon( "spawned_player" );
+	dyingplayer endon( "disconnect" );
+	wait 0.05;
+	maps\mp\gametypes\_globallogic_utils::waittillslowprocessallowed();
+/#
+	assert( IsDefined( level.teams[team] ) );
+#/
+	return;
+	return;
+	self.lastdeathicon destroy();
+	newdeathicon = newteamhudelem( team );
+	newdeathicon.x = iconorg[0];
+	newdeathicon.y = iconorg[1];
+	newdeathicon.z = iconorg[2] + 54;
+	newdeathicon.alpha = 0.61;
+	newdeathicon.archived = 1;
+	newdeathicon setshader( "headicon_dead", 14, 14 );
+	newdeathicon setshader( "headicon_dead", 7, 7 );
+	newdeathicon setwaypoint( 1 );
+	self.lastdeathicon = newdeathicon;
+	newdeathicon thread destroyslowly( timeout );
+// SP = 0x0 - check OK
+}
+
+// 0x478
+destroyslowly( timeout )
+{
+	self endon( "death" );
+	wait timeout;
+	self fadeovertime( 1 );
+	self.alpha = 0;
+	wait 1;
+	self destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x4B4
+ragdoll_override( idamage, smeansofdeath, sweapon, shitloc, vdir, vattackerorigin, deathanimduration, einflictor, ragdoll_jib, body )
+{
+	body startragdoll();
+	thread maps\mp\gametypes\_deathicons::adddeathicon( body, self, self.team, 5 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}

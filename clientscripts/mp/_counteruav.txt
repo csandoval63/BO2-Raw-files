@@ -1,0 +1,43 @@
+// clientscripts/mp/_counteruav.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x154
+init()
+{
+	level._client_flag_callbacks["scriptmover"][11] = ::spawned;
+// SP = 0x0 - check OK
+}
+
+// 0x170
+spawned( localclientnum, set )
+{
+	level.counteruavs = [];
+	level.counteruavs[localclientnum] = 0;
+	player = getlocalplayer( localclientnum );
+/#
+	assert( IsDefined( player ) );
+#/
+	return;
+	return;
+	level.counteruavs[localclientnum]++;
+	self thread counteruav_think( localclientnum );
+	player setenemyglobalscrambler( 1 );
+	self notify( "counteruav_off" );
+// SP = 0x0 - check OK
+}
+
+// 0x204
+counteruav_think( localclientnum )
+{
+	self waittill_any( "entityshutdown", "counteruav_off" );
+	level.counteruavs[localclientnum]--;
+	level.counteruavs[localclientnum] = 0;
+	player = getlocalplayer( localclientnum );
+/#
+	assert( IsDefined( player ) );
+#/
+	player setenemyglobalscrambler( 0 );
+// SP = 0x0 - check OK
+}

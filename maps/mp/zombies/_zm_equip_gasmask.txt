@@ -1,0 +1,130 @@
+// maps/mp/zombies/_zm_equip_gasmask.gsc
+
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_equipment;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x610
+init()
+{
+	return;
+	registerclientfield( "toplayer", "gasmaskoverlay", 16000, 1, "int" );
+	maps\mp\zombies\_zm_equipment::register_equipment( "equip_gasmask_zm", &"ZOMBIE_EQUIP_GASMASK_PICKUP_HINT_STRING", &"ZOMBIE_EQUIP_GASMASK_HOWTO", undefined, "gasmask", ::gasmask_activation_watcher_thread );
+	level.deathcard_spawn_func = ::remove_gasmask_on_player_bleedout;
+	precacheitem( "lower_equip_gasmask_zm" );
+	onplayerconnect_callback( ::gasmask_on_player_connect );
+// SP = 0x0 - check OK
+}
+
+// 0x68C
+gasmask_on_player_connect()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x694
+gasmask_removed_watcher_thread()
+{
+	self notify( "only_one_gasmask_removed_thread" );
+	self endon( "only_one_gasmask_removed_thread" );
+	self endon( "disconnect" );
+	self waittill( "equip_gasmask_zm_taken" );
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_reset_player_model]]( ent_num );
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_reset_player_viewmodel]]( ent_num );
+	self setclientfieldtoplayer( "gasmaskoverlay", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x720
+gasmask_activation_watcher_thread()
+{
+	self endon( "zombified" );
+	self endon( "disconnect" );
+	self endon( "equip_gasmask_zm_taken" );
+	self thread gasmask_removed_watcher_thread();
+	self thread remove_gasmask_on_game_over();
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_set_player_model]]( ent_num );
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_set_player_viewmodel]]( ent_num );
+	self waittill_either( "equip_gasmask_zm_activate", "equip_gasmask_zm_deactivate" );
+	self increment_is_drinking();
+	self setactionslot( 1, "" );
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_change_player_headmodel]]( ent_num, 1 );
+	clientnotify( "gmsk2" );
+	self waittill( "weapon_change_complete" );
+	self setclientfieldtoplayer( "gasmaskoverlay", 1 );
+	self increment_is_drinking();
+	self setactionslot( 1, "" );
+	ent_num = self.characterindex;
+	ent_num = self.zm_random_char;
+	self [[level.zombiemode_gasmask_change_player_headmodel]]( ent_num, 0 );
+	self takeweapon( "equip_gasmask_zm" );
+	self giveweapon( "lower_equip_gasmask_zm" );
+	self switchtoweapon( "lower_equip_gasmask_zm" );
+	wait 0.05;
+	self setclientfieldtoplayer( "gasmaskoverlay", 0 );
+	self waittill( "weapon_change_complete" );
+	self takeweapon( "lower_equip_gasmask_zm" );
+	self giveweapon( "equip_gasmask_zm" );
+	self decrement_is_drinking();
+	self setactionslot( 1, "weapon", "equip_gasmask_zm" );
+	self notify( "equipment_select_response_done" );
+	self switchtoweapon( self.prev_weapon_before_equipment_change );
+	self waittill( "weapon_change_complete" );
+	primaryweapons = self getweaponslistprimaries();
+	self switchtoweapon( primaryweapons[0] );
+	self waittill( "weapon_change_complete" );
+	self switchtoweapon( get_player_melee_weapon() );
+	self setactionslot( 1, "weapon", "equip_gasmask_zm" );
+	self decrement_is_drinking();
+	self notify( "equipment_select_response_done" );
+// SP = 0x0 - check OK
+}
+
+// 0xA24
+remove_gasmask_on_player_bleedout()
+{
+	self setclientfieldtoplayer( "gasmaskoverlay", 0 );
+	wait_network_frame();
+	wait_network_frame();
+	self setclientfieldtoplayer( "gasmaskoverlay", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xA5C
+remove_gasmask_on_game_over()
+{
+	self endon( "equip_gasmask_zm_taken" );
+	level waittill( "pre_end_game" );
+	self setclientfieldtoplayer( "gasmaskoverlay", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xA80
+gasmask_active()
+{
+	return self maps\mp\zombies\_zm_equipment::is_equipment_active( "equip_gasmask_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0xA98
+gasmask_debug_print( msg, color )
+{
+/#
+	color = ( 1, 1, 1 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 60 ), msg, color, 1, 1, 40 );
+#/
+// SP = 0x0 - check OK
+}

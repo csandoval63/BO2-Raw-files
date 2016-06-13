@@ -1,0 +1,22 @@
+// clientscripts/mp/gametypes/zstandard.csc
+
+
+// 0xC4
+main()
+{
+	level._zombie_gamemodeprecache = ::onprecachegametype;
+	level._zombie_gamemodemain = ::onstartgametype;
+// SP = 0x0 - check OK
+}
+
+// 0xE4
+onprecachegametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xEC
+onstartgametype()
+{
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,353 @@
+// animscripts/react.gsc
+
+#include animscripts\shared;
+#include animscripts\run;
+#include maps\_utility;
+#include animscripts\anims;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+#include animscripts\weaponlist;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0xAD4
+main()
+{
+	self setflashbanged( 0 );
+	self flamethrower_stop_shoot();
+	self trackscriptstate( "React Main", "code" );
+	self notify( "anim entered react" );
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( "react" );
+	self animmode( "gravity" );
+	return;
+	reactanim = getreactanim();
+/#
+	record3dtext( "going to react", self.origin + vector_scale( ( 0, 0, 1 ), 70 ), ( 1, 1, 1 ), "Animscript" );
+#/
+	playreactanim( reactanim );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xB90
+reactglobalsinit()
+{
+	reactinit();
+	initreacttimers();
+// SP = 0x0 - check OK
+}
+
+// 0xBA8
+reactinit()
+{
+	anim.lastreactiontime = 0;
+	anim.reactioncooldowntime = 3000;
+	anim.reactiondistancesquaredmax = 1000000;
+	anim.reactiondistancesquaredmin = 10000;
+	anim.reactionawarenessdist = 32;
+	anim.nextreactiontimeforaimin = 5000;
+	anim.nextreactiontimeforaimax = 10000;
+// SP = 0x0 - check OK
+}
+
+// 0xBE8
+initreacttimers()
+{
+	self.a.newenemyreacttime = 0;
+	self.a.eventreactiontime = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC04
+playreactanim( reactanim )
+{
+	self.nextallowedreacttime = GetTime() + randomintrange( anim.nextreactiontimeforaimin, anim.nextreactiontimeforaimax );
+	anim.lastreactiontime = GetTime();
+	self.a.pose = "stand";
+	self setflaggedanimknoballrestart( "reactAnim", reactanim, %body, 1, 0.1, 1 );
+	self thread notifystartaim( "reactAnim" );
+	self endon( "start_aim" );
+	self thread doreactnotetracks( "reactAnim" );
+	reaction_blendout( reactanim );
+// SP = 0x0 - check OK
+}
+
+// 0xCBC
+reaction_blendout( reactanim )
+{
+	time = getanimlength( reactanim );
+	wait time - 0.2;
+	nextanim = animscripts\run::getrunanim();
+	self clearanim( %body, 0.2 );
+	self setflaggedanimrestart( "run_anim", nextanim, 1, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0xD24
+notifystartaim( animflag )
+{
+	self endon( "killanimscript" );
+	self waittillmatch( animflag );
+	return "start_aim";
+	self notify( "start_aim" );
+// SP = 0x0 - check OK
+}
+
+// 0xD44
+shouldreact()
+{
+/#
+	assert( IsDefined( self.reactorigin ) );
+#/
+/#
+	self thread draweventpointanddir( self.reactorigin, undefined, ( 1, 0, 0 ) );
+	return 1;
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	reactanim = getreactanim();
+	return 0;
+	dist = distancesquared( self.attacker.origin, self.origin );
+	forwardvec = anglestoforward( self.angles );
+	dirtoreactorigin = vectornormalize( self.reactorigin - self.origin );
+	isreactoriginfront = vectordot( dirtoreactorigin, forwardvec ) >= 0;
+	return 1;
+	dist = distancesquared( self.attacker.origin, self.origin );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+getreactanim()
+{
+	reactanim = undefined;
+	location = geteventlocationinfo();
+/#
+	self thread draweventpointanddir( self.reactorigin, location, ( 0, 1, 0 ) );
+#/
+	friendlyreaction = isplayer( self.attacker );
+	reactanim = getrunningforwardreactanim( location, friendlyreaction );
+	return reactanim;
+	return reactanim;
+// SP = 0x0 - check OK
+}
+
+// 0x1054
+getreactaniminternal( location )
+{
+	reactarray = [];
+	type = "exposed";
+	reactarray[reactarray.size] = animarray( type + "_" + location, "react" );
+/#
+	assert( reactarray.size > 0, reactarray.size );
+#/
+	return reactarray[randomint( reactarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x10AC
+getrunningforwardreactanim( location, friendlyreaction )
+{
+	reactarray = [];
+	type = "run";
+	type = "sprint";
+	reactarray[reactarray.size] = animarray( type + "_lower_torso_stop", "react" );
+	reactarray[reactarray.size] = animarray( type + "_head", "react" );
+	reactarray[reactarray.size] = animarray( type + "_lower_torso_fast", "react" );
+	reactarray[reactarray.size] = animarray( type + "_lower_torso_stop", "react" );
+	reactarray = removeblockedanims( reactarray );
+	return reactarray[randomint( reactarray.size )];
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x11B4
+geteventlocationinfo()
+{
+/#
+	assert( IsDefined( self.reactorigin ) );
+#/
+	position_info = calculatelocationinfo( self.reactorigin );
+	return position_info;
+// SP = 0x0 - check OK
+}
+
+// 0x11E4
+calculatelocationinfo( point )
+{
+	direction = getpointdirection( point );
+	pos = self gettagorigin( "j_neck" );
+	tag_neck_dist = distancefromtagorigin( pos );
+	pos = self gettagorigin( "j_mainroot" );
+	tag_main_root_dist = distancefromtagorigin( pos );
+	point_dist = distancefromtagorigin( ( self.origin[0], self.origin[1], point[2] ) );
+	location = direction + "_lower_torso";
+	location = direction + "_upper_torso";
+	location = direction + "_head";
+	return location;
+// SP = 0x0 - check OK
+}
+
+// 0x129C
+getpointdirection( point )
+{
+	closestpointdir = point - self.origin;
+	forwarddir = anglestoright( self.angles );
+	dotproduct = vectordot( forwarddir, closestpointdir );
+	side = "right";
+	side = "left";
+	return side;
+// SP = 0x0 - check OK
+}
+
+// 0x12EC
+distancefromtagorigin( org )
+{
+	return distancesquared( self.origin, org );
+// SP = 0x0 - check OK
+}
+
+// 0x1308
+removeblockedanims( array )
+{
+	newarray = [];
+	index = 0;
+	localdeltavector = getmovedelta( array[index], 0, 1 );
+	endpoint = self localtoworldcoords( localdeltavector );
+	newarray[newarray.size] = array[index];
+	index++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x1378
+doreactnotetracks( flagname )
+{
+	self notify( "stop_DoNotetracks" );
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "stop_DoNotetracks" );
+	self animscripts\shared::donotetracks( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x13A8
+canreacttonewenemyagain()
+{
+	return 1;
+	return GetTime() - self.a.newenemyreacttime > 2000;
+// SP = 0x0 - check OK
+}
+
+// 0x13DC
+newenemyreactionanim()
+{
+	self endon( "death" );
+	self endon( "endNewEnemyReactionAnim" );
+	self.a.newenemyreacttime = GetTime();
+	reactanim = self getnewenemyreactionanim();
+	return 0;
+	self clearanim( %root, 0.2 );
+	self setflaggedanimknobrestart( "reactanim", reactanim, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "reactanim" );
+	self notify( "newEnemyReactionDone" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1460
+getnewenemyreactionanim()
+{
+	reactanim = undefined;
+	return reactanim;
+	nodeforward = anglestoforward( self.node.angles );
+	dirtoreactiontarget = vectornormalize( self.newenemyreactionpos - self.origin );
+	self orientmode( "face current" );
+	reactanim = animarraypickrandom( self.a.prevscript + "_ne" );
+	reactanimarray = animarray( "combat_ne" );
+	self orientmode( "face enemy" );
+	self orientmode( "face point", self.newenemyreactionpos );
+	dirtoreactiontarget = vectornormalize( self.newenemyreactionpos - self.origin );
+	forward = anglestoforward( self.angles );
+	self orientmode( "face current" );
+	reactanimarray = animarray( "cover_crouch_ne" );
+	reactanim = reactanimarray[randomint( reactanimarray.size )];
+	return reactanim;
+// SP = 0x0 - check OK
+}
+
+// 0x15E0
+newenemysurprisedreaction()
+{
+	self endon( "death" );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	self animmode( "gravity" );
+	return newenemyreactionanim();
+// SP = 0x0 - check OK
+}
+
+// 0x1674
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x167C
+draweventpointanddir( position, location, color )
+{
+/#
+	self endon( "death" );
+	current_time = GetTime();
+	recordenttext( "Location - " + location, self, level.color_debug["white"], "Animscript" );
+	drawdebugcross( position, 1, color, 0.05 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1700
+debugline( frompoint, topoint, color, durationframes )
+{
+/#
+	self endon( "death" );
+	i = 0;
+	line( frompoint, topoint, color );
+	recordline( frompoint, topoint, color, "Animscript", self );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1760
+drawdebugcross( atpoint, radius, color, durationframes )
+{
+/#
+	self endon( "death" );
+	atpoint_high = atpoint + ( 0, 0, radius );
+	atpoint_low = atpoint + ( 0, 0, -1 * radius );
+	atpoint_left = atpoint + ( 0, radius, 0 );
+	atpoint_right = atpoint + ( 0, -1 * radius, 0 );
+	atpoint_forward = atpoint + ( radius, 0, 0 );
+	atpoint_back = atpoint + ( -1 * radius, 0, 0 );
+	thread debugline( atpoint_high, atpoint_low, color, durationframes );
+	thread debugline( atpoint_left, atpoint_right, color, durationframes );
+	thread debugline( atpoint_forward, atpoint_back, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,486 @@
+// maps/mp/killstreaks/_missile_swarm.gsc
+
+#include maps\mp\killstreaks\_dogs;
+#include maps\mp\_challenges;
+#include maps\mp\_scoreevents;
+#include maps\mp\killstreaks\_killstreakrules;
+#include maps\mp\killstreaks\_airsupport;
+#include maps\mp\killstreaks\_killstreaks;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xE1C
+init()
+{
+	level.missile_swarm_max = 6;
+	level.missile_swarm_flyheight = 3000;
+	level.missile_swarm_flydist = 5000;
+	set_dvar_float_if_unset( "scr_missile_swarm_lifetime", 40 );
+	precacheitem( "missile_swarm_projectile_mp" );
+	level.swarm_fx["swarm"] = loadfx( "weapon/harpy_swarm/fx_hrpy_swrm_os_circle_neg_x" );
+	level.swarm_fx["swarm_tail"] = loadfx( "weapon/harpy_swarm/fx_hrpy_swrm_exhaust_trail_close" );
+	level.missiledronesoundstart = "mpl_hk_scan";
+	registerkillstreak( "missile_swarm_mp", "missile_swarm_mp", "killstreak_missile_swarm", "missile_swarm_used", ::swarm_killstreak, 1 );
+	registerkillstreakaltweapon( "missile_swarm_mp", "missile_swarm_projectile_mp" );
+	registerkillstreakstrings( "missile_swarm_mp", &"KILLSTREAK_EARNED_MISSILE_SWARM", &"KILLSTREAK_MISSILE_SWARM_NOT_AVAILABLE", &"KILLSTREAK_MISSILE_SWARM_INBOUND" );
+	registerkillstreakdialog( "missile_swarm_mp", "mpl_killstreak_missile_swarm", "kls_swarm_used", "", "kls_swarm_enemy", "", "kls_swarm_ready" );
+	registerkillstreakdevdvar( "missile_swarm_mp", "scr_givemissileswarm" );
+	setkillstreakteamkillpenaltyscale( "missile_swarm_mp", 0 );
+	maps\mp\killstreaks\_killstreaks::createkillstreaktimer( "missile_swarm_mp" );
+	registerclientfield( "world", "missile_swarm", 1, 2, "int" );
+/#
+	set_dvar_int_if_unset( "scr_missile_swarm_cam", 0 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF54
+swarm_killstreak( hardpointtype )
+{
+/#
+	assert( hardpointtype == "missile_swarm_mp" );
+#/
+	level.missile_swarm_origin = level.mapcenter + ( 0, 0, level.missile_swarm_flyheight );
+	level.missile_swarm_origin += ( -5000, 0, 2000 );
+	level.missile_swarm_origin += vector_scale( ( 0, 0, 1 ), 2000 );
+	level.missile_swarm_origin += vector_scale( ( 0, 0, 1 ), 1500 );
+	level.missile_swarm_origin += ( 4000, 0, 1000 );
+	level.missile_swarm_origin += vector_scale( ( 0, 0, 1 ), 5000 );
+	level.missile_swarm_origin += ( 0, -6000, 3000 );
+	level.missile_swarm_origin += ( -6000, 0, 2000 );
+	level.missile_swarm_origin += vector_scale( ( 0, 0, 1 ), 2000 );
+	level.missile_swarm_origin += vector_scale( ( 0, 0, 1 ), 1000 );
+	killstreak_id = self maps\mp\killstreaks\_killstreakrules::killstreakstart( "missile_swarm_mp", self.team, 0, 1 );
+	return 0;
+	level thread swarm_killstreak_start( self, killstreak_id );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10E0
+swarm_killstreak_start( owner, killstreak_id )
+{
+	level endon( "swarm_end" );
+	missiles = getentarray( "swarm_missile", "targetname" );
+	foreach ( missile in missiles )
+	{
+		missile detonate();
+		wait 0.1;
+	}
+	i = 0;
+	level.missile_swarm_fx[i] delete();
+	i++;
+	level.missile_swarm_fx = undefined;
+	level.missile_swarm_team = owner.team;
+	level.missile_swarm_owner = owner;
+	owner maps\mp\killstreaks\_killstreaks::playkillstreakstartdialog( "missile_swarm_mp", owner.pers["team"] );
+	level create_player_targeting_array( owner, owner.team );
+	level.globalkillstreakscalled++;
+	owner addweaponstat( "missile_swarm_mp", "used", 1 );
+	level thread swarm_killstreak_abort( owner, killstreak_id );
+	level thread swarm_killstreak_watch_for_emp( owner, killstreak_id );
+	level thread swarm_killstreak_fx();
+	wait 2;
+	level thread swarm_think( owner, killstreak_id );
+// SP = 0x0 - check OK
+}
+
+// 0x1224
+swarm_killstreak_end( owner, detonate, killstreak_id )
+{
+	level notify( "swarm_end" );
+	level setclientfield( "missile_swarm", 2 );
+	level setclientfield( "missile_swarm", 0 );
+	missiles = getentarray( "swarm_missile", "targetname" );
+	i = 0;
+	level.missile_swarm_fx[i] delete();
+	i++;
+	foreach ( missile in missiles )
+	{
+		missile detonate();
+		wait 0.1;
+	}
+	foreach ( missile in missiles )
+	{
+		yaw = randomintrange( 0, 360 );
+		angles = ( 0, yaw, 0 );
+		forward = anglestoforward( angles );
+		missile.goal.origin = ( missile.origin + forward ) * ( level.missile_swarm_flydist * 1000 );
+	}
+	wait 1;
+	level.missile_swarm_sound stoploopsound( 2 );
+	wait 2;
+	level.missile_swarm_sound delete();
+	recordstreakindex = level.killstreakindices[level.killstreaks["missile_swarm_mp"].menuname];
+	owner recordkillstreakendevent( recordstreakindex );
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( "missile_swarm_mp", level.missile_swarm_team, killstreak_id );
+	level.missile_swarm_owner = undefined;
+	wait 4;
+	missiles = getentarray( "swarm_missile", "targetname" );
+	foreach ( missile in missiles )
+	{
+		missile delete();
+		wait 0.1;
+	}
+	wait 6;
+	i = 0;
+	level.missile_swarm_fx[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1478
+swarm_killstreak_abort( owner, killstreak_id )
+{
+	level endon( "swarm_end" );
+	owner waittill_any( "disconnect", "joined_team", "joined_spectators", "emp_jammed" );
+	level thread swarm_killstreak_end( owner, 1, killstreak_id );
+// SP = 0x0 - check OK
+}
+
+// 0x14B4
+swarm_killstreak_watch_for_emp( owner, killstreak_id )
+{
+	level endon( "swarm_end" );
+	owner waittill( "emp_destroyed_missile_swarm", attacker );
+	maps\mp\_scoreevents::processscoreevent( "destroyed_missile_swarm", attacker, owner, "emp_mp" );
+	attacker maps\mp\_challenges::addflyswatterstat( "emp_mp" );
+	level thread swarm_killstreak_end( owner, 1, killstreak_id );
+// SP = 0x0 - check OK
+}
+
+// 0x1508
+swarm_killstreak_fx()
+{
+	level endon( "swarm_end" );
+	level.missile_swarm_fx = [];
+	yaw = randomint( 360 );
+	level.missile_swarm_fx[0] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[0] setmodel( "tag_origin" );
+	level.missile_swarm_fx[0].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[1] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[1] setmodel( "tag_origin" );
+	level.missile_swarm_fx[1].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[2] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[2] setmodel( "tag_origin" );
+	level.missile_swarm_fx[2].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[3] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[3] setmodel( "tag_origin" );
+	level.missile_swarm_fx[3].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[4] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[4] setmodel( "tag_origin" );
+	level.missile_swarm_fx[4].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[5] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[5] setmodel( "tag_origin" );
+	level.missile_swarm_fx[5].angles = ( -90, yaw, 0 );
+	level.missile_swarm_fx[6] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[6] setmodel( "tag_origin" );
+	level.missile_swarm_fx[6].angles = ( -90, yaw, 0 );
+	level.missile_swarm_sound = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_sound setmodel( "tag_origin" );
+	level.missile_swarm_sound.angles = ( 0, 0, 0 );
+	wait 0.1;
+	playfxontag( level.swarm_fx["swarm"], level.missile_swarm_fx[0], "tag_origin" );
+	wait 2;
+	level.missile_swarm_sound playloopsound( "veh_harpy_drone_swarm_lp", 3 );
+	level setclientfield( "missile_swarm", 1 );
+	current = 1;
+	level.missile_swarm_fx[current] = spawn( "script_model", level.missile_swarm_origin );
+	level.missile_swarm_fx[current] setmodel( "tag_origin" );
+	yaw = randomint( 360 );
+	level.missile_swarm_fx[current].angles = ( -90, yaw, 0 );
+	wait 0.1;
+	playfxontag( level.swarm_fx["swarm"], level.missile_swarm_fx[current], "tag_origin" );
+	current = ( current + 1 ) % 7;
+	wait 1.9;
+// SP = 0x0 - check OK
+}
+
+// 0x1824
+swarm_think( owner, killstreak_id )
+{
+	level endon( "swarm_end" );
+	lifetime = GetDvarFloat( #"0x4FEEA279" );
+	end_time = GetTime() + lifetime * 1000;
+	level.missile_swarm_count = 0;
+/#
+	assert( level.missile_swarm_count >= 0 );
+#/
+	wait 0.5;
+	count = 1;
+	level.missile_swarm_count += count;
+	i = 0;
+	self thread projectile_spawn( owner );
+	i++;
+	wait level.missile_swarm_count / level.missile_swarm_max + 0.4;
+	level thread swarm_killstreak_end( owner, undefined, killstreak_id );
+// SP = 0x0 - check OK
+}
+
+// 0x18E8
+projectile_cam( player )
+{
+/#
+	player.swarm_cam = 1;
+	wait 0.05;
+	forward = anglestoforward( self.angles );
+	cam = spawn( "script_model", ( self.origin + vector_scale( ( 0, 0, 1 ), 300 ) ) + forward * -200 );
+	cam setmodel( "tag_origin" );
+	cam linkto( self );
+	player camerasetposition( cam );
+	player camerasetlookat( self );
+	player cameraactivate( 1 );
+	self waittill( "death" );
+	wait 1;
+	player cameraactivate( 0 );
+	cam delete();
+	player.swarm_cam = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x19A0
+projectile_goal_move()
+{
+	self endon( "death" );
+	wait 0.25;
+	self.goal.origin = level.missile_swarm_origin;
+	enemy = projectile_find_random_player( self.owner, self.team );
+	self.goal.origin = enemy.origin + ( 0, 0, self.origin[2] );
+	pitch = randomintrange( -45, 45 );
+	yaw = randomintrange( 0, 360 );
+	angles = ( 0, yaw, 0 );
+	forward = anglestoforward( angles );
+	self.goal.origin = self.origin + forward * level.missile_swarm_flydist;
+	nfz = crossesnoflyzone( self.origin, self.goal.origin );
+	tries = 20;
+	tries--;
+	pitch = randomintrange( -45, 45 );
+	yaw = randomintrange( 0, 360 );
+	angles = ( 0, yaw, 0 );
+	forward = anglestoforward( angles );
+	self.goal.origin = self.origin + forward * level.missile_swarm_flydist;
+	nfz = crossesnoflyzone( self.origin, self.goal.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1B1C
+projectile_target_search( acceptskyexposure, acquiretime, allowplayeroffset )
+{
+	self endon( "death" );
+	wait acquiretime;
+	wait randomfloatrange( 0.5, 1 );
+	target = self projectile_find_target( acceptskyexposure );
+	self.swarm_target = target["entity"];
+	target["entity"].swarm = self;
+	self missile_settarget( target["entity"], target["offset"] );
+	self missile_dronesetvisible( 1 );
+	self missile_settarget( target["entity"] );
+	self missile_dronesetvisible( 1 );
+	self playsound( "veh_harpy_drone_swarm_incomming" );
+	self thread target_sounds( target["entity"] );
+	target["entity"] waittill_any( "death", "disconnect", "joined_team" );
+	self missile_settarget( self.goal );
+	self missile_dronesetvisible( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1C4C
+target_sounds( targetent )
+{
+	targetent endon( "death" );
+	targetent endon( "disconnect" );
+	targetent endon( "joined_team" );
+	self endon( "death" );
+	dist = 3000;
+	dist = self.warningsounddist;
+	wait 0.05;
+	return;
+	targetent.swarmsound = 1;
+	self thread reset_sound_blocker( targetent );
+	self thread target_stop_sounds( targetent );
+	targetent playlocalsound( level.missiledronesoundstart );
+	self playsound( level.missiledronesoundstart );
+// SP = 0x0 - check OK
+}
+
+// 0x1D18
+target_stop_sounds( targetent )
+{
+	targetent waittill_any( "disconnect", "death", "joined_team" );
+	targetent stoplocalsound( level.missiledronesoundstart );
+// SP = 0x0 - check OK
+}
+
+// 0x1D60
+reset_sound_blocker( target )
+{
+	wait 2;
+	target.swarmsound = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1D7C
+projectile_spawn( owner )
+{
+	level endon( "swarm_end" );
+	upvector = ( 0, 0, randomintrange( level.missile_swarm_flyheight - 1500, level.missile_swarm_flyheight - 1000 ) );
+	yaw = randomintrange( 0, 360 );
+	angles = ( 0, yaw, 0 );
+	forward = anglestoforward( angles );
+	origin = ( ( level.mapcenter + upvector ) + forward ) * ( level.missile_swarm_flydist * -1 );
+	target = ( level.mapcenter + upvector ) + forward * level.missile_swarm_flydist;
+	enemy = projectile_find_random_player( owner, owner.team );
+	target = enemy.origin + upvector;
+	projectile = projectile_spawn_utility( owner, target, origin, "missile_swarm_projectile_mp", "swarm_missile", 1 );
+	projectile thread projectile_abort_think();
+	projectile thread projectile_target_search( cointoss(), 1, 1 );
+	projectile thread projectile_death_think();
+	projectile thread projectile_goal_move();
+	wait 0.1;
+	projectile setclientfield( "missile_drone_projectile_animate", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1EA8
+projectile_spawn_utility( owner, target, origin, weapon, targetname, movegoal )
+{
+	goal = spawn( "script_model", target );
+	goal setmodel( "tag_origin" );
+	p = magicbullet( weapon, origin, target, owner, goal );
+	p.owner = owner;
+	p.team = owner.team;
+	p.goal = goal;
+	p.targetname = "swarm_missile";
+/#
+	p thread projectile_cam( owner );
+#/
+	return p;
+// SP = 0x0 - check OK
+}
+
+// 0x1F54
+projectile_death_think()
+{
+	self waittill( "death" );
+	level.missile_swarm_count--;
+	self.goal delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1F74
+projectile_abort_think()
+{
+	self endon( "death" );
+	self.owner waittill_any( "disconnect", "joined_team" );
+	self detonate();
+// SP = 0x0 - check OK
+}
+
+// 0x1FA0
+projectile_find_target( acceptskyexposure )
+{
+	ks = projectile_find_target_killstreak( acceptskyexposure );
+	player = projectile_find_target_player( acceptskyexposure );
+	return ks;
+	return player;
+	return ks;
+	return player;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2010
+projectile_find_target_killstreak( acceptskyexposure )
+{
+	ks = [];
+	ks["offset"] = vector_scale( ( 0, 0, -1 ), 10 );
+	targets = target_getarray();
+	rcbombs = getentarray( "rcbomb", "targetname" );
+	satellites = getentarray( "satellite", "targetname" );
+	dogs = maps\mp\killstreaks\_dogs::dog_manager_get_dogs();
+	targets = arraycombine( targets, rcbombs, 1, 0 );
+	targets = arraycombine( targets, satellites, 1, 0 );
+	targets = arraycombine( targets, dogs, 1, 0 );
+	return undefined;
+	targets = arraysort( targets, self.origin );
+	foreach ( target in targets )
+	{
+		ks["entity"] = target;
+		return ks;
+		end = target.origin + vector_scale( ( 0, 0, 1 ), 2048 );
+		ks["entity"] = target;
+		return ks;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x21F0
+projectile_find_target_player( acceptexposedtosky )
+{
+	target = [];
+	players = get_players();
+	players = arraysort( players, self.origin );
+	foreach ( player in players )
+	{
+		target["entity"] = player;
+		target["offset"] = ( 0, 0, 0 );
+		return target;
+		target["entity"] = player;
+		target["offset"] = vector_scale( ( 0, 0, 1 ), 50 );
+		return target;
+		end = player.origin + vector_scale( ( 0, 0, 1 ), 2048 );
+		target["entity"] = player;
+		target["offset"] = vector_scale( ( 0, 0, 1 ), 30 );
+		return target;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x232C
+create_player_targeting_array( owner, team )
+{
+	level.playertargetedtimes = [];
+	players = get_players();
+	foreach ( player in players )
+	{
+		level.playertargetedtimes[player.clientid] = 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x239C
+projectile_find_random_player( owner, team )
+{
+	players = get_players();
+	lowest = 10000;
+	foreach ( player in players )
+	{
+		level.playertargetedtimes[player.clientid] = 0;
+		target = player;
+		lowest = level.playertargetedtimes[player.clientid];
+	}
+	level.playertargetedtimes[target.clientid] += 1;
+	return target;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x248C
+player_valid_target( player, team, owner )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+/#
+	return 0;
+#/
+	return 1;
+// SP = 0x0 - check OK
+}

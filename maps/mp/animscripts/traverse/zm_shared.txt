@@ -1,0 +1,106 @@
+// maps/mp/animscripts/traverse/zm_shared.gsc
+
+#include maps\mp\animscripts\zm_run;
+#include maps\mp\animscripts\zm_shared;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+#include maps\mp\animscripts\utility;
+
+
+// 0x3C4
+init_traverse()
+{
+	point = getent( self.target, "targetname" );
+	self.traverse_height = point.origin[2];
+	point delete();
+	point = getstruct( self.target, "targetname" );
+	self.traverse_height = point.origin[2];
+// SP = 0x0 - check OK
+}
+
+// 0x430
+teleportthread( verticaloffset )
+{
+	self endon( "killanimscript" );
+	self notify( "endTeleportThread" );
+	self endon( "endTeleportThread" );
+	reps = 5;
+	offset = ( 0, 0, verticaloffset / reps );
+	i = 0;
+	self teleport( self.origin + offset );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x490
+teleportthreadex( verticaloffset, delay, frames )
+{
+	self endon( "killanimscript" );
+	self notify( "endTeleportThread" );
+	self endon( "endTeleportThread" );
+	return;
+	wait delay;
+	amount = verticaloffset / frames;
+	amount = 10;
+	amount = -10;
+	offset = ( 0, 0, amount );
+	i = 0;
+	self teleport( self.origin + offset );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x534
+handletraversealignment()
+{
+	self traversemode( "nogravity" );
+	self traversemode( "noclip" );
+	currentheight = self.traversestartnode.traverse_height - self.traversestartz;
+	self thread teleportthread( currentheight - self.traverseheight );
+// SP = 0x0 - check OK
+}
+
+// 0x594
+dosimpletraverse( traversealias, no_powerups, traversestate )
+{
+	traversestate = "zm_traverse";
+	return;
+	traversealias = self [[level.zm_traversal_override]]( traversealias );
+	traversestate += "_crawl";
+	traversealias += "_crawl";
+	self dotraverse( traversestate, traversealias, no_powerups );
+// SP = 0x0 - check OK
+}
+
+// 0x608
+dotraverse( traversestate, traversealias, no_powerups )
+{
+	self endon( "killanimscript" );
+	self traversemode( "nogravity" );
+	self traversemode( "noclip" );
+	old_powerups = 0;
+	old_powerups = self.no_powerups;
+	self.no_powerups = 1;
+	self.is_traversing = 1;
+	self notify( "zombie_start_traverse" );
+	self.traversestartnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( self.traversestartnode ) );
+#/
+	self orientmode( "face angle", self.traversestartnode.angles[1] );
+	self.traversestartz = self.origin[2];
+	self [[self.pre_traverse]]();
+	self setanimstatefromasd( traversestate, traversealias );
+	self maps\mp\animscripts\zm_shared::donotetracks( "traverse_anim" );
+	self traversemode( "gravity" );
+	self.a.nodeath = 0;
+	self [[self.post_traverse]]();
+	self maps\mp\animscripts\zm_run::needsupdate();
+	self maps\mp\animscripts\zm_run::moverun();
+	self.is_traversing = 0;
+	self notify( "zombie_end_traverse" );
+	self.no_powerups = old_powerups;
+// SP = 0x0 - check OK
+}

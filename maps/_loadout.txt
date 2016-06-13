@@ -1,0 +1,356 @@
+// maps/_loadout.gsc
+
+#include animscripts\assign_weapon;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xC9C
+init_loadout()
+{
+	level.player_loadout = [];
+	level.player_loadout_options = [];
+	level.player_loadout_slots = [];
+	level.player_perks = [];
+	animscripts\assign_weapon::assign_weapon_init();
+	init_models_and_variables_loadout();
+	players = get_players( "all" );
+	i = 0;
+	players[i] give_loadout();
+	players[i].pers["class"] = "closequarters";
+	i++;
+	level.loadoutcomplete = 1;
+	level notify( "loadout complete" );
+// SP = 0x0 - check OK
+}
+
+// 0xD34
+init_melee_weapon()
+{
+	add_weapon( "machete_sp" );
+	add_weapon( "knife_sp" );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+init_loadout_weapons()
+{
+	init_melee_weapon();
+	add_weapon( "rpg_player_sp" );
+	add_weapon( "m202_flash_sp" );
+	add_weapon( "strela_sp" );
+	add_weapon( "m220_tow_sp" );
+	add_weapon( "china_lake_sp" );
+	set_laststand_pistol( "m1911_sp" );
+	set_switch_weapon( "rpg_player_sp" );
+	return;
+	add_weapon( "m16_sp" );
+	add_weapon( "m1911_sp" );
+	set_switch_weapon( "m16_sp" );
+	set_laststand_pistol( "m1911_sp" );
+	set_switch_weapon( "m16_sp" );
+	return;
+	set_laststand_pistol( "none" );
+	return;
+	set_laststand_pistol( "none" );
+	return;
+	return;
+	precacheitem( "frag_grenade_sp" );
+	return;
+	primary = getloadoutweapon( "primary" );
+	secondary = getloadoutweapon( "secondary" );
+	grenade = getloadoutitem( "primarygrenade" );
+	specialgrenade = getloadoutitem( "specialGrenade" );
+	primaryweaponoptions = getloadoutitemindex( "primarycamo" );
+	secondaryweaponoptions = getloadoutitemindex( "secondarycamo" );
+	i = 1;
+	perk = getloadoutitem( "specialty" + i );
+	add_perk( perk );
+	i++;
+	add_weapon( primary, primaryweaponoptions );
+	add_weapon( secondary, secondaryweaponoptions );
+	add_weapon( grenade, undefined, "primarygrenade" );
+	add_weapon( specialgrenade, undefined, "specialgrenade" );
+/#
+	println( "GiveWeapon( " + primary + " ) -- primary weapon" );
+#/
+/#
+	println( "GiveWeapon( " + secondary + " ) -- secondary weapon" );
+#/
+/#
+	println( "GiveWeapon( " + grenade + " ) -- primary grenade" );
+#/
+/#
+	println( "GiveWeapon( " + specialgrenade + " ) -- secondary grenade" );
+#/
+	set_switch_weapon( primary );
+	set_switch_weapon( secondary );
+	precacheitem( "frag_grenade_sp" );
+// SP = 0x0 - check OK
+}
+
+// 0x105C
+init_viewmodels_and_campaign()
+{
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_hands( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_seal80s_mason_viewhands" );
+	set_player_interactive_hands( "c_usa_seal80s_mason_viewbody" );
+	set_player_interactive_model( "c_usa_seal80s_mason_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_seal6_monsoon_armlaunch_viewhands" );
+	set_player_camo_viewmodel( "c_usa_cia_masonjr_viewhands_cl" );
+	set_player_interactive_hands( "c_usa_seal6_monsoon_armlaunch_viewbody" );
+	set_player_interactive_model( "c_usa_seal6_monsoon_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_masonjr_karma_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_masonjr_karma_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_woods_panama_viewhands" );
+	set_player_interactive_hands( "c_usa_woods_panama_viewbody" );
+	set_player_interactive_model( "c_usa_woods_panama_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_mason_afgan_viewhands" );
+	set_player_interactive_hands( "c_usa_mason_afgan_viewhands" );
+	set_player_interactive_model( "c_usa_mason_afgan_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_mul_yemen_farid_datapad_viewhands" );
+	set_player_camo_viewmodel( "c_mul_yemen_farid_datapad_viewhands_cl" );
+	set_player_interactive_model( "c_mul_yemen_farid_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_hands( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_mul_menendez_nicaragua_viewhands" );
+	set_player_interactive_hands( "c_mul_menendez_nicaragua_viewhands" );
+	set_player_interactive_model( "c_mul_menendez_nicaragua_viewbody" );
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_seal6_skyfall_armlaunch_viewbody" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "viewmodel_usa_marine_arms" );
+	set_player_interactive_hands( "viewhands_player_usmc" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	set_player_interactive_hands( "c_usa_cia_masonjr_viewhands" );
+	level.campaign = "american";
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_viewhands" );
+	set_player_interactive_hands( "c_usa_cia_masonjr_viewhands" );
+	set_player_interactive_model( "c_usa_cia_masonjr_viewbody" );
+	level.campaign = "none";
+	return;
+	set_laststand_pistol( "none" );
+	level.campaign = "none";
+	return;
+	return;
+	set_player_viewmodel( "c_usa_seal6_monsoon_armlaunch_viewhands" );
+	set_player_interactive_hands( "c_usa_seal6_monsoon_armlaunch_viewbody" );
+	set_player_interactive_model( "c_usa_seal6_monsoon_armlaunch_viewbody" );
+	set_player_viewmodel( "c_usa_cia_masonjr_armlaunch_viewhands" );
+	set_player_interactive_hands( "viewmodel_usa_jungmar_player" );
+	set_player_interactive_model( "c_usa_cia_masonjr_armlaunch_viewbody" );
+	return;
+	set_player_viewmodel( "c_usa_cia_masonjr_viewhands" );
+	set_player_interactive_hands( "viewmodel_usa_jungmar_player" );
+	set_player_interactive_model( "c_usa_cia_masonjr_viewbody" );
+	level.campaign = "american";
+// SP = 0x0 - check OK
+}
+
+// 0x1518
+init_models_and_variables_loadout()
+{
+	init_loadout_weapons();
+	init_viewmodels_and_campaign();
+// SP = 0x0 - check OK
+}
+
+// 0x1530
+do_additional_precaching( str_weapon_name )
+{
+	precacheitem( "exptitus6_sp" );
+	precacheitem( "titus6_sp" );
+	precacheitem( "titus_explosive_dart_sp" );
+	precacheitem( "explosive_bolt_sp" );
+// SP = 0x0 - check OK
+}
+
+// 0x1588
+add_weapon( weapon_name, options, slot_instructions )
+{
+	return;
+	precacheitem( weapon_name );
+	do_additional_precaching( weapon_name );
+	level.player_loadout[level.player_loadout.size] = weapon_name;
+	options = -1;
+	level.player_loadout_options[level.player_loadout_options.size] = options;
+	slot_instructions = "";
+	level.player_loadout_slots[level.player_loadout_slots.size] = slot_instructions;
+// SP = 0x0 - check OK
+}
+
+// 0x1604
+add_perk( perk_name )
+{
+	return;
+	perk_specialties = strtok( perk_name, "|" );
+	i = 0;
+	level.player_perks[level.player_perks.size] = perk_specialties[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1670
+set_secondary_offhand( weapon_name )
+{
+	level.player_secondaryoffhand = weapon_name;
+// SP = 0x0 - check OK
+}
+
+// 0x1680
+set_switch_weapon( weapon_name )
+{
+	level.player_switchweapon = weapon_name;
+// SP = 0x0 - check OK
+}
+
+// 0x1690
+set_action_slot( num, option1, option2 )
+{
+/#
+	assertmsg( "_loadout.gsc: set_action_slot must be set with a number greater than 1 and less than 5" );
+#/
+	precacheitem( option2 );
+	level.player_loadout[level.player_loadout.size] = option2;
+	level.player_actionslots = [];
+	action_slot = spawnstruct();
+	action_slot.num = num;
+	action_slot.option1 = option1;
+	action_slot.option2 = option2;
+	level.player_actionslots[level.player_actionslots.size] = action_slot;
+// SP = 0x0 - check OK
+}
+
+// 0x1738
+set_player_viewmodel( model )
+{
+	precachemodel( model );
+	level.player_viewmodel = model;
+// SP = 0x0 - check OK
+}
+
+// 0x1758
+set_player_camo_viewmodel( model )
+{
+	precachemodel( model );
+	level.player_camo_viewmodel = model;
+// SP = 0x0 - check OK
+}
+
+// 0x1778
+set_player_interactive_hands( model )
+{
+	precachemodel( model );
+	level.player_interactive_hands = model;
+// SP = 0x0 - check OK
+}
+
+// 0x1798
+set_player_interactive_model( model )
+{
+	precachemodel( model );
+	level.player_interactive_model = model;
+// SP = 0x0 - check OK
+}
+
+// 0x17B8
+set_laststand_pistol( weapon )
+{
+	level.laststandpistol = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x17C8
+give_loadout( wait_for_switch_weapon )
+{
+	game["gaveweapons"] = 0;
+	game["expectedlevel"] = "";
+	game["gaveweapons"] = 0;
+	game["gaveweapons"] = 1;
+	gave_grenade = 0;
+	i = 0;
+	gave_grenade = 1;
+	i++;
+	grenade = level.player_grenade;
+	grenade = "frag_grenade_sp";
+	self giveweapon( grenade );
+	self setweaponammoclip( grenade, 0 );
+	self setweaponammostock( grenade, 0 );
+	gave_grenade = 1;
+	bmaxammo = 0;
+	bmaxammo = 1;
+	i = 0;
+	weaponoptions = self calcweaponoptions( level.player_loadout_options[i] );
+	self giveweapon( level.player_loadout[i], 0, weaponoptions );
+	self giveweapon( level.player_loadout[i] );
+	self switchtooffhand( level.player_loadout[i] );
+	self setoffhandprimaryclass( level.player_loadout[i] );
+	self switchtooffhand( level.player_loadout[i] );
+	self setoffhandsecondaryclass( level.player_loadout[i] );
+	self givemaxammo( level.player_loadout[i] );
+	i++;
+	i = 0;
+	self setperk( level.player_perks[i] );
+	i++;
+	self setactionslot( 1, "" );
+	self setactionslot( 2, "" );
+	self setactionslot( 3, "altMode" );
+	self setactionslot( 4, "" );
+	i = 0;
+	num = level.player_actionslots[i].num;
+	option1 = level.player_actionslots[i].option1;
+	option2 = level.player_actionslots[i].option2;
+	self setactionslot( num, option1, option2 );
+	self setactionslot( num, option1 );
+	i++;
+	wait 0.5;
+	self setspawnweapon( level.player_switchweapon );
+	self switchtoweapon( level.player_switchweapon );
+	wait 0.5;
+	self player_flag_set( "loadout_given" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B14
+give_model()
+{
+	entity_num = self getentitynumber();
+	self setviewmodel( level.player_viewmodel );
+// SP = 0x0 - check OK
+}

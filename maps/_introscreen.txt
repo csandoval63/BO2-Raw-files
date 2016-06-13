@@ -1,0 +1,617 @@
+// maps/_introscreen.gsc
+
+#include maps\_skipto;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x9C0
+main()
+{
+	flag_init( "pullup_weapon" );
+	flag_init( "starting final intro screen fadeout" );
+	flag_init( "introscreen_complete" );
+	precacheshader( "black" );
+	precachestring( &"hud_close_title_card" );
+	precachestring( &"hud_add_title_line" );
+	setdvar( "introscreen", "1" );
+	level.splitscreen = GetDvarInt( #"0x99132F31" );
+	level.hidef = GetDvarInt( #"0xF943F25" );
+	level thread introscreen_report_disconnected_clients();
+	switch ( level.script )
+	{
+		case "angola":
+		case "blackout":
+			precachestring( &"ANGOLA" );
+			introscreen_lui_typewriter_delay( "ANGOLA", 5, 10, 0, 0 );
+			break;
+		case "example":
+			level.introscreen_shader_fadeout_time = 1;
+			level.introscreen_shader = "black";
+			precachestring( &"HAITI" );
+			introscreen_lui_typewriter_delay( "HAITI", 5, 10, 0, 0 );
+			break;
+		case "haiti":
+			level.introscreen_shader = "none";
+			level.introscreen_dontfreezcontrols = 1;
+			precachestring( &"NICARAGUA" );
+			precachestring( &"NICARAGUA_MENENDEZ" );
+			introscreen_lui_typewriter_delay( "NICARAGUA", 5, 10, 0, 0 );
+			break;
+		case "karma":
+			precachestring( &"MONSOON" );
+			introscreen_lui_typewriter_delay( "MONSOON", 5, 10, 0, 0 );
+			break;
+		case "la_1":
+			level.introscreen_shader = "black";
+			precachestring( &"AFGHANISTAN" );
+			introscreen_lui_typewriter_delay( "AFGHANISTAN", 5, 10, 0, 1 );
+			break;
+		case "monsoon":
+			level.introscreen_shader = "none";
+			level.introscreen_dontfreezcontrols = 1;
+			precachestring( &"PAKISTAN_SHARED" );
+			introscreen_lui_typewriter_delay( "PAKISTAN_SHARED", 5, 10, 0, 0 );
+			break;
+		case "nicaragua":
+			precachestring( &"KARMA" );
+			introscreen_lui_typewriter_delay( "KARMA", 5, 10, 0, 1 );
+			break;
+		case "pakistan":
+			level.introscreen_shader_fadeout_time = 0.05;
+			level.introscreen_shader = "black";
+			precachestring( &"BLACKOUT" );
+			introscreen_lui_typewriter_delay( "BLACKOUT", 5, 10, 0, 0 );
+			break;
+		case "panama":
+			level.introscreen_waitontext_flag = "end_intro_screen";
+			level.introscreen_shader_fadeout_time = 0.05;
+			level.introscreen_shader = "black";
+			precachestring( &"LA_SHARED" );
+			introscreen_lui_typewriter_delay( "LA_SHARED", 5, 10, 0, 0 );
+			break;
+		case "so_cmp_afghanistan":
+			precachestring( &"PANAMA" );
+			introscreen_lui_typewriter_delay( "PANAMA", 5, 10, 0, 0 );
+			break;
+		case "so_rts_afghanistan":
+			level.introscreen_shader_fadeout_time = 0.05;
+			level.introscreen_shader = "black";
+			precachestring( &"YEMEN" );
+			precachestring( &"YEMEN_MASON" );
+			introscreen_lui_typewriter_delay( "YEMEN", 5, 10, 0, 0 );
+			break;
+		case "so_rts_mp_dockside":
+			precachestring( &"SO_RTS_MP_DOCKSIDE" );
+			introscreen_lui_typewriter_delay( "SO_RTS_MP_DOCKSIDE", 4, 10, 0, 0 );
+			break;
+		case "so_rts_mp_drone":
+			precachestring( &"SO_RTS_MP_SOCOTRA" );
+			introscreen_lui_typewriter_delay( "SO_RTS_MP_SOCOTRA", 4, 10, 0, 0 );
+			break;
+		case "so_rts_mp_overflow":
+			precachestring( &"SO_RTS_AFGHANISTAN" );
+			introscreen_lui_typewriter_delay( "SO_RTS_AFGHANISTAN", 4, 10, 0, 0 );
+			break;
+		case "so_rts_mp_socotra":
+			precachestring( &"SO_RTS_MP_OVERFLOW" );
+			introscreen_lui_typewriter_delay( "SO_RTS_MP_OVERFLOW", 4, 10, 0, 0 );
+			break;
+		case "so_tut_mp_drone":
+			precachestring( &"SO_RTS_MP_DRONE" );
+			introscreen_lui_typewriter_delay( "SO_RTS_MP_DRONE", 4, 10, 0, 0 );
+			break;
+		case "yemen":
+			precachestring( &"SO_TUT_MP_DRONE" );
+			introscreen_lui_typewriter_delay( "SO_TUT_MP_DRONE", 4, 10, 0, 0 );
+			break;
+		default:
+			wait 0.05;
+			level notify( "finished final intro screen fadein" );
+			wait 0.05;
+			flag_set( "starting final intro screen fadeout" );
+			wait 0.05;
+			level notify( "controls_active" );
+			wait 0.05;
+			flag_set( "introscreen_complete" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xE4C
+introscreen_lui_typewriter_delay( level_prefix, number_of_lines, totaltime, delay_after_text, text_color )
+{
+	waittillframeend;
+	waittillframeend;
+	skipintro = 0;
+	skipintro = level.start_point != "default";
+	skipintro = !(maps\_skipto::is_default_skipto());
+	skipintro = 1;
+	level.introblackbacking destroy();
+	flag_wait( "all_players_connected" );
+	[[level.custom_introscreen]]( istring( level_prefix ), number_of_lines, totaltime, text_color );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	waittillframeend;
+	level notify( "finished final intro screen fadein" );
+	waittillframeend;
+	flag_set( "starting final intro screen fadeout" );
+	waittillframeend;
+	level notify( "controls_active" );
+	waittillframeend;
+	flag_set( "introscreen_complete" );
+	flag_set( "pullup_weapon" );
+	return;
+	[[level.custom_introscreen]]( istring( level_prefix ), number_of_lines, totaltime, text_color );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	level.introblackbacking = newhudelem();
+	level.introblackbacking.x = 0;
+	level.introblackbacking.y = 0;
+	level.introblackbacking.horzalign = "fullscreen";
+	level.introblackbacking.vertalign = "fullscreen";
+	level.introblackbacking setshader( "white", 640, 480 );
+	level.introblackbacking.color = vector_scale( ( 1, 1, 1 ), 0.94 );
+	level.introblackbacking setshader( level.introscreen_shader, 640, 480 );
+	flag_wait( "all_players_connected" );
+	freezecontrols_all( 1 );
+	level._introscreen = 1;
+	wait 0.5;
+	level.introstring = [];
+	totaltime = 14.25;
+	decay_start = int( 1000 * totaltime );
+	totalpausetime = 0;
+	luinotifyevent( &"hud_add_title_line", 4, istring( level_prefix ), number_of_lines, totaltime, text_color );
+	level notify( "finished final intro screen fadein" );
+	level notify( "introscreen_blackscreen_waiting_on_flag" );
+	flag_wait( level.introscreen_waitontext_flag );
+	wait totaltime - totalpausetime;
+	wait delay_after_text;
+	wait 2.5;
+	waittill_textures_loaded();
+	level.introblackbacking fadeovertime( level.introscreen_shader_fadeout_time );
+	level.introblackbacking fadeovertime( 1.5 );
+	level.introblackbacking.alpha = 0;
+	flag_set( "starting final intro screen fadeout" );
+	level thread freezecontrols_all( 0, 0.75 );
+	level._introscreen = 0;
+	level notify( "controls_active" );
+	introscreen_fadeouttext();
+	flag_set( "introscreen_complete" );
+// SP = 0x0 - check OK
+}
+
+// 0x1164
+introscreen_create_redacted_line( string, redacted_line_time, start_rubout_time, rubout_time, color, type, scale, font )
+{
+	index = level.introstring.size;
+	ypos = index * 30;
+	ypos -= 90;
+	xpos = 0;
+	ypos -= 120;
+	xpos = 10;
+	align_x = "center";
+	align_y = "middle";
+	horz_align = "center";
+	vert_align = "middle";
+	type = "lower_left";
+	switch ( type )
+	{
+		case "lower_left":
+			ypos -= 30;
+			align_x = "left";
+			align_y = "bottom";
+			horz_align = "left";
+			vert_align = "bottom";
+			break;
+	}
+	fontscale = 2.5;
+	fontscale = 1.5;
+	fontscale = scale;
+	level.introstring[index] = newhudelem();
+	level.introstring[index].x = xpos;
+	level.introstring[index].y = ypos;
+	level.introstring[index].alignx = align_x;
+	level.introstring[index].aligny = align_y;
+	level.introstring[index].horzalign = horz_align;
+	level.introstring[index].vertalign = vert_align;
+	level.introstring[index].sort = 1;
+	level.introstring[index].foreground = 1;
+	level.introstring[index].hidewheninmenu = 1;
+	level.introstring[index].fontscale = fontscale;
+	level.introstring[index].color = ( 0, 0, 0 );
+	level.introstring[index] settext( string );
+	level.introstring[index] setredactfx( redacted_line_time, 700, start_rubout_time, rubout_time );
+	level.introstring[index].alpha = 0;
+	level.introstring[index] fadeovertime( 1.2 );
+	level.introstring[index].alpha = 1;
+	level.introstring[index].font = font;
+	level.introstring[index].color = color;
+	level.introstring[index].color = level.introstring_text_color;
+// SP = 0x0 - check OK
+}
+
+// 0x13C8
+introscreen_create_typewriter_line( string, letter_time, decay_start_time, decay_duration, color, type, font )
+{
+	index = level.introstring.size;
+	scale = 2;
+	ypos = index * 20;
+	scale = 1.2;
+	ypos = index * 15;
+	scale = 1.5;
+	ypos = index * 15 + 5;
+	ypos -= 60;
+	xpos = 0;
+	ypos -= 90;
+	xpos = 20;
+	align_x = "center";
+	align_y = "middle";
+	horz_align = "center";
+	vert_align = "middle";
+	type = "lower_left";
+	switch ( type )
+	{
+		case "lower_left":
+			ypos -= 30;
+			align_x = "left";
+			align_y = "bottom";
+			horz_align = "left";
+			vert_align = "bottom";
+			break;
+	}
+	fontscale = 2.5;
+	fontscale = 1.5;
+	fontscale = scale;
+	level.introstring[index] = newhudelem();
+	level.introstring[index].x = xpos;
+	level.introstring[index].y = ypos;
+	level.introstring[index].alignx = align_x;
+	level.introstring[index].aligny = align_y;
+	level.introstring[index].horzalign = horz_align;
+	level.introstring[index].vertalign = vert_align;
+	level.introstring[index].sort = 1;
+	level.introstring[index].foreground = 1;
+	level.introstring[index].hidewheninmenu = 1;
+	level.introstring[index].fontscale = fontscale;
+	level.introstring[index].color = ( 0, 0, 0 );
+	level.introstring[index] settext( string );
+	level.introstring[index] settypewriterfx( letter_time, decay_start_time, decay_duration );
+	level.introstring[index].alpha = 0;
+	level.introstring[index] fadeovertime( 1.2 );
+	level.introstring[index].alpha = 1;
+	level.introstring[index].font = font;
+	level.introstring[index].color = color;
+	level.introstring[index].color = level.introstring_text_color;
+// SP = 0x0 - check OK
+}
+
+// 0x1668
+introscreen_create_line( string, type, scale, font, color )
+{
+	index = level.introstring.size;
+	ypos = index * 30;
+	ypos -= 90;
+	xpos = 0;
+	ypos -= 120;
+	xpos = 10;
+	align_x = "center";
+	align_y = "middle";
+	horz_align = "center";
+	vert_align = "middle";
+	type = "lower_left";
+	switch ( type )
+	{
+		case "lower_left":
+			ypos -= 30;
+			align_x = "left";
+			align_y = "bottom";
+			horz_align = "left";
+			vert_align = "bottom";
+			break;
+	}
+	fontscale = 2.75;
+	fontscale = 1.75;
+	fontscale = scale;
+	level.introstring[index] = newhudelem();
+	level.introstring[index].x = xpos;
+	level.introstring[index].y = ypos;
+	level.introstring[index].alignx = align_x;
+	level.introstring[index].aligny = align_y;
+	level.introstring[index].horzalign = horz_align;
+	level.introstring[index].vertalign = vert_align;
+	level.introstring[index].sort = 1;
+	level.introstring[index].foreground = 1;
+	level.introstring[index].hidewheninmenu = 1;
+	level.introstring[index].fontscale = fontscale;
+	level.introstring[index] settext( string );
+	level.introstring[index].alpha = 0;
+	level.introstring[index] fadeovertime( 1.2 );
+	level.introstring[index].alpha = 1;
+	level.introstring[index].font = font;
+	level.introstring[index].color = color;
+// SP = 0x0 - check OK
+}
+
+// 0x1884
+introscreen_fadeouttext()
+{
+	i = 0;
+	level.introstring[i] fadeovertime( 1.5 );
+	level.introstring[i].alpha = 0;
+	i++;
+	wait 1.5;
+	i = 0;
+	level.introstring[i] destroy();
+	i++;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x1908
+introscreen_redact_delay( string1, string2, string3, string4, string5, pausetime, totaltime, time_to_redact, delay_after_text, rubout_time, color )
+{
+	waittillframeend;
+	waittillframeend;
+	skipintro = 0;
+	skipintro = level.start_point != "default";
+	skipintro = !(maps\_skipto::is_default_skipto());
+	skipintro = 1;
+	level.introblackbacking destroy();
+	flag_wait( "all_players_connected" );
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	waittillframeend;
+	level notify( "finished final intro screen fadein" );
+	waittillframeend;
+	flag_set( "starting final intro screen fadeout" );
+	waittillframeend;
+	level notify( "controls_active" );
+	waittillframeend;
+	flag_set( "introscreen_complete" );
+	flag_set( "pullup_weapon" );
+	return;
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	level.introblackbacking = newhudelem();
+	level.introblackbacking.x = 0;
+	level.introblackbacking.y = 0;
+	level.introblackbacking.horzalign = "fullscreen";
+	level.introblackbacking.vertalign = "fullscreen";
+	level.introblackbacking setshader( "white", 640, 480 );
+	level.introblackbacking setshader( level.introscreen_shader, 640, 480 );
+	flag_wait( "all_players_connected" );
+	freezecontrols_all( 1 );
+	level._introscreen = 1;
+	wait 0.5;
+	level.introstring = [];
+	pausetime = 0.75;
+	totaltime = 14.25;
+	time_to_redact = 0.525 * totaltime;
+	rubout_time = 1;
+	start_rubout_time = int( time_to_redact * 1000 );
+	totalpausetime = 0;
+	rubout_time = int( rubout_time * 1000 );
+	redacted_line_time = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_redacted_line( string1, redacted_line_time, start_rubout_time, rubout_time, color, undefined, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	start_rubout_time = int( ( start_rubout_time + rubout_time ) - pausetime * 1000 ) + randomintrange( 350, 500 );
+	redacted_line_time = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_redacted_line( string2, redacted_line_time, start_rubout_time, rubout_time, color, undefined, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	start_rubout_time = int( ( start_rubout_time + rubout_time ) - pausetime * 1000 ) + randomintrange( 350, 500 );
+	redacted_line_time = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_redacted_line( string3, redacted_line_time, start_rubout_time, rubout_time, color, undefined, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	start_rubout_time = int( ( start_rubout_time + rubout_time ) - pausetime * 1000 ) + randomintrange( 350, 500 );
+	redacted_line_time = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_redacted_line( string4, redacted_line_time, start_rubout_time, rubout_time, color, undefined, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	start_rubout_time = int( ( start_rubout_time + rubout_time ) - pausetime * 1000 ) + randomintrange( 350, 500 );
+	redacted_line_time = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_redacted_line( string5, redacted_line_time, start_rubout_time, rubout_time, color, undefined, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	level notify( "finished final intro screen fadein" );
+	level notify( "introscreen_blackscreen_waiting_on_flag" );
+	flag_wait( level.introscreen_waitontext_flag );
+	wait totaltime - totalpausetime;
+	wait delay_after_text;
+	wait 2.5;
+	waittill_textures_loaded();
+	level.introblackbacking fadeovertime( level.introscreen_shader_fadeout_time );
+	level.introblackbacking fadeovertime( 1.5 );
+	level.introblackbacking.alpha = 0;
+	flag_set( "starting final intro screen fadeout" );
+	level thread freezecontrols_all( 0, 0.75 );
+	level._introscreen = 0;
+	level notify( "controls_active" );
+	introscreen_fadeouttext();
+	flag_set( "introscreen_complete" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E10
+introscreen_typewriter_delay( string1, string2, string3, string4, string5, letter_time, decay_duration, pausetime, totaltime, delay_after_text, color )
+{
+	waittillframeend;
+	waittillframeend;
+	skipintro = 0;
+	skipintro = level.start_point != "default";
+	skipintro = !(maps\_skipto::is_default_skipto());
+	skipintro = 1;
+	level.introblackbacking destroy();
+	flag_wait( "all_players_connected" );
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	waittillframeend;
+	level notify( "finished final intro screen fadein" );
+	waittillframeend;
+	flag_set( "starting final intro screen fadeout" );
+	waittillframeend;
+	level notify( "controls_active" );
+	waittillframeend;
+	flag_set( "introscreen_complete" );
+	flag_set( "pullup_weapon" );
+	return;
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	level.introblackbacking = newhudelem();
+	level.introblackbacking.x = 0;
+	level.introblackbacking.y = 0;
+	level.introblackbacking.horzalign = "fullscreen";
+	level.introblackbacking.vertalign = "fullscreen";
+	level.introblackbacking setshader( "white", 640, 480 );
+	level.introblackbacking.color = vector_scale( ( 1, 1, 1 ), 0.94 );
+	level.introblackbacking setshader( level.introscreen_shader, 640, 480 );
+	flag_wait( "all_players_connected" );
+	freezecontrols_all( 1 );
+	level._introscreen = 1;
+	wait 0.5;
+	level.introstring = [];
+	letter_time = 0.1;
+	decay_duration = 0.5;
+	pausetime = 1.5;
+	totaltime = 14.25;
+	letter_time = int( 1000 * letter_time );
+	decay_duration = int( 1000 * decay_duration );
+	decay_start = int( 1000 * totaltime );
+	totalpausetime = 0;
+	level thread introscreen_create_typewriter_line( string1, letter_time, decay_start, decay_duration, color, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	decay_start = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_typewriter_line( string2, letter_time, decay_start, decay_duration, color, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	decay_start = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_typewriter_line( string3, letter_time, decay_start, decay_duration, color, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	decay_start = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_typewriter_line( string4, letter_time, decay_start, decay_duration, color, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	decay_start = int( 1000 * ( totaltime - totalpausetime ) );
+	level thread introscreen_create_typewriter_line( string5, letter_time, decay_start, decay_duration, color, undefined, "objective" );
+	wait pausetime;
+	totalpausetime += pausetime;
+	level notify( "finished final intro screen fadein" );
+	level notify( "introscreen_blackscreen_waiting_on_flag" );
+	flag_wait( level.introscreen_waitontext_flag );
+	wait totaltime - totalpausetime;
+	wait delay_after_text;
+	wait 2.5;
+	waittill_textures_loaded();
+	level.introblackbacking fadeovertime( level.introscreen_shader_fadeout_time );
+	level.introblackbacking fadeovertime( 1.5 );
+	level.introblackbacking.alpha = 0;
+	flag_set( "starting final intro screen fadeout" );
+	level thread freezecontrols_all( 0, 0.75 );
+	level._introscreen = 0;
+	level notify( "controls_active" );
+	introscreen_fadeouttext();
+	flag_set( "introscreen_complete" );
+// SP = 0x0 - check OK
+}
+
+// 0x2284
+introscreen_delay( string1, string2, string3, string4, string5, pausetime1, pausetime2, timebeforefade, skipwait )
+{
+/#
+	waittillframeend;
+	waittillframeend;
+	skipintro = 0;
+	skipintro = level.start_point != "default";
+	skipintro = !(maps\_skipto::is_default_skipto());
+	skipintro = 1;
+	flag_wait( "all_players_connected" );
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	waittillframeend;
+	level notify( "finished final intro screen fadein" );
+	waittillframeend;
+	flag_set( "starting final intro screen fadeout" );
+	waittillframeend;
+	level notify( "controls_active" );
+	waittillframeend;
+	flag_set( "introscreen_complete" );
+	flag_set( "pullup_weapon" );
+#/
+	[[level.custom_introscreen]]( string1, string2, string3, string4, string5 );
+	iprintlnbold( "ERROR: need to call waittill_textures_loaded(); in your custom introscreen" );
+	return;
+	level.introblackbacking = newhudelem();
+	level.introblackbacking.x = 0;
+	level.introblackbacking.y = 0;
+	level.introblackbacking.horzalign = "fullscreen";
+	level.introblackbacking.vertalign = "fullscreen";
+	level.introblackbacking setshader( "black", 640, 480 );
+	level.introblackbacking setshader( level.introscreen_shader, 640, 480 );
+	flag_wait( "all_players_connected" );
+	freezecontrols_all( 1 );
+	level._introscreen = 1;
+	flag_wait( "all_players_connected" );
+	wait 0.5;
+	level.introstring = [];
+	introscreen_create_line( string1 );
+	wait pausetime1;
+	wait 2;
+	introscreen_create_line( string2 );
+	introscreen_create_line( string3 );
+	wait pausetime2;
+	wait 2;
+	introscreen_create_line( string4 );
+	wait pausetime2;
+	wait 2;
+	introscreen_create_line( string5 );
+	level notify( "finished final intro screen fadein" );
+	level notify( "introscreen_blackscreen_waiting_on_flag" );
+	flag_wait( level.introscreen_waitontext_flag );
+	wait timebeforefade;
+	wait 3;
+	waittill_textures_loaded();
+	level.introblackbacking fadeovertime( 1.5 );
+	level.introblackbacking.alpha = 0;
+	flag_set( "starting final intro screen fadeout" );
+	level thread freezecontrols_all( 0, 0.75 );
+	level._introscreen = 0;
+	level notify( "controls_active" );
+	introscreen_fadeouttext();
+	flag_set( "introscreen_complete" );
+// SP = 0x0 - check OK
+}
+
+// 0x2594
+introscreen_player_connect()
+{
+	self freezecontrols( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x25B8
+introscreen_report_disconnected_clients()
+{
+	flag_wait( "introscreen_complete" );
+	i = 0;
+	reportclientdisconnected( level._disconnected_clients[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2604
+introscreen_clear_redacted_flags()
+{
+	flag_clear( "introscreen_complete" );
+	flag_clear( "starting final intro screen fadeout" );
+// SP = 0x0 - check OK
+}

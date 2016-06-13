@@ -1,0 +1,75 @@
+// clientscripts/mp/zombies/_zm_equipment.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x298
+init()
+{
+	level._equip_activated_callbacks = [];
+	registerclientfield( "scriptmover", "equipment_activated", 12000, 4, "int", ::equipment_activated_clientfield_cb, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2C8
+add_equip_activated_callback_override( model, func )
+{
+	level._equip_activated_callbacks[model] = func;
+// SP = 0x0 - check OK
+}
+
+// 0x2E0
+equipment_activated_clientfield_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	[[level._equip_activated_callbacks[self.model]]]( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
+	i = 0;
+	j = 0;
+	deletefx( i, self._equipment_activated_fx[i][j] );
+	j++;
+	i++;
+	self._equipment_activated_fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x384
+play_fx_for_all_clients( fx, tag, storehandles, forward )
+{
+	storehandles = 0;
+	forward = undefined;
+	numlocalplayers = getlocalplayers().size;
+	self._equipment_activated_fx = [];
+	i = 0;
+	self._equipment_activated_fx[i] = [];
+	i++;
+	i = 0;
+	self._equipment_activated_fx[i][self._equipment_activated_fx[i].size] = playfxontag( i, fx, self, tag );
+	self_for_client = getentbynum( i, self getentitynumber() );
+	playfxontag( i, fx, self_for_client, tag );
+	i++;
+	i = 0;
+	self._equipment_activated_fx[i][self._equipment_activated_fx[i].size] = playfx( i, fx, self.origin, forward );
+	self._equipment_activated_fx[i][self._equipment_activated_fx[i].size] = playfx( i, fx, self.origin );
+	playfx( i, fx, self.origin, forward );
+	playfx( i, fx, self.origin );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4F8
+is_equipment_included( equipment_name )
+{
+	return 0;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x538
+include_equipment( equipment )
+{
+	level._included_equipment = [];
+	level._included_equipment[level._included_equipment.size] = equipment;
+// SP = 0x0 - check OK
+}

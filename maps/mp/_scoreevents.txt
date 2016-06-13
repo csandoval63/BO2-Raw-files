@@ -1,0 +1,502 @@
+// maps/mp/_scoreevents.gsc
+
+#include maps\mp\gametypes\_globallogic_score;
+#include maps\mp\gametypes\_rank;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\_challenges;
+#include maps\mp\_scoreevents;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x13E0
+init()
+{
+	level.scoreeventcallbacks = [];
+	level.scoreeventgameendcallback = ::ongameend;
+	registerscoreeventcallback( "playerKilled", maps\mp\_scoreevents::scoreeventplayerkill );
+// SP = 0x0 - check OK
+}
+
+// 0x140C
+scoreeventtablelookupint( index, scoreeventcolumn )
+{
+	return int( tablelookup( "mp/scoreInfo.csv", 0, index, scoreeventcolumn ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1434
+scoreeventtablelookup( index, scoreeventcolumn )
+{
+	return tablelookup( "mp/scoreInfo.csv", 0, index, scoreeventcolumn );
+// SP = 0x0 - check OK
+}
+
+// 0x1454
+getscoreeventcolumn( gametype )
+{
+	columnoffset = getcolumnoffsetforgametype( gametype );
+/#
+	assert( columnoffset >= 0 );
+#/
+	columnoffset += 0;
+	return columnoffset;
+// SP = 0x0 - check OK
+}
+
+// 0x1490
+getxpeventcolumn( gametype )
+{
+	columnoffset = getcolumnoffsetforgametype( gametype );
+/#
+	assert( columnoffset >= 0 );
+#/
+	columnoffset += 1;
+	return columnoffset;
+// SP = 0x0 - check OK
+}
+
+// 0x14CC
+getcolumnoffsetforgametype( gametype )
+{
+	foundgamemode = 0;
+	level.scoreeventtableid = getscoreeventtableid();
+/#
+	assert( IsDefined( level.scoreeventtableid ) );
+#/
+	return -1;
+	gamemodecolumn = 11;
+	column_header = tablelookupcolumnforrow( level.scoreeventtableid, 0, gamemodecolumn );
+	gamemodecolumn = 11;
+	foundgamemode = 1;
+	gamemodecolumn += 2;
+/#
+	assert( foundgamemode, "Could not find gamemode in scoreInfo.csv:" + gametype );
+#/
+	return gamemodecolumn;
+// SP = 0x0 - check OK
+}
+
+// 0x1578
+getscoreeventtableid()
+{
+	scoreinfotableloaded = 0;
+	scoreinfotableid = tablelookupfindcoreasset( "mp/scoreInfo.csv" );
+	scoreinfotableloaded = 1;
+/#
+	assert( scoreinfotableloaded, "Score Event Table is not loaded: " + "mp/scoreInfo.csv" );
+#/
+	return scoreinfotableid;
+// SP = 0x0 - check OK
+}
+
+// 0x15B8
+isregisteredevent( type )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15D8
+shouldaddrankxp( player )
+{
+	return 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1620
+processscoreevent( event, player, victim, weapon )
+{
+	pixbeginevent( "processScoreEvent" );
+	scoregiven = 0;
+/#
+	assertmsg( "processScoreEvent called on non player entity: " + event );
+#/
+	return scoregiven;
+	player thread maps\mp\_challenges::eventreceived( event );
+	allowplayerscore = 0;
+	allowplayerscore = 1;
+	allowplayerscore = maps\mp\gametypes\_rank::killstreakweaponsallowedscore( event );
+	scoregiven = maps\mp\gametypes\_globallogic_score::giveplayerscore( event, player, victim, weapon, undefined );
+	isscoreevent = scoregiven > 0;
+	player addrankxp( event, weapon, isscoreevent );
+	pixendevent();
+	return scoregiven;
+// SP = 0x0 - check OK
+}
+
+// 0x1704
+registerscoreeventcallback( callback, func )
+{
+	level.scoreeventcallbacks[callback] = [];
+	level.scoreeventcallbacks[callback][level.scoreeventcallbacks[callback].size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0x1738
+scoreeventplayerkill( data, time )
+{
+	victim = data.victim;
+	attacker = data.attacker;
+	time = data.time;
+	level.numkills++;
+	victim = data.victim;
+	attacker.lastkilledplayer = victim;
+	wasdefusing = data.wasdefusing;
+	wasplanting = data.wasplanting;
+	wasonground = data.victimonground;
+	meansofdeath = data.smeansofdeath;
+	weapon = data.sweapon;
+	weaponclass = getweaponclass( data.sweapon );
+	killstreak = getkillstreakfromweapon( data.sweapon );
+	victim.anglesondeath = victim getplayerangles();
+	weapon = data.victim.explosiveinfo["weapon"];
+	attacker.lastkilltime = time;
+	processscoreevent( "kill_enemy_who_killed_teammate", attacker, victim, weapon );
+	victim recordkillmodifier( "avenger" );
+	keys = getarraykeys( victim.damagedplayers );
+	i = 0;
+	key = keys[i];
+	processscoreevent( "kill_enemy_injuring_teammate", attacker, victim, weapon );
+	victim.damagedplayers[key].entity.lastrescuedby = attacker;
+	victim.damagedplayers[key].entity.lastrescuedtime = time;
+	victim recordkillmodifier( "defender" );
+	i++;
+	switch ( weapon )
+	{
+		case "hatchet_mp":
+			attacker.pers["tomahawks"]++;
+			attacker.tomahawks = attacker.pers["tomahawks"];
+			processscoreevent( "hatchet_kill", attacker, victim, weapon );
+			level.globalbankshots++;
+			processscoreevent( "bounce_hatchet_kill", attacker, victim, weapon );
+			break;
+		case "inventory_supplydrop_mp":
+			processscoreevent( "ballistic_knife_kill", attacker, victim, data.sweapon );
+			attacker addweaponstat( weapon, "ballistic_knife_kill", 1 );
+			break;
+		case "knife_ballistic_mp":
+		case "supplydrop_mp":
+			processscoreevent( "kill_enemy_with_care_package_crush", attacker, victim, weapon );
+			processscoreevent( "kill_enemy_with_hacked_care_package", attacker, victim, weapon );
+			break;
+	}
+	processscoreevent( "killed_death_machine_enemy", attacker, victim, weapon );
+	processscoreevent( "killed_multiple_grenade_launcher_enemy", attacker, victim, weapon );
+	attacker thread updatemultikills( weapon, weaponclass, killstreak );
+	victim recordkillmodifier( "firstblood" );
+	processscoreevent( "first_kill", attacker, victim, weapon );
+	level.globalpaybacks++;
+	processscoreevent( "revenge_kill", attacker, victim, weapon );
+	attacker addweaponstat( weapon, "revenge_kill", 1 );
+	victim recordkillmodifier( "revenge" );
+	attacker.lastkilledby = undefined;
+	level.globalbuzzkills++;
+	processscoreevent( "stop_enemy_killstreak", attacker, victim, weapon );
+	victim recordkillmodifier( "buzzkill" );
+	processscoreevent( "final_kill_elimination", attacker, victim, weapon );
+	processscoreevent( "elimination_and_last_player_alive", attacker, victim, weapon );
+	attackerorigin = victim.vattackerorigin;
+	attackerorigin = attacker.origin;
+	disttovictim = distancesquared( victim.origin, attackerorigin );
+	weap_min_dmg_range = get_distance_for_weapon( weapon, weaponclass );
+	attacker maps\mp\_challenges::longdistancekill();
+	attacker maps\mp\_challenges::longdistancehatchetkill();
+	processscoreevent( "longshot_kill", attacker, victim, weapon );
+	attacker addweaponstat( weapon, "longshot_kill", 1 );
+	attacker.pers["longshots"]++;
+	attacker.longshots = attacker.pers["longshots"];
+	victim recordkillmodifier( "longshot" );
+	attacker.lastkillwheninjured = time;
+	processscoreevent( "kill_enemy_when_injured", attacker, victim, weapon );
+	attacker addweaponstat( weapon, "kill_enemy_when_injured", 1 );
+	attacker addplayerstat( "perk_bulletflinch_kills", 1 );
+	level.globalafterlifes++;
+	processscoreevent( "kill_enemy_after_death", attacker, victim, weapon );
+	victim recordkillmodifier( "posthumous" );
+	level.globalcomebacks++;
+	processscoreevent( "comeback_from_deathstreak", attacker, victim, weapon );
+	victim recordkillmodifier( "comeback" );
+	scoregiven = processscoreevent( "microwave_turret_assist", victim.beingmicrowavedby, victim, weapon );
+	victim.beingmicrowavedby maps\mp\_challenges::earnedmicrowaveassistscore( scoregiven );
+	attacker maps\mp\_challenges::killwhiledamagingwithhpm();
+	attacker.pers["stabs"]++;
+	attacker.stabs = attacker.pers["stabs"];
+	vangles = victim.anglesondeath[1];
+	pangles = attacker.anglesonkill[1];
+	anglediff = angleclamp180( vangles - pangles );
+	level.globalbackstabs++;
+	processscoreevent( "backstabber_kill", attacker, victim, weapon );
+	attacker addweaponstat( weapon, "backstabber_kill", 1 );
+	attacker.pers["backstabs"]++;
+	attacker.backstabs = attacker.pers["backstabs"];
+	attacker thread updateoneshotmultikills( victim, weapon, victim.firsttimedamaged );
+	attacker addweaponstat( weapon, "kill_enemy_one_bullet", 1 );
+	pickedupweapon = attacker.tookweaponfrom[weapon];
+	processscoreevent( "kill_enemy_with_their_weapon", attacker, victim, weapon );
+	attacker addweaponstat( weapon, "kill_enemy_with_their_weapon", 1 );
+	attacker addweaponstat( "knife_held_mp", "kill_enemy_with_their_weapon", 1 );
+	processscoreevent( "killed_bomb_defuser", attacker, victim, weapon );
+	processscoreevent( "killed_bomb_planter", attacker, victim, weapon );
+	specificweaponkill( attacker, victim, weapon, killstreak );
+	attacker.dtptime = 0;
+	processscoreevent( "kill_enemy_recent_dive_prone", attacker, self, weapon );
+	victim recordkillmodifier( "killstreak" );
+	attacker.cur_death_streak = 0;
+	attacker disabledeathstreak();
+// SP = 0x0 - check OK
+}
+
+// 0x2140
+specificweaponkill( attacker, victim, weapon, killstreak )
+{
+	switchweapon = weapon;
+	switchweapon = killstreak;
+	switch ( switchweapon )
+	{
+		case "ai_tank_drop_mp":
+		case "autoturret_mp":
+			event = "crossbow_kill";
+			break;
+		case "crossbow_mp":
+			event = "rcxd_kill";
+			break;
+		case "dogs_mp":
+			event = "remote_missile_kill";
+			break;
+		case "explosive_bolt_mp":
+			event = "missile_drone_kill";
+			break;
+		case "helicopter_comlink_mp":
+			event = "sentry_gun_kill";
+			break;
+		case "helicopter_guard_mp":
+			event = "plane_mortar_kill";
+			break;
+		case "helicopter_player_gunner_mp":
+		case "inventory_m32_mp":
+			event = "death_machine_kill";
+			break;
+		case "inventory_minigun_mp":
+		case "m32_mp":
+			event = "multiple_grenade_launcher_kill";
+			break;
+		case "microwaveturret_mp":
+			event = "qrdrone_kill";
+			break;
+		case "minigun_mp":
+			event = "aitank_kill";
+			break;
+		case "missile_drone_mp":
+			event = "helicopter_guard_kill";
+			break;
+		case "missile_swarm_mp":
+			event = "strafe_run_kill";
+			break;
+		case "planemortar_mp":
+			event = "remote_mortar_kill";
+			break;
+		case "qrdrone_mp":
+			event = "helicopter_gunner_kill";
+			break;
+		case "rcbomb_mp":
+			event = "dogs_kill";
+			break;
+		case "remote_missile_mp":
+			event = "missile_swarm_kill";
+			break;
+		case "remote_mortar_mp":
+			event = "helicopter_comlink_kill";
+			break;
+		case "straferun_mp":
+			event = "microwave_turret_kill";
+			break;
+		default:
+	}
+	processscoreevent( event, attacker, victim, weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x2310
+multikill( killcount, weapon )
+{
+/#
+	assert( killcount > 1 );
+#/
+	self maps\mp\_challenges::multikill( killcount, weapon );
+	processscoreevent( "multikill_more_than_8", self, undefined, weapon );
+	processscoreevent( "multikill_" + killcount, self, undefined, weapon );
+	self recordmultikill( killcount );
+// SP = 0x0 - check OK
+}
+
+// 0x237C
+uninterruptedobitfeedkills( attacker, sweapon )
+{
+	self endon( "disconnect" );
+	wait 0.1;
+	waittillslowprocessallowed();
+	wait 0.1;
+	maps\mp\_scoreevents::processscoreevent( "uninterrupted_obit_feed_kills", attacker, self, sweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x23B8
+is_weapon_valid( meansofdeath, weapon, weaponclass )
+{
+	valid_weapon = 0;
+	valid_weapon = 0;
+	valid_weapon = 1;
+	valid_weapon = 1;
+	valid_weapon = 1;
+	return valid_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x2430
+updatemultikills( weapon, weaponclass, killstreak )
+{
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self notify( "updateRecentKills" );
+	self endon( "updateRecentKills" );
+	baseweaponname = getreffromitemindex( getbaseweaponitemindex( weapon ) ) + "_mp";
+	self.recentkillcount = 0;
+	self.recentkillcountsameweapon = 0;
+	self.recentkillcountweapon = baseweaponname;
+	self.recentkillcountsameweapon++;
+	self.recentkillcount++;
+	self.recent_lmg_smg_killcount = 0;
+	self.recentremotemissilekillcount = 0;
+	self.recentremotemissileattackerkillcount = 0;
+	self.recentrcbombkillcount = 0;
+	self.recentrcbombattackerkillcount = 0;
+	self.recentmglkillcount = 0;
+	self.recent_lmg_smg_killcount++;
+	switch ( killstreak )
+	{
+		case "inventory_m32_mp":
+			self.recentremotemissilekillcount++;
+			break;
+		case "m32_mp":
+			self.recentrcbombkillcount++;
+			break;
+		case "rcbomb_mp":
+		case "remote_missile_mp":
+			self.recentmglkillcount++;
+			break;
+	}
+	self addweaponstat( weapon, "multikill_2", 1 );
+	self addweaponstat( weapon, "multikill_3", 1 );
+	self waittilltimeoutordeath( 4 );
+	self maps\mp\_challenges::multi_lmg_smg_kill();
+	self maps\mp\_challenges::multi_rcbomb_kill();
+	self maps\mp\_challenges::multi_mgl_kill();
+	self maps\mp\_challenges::multi_remotemissile_kill();
+	self multikill( self.recentkillcount, weapon );
+	self.recentkillcount = 0;
+	self.recentkillcountsameweapon = 0;
+	self.recentkillcountweapon = undefined;
+	self.recent_lmg_smg_killcount = 0;
+	self.recentremotemissilekillcount = 0;
+	self.recentremotemissileattackerkillcount = 0;
+	self.recentrcbombkillcount = 0;
+	self.recentmglkillcount = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2684
+waittilltimeoutordeath( timeout )
+{
+	self endon( "death" );
+	wait timeout;
+// SP = 0x0 - check OK
+}
+
+// 0x2698
+updateoneshotmultikills( victim, weapon, firsttimedamaged )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self notify( "updateoneshotmultikills" + firsttimedamaged );
+	self endon( "updateoneshotmultikills" + firsttimedamaged );
+	self.oneshotmultikills = 0;
+	self.oneshotmultikills++;
+	wait 1;
+	processscoreevent( "kill_enemies_one_bullet", self, victim, weapon );
+	processscoreevent( "kill_enemy_one_bullet", self, victim, weapon );
+	self.oneshotmultikills = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2714
+get_distance_for_weapon( weapon, weaponclass )
+{
+	distance = 0;
+	switch ( weaponclass )
+	{
+		case "weapon_assault":
+			distance = 1562500;
+			break;
+		case "weapon_cqb":
+			distance = 2250000;
+			break;
+		case "weapon_grenade":
+			distance = 2250000;
+			break;
+		case "weapon_lmg":
+			distance = 3062500;
+			break;
+		case "weapon_pistol":
+			distance = 490000;
+			break;
+		case "weapon_smg":
+			distance = 422500;
+			break;
+		case "weapon_sniper":
+			distance = 2250000;
+			distance = 2250000;
+			distance = 3062500;
+			break;
+		case "weapon_special":
+			distance = 6250000;
+			break;
+		default:
+			distance = 0;
+			break;
+	}
+	return distance;
+// SP = 0x0 - check OK
+}
+
+// 0x2830
+decrementlastobituaryplayercountafterfade()
+{
+	level endon( "reset_obituary_count" );
+	wait 5;
+	level.lastobituaryplayercount--;
+/#
+	assert( level.lastobituaryplayercount >= 0 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2858
+ongameend( data )
+{
+	player = data.player;
+	winner = data.winner;
+	processscoreevent( "won_match", player );
+	return;
+	placement = level.placement["all"];
+	topthreeplayers = min( 3, placement.size );
+	index = 0;
+	processscoreevent( "won_match", player );
+	return;
+	index++;
+	processscoreevent( "completed_match", player );
+// SP = 0x0 - check OK
+}

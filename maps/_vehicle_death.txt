@@ -1,0 +1,802 @@
+// maps/_vehicle_death.gsc
+
+#include maps\_f35;
+#include maps\_pegasus;
+#include maps\_avenger;
+#include maps\_vehicle_aianim;
+#include common_scripts\utility;
+#include maps\_vehicle;
+#include maps\_utility;
+
+#using_animtree ( "vehicles" );
+
+
+// 0x14D8
+init()
+{
+	level.heli_crash_smoke_trail_fx = loadfx( "trail/fx_trail_heli_killstreak_engine_smoke" );
+// SP = 0x0 - check OK
+}
+
+// 0x1504
+main()
+{
+	self endon( "nodeath_thread" );
+	self waittill( "death", attacker, damagefromunderneath, weaponname, point, dir );
+	flag_set( self.script_deathflag );
+	self thread play_death_audio();
+	return;
+	self lights_off();
+	self death_cleanup_level_variables();
+	self death_cleanup_riders();
+	self notify( "delete_destructible" );
+	return;
+	thread [[level.vehicle_death_thread[self.vehicletype]]]();
+	earthquake( self.deathquakescale, self.deathquakeduration, self.origin, self.deathquakeradius );
+	thread death_radius_damage();
+	is_aircraft = self.vehicleclass == "helicopter";
+	self thread set_death_model( self.deathmodel, self.modelswapdelay );
+	thread death_fx();
+	wait 0.05;
+	self vehicle_disconnectpaths_wrapper();
+	self freevehicle();
+	self.isacorpse = 1;
+	wait 0.05;
+	self notify( "death_finished" );
+	self delete();
+	maps\_vehicle_aianim::blowup_riders();
+	thread death_make_badplace( self.vehicletype );
+	level notify( level.vehicle_deathnotify[self.vehicletype], attacker );
+	target_remove( self );
+	self thread death_jolt( self.vehicletype );
+	self thread death_update_crash( point, dir );
+	self clearturrettarget();
+	self waittill_crash_done_or_stopped();
+	wait 0.05;
+	self notify( "stop_looping_death_fx" );
+	self notify( "death_finished" );
+	wait 0.05;
+	occupants = self getvehoccupants();
+	i = 0;
+	self useby( occupants[i] );
+	i++;
+	self freevehicle();
+	self.isacorpse = 1;
+	self hide();
+// SP = 0x0 - check OK
+}
+
+// 0x1898
+do_scripted_crash()
+{
+	return self.do_scripted_crash;
+// SP = 0x0 - check OK
+}
+
+// 0x18B8
+play_death_audio()
+{
+	self.death_counter = 0;
+	self.death_counter++;
+	self playsound( "exp_veh_helicopter_hit" );
+// SP = 0x0 - check OK
+}
+
+// 0x1900
+play_spinning_plane_sound()
+{
+	self playloopsound( "veh_drone_spin", 0.05 );
+	level waittill_any( "crash_move_done", "death" );
+	self stoploopsound( 0.02 );
+// SP = 0x0 - check OK
+}
+
+// 0x1940
+set_death_model( smodel, fdelay )
+{
+/#
+	assert( IsDefined( smodel ) );
+#/
+	wait fdelay;
+	return;
+	return;
+	emodel = get_dummy();
+	emodel clearanim( %root, 0 );
+	emodel setmodel( smodel );
+	emodel setvehicleattachments( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x19C4
+aircraft_crash( point, dir )
+{
+	self.crashing = 1;
+	wait 0.05;
+	return;
+	self thread aircraft_crash_move( point, dir );
+	self thread play_spinning_plane_sound();
+// SP = 0x0 - check OK
+}
+
+// 0x1A14
+helicopter_crash( point, dir )
+{
+	self.crashing = 1;
+	self thread play_crashing_loop();
+	wait 0.05;
+	return;
+	self thread helicopter_crash_movement( point, dir );
+// SP = 0x0 - check OK
+}
+
+// 0x1A64
+helicopter_crash_movement( point, dir )
+{
+	self endon( "crash_done" );
+	self cancelaimove();
+	self clearvehgoalpos();
+	playfxontag( level.heli_crash_smoke_trail_fx, self, "tag_origin" );
+	playfxontag( level.heli_crash_smoke_trail_fx, self, "tag_main_rotor" );
+	playfxontag( level.heli_crash_smoke_trail_fx, self, "tag_engine_left" );
+	crash_zones = getstructarray( "heli_crash_zone", "targetname" );
+	best_dist = 99999;
+	best_idx = -1;
+	crash_zones = self.a_crash_zones;
+	i = 0;
+	vec_to_crash_zone = crash_zones[i].origin - self.origin;
+	vec_to_crash_zone = ( vec_to_crash_zone[0], vec_to_crash_zone[1], 0 );
+	dist = length( vec_to_crash_zone );
+	vec_to_crash_zone /= dist;
+	veloctiy_scale = vectordot( self.velocity, vec_to_crash_zone ) * -1;
+	dist += 500 * veloctiy_scale;
+	best_dist = dist;
+	best_idx = i;
+	i++;
+	self.crash_zone = crash_zones[best_idx];
+	self thread helicopter_crash_zone_accel( dir );
+	dir = vectornormalize( dir );
+	side_dir = vectorcross( dir, ( 0, 0, 1 ) );
+	side_dir_mag = randomfloatrange( -500, 500 );
+	side_dir_mag += sign( side_dir_mag ) * 60;
+	side_dir *= side_dir_mag;
+	side_dir += vector_scale( ( 0, 0, 1 ), 150 );
+	self setphysacceleration( ( randomintrange( -500, 500 ), randomintrange( -500, 500 ), -1000 ) );
+	self setvehvelocity( self.velocity + side_dir );
+	self thread helicopter_crash_accel();
+	self thread helicopter_crash_rotation( point, dir );
+	self thread crash_collision_test();
+	wait 15;
+	self notify( "crash_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CB4
+helicopter_crash_accel()
+{
+	self endon( "crash_done" );
+	self endon( "crash_move_done" );
+	self.crash_accel = randomfloatrange( 50, 80 );
+	self setvehvelocity( self.velocity + anglestoup( self.angles ) * self.crash_accel );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x1D0C
+helicopter_crash_rotation( point, dir )
+{
+	self endon( "crash_done" );
+	self endon( "crash_move_done" );
+	self endon( "death" );
+	start_angles = self.angles;
+	start_angles = ( start_angles[0] + 10, start_angles[1], start_angles[2] );
+	start_angles = ( start_angles[0], start_angles[1], start_angles[2] + 10 );
+	ang_vel = self getangularvelocity();
+	ang_vel = ( 0, ang_vel[1] * randomfloatrange( 2, 3 ), 0 );
+	self setangularvelocity( ang_vel );
+	point_2d = ( point[0], point[1], self.origin[2] );
+	torque = ( 0, randomintrange( 90, 180 ), 0 );
+	torque *= -1;
+	local_hit_point = point_2d - self.origin;
+	dir_2d = ( dir[0], dir[1], 0 );
+	dir_2d = vectornormalize( dir_2d );
+	torque = vectorcross( vectornormalize( local_hit_point ), dir );
+	torque = ( 0, 0, torque[2] );
+	torque = vectornormalize( torque );
+	torque = ( 0, torque[2] * 180, 0 );
+	ang_vel = self getangularvelocity();
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], 360 * -1, ang_vel[2] );
+	ang_vel = ( ang_vel[0], 360, ang_vel[2] );
+	self setangularvelocity( ang_vel );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1EE4
+helicopter_crash_zone_accel( dir )
+{
+	self endon( "crash_done" );
+	self endon( "crash_move_done" );
+	torque = ( 0, randomintrange( 90, 150 ), 0 );
+	ang_vel = self getangularvelocity();
+	torque *= sign( ang_vel[1] );
+/#
+	self.crash_zone.height = 0;
+#/
+	self.angles = ( self.angles[0], self.angles[1], randomintrange( 3, 6 ) * sign( self.angles[2] ) );
+	is_vtol = issubstr( self.vehicletype, "v78" );
+	torque *= 0.3;
+/#
+	assert( IsDefined( self.crash_zone ) );
+#/
+	dist = distance2d( self.origin, self.crash_zone.origin );
+	self setphysacceleration( vector_scale( ( 0, 0, -1 ), 400 ) );
+/#
+	circle( self.crash_zone.origin + ( 0, 0, self.crash_zone.height ), self.crash_zone.radius, ( 0, 1, 0 ), 0, 2000 );
+#/
+	self.crash_accel = 0;
+	self setphysacceleration( vector_scale( ( 0, 0, -1 ), 50 ) );
+/#
+	circle( self.crash_zone.origin + ( 0, 0, self.crash_zone.height ), self.crash_zone.radius, ( 1, 0, 0 ), 0, 2 );
+#/
+	self.crash_vel = self.crash_zone.origin - self.origin;
+	self.crash_vel = ( self.crash_vel[0], self.crash_vel[1], 0 );
+	self.crash_vel = vectornormalize( self.crash_vel );
+	self.crash_vel *= self getmaxspeed() * 0.5;
+	self.crash_vel *= 0.5;
+	crash_vel_forward = anglestoup( self.angles ) * self getmaxspeed() * 2;
+	crash_vel_forward = ( crash_vel_forward[0], crash_vel_forward[1], 0 );
+	self.crash_vel += crash_vel_forward;
+	vel_x = difftrack( self.crash_vel[0], self.velocity[0], 1, 0.1 );
+	vel_y = difftrack( self.crash_vel[1], self.velocity[1], 1, 0.1 );
+	vel_z = difftrack( self.crash_vel[2], self.velocity[2], 1, 0.1 );
+	self setvehvelocity( ( vel_x, vel_y, vel_z ) );
+	ang_vel = self getangularvelocity();
+	ang_vel = ( 0, ang_vel[1], 0 );
+	ang_vel += torque * 0.1;
+	max_angluar_vel = 200;
+	max_angluar_vel = 100;
+	ang_vel = ( ang_vel[0], max_angluar_vel * -1, ang_vel[2] );
+	ang_vel = ( ang_vel[0], max_angluar_vel, ang_vel[2] );
+	self setangularvelocity( ang_vel );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x2240
+helicopter_collision()
+{
+	self endon( "crash_done" );
+	self waittill( "veh_collision", velocity, normal );
+	ang_vel = self getangularvelocity() * 0.5;
+	self setangularvelocity( ang_vel );
+	self setvehvelocity( self.velocity + normal * 70 );
+	createdynentandlaunch( self.deathmodel, self.origin, self.angles, self.origin, self.velocity * 0.03, self.deathfx, 1 );
+	self notify( "crash_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x22E8
+play_crashing_loop()
+{
+	ent = spawn( "script_origin", self.origin );
+	ent linkto( self );
+	ent playloopsound( "exp_heli_crash_loop" );
+	self waittill_any( "death", "snd_impact" );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2344
+helicopter_explode( delete_me )
+{
+	self endon( "death" );
+	fx_origin = self gettagorigin( self.death_fx_struct.tag );
+	fx_angles = self gettagangles( self.death_fx_struct.tag );
+	playfx( self.death_fx_struct.effect, fx_origin, anglestoforward( fx_angles ), anglestoup( fx_angles ) );
+	return;
+	playsoundatposition( "exp_veh_helicopter", fx_origin );
+	self notify( "snd_impact" );
+	self delete();
+	self thread set_death_model( self.deathmodel, self.modelswapdelay );
+// SP = 0x0 - check OK
+}
+
+// 0x2420
+aircraft_crash_move( point, dir )
+{
+	self endon( "crash_move_done" );
+	self endon( "death" );
+	self thread crash_collision_test();
+	self clearvehgoalpos();
+	self cancelaimove();
+	self setrotorspeed( 0.2 );
+	b_custom_deathmodel_setup = 1;
+	switch ( self.vehicletype )
+	{
+		case "drone_avenger":
+		case "drone_avenger_fast":
+		case "drone_avenger_fast_la2":
+		case "drone_avenger_fast_la2_2x":
+			self maps\_avenger::set_deathmodel( point, dir );
+			break;
+		case "drone_pegasus":
+		case "drone_pegasus_fast":
+		case "drone_pegasus_fast_la2":
+		case "drone_pegasus_fast_la2_2x":
+		case "drone_pegasus_low":
+		case "drone_pegasus_low_la2":
+			self maps\_pegasus::set_deathmodel( point, dir );
+			break;
+		case "plane_f35":
+		case "plane_f35_fast":
+		case "plane_f35_fast_la2":
+		case "plane_f35_vtol":
+		case "plane_f35_vtol_nocockpit":
+		case "plane_fa38_hero":
+			self maps\_f35::set_deathmodel( point, dir );
+			break;
+		default:
+			b_custom_deathmodel_setup = 0;
+			break;
+	}
+	self.deathmodel_attached = 1;
+	ang_vel = self getangularvelocity();
+	ang_vel = ( 0, 0, 0 );
+	self setangularvelocity( ang_vel );
+	nodes = self getvehicleavoidancenodes( 10000 );
+	closest_index = -1;
+	best_dist = 999999;
+	i = 0;
+	dir = vectornormalize( nodes[i] - self.origin );
+	forward = anglestoforward( self.angles );
+	dot = vectordot( dir, forward );
+	dist = distance2d( self.origin, nodes[i] );
+	best_dist = dist;
+	closest_index = i;
+	i++;
+	o = nodes[closest_index];
+	o = ( o[0], o[1], self.origin[2] );
+	dir = vectornormalize( o - self.origin );
+	self setvehvelocity( self.velocity + dir * 2000 );
+	self setvehvelocity( self.velocity + anglestoright( self.angles ) * randomintrange( -1000, 1000 ) + ( 0, 0, randomintrange( 0, 1500 ) ) );
+	self setvehvelocity( self.velocity + anglestoright( self.angles ) * randomintrange( -1000, 1000 ) + ( 0, 0, randomintrange( 0, 1500 ) ) );
+	self thread delay_set_gravity( randomfloatrange( 1.5, 3 ) );
+	torque = ( 0, randomintrange( -90, 90 ), randomintrange( 90, 720 ) );
+	torque = ( torque[0], torque[1], torque[2] * -1 );
+	ang_vel = self getangularvelocity();
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 * -1 );
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 );
+	self setangularvelocity( ang_vel );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x27E0
+delay_set_gravity( delay )
+{
+	self endon( "crash_move_done" );
+	self endon( "death" );
+	wait delay;
+	self setphysacceleration( ( randomintrange( -1600, 1600 ), randomintrange( -1600, 1600 ), -1600 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2828
+helicopter_crash_move( point, dir )
+{
+	self endon( "crash_move_done" );
+	self endon( "death" );
+	self thread crash_collision_test();
+	self cancelaimove();
+	self clearvehgoalpos();
+	self setturningability( 0 );
+	self setphysacceleration( vector_scale( ( 0, 0, -1 ), 800 ) );
+	vel = self.velocity;
+	dir = vectornormalize( dir );
+	ang_vel = self getangularvelocity();
+	ang_vel = ( 0, ang_vel[1] * randomfloatrange( 1, 3 ), 0 );
+	self setangularvelocity( ang_vel );
+	point_2d = ( point[0], point[1], self.origin[2] );
+	torque = vector_scale( ( 0, 1, 0 ), 720 );
+	local_hit_point = point_2d - self.origin;
+	dir_2d = ( dir[0], dir[1], 0 );
+	dir_2d = vectornormalize( dir_2d );
+	torque = vectorcross( vectornormalize( local_hit_point ), dir );
+	torque = ( 0, 0, torque[2] );
+	torque = vectornormalize( torque );
+	torque = ( 0, torque[2] * 180, 0 );
+	ang_vel = self getangularvelocity();
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], 360 * -1, ang_vel[2] );
+	ang_vel = ( ang_vel[0], 360, ang_vel[2] );
+	self setangularvelocity( ang_vel );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2A00
+boat_crash( point, dir )
+{
+	self.crashing = 1;
+	wait 0.05;
+	return;
+	self thread boat_crash_movement( point, dir );
+// SP = 0x0 - check OK
+}
+
+// 0x2A44
+boat_crash_movement( point, dir )
+{
+	self endon( "crash_move_done" );
+	self endon( "death" );
+	self cancelaimove();
+	self clearvehgoalpos();
+	self setphysacceleration( vector_scale( ( 0, 0, -1 ), 50 ) );
+	vel = self.velocity;
+	dir = vectornormalize( dir );
+	ang_vel = self getangularvelocity();
+	ang_vel = ( 0, 0, 0 );
+	self setangularvelocity( ang_vel );
+	torque = ( randomintrange( -5, -3 ), 0, 5 );
+	self thread boat_crash_monitor( point, dir, 4 );
+	ang_vel = self getangularvelocity();
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], 360 * -1, ang_vel[2] );
+	ang_vel = ( ang_vel[0], 360, ang_vel[2] );
+	self setangularvelocity( ang_vel );
+	velocity = self.velocity;
+	velocity = ( velocity[0] * 0.975, velocity[1], velocity[2] );
+	velocity = ( velocity[0], velocity[1] * 0.975, velocity[2] );
+	self setvehvelocity( velocity );
+	wait 0.05;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x2BC0
+boat_crash_monitor( point, dir, crash_time )
+{
+	self endon( "death" );
+	wait crash_time;
+	self notify( "crash_move_done" );
+	self crash_stop();
+	self notify( "crash_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x2BF0
+crash_stop()
+{
+	self endon( "death" );
+	self setphysacceleration( ( 0, 0, 0 ) );
+	self setrotorspeed( 0 );
+	speed = self getspeedmph();
+	velocity = self.velocity;
+	velocity *= 0.9;
+	self setvehvelocity( velocity );
+	angular_velocity = self getangularvelocity();
+	angular_velocity *= 0.9;
+	self setangularvelocity( angular_velocity );
+	speed = self getspeedmph();
+	wait 0.05;
+	self setvehvelocity( ( 0, 0, 0 ) );
+	self setangularvelocity( ( 0, 0, 0 ) );
+	self veh_toggle_tread_fx( 0 );
+	self veh_toggle_exhaust_fx( 0 );
+	self vehicle_toggle_sounds( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2CD0
+crash_collision_test()
+{
+	self endon( "death" );
+	self waittill( "veh_collision", velocity, normal );
+	self helicopter_explode();
+	self notify( "crash_move_done" );
+	forward = anglestoforward( self.angles );
+	right = vectorcross( normal, forward );
+	desired_forward = vectorcross( right, normal );
+	self setphysangles( vectortoangles( desired_forward ) );
+	self crash_stop();
+	self notify( "crash_done" );
+	wait 0.05;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2D78
+crash_path_check( node )
+{
+	targ = node;
+	search_depth = 5;
+	detourpath = path_detour_get_detourpath( getvehiclenode( targ.target, "targetname" ) );
+	return 1;
+	targ1 = getvehiclenode( targ.target, "targetname" );
+	return 0;
+	return 0;
+	targ = targ1;
+	targ = undefined;
+	search_depth--;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2E60
+death_firesound( sound )
+{
+	self thread play_loop_sound_on_tag( sound, undefined, 0 );
+	self waittill_any( "fire_extinguish", "stop_crash_loop_sound" );
+	return;
+	self notify( "stop sound" + sound );
+// SP = 0x0 - check OK
+}
+
+// 0x2E9C
+death_fx()
+{
+	return;
+	level notify( "vehicle_explosion", self.origin );
+	self explode_notify_wrapper();
+	struct = build_death_fx( self.deathfx, self.deathfxtag, self.deathfxsound );
+	thread death_fx_thread( struct );
+// SP = 0x0 - check OK
+}
+
+// 0x2EE8
+death_fx_thread( struct )
+{
+/#
+	assert( IsDefined( struct ) );
+#/
+	wait struct.waitdelay;
+	self waittill( "death_finished" );
+	return;
+	self.death_fx_struct = struct;
+	return;
+	self notify( struct.notifystring );
+	emodel = get_dummy();
+	thread loop_fx_on_vehicle_tag( struct.effect, struct.delay, struct.tag );
+	thread playloopedfxontag( struct.effect, struct.delay, struct.tag );
+	forward = emodel.origin + vector_scale( ( 0, 0, 1 ), 100 ) - emodel.origin;
+	playfx( struct.effect, emodel.origin, forward );
+	playfxontag( struct.effect, deathfx_ent(), struct.tag );
+	playfxontag( struct.effect, self, struct.tag );
+	forward = emodel.origin + vector_scale( ( 0, 0, 1 ), 100 ) - emodel.origin;
+	playfx( struct.effect, emodel.origin, forward );
+	thread death_firesound( struct.sound );
+	self play_sound_in_space( struct.sound );
+// SP = 0x0 - check OK
+}
+
+// 0x3100
+build_death_fx( effect, tag, sound, beffectlooping, delay, bsoundlooping, waitdelay, stayontag, notifystring )
+{
+	bsoundlooping = 0;
+	beffectlooping = 0;
+	delay = 1;
+	struct = spawnstruct();
+	struct.effect = effect;
+	struct.tag = tag;
+	struct.sound = sound;
+	struct.bsoundlooping = bsoundlooping;
+	struct.delay = delay;
+	struct.waitdelay = waitdelay;
+	struct.stayontag = stayontag;
+	struct.notifystring = notifystring;
+	struct.beffectlooping = beffectlooping;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0x31A0
+death_make_badplace( type )
+{
+	return;
+	struct = level.vehicle_death_badplace[type];
+	wait struct.delay;
+	return;
+	badplace_cylinder( "vehicle_kill_badplace", struct.duration, self.origin, struct.radius, struct.height, struct.team1, struct.team2 );
+// SP = 0x0 - check OK
+}
+
+// 0x320C
+death_jolt( type )
+{
+	self endon( "death" );
+	return;
+	old_dontfreeme = self.dontfreeme;
+	self joltbody( self.origin + ( 23, 33, 64 ), 3 );
+	self animscripted( "death_anim", self.origin, self.angles, self.death_anim, "normal", %root, 1, 0 );
+	self waittillmatch( "death_anim" );
+	return "end";
+	num_launch_multiplier = 1;
+	num_launch_multiplier = 0.1;
+	self launchvehicle( vector_scale( ( 0, 0, 1 ), 250 ) * num_launch_multiplier, ( randomfloatrange( 5, 10 ), randomfloatrange( -5, 5 ), 0 ), 1, 0, 1 );
+	wait 2;
+	self.dontfreeme = old_dontfreeme;
+// SP = 0x0 - check OK
+}
+
+// 0x3300
+deathrollon()
+{
+	self.rollingdeath = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3318
+deathrolloff()
+{
+	self.rollingdeath = undefined;
+	self notify( "deathrolloff" );
+// SP = 0x0 - check OK
+}
+
+// 0x332C
+loop_fx_on_vehicle_tag( effect, looptime, tag )
+{
+/#
+	assert( IsDefined( effect ) );
+#/
+/#
+	assert( IsDefined( tag ) );
+#/
+/#
+	assert( IsDefined( looptime ) );
+#/
+	self endon( "stop_looping_death_fx" );
+	playfxontag( effect, deathfx_ent(), tag );
+	wait looptime;
+// SP = 0x0 - check OK
+}
+
+// 0x3394
+deathfx_ent()
+{
+	ent = spawn( "script_model", ( 0, 0, 0 ) );
+	emodel = get_dummy();
+	ent setmodel( self.model );
+	ent.origin = emodel.origin;
+	ent.angles = emodel.angles;
+	ent notsolid();
+	ent hide();
+	ent linkto( emodel );
+	self.deathfx_ent = ent;
+	self.deathfx_ent setmodel( self.model );
+	return self.deathfx_ent;
+// SP = 0x0 - check OK
+}
+
+// 0x3434
+death_cleanup_level_variables()
+{
+	script_linkname = self.script_linkname;
+	targetname = self.targetname;
+	arrayremovevalue( level.vehicle_link[script_linkname], self );
+	arrayremovevalue( level.vehicle_spawngroup[self.script_vehiclespawngroup], self );
+	arrayremovevalue( level.vehicle_spawngroup[self.script_vehiclespawngroup], undefined );
+	arrayremovevalue( level.vehicle_startmovegroup[self.script_vehiclestartmove], self );
+	arrayremovevalue( level.vehicle_deletegroup[self.script_vehiclegroupdelete], self );
+// SP = 0x0 - check OK
+}
+
+// 0x34E0
+death_cleanup_riders()
+{
+	j = 0;
+	self.riders[j] delete();
+	j++;
+	self.riders = [];
+// SP = 0x0 - check OK
+}
+
+// 0x3538
+death_radius_damage()
+{
+	return;
+	wait 0.05;
+	self radiusdamage( self.origin + vector_scale( ( 0, 0, 1 ), 15 ), self.radiusdamageradius, self.radiusdamagemax, self.radiusdamagemin, self, "MOD_EXPLOSIVE" );
+// SP = 0x0 - check OK
+}
+
+// 0x3588
+death_update_crash( point, dir )
+{
+	crashtype = self.script_crashtypeoverride;
+	crashtype = "aircraft";
+	crashtype = "helicopter";
+	crashtype = "boat";
+	crashtype = "none";
+	crashtype = "tank";
+	self thread aircraft_crash( point, dir );
+	self thread helicopter_explode();
+	self thread helicopter_crash( point, dir );
+	self thread boat_crash( point, dir );
+	self vehicle_setspeed( 0, 25, "Dead" );
+	self waittill( "deathrolloff" );
+	self vehicle_setspeed( 0, 25, "Dead, finished path intersection" );
+	wait 0.4;
+	self vehicle_setspeed( 0, 10000, "deadstop" );
+	self notify( "deadstop" );
+	self vehicle_disconnectpaths_wrapper();
+	self waittill( "animsdone" );
+// SP = 0x0 - check OK
+}
+
+// 0x3710
+waittill_crash_done_or_stopped()
+{
+	self endon( "death" );
+	self waittill( "crash_done" );
+	wait 0.2;
+	self clearvehgoalpos();
+	self cancelaimove();
+	wait 0.3;
+	self vehicle_disconnectpaths_wrapper();
+	wait 0.3;
+// SP = 0x0 - check OK
+}
+
+// 0x37DC
+precache_death_model_wrapper( death_model_name )
+{
+	precachemodel( death_model_name );
+// SP = 0x0 - check OK
+}
+
+// 0x3810
+vehicle_damage_filter_damage_watcher( heavy_damage_threshold )
+{
+	self endon( "death" );
+	self endon( "exit_vehicle" );
+	self endon( "end_damage_filter" );
+	heavy_damage_threshold = 100;
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname );
+	earthquake( 0.25, 0.15, self.origin, 512, self );
+	level.player playrumbleonentity( "damage_light" );
+	time = GetTime();
+	level.n_hud_damage = 1;
+	rpc( "clientscripts/_vehicle", "damage_filter_heavy" );
+	level.player playsound( "veh_damage_filter_heavy" );
+	rpc( "clientscripts/_vehicle", "damage_filter_light" );
+	level.player playsound( "veh_damage_filter_light" );
+	level.n_last_damage_time = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x390C
+vehicle_damage_filter_exit_watcher()
+{
+	self waittill_any( "exit_vehicle", "death", "end_damage_filter" );
+	rpc( "clientscripts/_vehicle", "damage_filter_disable" );
+	rpc( "clientscripts/_vehicle", "damage_filter_off" );
+	level.player visionsetnaked( level.player.save_visionset, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3970
+vehicle_damage_filter( vision_set, heavy_damage_threshold, filterid, b_use_player_damage )
+{
+	filterid = 0;
+	b_use_player_damage = 0;
+	self endon( "death" );
+	self endon( "exit_vehicle" );
+	self endon( "end_damage_filter" );
+	rpc( "clientscripts/_vehicle", "init_damage_filter", filterid );
+	self.damage_filter_init = 1;
+	rpc( "clientscripts/_vehicle", "damage_filter_enable", 0, filterid );
+	level.player.save_visionset = level.player getvisionsetnaked();
+	level.player visionsetnaked( vision_set, 0.5 );
+	level.n_hud_damage = 0;
+	level.n_last_damage_time = GetTime();
+	damagee = self;
+	damagee thread vehicle_damage_filter_damage_watcher( heavy_damage_threshold );
+	damagee thread vehicle_damage_filter_exit_watcher();
+	time = GetTime();
+	rpc( "clientscripts/_vehicle", "damage_filter_off" );
+	level.n_hud_damage = 0;
+	wait 0.05;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}

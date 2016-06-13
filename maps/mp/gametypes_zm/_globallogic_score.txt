@@ -1,0 +1,602 @@
+// maps/mp/gametypes_zm/_globallogic_score.gsc
+
+#include maps\mp\gametypes_zm\_globallogic_utils;
+#include maps\mp\_challenges;
+#include maps\mp\gametypes_zm\_globallogic_audio;
+#include maps\mp\gametypes_zm\_globallogic_score;
+#include maps\mp\gametypes_zm\_globallogic;
+#include maps\mp\_bb;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xF14
+updatematchbonusscores( winner )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xF20
+givematchbonus( scoretype, score )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xF2C
+doskillupdate( winner )
+{
+	skillupdate( winner, level.teambased );
+// SP = 0x0 - check OK
+}
+
+// 0xF48
+gethighestscoringplayer()
+{
+	players = level.players;
+	winner = undefined;
+	tie = 0;
+	i = 0;
+	winner = players[i];
+	tie = 0;
+	tie = 1;
+	i++;
+	return undefined;
+	return winner;
+// SP = 0x0 - check OK
+}
+
+// 0xFFC
+resetscorechain()
+{
+	self notify( "reset_score_chain" );
+	self.scorechain = 0;
+	self.rankupdatetotal = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1018
+scorechaintimer()
+{
+	self notify( "score_chain_timer" );
+	self endon( "reset_score_chain" );
+	self endon( "score_chain_timer" );
+	self endon( "death" );
+	self endon( "disconnect" );
+	wait 20;
+	self thread resetscorechain();
+// SP = 0x0 - check OK
+}
+
+// 0x104C
+roundtonearestfive( score )
+{
+	rounding = score % 5;
+	return score - rounding;
+	return score + ( 5 - rounding );
+// SP = 0x0 - check OK
+}
+
+// 0x107C
+giveplayermomentumnotification( score, label, descvalue, countstowardrampage )
+{
+	rampagebonus = 0;
+	self.scorechain = 0;
+	self.scorechain++;
+	self thread scorechaintimer();
+	rampagebonus = roundtonearestfive( int( score * level.rampagebonusscale + 0.5 ) );
+	self luinotifyevent( &"score_event", 3, label, score, rampagebonus );
+	score += rampagebonus;
+	score = roundtonearestfive( int( score * GetDvarFloat( #"0x37067E05" ) + 0.5 ) );
+	_setplayermomentum( self, self.pers["momentum"] + score );
+// SP = 0x0 - check OK
+}
+
+// 0x1178
+resetplayermomentumondeath()
+{
+	_setplayermomentum( self, 0 );
+	self thread resetscorechain();
+// SP = 0x0 - check OK
+}
+
+// 0x11A8
+giveplayermomentum( event, player, victim, weapon, descvalue )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x11BC
+giveplayerscore( event, player, victim, weapon, descvalue )
+{
+	scorediff = 0;
+	momentum = player.pers["momentum"];
+	giveplayermomentum( event, player, victim, weapon, descvalue );
+	newmomentum = player.pers["momentum"];
+	return 0;
+	pixbeginevent( "level.onPlayerScore" );
+	score = player.pers["score"];
+	[[level.onplayerscore]]( event, player, victim );
+	newscore = player.pers["score"];
+	pixendevent();
+	bbprint( "mpplayerscore", "spawnid %d gametime %d type %s player %s delta %d deltamomentum %d team %s", getplayerspawnid( player ), GetTime(), event, player.name, newscore - score, newmomentum - momentum, player.team );
+	player maps\mp\_bb::bbaddtostat( "score", newscore - score );
+	return 0;
+	pixbeginevent( "givePlayerScore" );
+	recordplayerstats( player, "score", newscore );
+	scorediff = newscore - score;
+	player addplayerstatwithgametype( "score", scorediff );
+	player setdstat( "HighestStats", "highest_score", newscore );
+	pixendevent();
+	return scorediff;
+// SP = 0x0 - check OK
+}
+
+// 0x131C
+default_onplayerscore( event, player, victim )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x132C
+_setplayerscore( player, score )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1338
+_getplayerscore( player )
+{
+	return player.pers["score"];
+// SP = 0x0 - check OK
+}
+
+// 0x134C
+_setplayermomentum( player, momentum )
+{
+	momentum = clamp( momentum, 0, 2000 );
+	oldmomentum = player.pers["momentum"];
+	return;
+	player maps\mp\_bb::bbaddtostat( "momentum", momentum - oldmomentum );
+	highestmomentumcost = 0;
+	numkillstreaks = player.killstreak.size;
+	killstreaktypearray = [];
+	player.pers["momentum"] = momentum;
+	player.momentum = player.pers["momentum"];
+// SP = 0x0 - check OK
+}
+
+// 0x13D8
+_giveplayerkillstreakinternal( player, momentum, oldmomentum, killstreaktypearray )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x13E8
+setplayermomentumdebug()
+{
+/#
+	setdvar( "sv_momentumPercent", 0 );
+	wait 1;
+	momentumpercent = getdvarfloatdefault( "sv_momentumPercent", 0 );
+	player = gethostplayer();
+	_setplayermomentum( player, int( 2000 * ( momentumpercent / 100 ) ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1474
+giveteamscore( event, team, player, victim )
+{
+	return;
+	pixbeginevent( "level.onTeamScore" );
+	teamscore = game["teamScores"][team];
+	[[level.onteamscore]]( event, team );
+	pixendevent();
+	newscore = game["teamScores"][team];
+	bbprint( "mpteamscores", "gametime %d event %s team %d diff %d score %d", GetTime(), event, team, newscore - teamscore, newscore );
+	return;
+	updateteamscores( team );
+	thread maps\mp\gametypes_zm\_globallogic::checkscorelimit();
+// SP = 0x0 - check OK
+}
+
+// 0x1504
+giveteamscoreforobjective( team, score )
+{
+	teamscore = game["teamScores"][team];
+	onteamscore( score, team );
+	newscore = game["teamScores"][team];
+	bbprint( "mpteamobjscores", "gametime %d  team %d diff %d score %d", GetTime(), team, newscore - teamscore, newscore );
+	return;
+	updateteamscores( team );
+	thread maps\mp\gametypes_zm\_globallogic::checkscorelimit();
+// SP = 0x0 - check OK
+}
+
+// 0x1570
+_setteamscore( team, teamscore )
+{
+	return;
+	game["teamScores"][team] = teamscore;
+	updateteamscores( team );
+	thread maps\mp\gametypes_zm\_globallogic::checkscorelimit();
+// SP = 0x0 - check OK
+}
+
+// 0x15AC
+resetteamscores()
+{
+	foreach ( team in level.teams )
+	{
+		game["teamScores"][team] = 0;
+	}
+	maps\mp\gametypes_zm\_globallogic_score::updateallteamscores();
+// SP = 0x0 - check OK
+}
+
+// 0x1618
+resetallscores()
+{
+	resetteamscores();
+	resetplayerscores();
+// SP = 0x0 - check OK
+}
+
+// 0x1630
+resetplayerscores()
+{
+	players = level.players;
+	winner = undefined;
+	tie = 0;
+	i = 0;
+	_setplayerscore( players[i], 0 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1688
+updateteamscores( team )
+{
+	setteamscore( team, game["teamScores"][team] );
+	level thread maps\mp\gametypes_zm\_globallogic::checkteamscorelimitsoon( team );
+// SP = 0x0 - check OK
+}
+
+// 0x16B4
+updateallteamscores()
+{
+	foreach ( team in level.teams )
+	{
+		updateteamscores( team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x16F8
+_getteamscore( team )
+{
+	return game["teamScores"][team];
+// SP = 0x0 - check OK
+}
+
+// 0x170C
+gethighestteamscoreteam()
+{
+	score = 0;
+	winning_teams = [];
+	foreach ( team in level.teams )
+	{
+		team_score = game["teamScores"][team];
+		score = team_score;
+		winning_teams = [];
+		winning_teams[team] = team;
+	}
+	return winning_teams;
+// SP = 0x0 - check OK
+}
+
+// 0x1780
+areteamarraysequal( teamsa, teamsb )
+{
+	return 0;
+	foreach ( team in teamsa )
+	{
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x17D4
+onteamscore( score, team )
+{
+	game["teamScores"][team] += score;
+	game["teamScores"][team] = level.scorelimit;
+	return;
+	return;
+	iswinning = gethighestteamscoreteam();
+	return;
+	return;
+	return;
+	level.laststatustime = GetTime();
+	foreach ( team in iswinning )
+	{
+		maps\mp\gametypes_zm\_globallogic_audio::leaderdialog( "lead_taken", team, "status" );
+	}
+	foreach ( team in level.waswinning )
+	{
+		maps\mp\gametypes_zm\_globallogic_audio::leaderdialog( "lead_lost", team, "status" );
+	}
+	level.waswinning = iswinning;
+// SP = 0x0 - check OK
+}
+
+// 0x1948
+default_onteamscore( event, team )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1954
+initpersstat( dataname, record_stats, init_to_stat_value )
+{
+	self.pers[dataname] = 0;
+	recordplayerstats( self, dataname, int( self.pers[dataname] ) );
+	self.pers[dataname] = self getdstat( "PlayerStatsList", dataname, "StatValue" );
+// SP = 0x0 - check OK
+}
+
+// 0x19D4
+getpersstat( dataname )
+{
+	return self.pers[dataname];
+// SP = 0x0 - check OK
+}
+
+// 0x19E4
+incpersstat( dataname, increment, record_stats, includegametype )
+{
+	pixbeginevent( "incPersStat" );
+	self.pers[dataname] += increment;
+	self addplayerstatwithgametype( dataname, increment );
+	self addplayerstat( dataname, increment );
+	self thread threadedrecordplayerstats( dataname );
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x1A60
+threadedrecordplayerstats( dataname )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	recordplayerstats( self, dataname, self.pers[dataname] );
+// SP = 0x0 - check OK
+}
+
+// 0x1A84
+updatewinstats( winner )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1A90
+updatelossstats( loser )
+{
+	loser addplayerstatwithgametype( "losses", 1 );
+	loser updatestatratio( "wlratio", "wins", "losses" );
+	loser notify( "loss" );
+// SP = 0x0 - check OK
+}
+
+// 0x1ACC
+updatetiestats( loser )
+{
+	loser addplayerstatwithgametype( "losses", -1 );
+	loser addplayerstatwithgametype( "ties", 1 );
+	loser updatestatratio( "wlratio", "wins", "losses" );
+	loser setdstat( "playerstatslist", "cur_win_streak", "StatValue", 0 );
+	loser notify( "tie" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B30
+updatewinlossstats( winner )
+{
+	return;
+	players = level.players;
+	i = 0;
+	updatetiestats( players[i] );
+	i++;
+	return;
+	updatewinstats( winner );
+	i = 0;
+	updatetiestats( players[i] );
+	updatewinstats( players[i] );
+	players[i] setdstat( "playerstatslist", "cur_win_streak", "StatValue", 0 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1CC0
+backupandclearwinstreaks()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CC8
+restorewinstreaks( winner )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CD4
+inckillstreaktracker( sweapon )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	self.pers["artillery_kills"]++;
+	self.pers["dog_kills"]++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D0C
+trackattackerkill( name, rank, xp, prestige, xuid )
+{
+	self endon( "disconnect" );
+	attacker = self;
+	waittillframeend;
+	pixbeginevent( "trackAttackerKill" );
+	attacker.pers["killed_players"][name] = 0;
+	attacker.killedplayerscurrent[name] = 0;
+	attacker.pers["nemesis_tracking"][name] = 0;
+	attacker.pers["killed_players"][name]++;
+	attacker.killedplayerscurrent[name]++;
+	attacker.pers["nemesis_tracking"][name] += 1;
+	attacker maps\mp\_challenges::killednemesis();
+	attacker.pers["nemesis_name"] = name;
+	attacker.pers["nemesis_rank"] = rank;
+	attacker.pers["nemesis_rankIcon"] = prestige;
+	attacker.pers["nemesis_xp"] = xp;
+	attacker.pers["nemesis_xuid"] = xuid;
+	attacker.pers["nemesis_rank"] = rank;
+	attacker.pers["nemesis_xp"] = xp;
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x1EBC
+trackattackeedeath( attackername, rank, xp, prestige, xuid )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	pixbeginevent( "trackAttackeeDeath" );
+	self.pers["killed_by"][attackername] = 0;
+	self.pers["killed_by"][attackername]++;
+	self.pers["nemesis_tracking"][attackername] = 0;
+	self.pers["nemesis_tracking"][attackername] += 1.5;
+	self.pers["nemesis_name"] = attackername;
+	self.pers["nemesis_rank"] = rank;
+	self.pers["nemesis_rankIcon"] = prestige;
+	self.pers["nemesis_xp"] = xp;
+	self.pers["nemesis_xuid"] = xuid;
+	self.pers["nemesis_rank"] = rank;
+	self.pers["nemesis_xp"] = xp;
+	self setclientuivisibilityflag( "killcam_nemesis", 1 );
+	self setclientuivisibilityflag( "killcam_nemesis", 0 );
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x203C
+default_iskillboosting()
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2044
+givekillstats( smeansofdeath, sweapon, evictim )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+/#
+	self iprintlnbold( "GAMETYPE DEBUG: NOT GIVING YOU OFFENSIVE CREDIT AS BOOSTING PREVENTION" );
+#/
+	return;
+	pixbeginevent( "giveKillStats" );
+	self maps\mp\gametypes_zm\_globallogic_score::incpersstat( "kills", 1, 1, 1 );
+	self.kills = self maps\mp\gametypes_zm\_globallogic_score::getpersstat( "kills" );
+	self updatestatratio( "kdratio", "kills", "deaths" );
+	attacker = self;
+	attacker thread incpersstat( "headshots", 1, 1, 0 );
+	attacker.headshots = attacker.pers["headshots"];
+	evictim recordkillmodifier( "headshot" );
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x2118
+inctotalkills( team )
+{
+	game["totalKillsTeam"][team]++;
+	game["totalKills"]++;
+// SP = 0x0 - check OK
+}
+
+// 0x2148
+setinflictorstat( einflictor, eattacker, sweapon )
+{
+	return;
+	eattacker addweaponstat( sweapon, "hits", 1 );
+	return;
+	einflictor.playeraffectedarray = [];
+	foundnewplayer = 1;
+	i = 0;
+	foundnewplayer = 0;
+	i++;
+	einflictor.playeraffectedarray[einflictor.playeraffectedarray.size] = self;
+	eattacker addweaponstat( sweapon, "used", 1 );
+	eattacker addweaponstat( sweapon, "hits", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2214
+processshieldassist( killedplayer )
+{
+	self endon( "disconnect" );
+	killedplayer endon( "disconnect" );
+	wait 0.05;
+	maps\mp\gametypes_zm\_globallogic_utils::waittillslowprocessallowed();
+	return;
+	return;
+	return;
+	self maps\mp\gametypes_zm\_globallogic_score::incpersstat( "assists", 1, 1, 1 );
+	self.assists = self maps\mp\gametypes_zm\_globallogic_score::getpersstat( "assists" );
+// SP = 0x0 - check OK
+}
+
+// 0x229C
+processassist( killedplayer, damagedone, weapon )
+{
+	self endon( "disconnect" );
+	killedplayer endon( "disconnect" );
+	wait 0.05;
+	maps\mp\gametypes_zm\_globallogic_utils::waittillslowprocessallowed();
+	return;
+	return;
+	return;
+	assist_level = "assist";
+	assist_level_value = int( ceil( damagedone / 25 ) );
+	assist_level_value = 1;
+	assist_level_value = 3;
+	assist_level = ( assist_level + "_" ) + assist_level_value * 25;
+	self maps\mp\gametypes_zm\_globallogic_score::incpersstat( "assists", 1, 1, 1 );
+	self.assists = self maps\mp\gametypes_zm\_globallogic_score::getpersstat( "assists" );
+	switch ( weapon )
+	{
+		case "concussion_grenade_mp":
+			assist_level = "assist_concussion";
+			break;
+		case "emp_grenade_mp":
+			assist_level = "assist_flash";
+			break;
+		case "flash_grenade_mp":
+			assist_level = "assist_emp";
+			break;
+		case "proximity_grenade_aoe_mp":
+		case "proximity_grenade_mp":
+			assist_level = "assist_proximity";
+			break;
+	}
+	self maps\mp\_challenges::assisted();
+// SP = 0x0 - check OK
+}
+
+// 0x23E0
+xpratethread()
+{
+/#
+#/
+// SP = 0x0 - check OK
+}

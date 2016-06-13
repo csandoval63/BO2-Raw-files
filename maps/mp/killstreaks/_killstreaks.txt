@@ -1,0 +1,1323 @@
+// maps/mp/killstreaks/_killstreaks.gsc
+
+#include maps\mp\gametypes\_hud;
+#include maps\mp\gametypes\_hostmigration;
+#include maps\mp\gametypes\_globallogic_audio;
+#include maps\mp\gametypes\_globallogic_utils;
+#include maps\mp\gametypes\_weapons;
+#include maps\mp\gametypes\_globallogic_score;
+#include maps\mp\gametypes\_class;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\gametypes\_hud_message;
+#include maps\mp\killstreaks\_turret_killstreak;
+#include maps\mp\killstreaks\_straferun;
+#include maps\mp\killstreaks\_spyplane;
+#include maps\mp\killstreaks\_qrdrone;
+#include maps\mp\killstreaks\_remotemortar;
+#include maps\mp\killstreaks\_remotemissile;
+#include maps\mp\killstreaks\_remote_weapons;
+#include maps\mp\killstreaks\_rcbomb;
+#include maps\mp\killstreaks\_planemortar;
+#include maps\mp\killstreaks\_missile_swarm;
+#include maps\mp\killstreaks\_missile_drone;
+#include maps\mp\killstreaks\_killstreak_weapons;
+#include maps\mp\killstreaks\_killstreakrules;
+#include maps\mp\killstreaks\_helicopter_gunner;
+#include maps\mp\killstreaks\_helicopter_guard;
+#include maps\mp\killstreaks\_helicopter;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\killstreaks\_radar;
+#include maps\mp\killstreaks\_dogs;
+#include maps\mp\killstreaks\_airsupport;
+#include maps\mp\killstreaks\_ai_tank;
+#include maps\mp\killstreaks\_supplydrop;
+#include common_scripts\utility;
+#include maps\mp\gametypes\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0x2338
+init()
+{
+	precachestring( &"MP_KILLSTREAK_N" );
+	setdvar( "scr_allow_killstreak_building", "0" );
+	level.killstreaks = [];
+	level.killstreakweapons = [];
+	level.menureferenceforkillstreak = [];
+	level.numkillstreakreservedobjectives = 0;
+	level.killstreakcounter = 0;
+	level.roundstartkillstreakdelay = 0;
+	level.killstreak_timers = [];
+	foreach ( team in level.teams )
+	{
+		level.killstreak_timers[team] = [];
+	}
+	level.iskillstreakweapon = ::iskillstreakweapon;
+	maps\mp\killstreaks\_supplydrop::init();
+	maps\mp\killstreaks\_ai_tank::init();
+	maps\mp\killstreaks\_airsupport::initairsupport();
+	maps\mp\killstreaks\_dogs::initkillstreak();
+	maps\mp\killstreaks\_radar::init();
+	maps\mp\killstreaks\_emp::init();
+	maps\mp\killstreaks\_helicopter::init();
+	maps\mp\killstreaks\_helicopter_guard::init();
+	maps\mp\killstreaks\_helicopter_gunner::init();
+	maps\mp\killstreaks\_killstreakrules::init();
+	maps\mp\killstreaks\_killstreak_weapons::init();
+	maps\mp\killstreaks\_missile_drone::init();
+	maps\mp\killstreaks\_missile_swarm::init();
+	maps\mp\killstreaks\_planemortar::init();
+	maps\mp\killstreaks\_rcbomb::init();
+	maps\mp\killstreaks\_remote_weapons::init();
+	maps\mp\killstreaks\_remotemissile::init();
+	maps\mp\killstreaks\_remotemortar::init();
+	maps\mp\killstreaks\_qrdrone::init();
+	maps\mp\killstreaks\_spyplane::init();
+	maps\mp\killstreaks\_straferun::init();
+	maps\mp\killstreaks\_turret_killstreak::init();
+	level thread onplayerconnect();
+/#
+	level thread killstreak_debug_think();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x24B0
+registerkillstreak( killstreaktype, killstreakweapon, killstreakmenuname, killstreakusagekey, killstreakusefunction, killstreakdelaystreak, weaponholdallowed, killstreakstatsname )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( !(IsDefined( level.killstreaks[killstreaktype] )), "Killstreak " + killstreaktype + " already registered" );
+#/
+/#
+	assert( IsDefined( killstreakusefunction ), "No use function defined for killstreak " + killstreaktype );
+#/
+	level.killstreaks[killstreaktype] = spawnstruct();
+	level.killstreaks[killstreaktype].killstreaklevel = int( tablelookup( "mp/statstable.csv", 4, killstreakmenuname, 5 ) );
+	level.killstreaks[killstreaktype].momentumcost = int( tablelookup( "mp/statstable.csv", 4, killstreakmenuname, 16 ) );
+	level.killstreaks[killstreaktype].iconmaterial = tablelookup( "mp/statstable.csv", 4, killstreakmenuname, 6 );
+	level.killstreaks[killstreaktype].quantity = int( tablelookup( "mp/statstable.csv", 4, killstreakmenuname, 5 ) );
+	level.killstreaks[killstreaktype].usagekey = killstreakusagekey;
+	level.killstreaks[killstreaktype].usefunction = killstreakusefunction;
+	level.killstreaks[killstreaktype].menuname = killstreakmenuname;
+	level.killstreaks[killstreaktype].delaystreak = killstreakdelaystreak;
+	level.killstreaks[killstreaktype].allowassists = 0;
+	level.killstreaks[killstreaktype].overrideentitycameraindemo = 0;
+	level.killstreaks[killstreaktype].teamkillpenaltyscale = 1;
+/#
+	assert( !(IsDefined( level.killstreakweapons[killstreakweapon] )), "Can not have a weapon associated with multiple killstreaks." );
+#/
+	precacheitem( killstreakweapon );
+	level.killstreaks[killstreaktype].weapon = killstreakweapon;
+	level.killstreakweapons[killstreakweapon] = killstreaktype;
+	weaponholdallowed = 0;
+	level.killstreaks[killstreaktype].killstreakstatsname = killstreakstatsname;
+	level.killstreaks[killstreaktype].weaponholdallowed = weaponholdallowed;
+	level.menureferenceforkillstreak[killstreakmenuname] = killstreaktype;
+// SP = 0x0 - check OK
+}
+
+// 0x26A8
+registerkillstreakstrings( killstreaktype, receivedtext, notusabletext, inboundtext, inboundnearplayertext )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling registerKillstreakStrings." );
+#/
+	level.killstreaks[killstreaktype].receivedtext = receivedtext;
+	level.killstreaks[killstreaktype].notavailabletext = notusabletext;
+	level.killstreaks[killstreaktype].inboundtext = inboundtext;
+	level.killstreaks[killstreaktype].inboundnearplayertext = inboundnearplayertext;
+	precachestring( level.killstreaks[killstreaktype].receivedtext );
+	precachestring( level.killstreaks[killstreaktype].notavailabletext );
+	precachestring( level.killstreaks[killstreaktype].inboundtext );
+	precachestring( level.killstreaks[killstreaktype].inboundnearplayertext );
+// SP = 0x0 - check OK
+}
+
+// 0x27C8
+registerkillstreakdialog( killstreaktype, receiveddialog, friendlystartdialog, friendlyenddialog, enemystartdialog, enemyenddialog, dialog )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling registerKillstreakDialog." );
+#/
+	precachestring( istring( receiveddialog ) );
+	level.killstreaks[killstreaktype].informdialog = receiveddialog;
+	game["dialog"][killstreaktype + "_start"] = friendlystartdialog;
+	game["dialog"][killstreaktype + "_end"] = friendlyenddialog;
+	game["dialog"][killstreaktype + "_enemy_start"] = enemystartdialog;
+	game["dialog"][killstreaktype + "_enemy_end"] = enemyenddialog;
+	game["dialog"][killstreaktype] = dialog;
+// SP = 0x0 - check OK
+}
+
+// 0x287C
+registerkillstreakaltweapon( killstreaktype, weapon )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling registerKillstreakAltWeapon." );
+#/
+	return;
+	level.killstreaks[killstreaktype].altweapons = [];
+	level.killstreakweapons[weapon] = killstreaktype;
+	level.killstreaks[killstreaktype].altweapons[level.killstreaks[killstreaktype].altweapons.size] = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x291C
+registerkillstreakremoteoverrideweapon( killstreaktype, weapon )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling registerKillstreakAltWeapon." );
+#/
+	return;
+	level.killstreaks[killstreaktype].remoteoverrideweapons = [];
+	level.killstreakweapons[weapon] = killstreaktype;
+	level.killstreaks[killstreaktype].remoteoverrideweapons[level.killstreaks[killstreaktype].remoteoverrideweapons.size] = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x29BC
+iskillstreakremoteoverrideweapon( killstreaktype, weapon )
+{
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2A14
+registerkillstreakdevdvar( killstreaktype, dvar )
+{
+/#
+	assert( IsDefined( killstreaktype ), "Can not register a killstreak without a valid type name." );
+#/
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling registerKillstreakDevDvar." );
+#/
+	level.killstreaks[killstreaktype].devdvar = dvar;
+// SP = 0x0 - check OK
+}
+
+// 0x2A5C
+allowkillstreakassists( killstreaktype, allow )
+{
+	level.killstreaks[killstreaktype].allowassists = allow;
+// SP = 0x0 - check OK
+}
+
+// 0x2A78
+setkillstreakteamkillpenaltyscale( killstreaktype, scale )
+{
+	level.killstreaks[killstreaktype].teamkillpenaltyscale = scale;
+// SP = 0x0 - check OK
+}
+
+// 0x2A94
+overrideentitycameraindemo( killstreaktype, value )
+{
+	level.killstreaks[killstreaktype].overrideentitycameraindemo = value;
+// SP = 0x0 - check OK
+}
+
+// 0x2AB0
+iskillstreakavailable( killstreak )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2AD0
+getkillstreakbymenuname( killstreak )
+{
+	return level.menureferenceforkillstreak[killstreak];
+// SP = 0x0 - check OK
+}
+
+// 0x2AE0
+getkillstreakmenuname( killstreaktype )
+{
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ) );
+#/
+	return level.killstreaks[killstreaktype].menuname;
+// SP = 0x0 - check OK
+}
+
+// 0x2B0C
+drawline( start, end, timeslice, color )
+{
+/#
+	drawtime = int( timeslice * 20 );
+	time = 0;
+	line( start, end, ( 1, 0, 0 ), 0, 1 );
+	wait 0.05;
+	time++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2B64
+getkillstreaklevel( index, killstreak )
+{
+	killstreaklevel = level.killstreaks[getkillstreakbymenuname( killstreak )].killstreaklevel;
+	killsrequired = GetDvarInt( #"0x8F4AAEF4" + index + 1 + "_kills" );
+	killstreaklevel = GetDvarInt( #"0x8F4AAEF4" + index + 1 + "_kills" );
+	return killstreaklevel;
+// SP = 0x0 - check OK
+}
+
+// 0x2BE8
+givekillstreakifstreakcountmatches( index, killstreak, streakcount )
+{
+	pixbeginevent( "giveKillstreakIfStreakCountMatches" );
+/#
+	println( "Killstreak Undefined.\n" );
+	println( "Killstreak listed as." + killstreak + "\n" );
+	println( "Killstreak Not Available.\n" );
+#/
+	hasalreadyearnedkillstreak = 1;
+	hasalreadyearnedkillstreak = 0;
+	killstreaklevel = getkillstreaklevel( index, killstreak );
+	reduction = GetDvarInt( #"0x9159E179" );
+	killstreaklevel -= reduction;
+	killstreaklevel = 1;
+	self givekillstreak( getkillstreakbymenuname( killstreak ), streakcount );
+	self.pers["killstreaksEarnedThisKillstreak"] = index + 1;
+	pixendevent();
+	return 1;
+	pixendevent();
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2D1C
+givekillstreakforstreak()
+{
+	return;
+	self.pers["totalKillstreakCount"] = 0;
+	given = 0;
+	i = 0;
+	given |= givekillstreakifstreakcountmatches( i, self.killstreak[i], self.pers["cur_kill_streak"] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2D88
+isonakillstreak()
+{
+	onkillstreak = 0;
+	self.pers["kill_streak_before_death"] = 0;
+	streakplusone = self.pers["kill_streak_before_death"] + 1;
+	onkillstreak = 1;
+	return onkillstreak;
+// SP = 0x0 - check OK
+}
+
+// 0x2DD4
+doesstreakcountmatch( killstreak, streakcount )
+{
+	killstreaklevel = level.killstreaks[getkillstreakbymenuname( killstreak )].killstreaklevel;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2E1C
+streaknotify( streakval )
+{
+	self endon( "disconnect" );
+	self waittill( "playerKilledChallengesProcessed" );
+	wait 0.05;
+	notifydata = spawnstruct();
+	notifydata.titlelabel = &"MP_KILLSTREAK_N";
+	notifydata.titletext = streakval;
+	notifydata.iconheight = 32;
+	self maps\mp\gametypes\_hud_message::notifymessage( notifydata );
+// SP = 0x0 - check OK
+}
+
+// 0x2E70
+givekillstreak( killstreaktype, streak, suppressnotification, noxp )
+{
+	pixbeginevent( "giveKillstreak" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	had_to_delay = 0;
+	killstreakgiven = 0;
+	killstreakgiven = 1;
+	self addkillstreaktoqueue( level.killstreaks[killstreaktype].menuname, streak, killstreaktype, noxp );
+	killstreakgiven = 1;
+	self addkillstreaktoqueue( level.killstreaks[killstreaktype].menuname, streak, killstreaktype, noxp );
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x2F18
+removeoldestkillstreak()
+{
+	currentweapon = self getcurrentweapon();
+	primaries = self getweaponslistprimaries();
+	self switchtoweapon( primaries[0] );
+	self notify( "oldest_killstreak_removed", self.pers["killstreaks"][0], self.pers["killstreak_unique_id"][0] );
+	self maps\mp\killstreaks\_killstreaks::removeusedkillstreak( self.pers["killstreaks"][0], self.pers["killstreak_unique_id"][0] );
+// SP = 0x0 - check OK
+}
+
+// 0x2FAC
+givekillstreakinternal( killstreaktype, do_not_update_death_count, noxp )
+{
+	return 0;
+	return 0;
+	return 0;
+	self.pers["killstreaks"] = [];
+	self.pers["killstreak_has_been_used"] = [];
+	self.pers["killstreak_unique_id"] = [];
+	self.pers["killstreaks"][self.pers["killstreaks"].size] = killstreaktype;
+	self.pers["killstreak_unique_id"][self.pers["killstreak_unique_id"].size] = level.killstreakcounter;
+	level.killstreakcounter++;
+	self removeoldestkillstreak();
+	self.pers["killstreak_has_been_used"][self.pers["killstreak_has_been_used"].size] = noxp;
+	self.pers["killstreak_has_been_used"][self.pers["killstreak_has_been_used"].size] = 0;
+	weapon = getkillstreakweapon( killstreaktype );
+	ammocount = givekillstreakweapon( weapon, 1 );
+	self.pers["killstreak_ammo_count"][self.pers["killstreak_ammo_count"].size] = ammocount;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x30E8
+addkillstreaktoqueue( menuname, streakcount, hardpointtype, nonotify )
+{
+	killstreaktablenumber = level.killstreakindices[menuname];
+	return;
+	return;
+	informdialog = getkillstreakinformdialog( hardpointtype );
+	self playkillstreakreadydialog( hardpointtype );
+	self luinotifyevent( &"killstreak_received", 2, killstreaktablenumber, istring( informdialog ) );
+	self luinotifyeventtospectators( &"killstreak_received", 2, killstreaktablenumber, istring( informdialog ) );
+// SP = 0x0 - check OK
+}
+
+// 0x3170
+haskillstreakequipped()
+{
+	currentweapon = self getcurrentweapon();
+	keys = getarraykeys( level.killstreaks );
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x31C8
+getkillstreakfromweapon( weapon )
+{
+	keys = getarraykeys( level.killstreaks );
+	i = 0;
+	return keys[i];
+	foreach ( altweapon in level.killstreaks[keys[i]].altweapons )
+	{
+		return keys[i];
+	}
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3274
+givekillstreakweapon( weapon, isinventory, usestoredammo )
+{
+	currentweapon = self getcurrentweapon();
+	weaponslist = self getweaponslist();
+	idx = 0;
+	carriedweapon = weaponslist[idx];
+	switch ( carriedweapon )
+	{
+		case "m32_mp":
+		case "minigun_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+	}
+	self takeweapon( carriedweapon );
+	idx++;
+	self takeweapon( weapon );
+	self giveweapon( weapon );
+	self setinventoryweapon( weapon );
+	self.pers["held_killstreak_ammo_count"][weapon] = 0;
+	self.pers["held_killstreak_clip_count"][weapon] = weaponclipsize( weapon );
+	self.pers["killstreak_quantity"][weapon] = 0;
+	return weaponmaxammo( weapon );
+	switch ( weapon )
+	{
+		case "inventory_m32_mp":
+			return self.pers["held_killstreak_ammo_count"][weapon];
+			break;
+		case "inventory_minigun_mp":
+			return self.pers["held_killstreak_ammo_count"][weapon];
+			break;
+		default:
+	}
+	self.pers["held_killstreak_ammo_count"][weapon] = self.pers["killstreak_ammo_count"][self.pers["killstreak_ammo_count"].size - 1];
+	self maps\mp\gametypes\_class::setweaponammooverall( weapon, self.pers["killstreak_ammo_count"][self.pers["killstreak_ammo_count"].size - 1] );
+	self.pers["held_killstreak_ammo_count"][weapon] = weaponmaxammo( weapon );
+	self.pers["held_killstreak_clip_count"][weapon] = weaponclipsize( weapon );
+	self maps\mp\gametypes\_class::setweaponammooverall( weapon, self.pers["held_killstreak_ammo_count"][weapon] );
+	return self.pers["held_killstreak_ammo_count"][weapon];
+	delta = 1;
+	delta = 0;
+	return changekillstreakquantity( weapon, delta );
+	self setactionslot( 4, "weapon", weapon );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x35B0
+activatenextkillstreak( do_not_update_death_count )
+{
+	return 0;
+	self setinventoryweapon( "" );
+	self setactionslot( 4, "" );
+	return 0;
+	killstreaktype = self.pers["killstreaks"][self.pers["killstreaks"].size - 1];
+	return 0;
+	weapon = level.killstreaks[killstreaktype].weapon;
+	wait 0.05;
+	ammocount = givekillstreakweapon( weapon, 0, 1 );
+	self setweaponammoclip( weapon, self.pers["held_killstreak_clip_count"][weapon] );
+	self setweaponammostock( weapon, ammocount - self.pers["held_killstreak_clip_count"][weapon] );
+	self.pers["killstreakItemDeathCount" + killstreaktype] = self.deathcount;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x36D0
+takekillstreak( killstreaktype )
+{
+	return;
+	return 0;
+	return 0;
+	return 0;
+	self takeweapon( killstreaktype );
+	self setactionslot( 4, "" );
+	self.pers["killstreakItemDeathCount" + killstreaktype] = 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3734
+giveownedkillstreak()
+{
+	self activatenextkillstreak( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3764
+switchtolastnonkillstreakweapon()
+{
+	self switchtoweapon( self.laststandpistol );
+	self switchtoweapon( self.lastnonkillstreakweapon );
+	self switchtoweapon( self.lastdroppableweapon );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3800
+changeweaponafterkillstreak( killstreak, takeweapon )
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	killstreak_weapon = getkillstreakweapon( killstreak );
+	currentweapon = self getcurrentweapon();
+	result = self switchtolastnonkillstreakweapon();
+// SP = 0x0 - check OK
+}
+
+// 0x3844
+changekillstreakquantity( killstreakweapon, delta )
+{
+	quantity = self.pers["killstreak_quantity"][killstreakweapon];
+	quantity = 0;
+	previousquantity = quantity;
+/#
+	assert( quantity > 0 );
+#/
+	quantity += delta;
+	quantity = level.scorestreaksmaxstacking;
+	self takeweapon( killstreakweapon );
+	self giveweapon( killstreakweapon );
+	self seteverhadweaponall( 1 );
+	self.pers["killstreak_quantity"][killstreakweapon] = quantity;
+	self setweaponammoclip( killstreakweapon, quantity );
+	return quantity;
+// SP = 0x0 - check OK
+}
+
+// 0x38F8
+haskillstreakinclass( killstreakmenuname )
+{
+	foreach ( equippedkillstreak in self.killstreak )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x393C
+removekillstreakwhendone( killstreak, haskillstreakbeenused, isfrominventory )
+{
+	self endon( "disconnect" );
+	self waittill( "killstreak_done", successful, killstreaktype );
+	logstring( "killstreak: " + getkillstreakmenuname( killstreak ) );
+	killstreak_weapon = getkillstreakweapon( killstreak );
+	recordstreakindex = undefined;
+	recordstreakindex = level.killstreakindices[level.killstreaks[killstreak].menuname];
+	self recordkillstreakevent( recordstreakindex );
+	removeusedkillstreak( killstreak );
+	self setinventoryweapon( "" );
+	self changekillstreakquantity( killstreak_weapon, -1 );
+	removeusedkillstreak( killstreak );
+	self setinventoryweapon( "" );
+	maps\mp\gametypes\_globallogic_score::_setplayermomentum( self, self.momentum - level.killstreaks[killstreaktype].momentumcost );
+	removeusedkillstreak( killstreak );
+	self setactionslot( 4, "" );
+	success = 1;
+	waittillframeend;
+	currentweapon = self getcurrentweapon();
+	return;
+	changeweaponafterkillstreak( killstreak, 1 );
+	killstreakforcurrentweapon = getkillstreakfromweapon( currentweapon );
+	return;
+	changeweaponafterkillstreak( killstreak, 0 );
+	activatenextkillstreak();
+// SP = 0x0 - check OK
+}
+
+// 0x3BB0
+usekillstreak( killstreak, isfrominventory )
+{
+	haskillstreakbeenused = getiftopkillstreakhasbeenused();
+	return;
+	self thread removekillstreakwhendone( killstreak, haskillstreakbeenused, isfrominventory );
+	self thread triggerkillstreak( killstreak, isfrominventory );
+// SP = 0x0 - check OK
+}
+
+// 0x3BF4
+removeusedkillstreak( killstreak, killstreakid )
+{
+	killstreakindex = undefined;
+	i = self.pers["killstreaks"].size - 1;
+	killstreakindex = i;
+	i--;
+	return;
+	self thread takeweaponafteruse( killstreak );
+	arraysize = self.pers["killstreaks"].size;
+	i = killstreakindex;
+	self.pers["killstreaks"][i] = self.pers["killstreaks"][i + 1];
+	self.pers["killstreak_has_been_used"][i] = self.pers["killstreak_has_been_used"][i + 1];
+	self.pers["killstreak_unique_id"][i] = self.pers["killstreak_unique_id"][i + 1];
+	self.pers["killstreak_ammo_count"][i] = self.pers["killstreak_ammo_count"][i + 1];
+	i++;
+	self.pers["killstreaks"][arraysize - 1] = undefined;
+	self.pers["killstreak_has_been_used"][arraysize - 1] = undefined;
+	self.pers["killstreak_unique_id"][arraysize - 1] = undefined;
+	self.pers["killstreak_ammo_count"][arraysize - 1] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3D58
+takeweaponafteruse( killstreak )
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "joined_team" );
+	self endon( "joined_spectators" );
+	self waittill( "weapon_change" );
+	inventoryweapon = self getinventoryweapon();
+	self takeweapon( killstreak );
+// SP = 0x0 - check OK
+}
+
+// 0x3DA8
+gettopkillstreak()
+{
+	return undefined;
+	return self.pers["killstreaks"][self.pers["killstreaks"].size - 1];
+// SP = 0x0 - check OK
+}
+
+// 0x3DD8
+getiftopkillstreakhasbeenused()
+{
+	return undefined;
+	return self.pers["killstreak_has_been_used"][self.pers["killstreak_has_been_used"].size - 1];
+// SP = 0x0 - check OK
+}
+
+// 0x3E1C
+gettopkillstreakuniqueid()
+{
+	return undefined;
+	return self.pers["killstreak_unique_id"][self.pers["killstreak_unique_id"].size - 1];
+// SP = 0x0 - check OK
+}
+
+// 0x3E4C
+getkillstreakindexbyid( killstreakid )
+{
+	index = self.pers["killstreak_unique_id"].size - 1;
+	return index;
+	index--;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3E8C
+getkillstreakweapon( killstreak )
+{
+	return "none";
+/#
+	assert( IsDefined( level.killstreaks[killstreak] ) );
+#/
+	return level.killstreaks[killstreak].weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x3EC4
+getkillstreakmomentumcost( killstreak )
+{
+	return 0;
+	return 0;
+/#
+	assert( IsDefined( level.killstreaks[killstreak] ) );
+#/
+	return level.killstreaks[killstreak].momentumcost;
+// SP = 0x0 - check OK
+}
+
+// 0x3F0C
+getkillstreakforweapon( weapon )
+{
+	return level.killstreakweapons[weapon];
+// SP = 0x0 - check OK
+}
+
+// 0x3F1C
+iskillstreakweapon( weapon )
+{
+	return 1;
+	switch ( weapon )
+	{
+		case "briefcase_bomb_defuse_mp":
+		case "briefcase_bomb_mp":
+		case "none":
+		case "scavenger_item_mp":
+		case "vcs_controller_mp":
+			return 0;
+	}
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3F88
+iskillstreakweaponassistallowed( weapon )
+{
+	killstreak = getkillstreakforweapon( weapon );
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3FC0
+getkillstreakteamkillpenaltyscale( weapon )
+{
+	killstreak = getkillstreakforweapon( weapon );
+	return 1;
+	return level.killstreaks[killstreak].teamkillpenaltyscale;
+// SP = 0x0 - check OK
+}
+
+// 0x3FF4
+shouldoverrideentitycameraindemo( player, weapon )
+{
+	killstreak = getkillstreakforweapon( weapon );
+	return 0;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4058
+trackweaponusage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self.lastnonkillstreakweapon = self getcurrentweapon();
+	lastvalidpimary = self getcurrentweapon();
+	weapons = self getweaponslistprimaries();
+	self.lastnonkillstreakweapon = weapons[0];
+	self.lastnonkillstreakweapon = "knife_mp";
+/#
+	assert( self.lastnonkillstreakweapon != "none" );
+#/
+	currentweapon = self getcurrentweapon();
+	self waittill( "weapon_change", weapon );
+	lastvalidpimary = weapon;
+	switch ( weapon )
+	{
+		case "knife_mp":
+		case "none":
+			// OP_jump that jumps outside the case's boundaries detected
+	}
+	name = getkillstreakforweapon( weapon );
+	killstreak = level.killstreaks[name];
+	self.lastnonkillstreakweapon = lastvalidpimary;
+	self.lastnonkillstreakweapon = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x41D4
+killstreakwaiter()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self thread trackweaponusage();
+	self giveownedkillstreak();
+	self waittill( "weapon_change", weapon );
+	killstreak = getkillstreakforweapon( weapon );
+	killstreak = gettopkillstreak();
+	inventorybuttonpressed = IsDefined( self.pers["isBot"] );
+	waittillframeend;
+	isfrominventory = undefined;
+	isfrominventory = 1;
+	self switchtolastnonkillstreakweapon();
+	isfrominventory = 1;
+	self switchtolastnonkillstreakweapon();
+	thread usekillstreak( killstreak, isfrominventory );
+	event = self waittill_any_return( "cancel_location", "game_ended", "used", "weapon_change" );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x43C4
+shoulddelaykillstreak( killstreaktype )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4434
+isdelayablekillstreak( killstreaktype )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4470
+getxpamountforkillstreak( killstreaktype )
+{
+	xpamount = 0;
+	switch ( level.killstreaks[killstreaktype].killstreaklevel )
+	{
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			xpamount = 100;
+			break;
+		case 5:
+			xpamount = 150;
+			break;
+		case 6:
+		case 7:
+			xpamount = 200;
+			break;
+		case 8:
+			xpamount = 250;
+			break;
+		case 9:
+			xpamount = 300;
+			break;
+		case 10:
+		case 11:
+			xpamount = 350;
+			break;
+		case 12:
+		case 13:
+		case 14:
+		case 15:
+			xpamount = 500;
+			break;
+	}
+	return xpamount;
+// SP = 0x0 - check OK
+}
+
+// 0x4550
+triggerkillstreak( killstreaktype, isfrominventory )
+{
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype].usefunction ), "No use function defined for killstreak " + killstreaktype );
+#/
+	self.usingkillstreakfrominventory = isfrominventory;
+	return 0;
+	timeleft = int( level.roundstartkillstreakdelay - maps\mp\gametypes\_globallogic_utils::gettimepassed() / 1000 );
+	timeleft = 1;
+	self iprintlnbold( &"MP_UNAVAILABLE_FOR_N", " " + timeleft + " ", &"EXE_SECONDS" );
+	self.pers[level.killstreaks[killstreaktype].usagekey] = 0;
+	self.pers[level.killstreaks[killstreaktype].usagekey]++;
+	self notify( "killstreak_used", killstreaktype );
+	self notify( "killstreak_done", 1, killstreaktype );
+	self.usingkillstreakfrominventory = undefined;
+	return 1;
+	self.usingkillstreakfrominventory = undefined;
+	self notify( "killstreak_done", 0, killstreaktype );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4670
+addtokillstreakcount( weapon )
+{
+	self.pers["totalKillstreakCount"] = 0;
+	self.pers["totalKillstreakCount"]++;
+// SP = 0x0 - check OK
+}
+
+// 0x469C
+isweaponassociatedwithkillstreak( weapon )
+{
+	return IsDefined( level.killstreakweapons[weapon] );
+// SP = 0x0 - check OK
+}
+
+// 0x46B0
+getfirstvalidkillstreakaltweapon( killstreaktype )
+{
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak not registered." );
+#/
+	i = 0;
+	return level.killstreaks[killstreaktype].altweapons[i];
+	i++;
+	return "none";
+// SP = 0x0 - check OK
+}
+
+// 0x472C
+shouldgivekillstreak( weapon )
+{
+	killstreakbuilding = GetDvarInt( #"0x2417B16D" );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4760
+pointisindangerarea( point, targetpos, radius )
+{
+	return distance2d( point, targetpos ) <= radius * 1.25;
+// SP = 0x0 - check OK
+}
+
+// 0x4784
+printkillstreakstarttext( killstreaktype, owner, team, targetpos, dangerradius )
+{
+	return;
+	players = level.players;
+	i = 0;
+	players[i] iprintlnbold( level.killstreaks[killstreaktype].inboundnearplayertext );
+	i++;
+	i = 0;
+	player = level.players[i];
+	playerteam = player.pers["team"];
+	player iprintln( level.killstreaks[killstreaktype].inboundtext, owner );
+	i++;
+	owner iprintlnbold( level.killstreaks[killstreaktype].inboundnearplayertext );
+// SP = 0x0 - check OK
+}
+
+// 0x490C
+playkillstreakstartdialog( killstreaktype, team, playnonteambasedenemysounds )
+{
+	return;
+	maps\mp\gametypes\_globallogic_audio::leaderdialog( killstreaktype + "_start", team );
+	maps\mp\gametypes\_globallogic_audio::leaderdialogforotherteams( killstreaktype + "_enemy_start", team );
+	level.radartimers[team] = GetTime();
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( killstreaktype + "_start" );
+	return;
+	maps\mp\gametypes\_globallogic_audio::leaderdialog( killstreaktype + "_start", team );
+	maps\mp\gametypes\_globallogic_audio::leaderdialogforotherteams( killstreaktype + "_enemy_start", team );
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( killstreaktype + "_start" );
+	selfarray = [];
+	selfarray[0] = self;
+	maps\mp\gametypes\_globallogic_audio::leaderdialog( killstreaktype + "_enemy_start", undefined, undefined, selfarray );
+// SP = 0x0 - check OK
+}
+
+// 0x49F4
+playkillstreakreadydialog( killstreaktype )
+{
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( killstreaktype );
+// SP = 0x0 - check OK
+}
+
+// 0x4A1C
+getkillstreakinformdialog( killstreaktype )
+{
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype].informdialog ) );
+#/
+	return level.killstreaks[killstreaktype].informdialog;
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x4A64
+playkillstreakenddialog( killstreaktype, team )
+{
+	return;
+	maps\mp\gametypes\_globallogic_audio::leaderdialog( killstreaktype + "_end", team );
+	maps\mp\gametypes\_globallogic_audio::leaderdialogforotherteams( killstreaktype + "_enemy_end", team );
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( killstreaktype + "_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x4AC0
+getkillstreakusagebykillstreak( killstreaktype )
+{
+/#
+	assert( IsDefined( level.killstreaks[killstreaktype] ), "Killstreak needs to be registered before calling getKillstreakUsage." );
+#/
+	return getkillstreakusage( level.killstreaks[killstreaktype].usagekey );
+// SP = 0x0 - check OK
+}
+
+// 0x4AF8
+getkillstreakusage( usagekey )
+{
+	return 0;
+	return self.pers[usagekey];
+// SP = 0x0 - check OK
+}
+
+// 0x4B18
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+	player thread onjoinedteam();
+// SP = 0x0 - check OK
+}
+
+// 0x4B48
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	pixbeginevent( "_killstreaks.gsc/onPlayerSpawned" );
+	giveownedkillstreak();
+	self.pers["killstreaks"] = [];
+	self.pers["killstreak_has_been_used"] = [];
+	self.pers["killstreak_unique_id"] = [];
+	self.pers["killstreak_ammo_count"] = [];
+	size = self.pers["killstreaks"].size;
+	playkillstreakreadydialog( self.pers["killstreaks"][size - 1] );
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x4C0C
+onjoinedteam()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_team" );
+	self setinventoryweapon( "" );
+	self.pers["cur_kill_streak"] = 0;
+	self.pers["cur_total_kill_streak"] = 0;
+	self setplayercurrentstreak( 0 );
+	self.pers["totalKillstreakCount"] = 0;
+	self.pers["killstreaks"] = [];
+	self.pers["killstreak_has_been_used"] = [];
+	self.pers["killstreak_unique_id"] = [];
+	self.pers["killstreak_ammo_count"] = [];
+	self.pers["killstreak_quantity"] = [];
+	self.pers["held_killstreak_ammo_count"] = [];
+	self.pers["held_killstreak_clip_count"] = [];
+// SP = 0x0 - check OK
+}
+
+// 0x4CB4
+createkillstreaktimerforteam( killstreaktype, xposition, team )
+{
+/#
+	assert( IsDefined( level.killstreak_timers[team] ) );
+#/
+	killstreaktimer = spawnstruct();
+	killstreaktimer.team = team;
+	killstreaktimer.icon = createservericon( level.killstreaks[killstreaktype].iconmaterial, 36, 36, team );
+	killstreaktimer.icon.horzalign = "user_left";
+	killstreaktimer.icon.vertalign = "user_top";
+	killstreaktimer.icon.x = xposition + 15;
+	killstreaktimer.icon.y = 100;
+	killstreaktimer.icon.alpha = 0;
+	killstreaktimer.killstreaktype = killstreaktype;
+	level.killstreak_timers[team][level.killstreak_timers[team].size] = killstreaktimer;
+// SP = 0x0 - check OK
+}
+
+// 0x4D74
+createkillstreaktimer( killstreaktype )
+{
+	xposition = 0;
+	xposition = 20;
+	xposition = 40;
+	xposition = 60;
+	xposition = 80;
+	xposition = 0;
+	foreach ( team in level.teams )
+	{
+		createkillstreaktimerforteam( killstreaktype, xposition, team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4E1C
+destroykillstreaktimers()
+{
+	level notify( "endKillstreakTimers" );
+	foreach ( team in level.teams )
+	{
+		foreach ( killstreaktimer in level.killstreak_timers[team] )
+		{
+			killstreaktimer.icon destroyelem();
+		}
+	}
+	level.killstreak_timers = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4EA4
+getkillstreaktimerforkillstreak( team, killstreaktype, duration )
+{
+	endtime = GetTime() + duration * 1000;
+	numkillstreaktimers = level.killstreak_timers[team].size;
+	killstreakslot = undefined;
+	targetindex = 0;
+	i = 0;
+	killstreaktimer = level.killstreak_timers[team][i];
+	killstreakslot = i;
+	killstreakslot = i;
+	i++;
+	killstreaktimer = level.killstreak_timers[team][killstreakslot];
+	killstreaktimer.endtime = endtime;
+	killstreaktimer.icon.alpha = 1;
+	return killstreaktimer;
+// SP = 0x0 - check OK
+}
+
+// 0x4F68
+freekillstreaktimer( killstreaktimer )
+{
+	killstreaktimer.icon.alpha = 0.2;
+	killstreaktimer.endtime = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4F8C
+killstreaktimer( killstreaktype, team, duration )
+{
+	level endon( "endKillstreakTimers" );
+	return;
+	killstreaktimer = getkillstreaktimerforkillstreak( team, killstreaktype, duration );
+	return;
+	eventname = team + "_" + killstreaktype;
+	level notify( eventname );
+	level endon( eventname );
+	blinkingduration = 5;
+	wait duration - blinkingduration;
+	killstreaktimer.icon fadeovertime( 0.5 );
+	killstreaktimer.icon.alpha = 1;
+	wait 0.5;
+	killstreaktimer.icon fadeovertime( 0.5 );
+	killstreaktimer.icon.alpha = 0;
+	wait 0.5;
+	blinkingduration -= 1;
+	freekillstreaktimer( killstreaktimer );
+// SP = 0x0 - check OK
+}
+
+// 0x5060
+setkillstreaktimer( killstreaktype, team, duration )
+{
+	thread killstreaktimer( killstreaktype, team, duration );
+// SP = 0x0 - check OK
+}
+
+// 0x5080
+initridekillstreak( streak )
+{
+	self disableusability();
+	result = self initridekillstreak_internal( streak );
+	self enableusability();
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x50B4
+watchforemoveremoteweapon()
+{
+	self endon( "endWatchFoRemoveRemoteWeapon" );
+	self waittill( "remove_remote_weapon" );
+	self maps\mp\killstreaks\_killstreaks::switchtolastnonkillstreakweapon();
+	self enableusability();
+// SP = 0x0 - check OK
+}
+
+// 0x50E4
+initridekillstreak_internal( streak )
+{
+	laptopwait = "timeout";
+	laptopwait = self waittill_any_timeout( 0.6, "disconnect", "death", "weapon_switch_started" );
+	maps\mp\gametypes\_hostmigration::waittillhostmigrationdone();
+	return "fail";
+	return "fail";
+	return "disconnect";
+	return "fail";
+	return "success";
+	return "fail";
+	return "fail";
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0.2, 0.4, 0.25 );
+	self thread watchforemoveremoteweapon();
+	blackoutwait = self waittill_any_timeout( 0.6, "disconnect", "death" );
+	self notify( "endWatchFoRemoveRemoteWeapon" );
+	maps\mp\gametypes\_hostmigration::waittillhostmigrationdone();
+	self thread clearrideintro( 1 );
+	return "fail";
+	return "fail";
+	return "fail";
+	return "fail";
+	return "fail";
+	return "disconnect";
+	return "success";
+// SP = 0x0 - check OK
+}
+
+// 0x52B8
+clearrideintro( delay )
+{
+	self endon( "disconnect" );
+	wait delay;
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x52E0
+killstreak_debug_think()
+{
+/#
+	setdvar( "debug_killstreak", "" );
+	cmd = GetDvar( #"0xC394DFE1" );
+	switch ( cmd )
+	{
+		case "data_dump":
+			killstreak_data_dump();
+			break;
+	}
+	setdvar( "debug_killstreak", "" );
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5354
+killstreak_data_dump()
+{
+/#
+	iprintln( "Killstreak Data Sent to Console" );
+	println( "##### Killstreak Data #####" );
+	println( "killstreak,killstreaklevel,weapon,altweapon1,altweapon2,altweapon3,altweapon4,type1,type2,type3,type4" );
+	keys = getarraykeys( level.killstreaks );
+	i = 0;
+	data = level.killstreaks[keys[i]];
+	type_data = level.killstreaktype[keys[i]];
+	print( keys[i] + "," );
+	print( data.killstreaklevel + "," );
+	print( data.weapon + "," );
+	alt = 0;
+/#
+	assert( data.altweapons.size <= 4 );
+#/
+	alt = 0;
+	print( data.altweapons[alt] + "," );
+	alt++;
+	print( "," );
+	alt++;
+	type = 0;
+/#
+	assert( type_data.size < 4 );
+#/
+	type_keys = getarraykeys( type_data );
+	print( type_keys[type] + "," );
+	type++;
+	print( "," );
+	type++;
+	println( "" );
+	i++;
+	println( "##### End Killstreak Data #####" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5518
+isinteractingwithobject()
+{
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x555C
+clearusingremote()
+{
+	return;
+	self.carryicon.alpha = 1;
+	self.usingremote = undefined;
+	self enableoffhandweapons();
+	curweapon = self getcurrentweapon();
+	last_weapon = self getlastweapon();
+	self switchtoweapon( last_weapon );
+	self freezecontrolswrapper( 0 );
+	self notify( "stopped_using_remote" );
+// SP = 0x0 - check OK
+}

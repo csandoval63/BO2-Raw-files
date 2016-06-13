@@ -1,0 +1,160 @@
+// clientscripts/mp/_proximity_grenade.csc
+
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x6D4
+main()
+{
+	registerclientfield( "toplayer", "tazered", 1000, 1, "int", ::updateplayertazered, 0 );
+	level._effect["prox_grenade_friendly_default"] = loadfx( "weapon/grenade/fx_prox_grenade_scan_grn" );
+	level._effect["prox_grenade_friendly_warning"] = loadfx( "weapon/grenade/fx_prox_grenade_wrn_grn" );
+	level._effect["prox_grenade_enemy_default"] = loadfx( "weapon/grenade/fx_prox_grenade_scan_red" );
+	level._effect["prox_grenade_enemy_warning"] = loadfx( "weapon/grenade/fx_prox_grenade_wrn_red" );
+	level._effect["prox_grenade_player_shock"] = loadfx( "weapon/grenade/fx_prox_grenade_impact_player_spwner" );
+// SP = 0x0 - check OK
+}
+
+// 0x760
+spawned( localclientnum )
+{
+	return;
+	self thread proxygrenadefx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x784
+updateplayertazered( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x79C
+proxygrenadefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	self waittill_dobj( localclientnum );
+	waittillsnapprocessed( localclientnum );
+	fx_handle = self playflarefx( localclientnum );
+	self notify( "teamBased_fx_reinitialized" );
+	self thread checkforplayerswitch( localclientnum, fx_handle );
+	level thread watchforplayerrespawnforteambasedfx( localclientnum, self, ::proxygrenadefx, fx_handle );
+// SP = 0x0 - check OK
+}
+
+// 0x808
+playflarefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	fx_handle = playfxontag( localclientnum, level._effect["prox_grenade_friendly_default"], self, "tag_fx" );
+	fx_handle = playfxontag( localclientnum, level._effect["prox_grenade_enemy_default"], self, "tag_fx" );
+	self thread watchproxyshutdown( localclientnum, fx_handle );
+	return fx_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x874
+watchproxyshutdown( localclientnum, fxhandle )
+{
+	msg = self waittill_any_return( "entityshutdown", "team_changed", "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	self thread proxygrenadefx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x8BC
+checkforplayerswitch( localclientnum, fxhandle )
+{
+	self endon( "entityshutdown" );
+	self endon( "teamBased_fx_reinitialized" );
+	level waittill( "player_switch" );
+	self notify( "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	waittillframeend;
+	self thread proxygrenadefx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x904
+taserhudfx( localclientnum, position )
+{
+	self endon( "entityshutdown" );
+	level endon( "respawn" );
+	return;
+	trace = bullettrace( getlocalclienteyepos( localclientnum ), position, 0, self );
+	self thread reducedshock( localclientnum, position );
+	self thread flickervisionset( localclientnum, 0.03, 1.25, 0 );
+	cycles = 3;
+	i = 0;
+	zap_wait = 0.25;
+	j = 0;
+	menuname = "fullscreen_proximity";
+	forwardvec = vectornormalize( anglestoforward( self.angles ) );
+	rightvec = vectornormalize( anglestoright( self.angles ) );
+	explosionvec = vectornormalize( position - self.origin );
+	fdot = vectordot( explosionvec, forwardvec );
+	rdot = vectordot( explosionvec, rightvec );
+	menustate = "proximity_vertical_top" + j;
+	menustate = "proximity_vertical_bottom" + j;
+	menustate = "proximity_horizontal_right" + j;
+	menustate = "proximity_horizontal_left" + j;
+	animateui( localclientnum, menuname, menustate, "in", 0 );
+	wait zap_wait;
+	zap_wait /= 2;
+	j++;
+	wait 0.2;
+	cycles--;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xACC
+reducedshock( localclientnum, position )
+{
+	self endon( "entityshutdown" );
+	level endon( "respawn" );
+	menuname = "fullscreen_proximity";
+	self thread flickervisionset( localclientnum, 0.03, 0.15, 0 );
+	self playsound( 0, "wpn_taser_mine_tacmask" );
+	forwardvec = vectornormalize( anglestoforward( self.angles ) );
+	rightvec = vectornormalize( anglestoright( self.angles ) );
+	explosionvec = vectornormalize( position - self.origin );
+	fdot = vectordot( explosionvec, forwardvec );
+	rdot = vectordot( explosionvec, rightvec );
+	menustate = "proximity_vertical_top0";
+	menustate = "proximity_vertical_bottom0";
+	menustate = "proximity_horizontal_right0";
+	menustate = "proximity_horizontal_left0";
+	animateui( localclientnum, menuname, menustate, "in", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xBD8
+flickervisionset( localclientnum, period, duration_seconds, transition )
+{
+	level endon( "respawn" );
+	flicker_start_time = getrealtime();
+	saved_vision = getvisionsetnaked( localclientnum );
+	toggle = 1;
+	duration_ms = duration_seconds * 1000;
+	wait 0.1;
+	visionsetnaked( localclientnum, "taser_mine_shock", transition );
+	visionsetnaked( localclientnum, saved_vision, transition );
+	toggle = !(toggle);
+	wait period;
+	visionsetnaked( localclientnum, saved_vision, transition );
+// SP = 0x0 - check OK
+}
+
+// 0xC88
+visionsettoggle( localclientnum, toggle )
+{
+	duration = 0.05;
+	visionsetnaked( localclientnum, "taser_mine_shock", duration );
+	visionsetnaked( localclientnum, GetDvar( #"0xB4B895C4" ), duration );
+	return !(toggle);
+// SP = 0x0 - check OK
+}

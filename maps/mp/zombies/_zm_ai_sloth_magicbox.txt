@@ -1,0 +1,302 @@
+// maps/mp/zombies/_zm_ai_sloth_magicbox.gsc
+
+#include maps\mp\zombies\_zm_unitrigger;
+#include maps\mp\zombies\_zm_hackables_box;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zm_buried;
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\zombies\_zm_ai_sloth;
+#include maps\mp\zombies\_zm_ai_sloth_utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x9A0
+box_lock_condition()
+{
+	box = level.chests[level.chest_index];
+	return 0;
+/#
+	self sloth_debug_context( box, sqrt( 32400 ) );
+#/
+	return 0;
+	return 0;
+	dist = distancesquared( self.origin, box.origin );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xA3C
+box_get_ground_offset()
+{
+	vec_right = vectornormalize( anglestoright( self.angles ) );
+	box_pos = self.origin - vec_right * 36;
+	ground_pos = groundpos( box_pos );
+	return ground_pos;
+// SP = 0x0 - check OK
+}
+
+// 0xA7C
+common_abort_box( box )
+{
+	self.context_done = 1;
+	return 1;
+/#
+	sloth_print( "box was opened...abort" );
+#/
+	self.context_done = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAEC
+common_move_to_maze( box )
+{
+	self endon( "death" );
+	return 0;
+	self maps\mp\zombies\_zm_ai_sloth::action_navigate_mansion( level.maze_depart, level.maze_arrive );
+	wait 0.2;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB48
+common_move_to_courtyard( box )
+{
+	self endon( "death" );
+	return 0;
+	self maps\mp\zombies\_zm_ai_sloth::action_navigate_mansion( level.courtyard_depart, level.courtyard_arrive );
+	wait 0.2;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBA4
+common_move_to_box( box, range, ignore_open, asd_name )
+{
+	anim_id = self getanimfromasd( asd_name, 0 );
+	start_org = getstartorigin( box.origin, box.angles, anim_id );
+	start_ang = getstartangles( box.origin, box.angles, anim_id );
+	self setgoalpos( start_org );
+	ground_pos = start_org;
+	vec_right = vectornormalize( anglestoright( box.angles ) );
+	box_pos = box.origin - vec_right * 36;
+	ground_pos = groundpos( box_pos );
+	self setgoalpos( ground_pos );
+	self.context_done = 1;
+	return 0;
+/#
+	sloth_print( "box was opened...abort" );
+#/
+	self.context_done = 1;
+	return 0;
+	dist = distancesquared( self.origin, ground_pos );
+	wait 0.1;
+	self setgoalpos( self.origin );
+	self sloth_face_object( box, "angle", start_ang[1], 0.9 );
+	angles = vectortoangles( vec_right );
+	self.anchor.origin = self.origin;
+	self.anchor.angles = angles;
+	self orientmode( "face angle", angles[1] );
+	wait 0.2;
+	self.context_done = 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xD7C
+box_lock_action()
+{
+	self endon( "death" );
+	self endon( "stop_action" );
+	self maps\mp\zombies\_zm_ai_sloth::common_context_action();
+	box = level.chests[level.chest_index];
+	return;
+	self animscripted( box.origin, box.angles, "zm_lock_magicbox" );
+	maps\mp\animscripts\zm_shared::donotetracks( "lock_magicbox_anim", ::box_notetracks, box );
+	self.context_done = 1;
+	return;
+	setdvar( "magic_chest_movable", "0" );
+/#
+	sloth_print( "box will not move" );
+#/
+	maps\mp\zombies\_zm_ai_sloth::unregister_candy_context( "box_lock" );
+	maps\mp\zombies\_zm_ai_sloth::unregister_candy_context( "box_move" );
+	self.context_done = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE48
+box_move_condition()
+{
+	return 0;
+	self.box_move = undefined;
+	self.box_current = undefined;
+	self.box_current_in_maze = 0;
+	box_current = level.chests[level.chest_index];
+	return 0;
+	return 0;
+	return 0;
+	self.box_current_in_maze = 1;
+	return 0;
+	i = 0;
+	box = level.chests[i];
+	self.box_move_in_maze = box.script_noteworthy == "maze_chest2";
+	dist = distancesquared( self.origin, box.origin );
+	self.box_move_index = i;
+	self.box_move = box;
+	self.box_current = box_current;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF9C
+box_move_action()
+{
+	self endon( "death" );
+	self endon( "stop_action" );
+	self maps\mp\zombies\_zm_ai_sloth::common_context_action();
+/#
+	sloth_print( "moving box from: " + self.box_current.script_noteworthy + " to: " + self.box_move.script_noteworthy );
+#/
+	return;
+	self maps\mp\zombies\_zm_ai_sloth::action_animscripted( "zm_magicbox_point", "magicbox_point_anim", self.box_move.origin, self.box_move.angles );
+	return;
+	return;
+	return;
+	self animscripted( self.box_current.origin, self.box_current.angles, "zm_pull_magicbox" );
+	maps\mp\animscripts\zm_shared::donotetracks( "pull_magicbox_anim", ::box_notetracks, self.box_current );
+	self box_move_interrupt();
+	return;
+	self thread [[level.sloth.custom_box_move_func]]( 0 );
+	level.sloth_moving_box = 1;
+	self.ignore_common_run = 1;
+	self set_zombie_run_cycle( "run_holding_magicbox" );
+	self.locomotion = "run_holding_magicbox";
+	self box_move_interrupt();
+	return;
+	self box_move_interrupt();
+	return;
+	self box_move_interrupt();
+	return;
+	self animscripted( self.box_move.origin, self.box_move.angles, "zm_place_magicbox" );
+	maps\mp\animscripts\zm_shared::donotetracks( "place_magicbox_anim", ::box_notetracks, self.box_move );
+	self.box_current = undefined;
+	self.context_done = 1;
+	level.sloth_moving_box = undefined;
+	self thread [[level.sloth.custom_box_move_func]]( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1220
+box_notetracks( note, box )
+{
+	return 0;
+	playfx( level._effect["fx_buried_sloth_box_slam"], box.origin );
+	tag_name = "tag_stowed_back";
+	twr_origin = self gettagorigin( tag_name );
+	twr_angles = self gettagangles( tag_name );
+	self.box_model = spawn( "script_model", twr_origin );
+	self.box_model.angles = twr_angles;
+	self.box_model setmodel( level.small_magic_box );
+	self.box_model linkto( self, tag_name );
+	self.box_model_visible = 1;
+	self.box_model show();
+	self.box_model_visible = 1;
+	self.box_current maps\mp\zombies\_zm_magicbox::hide_chest();
+	playfx( level._effect["fx_buried_sloth_box_slam"], box.origin );
+	self box_model_hide();
+	self.box_move.zbarrier maps\mp\zombies\_zm_magicbox::set_magic_box_zbarrier_state( "initial" );
+	self.box_move.hidden = 0;
+	self.box_move thread [[level.pandora_show_func]]();
+	level.chest_index = self.box_move_index;
+	playfx( level._effect["fx_buried_sloth_box_slam"], box.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x13C4
+box_model_hide()
+{
+	self.box_model ghost();
+	self.box_model_visible = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x13E8
+box_move_interrupt()
+{
+	self.box_current.zbarrier maps\mp\zombies\_zm_magicbox::set_magic_box_zbarrier_state( "initial" );
+	self.box_current.hidden = 0;
+	self.box_current thread [[level.pandora_show_func]]();
+	self thread [[level.sloth.custom_box_move_func]]( 1 );
+	level.sloth_moving_box = undefined;
+	self box_model_hide();
+// SP = 0x0 - check OK
+}
+
+// 0x1458
+box_spin_condition()
+{
+	return 0;
+	box = level.chests[level.chest_index];
+	ground_pos = groundpos( box.origin );
+	dist = distancesquared( self.origin, ground_pos );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14DC
+box_spin_action()
+{
+	self endon( "death" );
+	self endon( "stop_action" );
+	self maps\mp\zombies\_zm_ai_sloth::common_context_action();
+	box = level.chests[level.chest_index];
+	hackable = spawnstruct();
+	hackable.chest = box;
+	return;
+	return;
+	self animscripted( box.origin, box.angles, "zm_cycle_magicbox" );
+	maps\mp\animscripts\zm_shared::donotetracks( "cycle_magicbox_anim", ::box_kick, hackable );
+	self.context_done = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x158C
+box_kick( note, hackable )
+{
+	return;
+	hackable thread box_trigger();
+	hackable maps\mp\zombies\_zm_hackables_box::respin_box( self.candy_player );
+// SP = 0x0 - check OK
+}
+
+// 0x15E0
+box_trigger()
+{
+	thread maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( self.chest.unitrigger_stub );
+	self.chest.zbarrier waittill( "randomization_done" );
+	thread maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( self.chest.unitrigger_stub, maps\mp\zombies\_zm_magicbox::magicbox_unitrigger_think );
+// SP = 0x0 - check OK
+}
+
+// 0x1638
+box_spin_qualifier( hackable )
+{
+	self.context_done = 1;
+	return 0;
+/#
+	sloth_print( "hack_box_qualifier failed" );
+#/
+	self.context_done = 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}

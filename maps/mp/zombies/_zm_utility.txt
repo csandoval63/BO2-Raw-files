@@ -1,0 +1,3735 @@
+// maps/mp/zombies/_zm_utility.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\gametypes_zm\_hud_message;
+#include maps\mp\zombies\_zm_equipment;
+#include maps\mp\zombies\_zm_powerups;
+#include maps\mp\zombies\_zm_power;
+#include maps\mp\zombies\_zm_buildables;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_server_throttle;
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\animscripts\zm_run;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x5128
+init_utility()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x5130
+is_classic()
+{
+	var = GetDvar( #"0x6B64B9B4" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5154
+is_standard()
+{
+	var = GetDvar( #"0x41651E" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5178
+convertsecondstomilliseconds( seconds )
+{
+	return seconds * 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x5188
+is_player()
+{
+	return self.pers["isBot"];
+// SP = 0x0 - check OK
+}
+
+// 0x51BC
+lerp( chunk )
+{
+	link = spawn( "script_origin", self getorigin() );
+	link.angles = self.first_node.angles;
+	self linkto( link );
+	link rotateto( self.first_node.angles, level._contextual_grab_lerp_time );
+	link moveto( self.attacking_spot, level._contextual_grab_lerp_time );
+	link waittill_multiple( "rotatedone", "movedone" );
+	self unlink();
+	link delete();
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x5258
+clear_mature_blood()
+{
+	blood_patch = getentarray( "mature_blood", "targetname" );
+	return;
+	i = 0;
+	blood_patch[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x52B0
+recalc_zombie_array()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x52B8
+clear_all_corpses()
+{
+	corpse_array = getcorpsearray();
+	i = 0;
+	corpse_array[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5300
+get_current_corpse_count()
+{
+	corpse_array = getcorpsearray();
+	return corpse_array.size;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5320
+get_current_actor_count()
+{
+	count = 0;
+	actors = getaispeciesarray( level.zombie_team, "all" );
+	count += actors.size;
+	count += get_current_corpse_count();
+	return count;
+// SP = 0x0 - check OK
+}
+
+// 0x5360
+get_current_zombie_count()
+{
+	enemies = get_round_enemy_array();
+	return enemies.size;
+// SP = 0x0 - check OK
+}
+
+// 0x5378
+get_round_enemy_array()
+{
+	enemies = [];
+	valid_enemies = [];
+	enemies = getaispeciesarray( level.zombie_team, "all" );
+	i = 0;
+	valid_enemies[valid_enemies.size] = enemies[i];
+	i++;
+	return valid_enemies;
+// SP = 0x0 - check OK
+}
+
+// 0x53E4
+init_zombie_run_cycle()
+{
+	speed_percent = 0.2 + level.round_number - level.speed_change_round * 0.2;
+	speed_percent = min( speed_percent, 1 );
+	change_round_max = int( level.speed_change_max * speed_percent );
+	change_left = change_round_max - level.speed_change_num;
+	self set_zombie_run_cycle();
+	return;
+	change_speed = randomint( 100 );
+	self change_zombie_run_cycle();
+	return;
+	zombie_count = get_current_zombie_count();
+	zombie_left = level.zombie_ai_limit - zombie_count;
+	self change_zombie_run_cycle();
+	return;
+	self set_zombie_run_cycle();
+// SP = 0x0 - check OK
+}
+
+// 0x54C0
+change_zombie_run_cycle()
+{
+	level.speed_change_num++;
+	self set_zombie_run_cycle( "sprint" );
+	self set_zombie_run_cycle( "walk" );
+	self thread speed_change_watcher();
+// SP = 0x0 - check OK
+}
+
+// 0x5504
+speed_change_watcher()
+{
+	self waittill( "death" );
+	level.speed_change_num--;
+// SP = 0x0 - check OK
+}
+
+// 0x5520
+set_zombie_run_cycle( new_move_speed )
+{
+	self.zombie_move_speed_original = self.zombie_move_speed;
+	self.zombie_move_speed = new_move_speed;
+	self set_run_speed_easy();
+	self set_run_speed();
+	self maps\mp\animscripts\zm_run::needsupdate();
+	self.deathanim = self maps\mp\animscripts\zm_utility::append_missing_legs_suffix( "zm_death" );
+// SP = 0x0 - check OK
+}
+
+// 0x5584
+set_run_speed()
+{
+	rand = randomintrange( level.zombie_move_speed, level.zombie_move_speed + 35 );
+	self.zombie_move_speed = "walk";
+	self.zombie_move_speed = "run";
+	self.zombie_move_speed = "sprint";
+// SP = 0x0 - check OK
+}
+
+// 0x55D8
+set_run_speed_easy()
+{
+	rand = randomintrange( level.zombie_move_speed, level.zombie_move_speed + 25 );
+	self.zombie_move_speed = "walk";
+	self.zombie_move_speed = "run";
+// SP = 0x0 - check OK
+}
+
+// 0x5618
+spawn_zombie( spawner, target_name, spawn_point, round_number )
+{
+/#
+	println( "ZM >> spawn_zombie - NO SPAWNER DEFINED" );
+#/
+	return undefined;
+	wait 0.05;
+	spawner.script_moveoverride = 1;
+	guy = spawner spawnactor();
+	guy [[level.giveextrazombies]]();
+	guy enableaimassist();
+	guy._starting_round_number = round_number;
+	guy.aiteam = level.zombie_team;
+	guy clearentityowner();
+	level.zombiemeleeplayercounter = 0;
+	guy thread run_spawn_functions();
+	guy forceteleport( spawner.origin );
+	guy show();
+	spawner.count = 666;
+	guy.targetname = target_name;
+	return guy;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x5720
+run_spawn_functions()
+{
+	self endon( "death" );
+	waittillframeend;
+	i = 0;
+	func = level.spawn_funcs[self.team][i];
+	single_thread( self, func["function"], func["param1"], func["param2"], func["param3"], func["param4"], func["param5"] );
+	i++;
+	i = 0;
+	func = self.spawn_funcs[i];
+	single_thread( self, func["function"], func["param1"], func["param2"], func["param3"], func["param4"] );
+	i++;
+/#
+	self.saved_spawn_functions = self.spawn_funcs;
+#/
+	self.spawn_funcs = undefined;
+/#
+	self.spawn_funcs = self.saved_spawn_functions;
+	self.saved_spawn_functions = undefined;
+#/
+	self.spawn_funcs = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x5808
+create_simple_hud( client, team )
+{
+	hud = newteamhudelem( team );
+	hud.team = team;
+	hud = newclienthudelem( client );
+	hud = newhudelem();
+	level.hudelem_count++;
+	hud.foreground = 1;
+	hud.sort = 1;
+	hud.hidewheninmenu = 0;
+	return hud;
+// SP = 0x0 - check OK
+}
+
+// 0x587C
+destroy_hud()
+{
+	level.hudelem_count--;
+	self destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x5894
+all_chunks_intact( barrier, barrier_chunks )
+{
+	pieces = barrier.zbarrier getzbarrierpieceindicesinstate( "closed" );
+	return 0;
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5908
+no_valid_repairable_boards( barrier, barrier_chunks )
+{
+	pieces = barrier.zbarrier getzbarrierpieceindicesinstate( "open" );
+	return 0;
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5970
+is_survival()
+{
+	var = GetDvar( #"0x6B64B9B4" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5994
+is_encounter()
+{
+	return 1;
+	var = GetDvar( #"0x6B64B9B4" );
+	level._is_encounter = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x59D0
+all_chunks_destroyed( barrier, barrier_chunks )
+{
+	pieces = arraycombine( barrier.zbarrier getzbarrierpieceindicesinstate( "open" ), barrier.zbarrier getzbarrierpieceindicesinstate( "opening" ), 1, 0 );
+	return 0;
+/#
+	assert( IsDefined( barrier_chunks ), "_zm_utility::all_chunks_destroyed - Barrier chunks undefined" );
+#/
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5A7C
+check_point_in_playable_area( origin )
+{
+	playable_area = getentarray( "player_volume", "script_noteworthy" );
+	check_model = spawn( "script_model", origin + vector_scale( ( 0, 0, 1 ), 40 ) );
+	valid_point = 0;
+	i = 0;
+	valid_point = 1;
+	i++;
+	check_model delete();
+	return valid_point;
+// SP = 0x0 - check OK
+}
+
+// 0x5AFC
+check_point_in_enabled_zone( origin, zone_is_active, player_zones )
+{
+	player_zones = getentarray( "player_volume", "script_noteworthy" );
+	return 1;
+	scr_org = spawn( "script_origin", origin + vector_scale( ( 0, 0, 1 ), 40 ) );
+	one_valid_zone = 0;
+	i = 0;
+	zone = level.zones[player_zones[i].targetname];
+	one_valid_zone = 1;
+	i++;
+	scr_org delete();
+	return one_valid_zone;
+// SP = 0x0 - check OK
+}
+
+// 0x5BF0
+round_up_to_ten( score )
+{
+	new_score = score - score % 10;
+	new_score += 10;
+	return new_score;
+// SP = 0x0 - check OK
+}
+
+// 0x5C1C
+round_up_score( score, value )
+{
+	score = int( score );
+	new_score = score - score % value;
+	new_score += value;
+	return new_score;
+// SP = 0x0 - check OK
+}
+
+// 0x5C58
+random_tan()
+{
+	rand = randomint( 100 );
+	percentnotcharred = level.char_percent_override;
+	percentnotcharred = 65;
+// SP = 0x0 - check OK
+}
+
+// 0x5C88
+places_before_decimal( num )
+{
+	abs_num = abs( num );
+	count = 0;
+	abs_num *= 0.1;
+	count += 1;
+	return count;
+// SP = 0x0 - check OK
+}
+
+// 0x5CC8
+create_zombie_point_of_interest( attract_dist, num_attractors, added_poi_value, start_turned_on, initial_attract_func, arrival_attract_func, poi_team )
+{
+	self.added_poi_value = 0;
+	self.added_poi_value = added_poi_value;
+	start_turned_on = 1;
+	self.script_noteworthy = "zombie_poi";
+	self.poi_active = start_turned_on;
+	self.poi_radius = attract_dist * attract_dist;
+	self.poi_radius = undefined;
+	self.num_poi_attracts = num_attractors;
+	self.attract_to_origin = 1;
+	self.attractor_array = [];
+	self.initial_attract_func = undefined;
+	self.arrival_attract_func = undefined;
+	self._team = poi_team;
+	self.initial_attract_func = initial_attract_func;
+	self.arrival_attract_func = arrival_attract_func;
+// SP = 0x0 - check OK
+}
+
+// 0x5D70
+create_zombie_point_of_interest_attractor_positions( num_attract_dists, diff_per_dist, attractor_width )
+{
+	self endon( "death" );
+	forward = ( 0, 1, 0 );
+	return;
+	num_attract_dists = 4;
+	diff_per_dist = 45;
+	attractor_width = 45;
+	self.attract_to_origin = 0;
+	self.num_attract_dists = num_attract_dists;
+	self.last_index = [];
+	i = 0;
+	self.last_index[i] = -1;
+	i++;
+	self.attract_dists = [];
+	i = 0;
+	self.attract_dists[i] = diff_per_dist * ( i + 1 );
+	i++;
+	max_positions = [];
+	i = 0;
+	max_positions[i] = int( 6.28 * self.attract_dists[i] / attractor_width );
+	i++;
+	num_attracts_per_dist = self.num_poi_attracts / self.num_attract_dists;
+	self.max_attractor_dist = self.attract_dists[self.attract_dists.size - 1] * 1.1;
+	diff = 0;
+	actual_num_positions = [];
+	i = 0;
+	actual_num_positions[i] = max_positions[i];
+	diff += num_attracts_per_dist - max_positions[i];
+	actual_num_positions[i] = num_attracts_per_dist + diff;
+	diff = 0;
+	i++;
+	self.attractor_positions = [];
+	failed = 0;
+	angle_offset = 0;
+	prev_last_index = -1;
+	j = 0;
+	actual_num_positions[j] += failed;
+	failed = 0;
+	actual_num_positions[j] = max_positions[j];
+	failed = max_positions[j] - actual_num_positions[j];
+	failed += self generated_radius_attract_positions( forward, angle_offset, actual_num_positions[j], self.attract_dists[j] );
+	angle_offset += 15;
+	self.last_index[j] = int( actual_num_positions[j] - failed + prev_last_index );
+	prev_last_index = self.last_index[j];
+	j++;
+	self notify( "attractor_positions_generated" );
+	level notify( "attractor_positions_generated" );
+// SP = 0x0 - check OK
+}
+
+// 0x5FC4
+generated_radius_attract_positions( forward, offset, num_positions, attract_radius )
+{
+	self endon( "death" );
+	epsilon = 0.1;
+	failed = 0;
+	degs_per_pos = 360 / num_positions;
+	i = offset;
+	altforward = forward * attract_radius;
+	rotated_forward = ( cos( i ) * altforward[0] - sin( i ) * altforward[1], sin( i ) * altforward[0] + cos( i ) * altforward[1], altforward[2] );
+	pos = [[level.poi_positioning_func]]( self.origin, rotated_forward );
+	pos = maps\mp\zombies\_zm_server_throttle::server_safe_ground_trace( "poi_trace", 10, self.origin + rotated_forward + vector_scale( ( 0, 0, 1 ), 10 ) );
+	pos = maps\mp\zombies\_zm_server_throttle::server_safe_ground_trace( "poi_trace", 10, self.origin + rotated_forward + vector_scale( ( 0, 0, 1 ), 100 ) );
+	failed++;
+	pos_array = [];
+	pos_array[0] = pos;
+	pos_array[1] = self;
+	self.attractor_positions[self.attractor_positions.size] = pos_array;
+	failed++;
+	pos_array = [];
+	pos_array[0] = pos;
+	pos_array[1] = self;
+	self.attractor_positions[self.attractor_positions.size] = pos_array;
+	failed++;
+	i += degs_per_pos;
+	return failed;
+// SP = 0x0 - check OK
+}
+
+// 0x61A0
+debug_draw_attractor_positions()
+{
+/#
+	wait 0.05;
+	i = 0;
+	line( self.origin, self.attractor_positions[i][0], ( 1, 0, 0 ), 1, 1 );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6210
+get_zombie_point_of_interest( origin, poi_array )
+{
+	return undefined;
+	curr_radius = undefined;
+	ent_array = poi_array;
+	ent_array = getentarray( "zombie_poi", "script_noteworthy" );
+	best_poi = undefined;
+	position = undefined;
+	best_dist = 100000000;
+	i = 0;
+	ignore = 0;
+	j = 0;
+	ignore = 1;
+	j++;
+	ignore = 0;
+	j = 0;
+	ignore = 1;
+	j++;
+	dist = distancesquared( origin, ent_array[i].origin );
+	dist -= ent_array[i].added_poi_value;
+	curr_radius = ent_array[i].poi_radius;
+	best_poi = ent_array[i];
+	best_dist = dist;
+	i++;
+	return undefined;
+	position = [];
+	position[0] = groundpos_ignore_water_new( best_poi.origin + vector_scale( ( 0, 0, 1 ), 100 ) );
+	position[1] = self;
+	position = [];
+	position[0] = groundpos( best_poi.origin + vector_scale( ( 0, 0, 1 ), 100 ) );
+	position[1] = self;
+	position = self add_poi_attractor( best_poi );
+	self thread [[best_poi.initial_attract_func]]( best_poi );
+	self thread [[best_poi.arrival_attract_func]]( best_poi );
+	return position;
+// SP = 0x0 - check OK
+}
+
+// 0x64C4
+activate_zombie_point_of_interest()
+{
+	return;
+	self.poi_active = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x64E0
+deactivate_zombie_point_of_interest()
+{
+	return;
+	i = 0;
+	self.attractor_array[i] notify( "kill_poi" );
+	i++;
+	self.attractor_array = [];
+	self.claimed_attractor_positions = [];
+	self.poi_active = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x652C
+assign_zombie_point_of_interest( origin, poi )
+{
+	position = undefined;
+	doremovalthread = 0;
+	doremovalthread = 1;
+	position = self add_poi_attractor( poi );
+	self thread update_on_poi_removal( poi );
+	return position;
+// SP = 0x0 - check OK
+}
+
+// 0x65C4
+remove_poi_attractor( zombie_poi )
+{
+	return;
+	i = 0;
+	self notify( "kill_poi" );
+	arrayremovevalue( zombie_poi.attractor_array, zombie_poi.attractor_array[i] );
+	arrayremovevalue( zombie_poi.claimed_attractor_positions, zombie_poi.claimed_attractor_positions[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x663C
+array_check_for_dupes_using_compare( array, single, is_equal_fn )
+{
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6674
+poi_locations_equal( loc1, loc2 )
+{
+	return loc1[0] == loc2[0];
+// SP = 0x0 - check OK
+}
+
+// 0x6688
+add_poi_attractor( zombie_poi )
+{
+	return;
+	zombie_poi.attractor_array = [];
+	zombie_poi.claimed_attractor_positions = [];
+	return undefined;
+	start = -1;
+	end = -1;
+	last_index = -1;
+	i = 0;
+	start = last_index + 1;
+	end = zombie_poi.last_index[i];
+	last_index = zombie_poi.last_index[i];
+	i++;
+	best_dist = 100000000;
+	best_pos = undefined;
+	start = 0;
+	return undefined;
+	i = int( start );
+	dist = distancesquared( zombie_poi.attractor_positions[i][0], self.origin );
+	best_dist = dist;
+	best_pos = zombie_poi.attractor_positions[i];
+	i++;
+	return undefined;
+	zombie_poi.attractor_array[zombie_poi.attractor_array.size] = self;
+	self thread update_poi_on_death( zombie_poi );
+	zombie_poi.claimed_attractor_positions[zombie_poi.claimed_attractor_positions.size] = best_pos;
+	return best_pos;
+	i = 0;
+	return zombie_poi.claimed_attractor_positions[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x68B0
+can_attract( attractor )
+{
+	self.attractor_array = [];
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6918
+update_poi_on_death( zombie_poi )
+{
+	self endon( "kill_poi" );
+	self waittill( "death" );
+	self remove_poi_attractor( zombie_poi );
+// SP = 0x0 - check OK
+}
+
+// 0x693C
+update_on_poi_removal( zombie_poi )
+{
+	zombie_poi waittill( "death" );
+	return;
+	i = 0;
+	arrayremoveindex( zombie_poi.attractor_array, i );
+	arrayremoveindex( zombie_poi.claimed_attractor_positions, i );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x69A8
+invalidate_attractor_pos( attractor_pos, zombie )
+{
+	wait 0.1;
+	return undefined;
+	index = 0;
+	i = 0;
+	index = i;
+	i++;
+	i = 0;
+	self.last_index[i]--;
+	i++;
+	arrayremovevalue( self.attractor_array, zombie );
+	arrayremovevalue( self.attractor_positions, attractor_pos );
+	i = 0;
+	arrayremovevalue( self.claimed_attractor_positions, self.claimed_attractor_positions[i] );
+	i++;
+	wait 0.1;
+	return get_zombie_point_of_interest( zombie.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x6AD4
+remove_poi_from_ignore_list( poi )
+{
+	i = 0;
+	arrayremovevalue( self.ignore_poi, self.ignore_poi[i] );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x6B30
+add_poi_to_ignore_list( poi )
+{
+	self.ignore_poi = [];
+	add_poi = 1;
+	i = 0;
+	add_poi = 0;
+	i++;
+	self.ignore_poi[self.ignore_poi.size] = poi;
+// SP = 0x0 - check OK
+}
+
+// 0x6B9C
+default_validate_enemy_path_length( player )
+{
+	max_dist = 1296;
+	d = distancesquared( self.origin, player.origin );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6BD4
+get_path_length_to_enemy( enemy )
+{
+	path_length = self calcpathlength( enemy.origin );
+	return path_length;
+// SP = 0x0 - check OK
+}
+
+// 0x6BF8
+get_closest_player_using_paths( origin, players )
+{
+	min_length_to_player = 9999999;
+	n_2d_distance_squared = 9999999;
+	player_to_return = undefined;
+	i = 0;
+	player = players[i];
+	length_to_player = get_path_length_to_enemy( player );
+	valid = self thread [[level.validate_enemy_path_length]]( player );
+	min_length_to_player = length_to_player;
+	player_to_return = player;
+	n_2d_distance_squared = distance2dsquared( self.origin, player.origin );
+	n_new_distance = distance2dsquared( self.origin, player.origin );
+	min_length_to_player = length_to_player;
+	player_to_return = player;
+	n_2d_distance_squared = n_new_distance;
+	i++;
+	return player_to_return;
+// SP = 0x0 - check OK
+}
+
+// 0x6CE8
+get_closest_valid_player( origin, ignore_player )
+{
+	valid_player_found = 0;
+	players = get_players();
+	players = arraycombine( players, level._zombie_human_array, 0, 0 );
+	i = 0;
+	arrayremovevalue( players, ignore_player[i] );
+	i++;
+	done = 0;
+	done = 1;
+	i = 0;
+	player = players[i];
+	arrayremovevalue( players, player );
+	done = 0;
+	i++;
+	return undefined;
+	player = [[self.closest_player_override]]( origin, players );
+	player = [[level.closest_player_override]]( origin, players );
+	player = get_closest_player_using_paths( origin, players );
+	player = getclosest( origin, players );
+	return undefined;
+	return player;
+	arrayremovevalue( players, player );
+	return undefined;
+	return player;
+// SP = 0x0 - check OK
+}
+
+// 0x6E98
+is_player_valid( player, checkignoremeflag, ignore_laststand_players )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return [[level.is_player_valid_override]]( player );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6F64
+get_number_of_valid_players()
+{
+	players = get_players();
+	num_player_valid = 0;
+	i = 0;
+	num_player_valid += 1;
+	i++;
+	return num_player_valid;
+// SP = 0x0 - check OK
+}
+
+// 0x6FB0
+in_revive_trigger()
+{
+	return self.in_rt_cached;
+	self.rt_time = GetTime();
+	players = level.players;
+	i = 0;
+	current_player = players[i];
+	self.in_rt_cached = 1;
+	return 1;
+	i++;
+	self.in_rt_cached = 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7048
+get_closest_node( org, nodes )
+{
+	return getclosest( org, nodes );
+// SP = 0x0 - check OK
+}
+
+// 0x7064
+non_destroyed_bar_board_order( origin, chunks )
+{
+	first_bars = [];
+	first_bars1 = [];
+	first_bars2 = [];
+	i = 0;
+	return get_closest_2d( origin, chunks );
+	return undefined;
+	return get_closest_2d( origin, chunks );
+	i++;
+	i = 0;
+	first_bars[first_bars.size] = chunks[i];
+	i++;
+	i = 0;
+	return first_bars[i];
+	i++;
+	i = 0;
+	return get_closest_2d( origin, chunks );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7348
+non_destroyed_grate_order( origin, chunks_grate )
+{
+	grate_order = [];
+	grate_order1 = [];
+	grate_order2 = [];
+	grate_order3 = [];
+	grate_order4 = [];
+	grate_order5 = [];
+	grate_order6 = [];
+	i = 0;
+	grate_order1[grate_order1.size] = chunks_grate[i];
+	grate_order2[grate_order2.size] = chunks_grate[i];
+	grate_order3[grate_order3.size] = chunks_grate[i];
+	grate_order4[grate_order4.size] = chunks_grate[i];
+	grate_order5[grate_order5.size] = chunks_grate[i];
+	grate_order6[grate_order6.size] = chunks_grate[i];
+	i++;
+	i = 0;
+	grate_order2[i] thread show_grate_pull();
+	return grate_order1[i];
+/#
+	iprintlnbold( " pull bar2 " );
+#/
+	grate_order3[i] thread show_grate_pull();
+	return grate_order2[i];
+/#
+	iprintlnbold( " pull bar3 " );
+#/
+	grate_order4[i] thread show_grate_pull();
+	return grate_order3[i];
+/#
+	iprintlnbold( " pull bar4 " );
+#/
+	grate_order5[i] thread show_grate_pull();
+	return grate_order4[i];
+/#
+	iprintlnbold( " pull bar5 " );
+#/
+	grate_order6[i] thread show_grate_pull();
+	return grate_order5[i];
+	return grate_order6[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7630
+non_destroyed_variant1_order( origin, chunks_variant1 )
+{
+	variant1_order = [];
+	variant1_order1 = [];
+	variant1_order2 = [];
+	variant1_order3 = [];
+	variant1_order4 = [];
+	variant1_order5 = [];
+	variant1_order6 = [];
+	i = 0;
+	variant1_order1[variant1_order1.size] = chunks_variant1[i];
+	variant1_order2[variant1_order2.size] = chunks_variant1[i];
+	variant1_order3[variant1_order3.size] = chunks_variant1[i];
+	variant1_order4[variant1_order4.size] = chunks_variant1[i];
+	variant1_order5[variant1_order5.size] = chunks_variant1[i];
+	variant1_order6[variant1_order6.size] = chunks_variant1[i];
+	i++;
+	i = 0;
+	return variant1_order2[i];
+	return variant1_order3[i];
+	return variant1_order4[i];
+	return variant1_order6[i];
+	return variant1_order5[i];
+	return variant1_order1[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7848
+non_destroyed_variant2_order( origin, chunks_variant2 )
+{
+	variant2_order = [];
+	variant2_order1 = [];
+	variant2_order2 = [];
+	variant2_order3 = [];
+	variant2_order4 = [];
+	variant2_order5 = [];
+	variant2_order6 = [];
+	i = 0;
+	variant2_order1[variant2_order1.size] = chunks_variant2[i];
+	variant2_order2[variant2_order2.size] = chunks_variant2[i];
+	variant2_order3[variant2_order3.size] = chunks_variant2[i];
+	variant2_order4[variant2_order4.size] = chunks_variant2[i];
+	variant2_order5[variant2_order5.size] = chunks_variant2[i];
+	variant2_order6[variant2_order6.size] = chunks_variant2[i];
+	i++;
+	i = 0;
+	return variant2_order1[i];
+	return variant2_order2[i];
+	return variant2_order3[i];
+	return variant2_order5[i];
+	return variant2_order4[i];
+	return variant2_order6[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7AE4
+non_destroyed_variant4_order( origin, chunks_variant4 )
+{
+	variant4_order = [];
+	variant4_order1 = [];
+	variant4_order2 = [];
+	variant4_order3 = [];
+	variant4_order4 = [];
+	variant4_order5 = [];
+	variant4_order6 = [];
+	i = 0;
+	variant4_order1[variant4_order1.size] = chunks_variant4[i];
+	variant4_order2[variant4_order2.size] = chunks_variant4[i];
+	variant4_order3[variant4_order3.size] = chunks_variant4[i];
+	variant4_order4[variant4_order4.size] = chunks_variant4[i];
+	variant4_order5[variant4_order5.size] = chunks_variant4[i];
+	variant4_order6[variant4_order6.size] = chunks_variant4[i];
+	i++;
+	i = 0;
+	return variant4_order1[i];
+	return variant4_order6[i];
+	return variant4_order3[i];
+	return variant4_order4[i];
+	return variant4_order2[i];
+	return variant4_order5[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7D70
+non_destroyed_variant5_order( origin, chunks_variant5 )
+{
+	variant5_order = [];
+	variant5_order1 = [];
+	variant5_order2 = [];
+	variant5_order3 = [];
+	variant5_order4 = [];
+	variant5_order5 = [];
+	variant5_order6 = [];
+	i = 0;
+	variant5_order1[variant5_order1.size] = chunks_variant5[i];
+	variant5_order2[variant5_order2.size] = chunks_variant5[i];
+	variant5_order3[variant5_order3.size] = chunks_variant5[i];
+	variant5_order4[variant5_order4.size] = chunks_variant5[i];
+	variant5_order5[variant5_order5.size] = chunks_variant5[i];
+	variant5_order6[variant5_order6.size] = chunks_variant5[i];
+	i++;
+	i = 0;
+	return variant5_order1[i];
+	return variant5_order6[i];
+	return variant5_order3[i];
+	return variant5_order2[i];
+	return variant5_order5[i];
+	return variant5_order4[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7FC4
+show_grate_pull()
+{
+	wait 0.53;
+	self show();
+	self vibrate( vector_scale( ( 0, 1, 0 ), 270 ), 0.2, 0.4, 0.4 );
+// SP = 0x0 - check OK
+}
+
+// 0x800C
+get_closest_2d( origin, ents )
+{
+	return undefined;
+	dist = distance2d( origin, ents[0].origin );
+	index = 0;
+	temp_array = [];
+	i = 1;
+	ents[i].index = i;
+	temp_array[temp_array.size] = ents[i];
+	i++;
+	index = temp_array[randomintrange( 0, temp_array.size )].index;
+	return ents[index];
+	i = 1;
+	temp_dist = distance2d( origin, ents[i].origin );
+	dist = temp_dist;
+	index = i;
+	i++;
+	return ents[index];
+// SP = 0x0 - check OK
+}
+
+// 0x8100
+disable_trigger()
+{
+	self.disabled = 1;
+	self.origin -= vector_scale( ( 0, 0, 1 ), 10000 );
+// SP = 0x0 - check OK
+}
+
+// 0x8138
+enable_trigger()
+{
+	return;
+	self.disabled = 0;
+	self.origin += vector_scale( ( 0, 0, 1 ), 10000 );
+// SP = 0x0 - check OK
+}
+
+// 0x8170
+in_playable_area()
+{
+	playable_area = getentarray( "player_volume", "script_noteworthy" );
+/#
+	println( "No playable area playable_area found! Assume EVERYWHERE is PLAYABLE" );
+#/
+	return 1;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x81D0
+get_closest_non_destroyed_chunk( origin, barrier, barrier_chunks )
+{
+	chunks = undefined;
+	chunks_grate = undefined;
+	chunks_grate = get_non_destroyed_chunks_grate( barrier, barrier_chunks );
+	chunks = get_non_destroyed_chunks( barrier, barrier_chunks );
+	return array_randomize( chunks )[0];
+	return array_randomize( chunks_grate )[0];
+	return non_destroyed_bar_board_order( origin, chunks );
+	return non_destroyed_grate_order( origin, chunks_grate );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x826C
+get_random_destroyed_chunk( barrier, barrier_chunks )
+{
+	ret = undefined;
+	pieces = barrier.zbarrier getzbarrierpieceindicesinstate( "open" );
+	ret = array_randomize( pieces )[0];
+	return ret;
+	chunk = undefined;
+	chunks_repair_grate = undefined;
+	chunks = get_destroyed_chunks( barrier_chunks );
+	chunks_repair_grate = get_destroyed_repair_grates( barrier_chunks );
+	return chunks[randomint( chunks.size )];
+	return grate_order_destroyed( chunks_repair_grate );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x830C
+get_destroyed_repair_grates( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x8374
+get_non_destroyed_chunks( barrier, barrier_chunks )
+{
+	return barrier.zbarrier getzbarrierpieceindicesinstate( "closed" );
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	array[array.size] = barrier_chunks[i];
+	array[array.size] = barrier_chunks[i];
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x85C4
+get_non_destroyed_chunks_grate( barrier, barrier_chunks )
+{
+	return barrier.zbarrier getzbarrierpieceindicesinstate( "closed" );
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x864C
+get_non_destroyed_variant1( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x86B4
+get_non_destroyed_variant2( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x871C
+get_non_destroyed_variant4( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x8784
+get_non_destroyed_variant5( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x87EC
+get_destroyed_chunks( barrier_chunks )
+{
+	array = [];
+	i = 0;
+	array[array.size] = barrier_chunks[i];
+	array[array.size] = barrier_chunks[i];
+	array[array.size] = barrier_chunks[i];
+	return undefined;
+	i++;
+	return undefined;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x88F8
+grate_order_destroyed( chunks_repair_grate )
+{
+	grate_repair_order = [];
+	grate_repair_order1 = [];
+	grate_repair_order2 = [];
+	grate_repair_order3 = [];
+	grate_repair_order4 = [];
+	grate_repair_order5 = [];
+	grate_repair_order6 = [];
+	i = 0;
+	grate_repair_order1[grate_repair_order1.size] = chunks_repair_grate[i];
+	grate_repair_order2[grate_repair_order2.size] = chunks_repair_grate[i];
+	grate_repair_order3[grate_repair_order3.size] = chunks_repair_grate[i];
+	grate_repair_order4[grate_repair_order4.size] = chunks_repair_grate[i];
+	grate_repair_order5[grate_repair_order5.size] = chunks_repair_grate[i];
+	grate_repair_order6[grate_repair_order6.size] = chunks_repair_grate[i];
+	i++;
+	i = 0;
+/#
+	iprintlnbold( " Fix grate6 " );
+#/
+	return grate_repair_order6[i];
+/#
+	iprintlnbold( " Fix grate5 " );
+#/
+	grate_repair_order6[i] thread show_grate_repair();
+	return grate_repair_order5[i];
+/#
+	iprintlnbold( " Fix grate4 " );
+#/
+	grate_repair_order5[i] thread show_grate_repair();
+	return grate_repair_order4[i];
+/#
+	iprintlnbold( " Fix grate3 " );
+#/
+	grate_repair_order4[i] thread show_grate_repair();
+	return grate_repair_order3[i];
+/#
+	iprintlnbold( " Fix grate2 " );
+#/
+	grate_repair_order3[i] thread show_grate_repair();
+	return grate_repair_order2[i];
+/#
+	iprintlnbold( " Fix grate1 " );
+#/
+	grate_repair_order2[i] thread show_grate_repair();
+	return grate_repair_order1[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x8BF8
+show_grate_repair()
+{
+	wait 0.34;
+	self hide();
+// SP = 0x0 - check OK
+}
+
+// 0x8C14
+get_chunk_state()
+{
+/#
+	assert( IsDefined( self.state ) );
+#/
+	return self.state;
+// SP = 0x0 - check OK
+}
+
+// 0x8C34
+is_float( num )
+{
+	val = num - int( num );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8C64
+array_limiter( array, total )
+{
+	new_array = [];
+	i = 0;
+	new_array[new_array.size] = array[i];
+	i++;
+	return new_array;
+// SP = 0x0 - check OK
+}
+
+// 0x8CA4
+array_validate( array )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8CC4
+add_spawner( spawner )
+{
+	return;
+	return;
+	return;
+	spawner.has_been_added = 1;
+	level.zombie_spawn_locations[level.zombie_spawn_locations.size] = spawner;
+// SP = 0x0 - check OK
+}
+
+// 0x8D2C
+fake_physicslaunch( target_pos, power )
+{
+	start_pos = self.origin;
+	gravity = GetDvarInt( #"0x55F139D3" ) * -1;
+	dist = distance( start_pos, target_pos );
+	time = dist / power;
+	delta = target_pos - start_pos;
+	drop = 0.5 * gravity * ( time * time );
+	velocity = ( delta[0] / time, delta[1] / time, ( delta[2] - drop ) / time );
+	level thread draw_line_ent_to_pos( self, target_pos );
+	self movegravity( velocity, time );
+	return time;
+// SP = 0x0 - check OK
+}
+
+// 0x8DC8
+add_zombie_hint( ref, text )
+{
+	level.zombie_hints = [];
+	precachestring( text );
+	level.zombie_hints[ref] = text;
+// SP = 0x0 - check OK
+}
+
+// 0x8DFC
+get_zombie_hint( ref )
+{
+	return level.zombie_hints[ref];
+/#
+	println( "UNABLE TO FIND HINT STRING " + ref );
+#/
+	return level.zombie_hints["undefined"];
+// SP = 0x0 - check OK
+}
+
+// 0x8E38
+set_hint_string( ent, default_ref, cost )
+{
+	ref = default_ref;
+	ref = ent.script_hint;
+	ref = ref + "_" + cost;
+	self sethintstring( get_zombie_hint( ref ) );
+	hint = get_zombie_hint( ref );
+	self sethintstring( hint, cost );
+	self sethintstring( hint );
+// SP = 0x0 - check OK
+}
+
+// 0x8ED0
+get_hint_string( ent, default_ref, cost )
+{
+	ref = default_ref;
+	ref = ent.script_hint;
+	ref = ref + "_" + cost;
+	return get_zombie_hint( ref );
+// SP = 0x0 - check OK
+}
+
+// 0x8F28
+unitrigger_set_hint_string( ent, default_ref, cost )
+{
+	triggers = [];
+	triggers = self.playertrigger;
+	triggers[0] = self.trigger;
+	foreach ( trigger in triggers )
+	{
+		ref = default_ref;
+		ref = ent.script_hint;
+		ref = ref + "_" + cost;
+		trigger sethintstring( get_zombie_hint( ref ) );
+		hint = get_zombie_hint( ref );
+		trigger sethintstring( hint, cost );
+		trigger sethintstring( hint );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x900C
+add_sound( ref, alias )
+{
+	level.zombie_sounds = [];
+	level.zombie_sounds[ref] = alias;
+// SP = 0x0 - check OK
+}
+
+// 0x9034
+play_sound_at_pos( ref, pos, ent )
+{
+	playsoundatposition( ent.script_soundalias, pos );
+	return;
+	ref = self.script_sound;
+	return;
+/#
+	assertmsg( "Sound \"" + ref + "\" was not put to the zombie sounds list, please use add_sound( ref, alias ) at the start of your level." );
+#/
+	return;
+	playsoundatposition( level.zombie_sounds[ref], pos );
+// SP = 0x0 - check OK
+}
+
+// 0x90B8
+play_sound_on_ent( ref )
+{
+	self playsound( self.script_soundalias );
+	return;
+	ref = self.script_sound;
+	return;
+/#
+	assertmsg( "Sound \"" + ref + "\" was not put to the zombie sounds list, please use add_sound( ref, alias ) at the start of your level." );
+#/
+	return;
+	self playsound( level.zombie_sounds[ref] );
+// SP = 0x0 - check OK
+}
+
+// 0x9130
+play_loopsound_on_ent( ref )
+{
+	ref = self.script_firefxsound;
+	return;
+/#
+	assertmsg( "Sound \"" + ref + "\" was not put to the zombie sounds list, please use add_sound( ref, alias ) at the start of your level." );
+#/
+	return;
+	self playsound( level.zombie_sounds[ref] );
+// SP = 0x0 - check OK
+}
+
+// 0x918C
+string_to_float( string )
+{
+	floatparts = strtok( string, "." );
+	return int( floatparts[0] );
+	whole = int( floatparts[0] );
+	decimal = 0;
+	i = floatparts[1].size - 1;
+	decimal = decimal / 10 + int( floatparts[1][i] ) / 10;
+	i--;
+	return whole + decimal;
+	return whole - decimal;
+// SP = 0x0 - check OK
+}
+
+// 0x9224
+onplayerconnect_callback( func )
+{
+	addcallback( "on_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x923C
+onplayerdisconnect_callback( func )
+{
+	addcallback( "on_player_disconnect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x9254
+set_zombie_var( var, value, is_float, column, is_team_based )
+{
+	is_float = 0;
+	column = 1;
+	table = "mp/zombiemode.csv";
+	table_value = tablelookup( table, 0, var, column );
+	value = float( table_value );
+	value = int( table_value );
+	foreach ( team in level.teams )
+	{
+		level.zombie_vars[team][var] = value;
+	}
+	level.zombie_vars[var] = value;
+	return value;
+// SP = 0x0 - check OK
+}
+
+// 0x9324
+get_table_var( table, var_name, value, is_float, column )
+{
+	table = "mp/zombiemode.csv";
+	is_float = 0;
+	column = 1;
+	table_value = tablelookup( table, 0, var_name, column );
+	value = string_to_float( table_value );
+	value = int( table_value );
+	return value;
+// SP = 0x0 - check OK
+}
+
+// 0x93A4
+hudelem_count()
+{
+/#
+	max = 0;
+	curr_total = 0;
+	max = level.hudelem_count;
+	println( "HudElems: " + level.hudelem_count + "[Peak: " + max + "]" );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9400
+debug_round_advancer()
+{
+/#
+	zombs = get_round_enemy_array();
+	i = 0;
+	zombs[i] dodamage( zombs[i].health + 666, ( 0, 0, 0 ) );
+	wait 0.5;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9460
+print_run_speed( speed )
+{
+/#
+	self endon( "death" );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 64 ), speed, ( 1, 1, 1 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x94A4
+draw_line_ent_to_ent( ent1, ent2 )
+{
+/#
+	ent1 endon( "death" );
+	ent2 endon( "death" );
+	line( ent1.origin, ent2.origin );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x94F8
+draw_line_ent_to_pos( ent, pos, end_on )
+{
+/#
+	ent endon( "death" );
+	ent notify( "stop_draw_line_ent_to_pos" );
+	ent endon( "stop_draw_line_ent_to_pos" );
+	ent endon( end_on );
+	line( ent.origin, pos );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9560
+debug_print( msg )
+{
+/#
+	println( "######### ZOMBIE: " + msg );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x958C
+debug_blocker( pos, rad, height )
+{
+/#
+	self notify( "stop_debug_blocker" );
+	self endon( "stop_debug_blocker" );
+	wait 0.05;
+	drawcylinder( pos, rad, height );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x95D8
+drawcylinder( pos, rad, height )
+{
+/#
+	currad = rad;
+	curheight = height;
+	r = 0;
+	theta = r / 20 * 360;
+	theta2 = ( r + 1 ) / 20 * 360;
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, 0 ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, curheight ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ) );
+	r++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9708
+print3d_at_pos( msg, pos, thread_endon, offset )
+{
+/#
+	self endon( "death" );
+	self notify( thread_endon );
+	self endon( thread_endon );
+	offset = ( 0, 0, 0 );
+	print3d( self.origin + offset, msg );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9764
+debug_breadcrumbs()
+{
+/#
+	self endon( "disconnect" );
+	self notify( "stop_debug_breadcrumbs" );
+	self endon( "stop_debug_breadcrumbs" );
+	wait 1;
+	i = 0;
+	drawcylinder( self.zombie_breadcrumbs[i], 5, 5 );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x97DC
+debug_attack_spots_taken()
+{
+/#
+	self notify( "stop_debug_breadcrumbs" );
+	self endon( "stop_debug_breadcrumbs" );
+	wait 1;
+	wait 0.05;
+	count = 0;
+	i = 0;
+	count++;
+	circle( self.attack_spots[i], 12, ( 1, 0, 0 ), 0, 1, 1 );
+	circle( self.attack_spots[i], 12, ( 0, 1, 0 ), 0, 1, 1 );
+	i++;
+	msg = "" + count + " / " + self.attack_spots_taken.size;
+	print3d( self.origin, msg );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x98A4
+float_print3d( msg, time )
+{
+/#
+	self endon( "death" );
+	time = GetTime() + time * 1000;
+	offset = vector_scale( ( 0, 0, 1 ), 72 );
+	offset += vector_scale( ( 0, 0, 1 ), 2 );
+	print3d( self.origin + offset, msg, ( 1, 1, 1 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9910
+do_player_vo( snd, variation_count )
+{
+	index = maps\mp\zombies\_zm_weapons::get_player_index( self );
+	sound = "zmb_vox_plr_" + index + "_" + snd;
+	sound = sound + "_" + randomintrange( 0, variation_count );
+	level.player_is_speaking = 0;
+	level.player_is_speaking = 1;
+	self playsoundwithnotify( sound, "sound_done" );
+	self waittill( "sound_done" );
+	wait 2;
+	level.player_is_speaking = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x999C
+stop_magic_bullet_shield()
+{
+	self.attackeraccuracy = 1;
+	self notify( "stop_magic_bullet_shield" );
+	self.magic_bullet_shield = undefined;
+	self._mbs = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x99BC
+magic_bullet_shield()
+{
+	self.magic_bullet_shield = 1;
+/#
+	level thread debug_magic_bullet_shield_death( self );
+#/
+	self._mbs = spawnstruct();
+/#
+	assert( isalive( self ), "Tried to do magic_bullet_shield on a dead or undefined guy." );
+#/
+	self._mbs.last_pain_time = 0;
+	self._mbs.ignore_time = 2;
+	self._mbs.turret_ignore_time = 5;
+	self.attackeraccuracy = 0.1;
+/#
+	assertmsg( "magic_bullet_shield does not support entity of classname '" + self.classname + "'." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9A8C
+debug_magic_bullet_shield_death( guy )
+{
+	targetname = "none";
+	targetname = guy.targetname;
+	guy endon( "stop_magic_bullet_shield" );
+	guy waittill( "death" );
+/#
+	assert( !(IsDefined( guy )), "Guy died with magic bullet shield on with targetname: " + targetname );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9AD8
+is_magic_bullet_shield_enabled( ent )
+{
+	return 0;
+	return ent.magic_bullet_shield == 1;
+// SP = 0x0 - check OK
+}
+
+// 0x9AFC
+really_play_2d_sound( sound )
+{
+	temp_ent = spawn( "script_origin", ( 0, 0, 0 ) );
+	temp_ent playsoundwithnotify( sound, sound + "wait" );
+	temp_ent waittill( sound + "wait" );
+	wait 0.05;
+	temp_ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x9B4C
+play_sound_2d( sound )
+{
+	level thread really_play_2d_sound( sound );
+// SP = 0x0 - check OK
+}
+
+// 0x9B64
+include_weapon( weapon_name, in_box, collector, weighting_func )
+{
+/#
+	println( "ZM >> include_weapon = " + weapon_name );
+#/
+	in_box = 1;
+	collector = 0;
+	maps\mp\zombies\_zm_weapons::include_zombie_weapon( weapon_name, in_box, collector, weighting_func );
+// SP = 0x0 - check OK
+}
+
+// 0x9BB0
+include_buildable( buildable_struct )
+{
+/#
+	println( "ZM >> include_buildable = " + buildable_struct.name );
+#/
+	maps\mp\zombies\_zm_buildables::include_zombie_buildable( buildable_struct );
+// SP = 0x0 - check OK
+}
+
+// 0x9BE0
+is_buildable_included( name )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x9BFC
+create_zombie_buildable_piece( modelname, radius, height, hud_icon )
+{
+/#
+	println( "ZM >> create_zombie_buildable_piece = " + modelname );
+#/
+	self maps\mp\zombies\_zm_buildables::create_zombie_buildable_piece( modelname, radius, height, hud_icon );
+// SP = 0x0 - check OK
+}
+
+// 0x9C34
+is_buildable()
+{
+	return self maps\mp\zombies\_zm_buildables::is_buildable();
+// SP = 0x0 - check OK
+}
+
+// 0x9C48
+wait_for_buildable( buildable_name )
+{
+	level waittill( buildable_name + "_built", player );
+	return player;
+// SP = 0x0 - check OK
+}
+
+// 0x9C64
+include_powered_item( power_on_func, power_off_func, range_func, cost_func, power_sources, start_power, target )
+{
+	return maps\mp\zombies\_zm_power::add_powered_item( power_on_func, power_off_func, range_func, cost_func, power_sources, start_power, target );
+// SP = 0x0 - check OK
+}
+
+// 0x9C94
+include_powerup( powerup_name )
+{
+	maps\mp\zombies\_zm_powerups::include_zombie_powerup( powerup_name );
+// SP = 0x0 - check OK
+}
+
+// 0x9CAC
+include_equipment( equipment_name )
+{
+	maps\mp\zombies\_zm_equipment::include_zombie_equipment( equipment_name );
+// SP = 0x0 - check OK
+}
+
+// 0x9CC4
+limit_equipment( equipment_name, limited )
+{
+	maps\mp\zombies\_zm_equipment::limit_zombie_equipment( equipment_name, limited );
+// SP = 0x0 - check OK
+}
+
+// 0x9CE0
+trigger_invisible( enable )
+{
+	players = get_players();
+	i = 0;
+	self setinvisibletoplayer( players[i], enable );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x9D2C
+print3d_ent( text, color, scale, offset, end_msg, overwrite )
+{
+	self endon( "death" );
+	self notify( "end_print3d" );
+	wait 0.05;
+	self endon( "end_print3d" );
+	color = ( 1, 1, 1 );
+	scale = 1;
+	offset = ( 0, 0, 0 );
+	self endon( end_msg );
+	self._debug_print3d_msg = text;
+/#
+	print3d( self.origin + offset, self._debug_print3d_msg, color, scale );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9DD8
+isexplosivedamage( meansofdeath )
+{
+	explosivedamage = "MOD_GRENADE MOD_GRENADE_SPLASH MOD_PROJECTILE_SPLASH MOD_EXPLOSIVE";
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x9E00
+isprimarydamage( meansofdeath )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x9E24
+isfiredamage( weapon, meansofdeath )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x9E84
+isplayerexplosiveweapon( weapon, meansofdeath )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x9EC4
+create_counter_hud( x )
+{
+	x = 0;
+	hud = create_simple_hud();
+	hud.alignx = "left";
+	hud.aligny = "top";
+	hud.horzalign = "user_left";
+	hud.vertalign = "user_top";
+	hud.color = ( 1, 1, 1 );
+	hud.fontscale = 32;
+	hud.x = x;
+	hud.alpha = 0;
+	hud setshader( "hud_chalk_1", 64, 64 );
+	return hud;
+// SP = 0x0 - check OK
+}
+
+// 0x9F48
+get_current_zone( return_zone )
+{
+	flag_wait( "zones_initialized" );
+	z = 0;
+	zone_name = level.zone_keys[z];
+	zone = level.zones[zone_name];
+	i = 0;
+	return zone;
+	return zone_name;
+	i++;
+	z++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x9FD4
+remove_mod_from_methodofdeath( mod )
+{
+	return mod;
+// SP = 0x0 - check OK
+}
+
+// 0x9FE0
+clear_fog_threads()
+{
+	players = get_players();
+	i = 0;
+	players[i] notify( "stop_fog" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA018
+display_message( titletext, notifytext, duration )
+{
+	notifydata = spawnstruct();
+	notifydata.titletext = notifytext;
+	notifydata.notifytext = titletext;
+	notifydata.sound = "mus_level_up";
+	notifydata.duration = duration;
+	notifydata.glowcolor = ( 1, 0, 0 );
+	notifydata.color = ( 0, 0, 0 );
+	notifydata.iconname = "hud_zombies_meat";
+	self thread maps\mp\gametypes_zm\_hud_message::notifymessage( notifydata );
+// SP = 0x0 - check OK
+}
+
+// 0xA088
+is_quad()
+{
+	return self.animname == "quad_zombie";
+// SP = 0x0 - check OK
+}
+
+// 0xA098
+is_leaper()
+{
+	return self.animname == "leaper_zombie";
+// SP = 0x0 - check OK
+}
+
+// 0xA0A8
+shock_onpain()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self notify( "stop_shock_onpain" );
+	self endon( "stop_shock_onpain" );
+	setdvar( "blurpain", "on" );
+	oldhealth = self.health;
+	self waittill( "damage", damage, attacker, direction_vec, point, mod );
+	shocktype = undefined;
+	shocklight = undefined;
+	shocktype = "lava";
+	shocklight = "lava_small";
+	self shock_onexplosion( damage, shocktype, shocklight );
+	self shellshock( "pain", 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0xA1E8
+shock_onexplosion( damage, shocktype, shocklight )
+{
+	time = 0;
+	scaled_damage = 100 * damage / self.maxhealth;
+	time = 4;
+	time = 3;
+	time = 2;
+	time = 1;
+	shocktype = "explosion";
+	self shellshock( shocktype, time );
+	self shellshock( shocklight, time );
+// SP = 0x0 - check OK
+}
+
+// 0xA284
+increment_is_drinking()
+{
+/#
+	self.is_drinking++;
+#/
+	self.is_drinking = 0;
+	self disableoffhandweapons();
+	self disableweaponcycling();
+	self.is_drinking++;
+// SP = 0x0 - check OK
+}
+
+// 0xA2D8
+is_multiple_drinking()
+{
+	return self.is_drinking > 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA2E8
+decrement_is_drinking()
+{
+	self.is_drinking--;
+/#
+	assertmsg( "making is_drinking less than 0" );
+#/
+	self enableoffhandweapons();
+	self enableweaponcycling();
+// SP = 0x0 - check OK
+}
+
+// 0xA334
+clear_is_drinking()
+{
+	self.is_drinking = 0;
+	self enableoffhandweapons();
+	self enableweaponcycling();
+// SP = 0x0 - check OK
+}
+
+// 0xA358
+getweaponclasszm( weapon )
+{
+/#
+	assert( IsDefined( weapon ) );
+#/
+	return undefined;
+	level.weaponclassarray = [];
+	return level.weaponclassarray[weapon];
+	baseweaponindex = getbaseweaponitemindex( weapon ) + 1;
+	weaponclass = tablelookupcolumnforrow( "zm/zm_statstable.csv", baseweaponindex, 2 );
+	level.weaponclassarray[weapon] = weaponclass;
+	return weaponclass;
+// SP = 0x0 - check OK
+}
+
+// 0xA3D4
+spawn_weapon_model( weapon, model, origin, angles, options )
+{
+	model = getweaponmodel( weapon );
+	weapon_model = spawn( "script_model", origin );
+	weapon_model.angles = angles;
+	weapon_model useweaponmodel( weapon, model, options );
+	weapon_model useweaponmodel( weapon, model );
+	return weapon_model;
+// SP = 0x0 - check OK
+}
+
+// 0xA44C
+is_limited_weapon( weapname )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xA470
+is_alt_weapon( weapname )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xA4C4
+is_grenade_launcher( weapname )
+{
+	return weapname == "m32_upgraded_zm";
+// SP = 0x0 - check OK
+}
+
+// 0xA4E0
+register_lethal_grenade_for_level( weaponname )
+{
+	return;
+	level.zombie_lethal_grenade_list = [];
+	level.zombie_lethal_grenade_list[weaponname] = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA518
+is_lethal_grenade( weaponname )
+{
+	return 0;
+	return IsDefined( level.zombie_lethal_grenade_list[weaponname] );
+// SP = 0x0 - check OK
+}
+
+// 0xA540
+is_player_lethal_grenade( weaponname )
+{
+	return 0;
+	return self.current_lethal_grenade == weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA564
+get_player_lethal_grenade()
+{
+	grenade = "";
+	grenade = self.current_lethal_grenade;
+	return grenade;
+// SP = 0x0 - check OK
+}
+
+// 0xA588
+set_player_lethal_grenade( weaponname )
+{
+	self.current_lethal_grenade = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA598
+init_player_lethal_grenade()
+{
+	self set_player_lethal_grenade( level.zombie_lethal_grenade_player_init );
+// SP = 0x0 - check OK
+}
+
+// 0xA5B0
+register_tactical_grenade_for_level( weaponname )
+{
+	return;
+	level.zombie_tactical_grenade_list = [];
+	level.zombie_tactical_grenade_list[weaponname] = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA5E8
+is_tactical_grenade( weaponname )
+{
+	return 0;
+	return IsDefined( level.zombie_tactical_grenade_list[weaponname] );
+// SP = 0x0 - check OK
+}
+
+// 0xA610
+is_player_tactical_grenade( weaponname )
+{
+	return 0;
+	return self.current_tactical_grenade == weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA634
+get_player_tactical_grenade()
+{
+	tactical = "";
+	tactical = self.current_tactical_grenade;
+	return tactical;
+// SP = 0x0 - check OK
+}
+
+// 0xA658
+set_player_tactical_grenade( weaponname )
+{
+	self notify( "new_tactical_grenade", weaponname );
+	self.current_tactical_grenade = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA670
+init_player_tactical_grenade()
+{
+	self set_player_tactical_grenade( level.zombie_tactical_grenade_player_init );
+// SP = 0x0 - check OK
+}
+
+// 0xA688
+register_placeable_mine_for_level( weaponname )
+{
+	return;
+	level.zombie_placeable_mine_list = [];
+	level.zombie_placeable_mine_list[weaponname] = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA6C0
+is_placeable_mine( weaponname )
+{
+	return 0;
+	return IsDefined( level.zombie_placeable_mine_list[weaponname] );
+// SP = 0x0 - check OK
+}
+
+// 0xA6E8
+is_player_placeable_mine( weaponname )
+{
+	return 0;
+	return self.current_placeable_mine == weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA70C
+get_player_placeable_mine()
+{
+	return self.current_placeable_mine;
+// SP = 0x0 - check OK
+}
+
+// 0xA718
+set_player_placeable_mine( weaponname )
+{
+	self.current_placeable_mine = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA728
+init_player_placeable_mine()
+{
+	self set_player_placeable_mine( level.zombie_placeable_mine_player_init );
+// SP = 0x0 - check OK
+}
+
+// 0xA740
+register_melee_weapon_for_level( weaponname )
+{
+	return;
+	level.zombie_melee_weapon_list = [];
+	level.zombie_melee_weapon_list[weaponname] = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA778
+is_melee_weapon( weaponname )
+{
+	return 0;
+	return IsDefined( level.zombie_melee_weapon_list[weaponname] );
+// SP = 0x0 - check OK
+}
+
+// 0xA7A0
+is_player_melee_weapon( weaponname )
+{
+	return 0;
+	return self.current_melee_weapon == weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA7C4
+get_player_melee_weapon()
+{
+	return self.current_melee_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0xA7D0
+set_player_melee_weapon( weaponname )
+{
+	self.current_melee_weapon = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA7E0
+init_player_melee_weapon()
+{
+	self set_player_melee_weapon( level.zombie_melee_weapon_player_init );
+// SP = 0x0 - check OK
+}
+
+// 0xA7F8
+should_watch_for_emp()
+{
+	return IsDefined( level.zombie_weapons["emp_grenade_zm"] );
+// SP = 0x0 - check OK
+}
+
+// 0xA808
+register_equipment_for_level( weaponname )
+{
+	return;
+	level.zombie_equipment_list = [];
+	level.zombie_equipment_list[weaponname] = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA840
+is_equipment( weaponname )
+{
+	return 0;
+	return IsDefined( level.zombie_equipment_list[weaponname] );
+// SP = 0x0 - check OK
+}
+
+// 0xA868
+is_equipment_that_blocks_purchase( weaponname )
+{
+	return is_equipment( weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0xA880
+is_player_equipment( weaponname )
+{
+	return 0;
+	return self.current_equipment == weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA8A4
+has_deployed_equipment( weaponname )
+{
+	return 0;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xA8F8
+has_player_equipment( weaponname )
+{
+	return self has_deployed_equipment( weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0xA920
+get_player_equipment()
+{
+	return self.current_equipment;
+// SP = 0x0 - check OK
+}
+
+// 0xA92C
+hacker_active()
+{
+	return self maps\mp\zombies\_zm_equipment::is_equipment_active( "equip_hacker_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0xA944
+set_player_equipment( weaponname )
+{
+	self.current_equipment_active = [];
+	self.current_equipment_active[weaponname] = 0;
+	self.equipment_got_in_round = [];
+	self.equipment_got_in_round[weaponname] = level.round_number;
+	self.current_equipment = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0xA998
+init_player_equipment()
+{
+	self set_player_equipment( level.zombie_equipment_player_init );
+// SP = 0x0 - check OK
+}
+
+// 0xA9B0
+register_offhand_weapons_for_level_defaults()
+{
+	[[level.register_offhand_weapons_for_level_defaults_override]]();
+	return;
+	register_lethal_grenade_for_level( "frag_grenade_zm" );
+	level.zombie_lethal_grenade_player_init = "frag_grenade_zm";
+	register_tactical_grenade_for_level( "cymbal_monkey_zm" );
+	level.zombie_tactical_grenade_player_init = undefined;
+	register_placeable_mine_for_level( "claymore_zm" );
+	level.zombie_placeable_mine_player_init = undefined;
+	register_melee_weapon_for_level( "knife_zm" );
+	register_melee_weapon_for_level( "bowie_knife_zm" );
+	level.zombie_melee_weapon_player_init = "knife_zm";
+	level.zombie_equipment_player_init = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xAA24
+init_player_offhand_weapons()
+{
+	init_player_lethal_grenade();
+	init_player_tactical_grenade();
+	init_player_placeable_mine();
+	init_player_melee_weapon();
+	init_player_equipment();
+// SP = 0x0 - check OK
+}
+
+// 0xAA54
+is_offhand_weapon( weaponname )
+{
+	return is_equipment( weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0xAAAC
+is_player_offhand_weapon( weaponname )
+{
+	return self is_player_equipment( weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0xAB04
+has_powerup_weapon()
+{
+	return self.has_powerup_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0xAB18
+give_start_weapon( switch_to_weapon )
+{
+	self giveweapon( level.start_weapon );
+	self givestartammo( level.start_weapon );
+	self switchtoweapon( level.start_weapon );
+// SP = 0x0 - check OK
+}
+
+// 0xAB60
+array_flag_wait_any( flag_array )
+{
+	level._n_array_flag_wait_any_calls = 0;
+	level._n_array_flag_wait_any_calls++;
+	str_condition = "array_flag_wait_call_" + level._n_array_flag_wait_any_calls;
+	index = 0;
+	level thread array_flag_wait_any_thread( flag_array[index], str_condition );
+	index++;
+	level waittill( str_condition );
+// SP = 0x0 - check OK
+}
+
+// 0xABBC
+array_flag_wait_any_thread( flag_name, condition )
+{
+	level endon( condition );
+	flag_wait( flag_name );
+	level notify( condition );
+// SP = 0x0 - check OK
+}
+
+// 0xABDC
+array_removedead( array )
+{
+	newarray = [];
+	return undefined;
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xAC4C
+groundpos( origin )
+{
+	return bullettrace( origin, origin + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self )["position"];
+// SP = 0x0 - check OK
+}
+
+// 0xAC74
+groundpos_ignore_water( origin )
+{
+	return bullettrace( origin, origin + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self, 1 )["position"];
+// SP = 0x0 - check OK
+}
+
+// 0xAC9C
+groundpos_ignore_water_new( origin )
+{
+	return groundtrace( origin, origin + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self, 1 )["position"];
+// SP = 0x0 - check OK
+}
+
+// 0xACC4
+waittill_notify_or_timeout( msg, timer )
+{
+	self endon( msg );
+	wait timer;
+	return timer;
+// SP = 0x0 - check OK
+}
+
+// 0xACD8
+self_delete()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xACF0
+script_delay()
+{
+	wait self.script_delay;
+	return 1;
+	wait randomfloatrange( self.script_delay_min, self.script_delay_max );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAD34
+button_held_think( which_button )
+{
+	self endon( "disconnect" );
+	self._holding_button = [];
+	self._holding_button[which_button] = 0;
+	time_started = 0;
+	use_time = 250;
+	self._holding_button[which_button] = 0;
+	time_started = GetTime();
+	self._holding_button[which_button] = 1;
+	time_started = 0;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xADE0
+use_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_use );
+	self._use_button_think_threaded = 1;
+	return self._holding_button[level.button_use];
+// SP = 0x0 - check OK
+}
+
+// 0xAE18
+ads_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_ads );
+	self._ads_button_think_threaded = 1;
+	return self._holding_button[level.button_ads];
+// SP = 0x0 - check OK
+}
+
+// 0xAE50
+attack_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_attack );
+	self._attack_button_think_threaded = 1;
+	return self._holding_button[level.button_attack];
+// SP = 0x0 - check OK
+}
+
+// 0xAE88
+use_button_pressed()
+{
+	return self usebuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0xAE9C
+ads_button_pressed()
+{
+	return self adsbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0xAEB0
+attack_button_pressed()
+{
+	return self attackbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0xAEC4
+init_button_wrappers()
+{
+	level.button_use = 0;
+	level.button_ads = 1;
+	level.button_attack = 2;
+	level._button_funcs[level.button_use] = ::use_button_pressed;
+	level._button_funcs[level.button_ads] = ::ads_button_pressed;
+	level._button_funcs[level.button_attack] = ::attack_button_pressed;
+// SP = 0x0 - check OK
+}
+
+// 0xAF1C
+wait_network_frame()
+{
+	snapshot_ids = getsnapshotindexarray();
+	acked = undefined;
+	level waittill( "snapacknowledged" );
+	acked = snapshotacknowledged( snapshot_ids );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0xAF70
+ignore_triggers( timer )
+{
+	self endon( "death" );
+	self.ignoretriggers = 1;
+	wait timer;
+	wait 0.5;
+	self.ignoretriggers = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAFA0
+giveachievement_wrapper( achievement, all_players )
+{
+	return;
+	return;
+	achievement_lower = tolower( achievement );
+	global_counter = 0;
+	players = get_players();
+	i = 0;
+	players[i] giveachievement( achievement );
+	has_achievement = players[i] maps\mp\zombies\_zm_stats::get_global_stat( achievement_lower );
+	global_counter++;
+	players[i] maps\mp\zombies\_zm_stats::increment_client_stat( achievement_lower, 0 );
+	players[i] thread [[level.achievement_sound_func]]( achievement_lower );
+	i++;
+/#
+	println( "^1self needs to be a player for _utility::giveachievement_wrapper()" );
+#/
+	return;
+	self giveachievement( achievement );
+	has_achievement = self maps\mp\zombies\_zm_stats::get_global_stat( achievement_lower );
+	global_counter++;
+	self maps\mp\zombies\_zm_stats::increment_client_stat( achievement_lower, 0 );
+	self thread [[level.achievement_sound_func]]( achievement_lower );
+	incrementcounter( "global_" + achievement_lower, global_counter );
+// SP = 0x0 - check OK
+}
+
+// 0xB114
+spawn_failed( spawn )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB148
+getyaw( org )
+{
+	angles = vectortoangles( org - self.origin );
+	return angles[1];
+// SP = 0x0 - check OK
+}
+
+// 0xB164
+getyawtospot( spot )
+{
+	pos = spot;
+	yaw = self.angles[1] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0xB198
+add_spawn_function( function, param1, param2, param3, param4 )
+{
+/#
+	assert( !(isalive( self )), "Tried to add_spawn_function to a living guy." );
+#/
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	func["param4"] = param4;
+	self.spawn_funcs = [];
+	self.spawn_funcs[self.spawn_funcs.size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0xB224
+disable_react()
+{
+/#
+	assert( isalive( self ), "Tried to disable react on a non ai" );
+#/
+	self.a.disablereact = 1;
+	self.allowreact = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xB254
+enable_react()
+{
+/#
+	assert( isalive( self ), "Tried to enable react on a non ai" );
+#/
+	self.a.disablereact = 0;
+	self.allowreact = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB284
+flag_wait_or_timeout( flagname, timer )
+{
+	start_time = GetTime();
+	wait_for_flag_or_time_elapses( flagname, timer );
+// SP = 0x0 - check OK
+}
+
+// 0xB2C8
+wait_for_flag_or_time_elapses( flagname, timer )
+{
+	level endon( flagname );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0xB2DC
+isads( player )
+{
+	return player playerads() > 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0xB2FC
+bullet_attack( type )
+{
+	return 1;
+	return type == "MOD_RIFLE_BULLET";
+// SP = 0x0 - check OK
+}
+
+// 0xB318
+pick_up()
+{
+	player = self.owner;
+	self destroy_ent();
+	clip_ammo = player getweaponammoclip( self.name );
+	clip_max_ammo = weaponclipsize( self.name );
+	clip_ammo++;
+	player setweaponammoclip( self.name, clip_ammo );
+// SP = 0x0 - check OK
+}
+
+// 0xB378
+destroy_ent()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xB38C
+waittill_not_moving()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "detonated" );
+	level endon( "game_ended" );
+	self waittill( "stationary" );
+	prevorigin = self.origin;
+	wait 0.15;
+	prevorigin = self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0xB3F0
+get_closest_player( org )
+{
+	players = [];
+	players = get_players();
+	return getclosest( org, players );
+// SP = 0x0 - check OK
+}
+
+// 0xB41C
+ent_flag_wait( msg )
+{
+	self endon( "death" );
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0xB440
+ent_flag_wait_either( flag1, flag2 )
+{
+	self endon( "death" );
+	return;
+	return;
+	self waittill_either( flag1, flag2 );
+// SP = 0x0 - check OK
+}
+
+// 0xB488
+ent_wait_for_flag_or_time_elapses( flagname, timer )
+{
+	self endon( flagname );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0xB49C
+ent_flag_wait_or_timeout( flagname, timer )
+{
+	self endon( "death" );
+	start_time = GetTime();
+	self ent_wait_for_flag_or_time_elapses( flagname, timer );
+// SP = 0x0 - check OK
+}
+
+// 0xB4E8
+ent_flag_waitopen( msg )
+{
+	self endon( "death" );
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0xB50C
+ent_flag_init( message, val )
+{
+	self.ent_flag = [];
+	self.ent_flags_lock = [];
+/#
+	assert( !(IsDefined( self.ent_flag[message] )), "Attempt to reinitialize existing flag '" + message + "' on entity." );
+#/
+	self.ent_flag[message] = 1;
+/#
+	self.ent_flags_lock[message] = 1;
+#/
+	self.ent_flag[message] = 0;
+/#
+	self.ent_flags_lock[message] = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB598
+ent_flag_exist( message )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xB5BC
+ent_flag_set_delayed( message, delay )
+{
+	wait delay;
+	self ent_flag_set( message );
+// SP = 0x0 - check OK
+}
+
+// 0xB5D8
+ent_flag_set( message )
+{
+/#
+/#
+	assert( IsDefined( self ), "Attempt to set a flag on entity that is not defined" );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Attempt to set a flag before calling flag_init: '" + message + "'." );
+#/
+/#
+	assert( self.ent_flag[message] == self.ent_flags_lock[message] );
+#/
+	self.ent_flags_lock[message] = 1;
+#/
+	self.ent_flag[message] = 1;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0xB64C
+ent_flag_toggle( message )
+{
+	self ent_flag_clear( message );
+	self ent_flag_set( message );
+// SP = 0x0 - check OK
+}
+
+// 0xB684
+ent_flag_clear( message )
+{
+/#
+/#
+	assert( IsDefined( self ), "Attempt to clear a flag on entity that is not defined" );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Attempt to set a flag before calling flag_init: '" + message + "'." );
+#/
+/#
+	assert( self.ent_flag[message] == self.ent_flags_lock[message] );
+#/
+	self.ent_flags_lock[message] = 0;
+#/
+	self.ent_flag[message] = 0;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0xB700
+ent_flag_clear_delayed( message, delay )
+{
+	wait delay;
+	self ent_flag_clear( message );
+// SP = 0x0 - check OK
+}
+
+// 0xB71C
+ent_flag( message )
+{
+/#
+	assert( IsDefined( message ), "Tried to check flag but the flag was not defined." );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Tried to check entity flag '" + message + "', but the flag was not initialized." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB76C
+ent_flag_init_ai_standards()
+{
+	message_array = [];
+	message_array[message_array.size] = "goal";
+	message_array[message_array.size] = "damage";
+	i = 0;
+	self ent_flag_init( message_array[i] );
+	self thread ent_flag_wait_ai_standards( message_array[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xB7C8
+ent_flag_wait_ai_standards( message )
+{
+	self endon( "death" );
+	self waittill( message );
+	self.ent_flag[message] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB7E8
+flat_angle( angle )
+{
+	rangle = ( 0, angle[1], 0 );
+	return rangle;
+// SP = 0x0 - check OK
+}
+
+// 0xB800
+waittill_any_or_timeout( timer, string1, string2, string3, string4, string5 )
+{
+/#
+	assert( IsDefined( string1 ) );
+#/
+	self endon( string1 );
+	self endon( string2 );
+	self endon( string3 );
+	self endon( string4 );
+	self endon( string5 );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0xB854
+clear_run_anim()
+{
+	self.alwaysrunforward = undefined;
+	self.a.combatrunanim = undefined;
+	self.run_noncombatanim = undefined;
+	self.walk_combatanim = undefined;
+	self.walk_noncombatanim = undefined;
+	self.precombatrunenabled = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB87C
+track_players_intersection_tracker()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	level endon( "end_game" );
+	wait 5;
+	killed_players = 0;
+	players = get_players();
+	i = 0;
+	j = 0;
+	playeri_origin = players[i].origin;
+	playerj_origin = players[j].origin;
+	distance_apart = distance2d( playeri_origin, playerj_origin );
+/#
+	iprintlnbold( "PLAYERS ARE TOO FRIENDLY!!!!!" );
+#/
+	players[i] dodamage( 1000, ( 0, 0, 0 ) );
+	players[j] dodamage( 1000, ( 0, 0, 0 ) );
+	players[i] playlocalsound( level.zmb_laugh_alias );
+	players[i] maps\mp\zombies\_zm_stats::increment_map_cheat_stat( "cheat_too_friendly" );
+	players[i] maps\mp\zombies\_zm_stats::increment_client_stat( "cheat_too_friendly", 0 );
+	players[i] maps\mp\zombies\_zm_stats::increment_client_stat( "cheat_total", 0 );
+	players[j] maps\mp\zombies\_zm_stats::increment_map_cheat_stat( "cheat_too_friendly" );
+	players[j] maps\mp\zombies\_zm_stats::increment_client_stat( "cheat_too_friendly", 0 );
+	players[j] maps\mp\zombies\_zm_stats::increment_client_stat( "cheat_total", 0 );
+	killed_players = 1;
+	j++;
+	i++;
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0xBA80
+get_eye()
+{
+	linked_ent = self getlinkedent();
+	camera = linked_ent gettagorigin( "tag_camera" );
+	return camera;
+	pos = self geteye();
+	return pos;
+// SP = 0x0 - check OK
+}
+
+// 0xBAE4
+is_player_looking_at( origin, dot, do_trace, ignore_ent )
+{
+/#
+	assert( isplayer( self ), "player_looking_at must be called on a player." );
+#/
+	dot = 0.7;
+	do_trace = 1;
+	eye = self get_eye();
+	delta_vec = anglestoforward( vectortoangles( origin - eye ) );
+	view_vec = anglestoforward( self getplayerangles() );
+	new_dot = vectordot( delta_vec, view_vec );
+	return bullettracepassed( origin, eye, 0, ignore_ent );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBB90
+add_gametype( gt, dummy1, name, dummy2 )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xBBA0
+add_gameloc( gl, dummy1, name, dummy2 )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xBBB0
+get_closest_index( org, array, dist )
+{
+	dist = 9999999;
+	distsq = dist * dist;
+	return;
+	index = undefined;
+	i = 0;
+	newdistsq = distancesquared( array[i].origin, org );
+	distsq = newdistsq;
+	index = i;
+	i++;
+	return index;
+// SP = 0x0 - check OK
+}
+
+// 0xBC2C
+is_valid_zombie_spawn_point( point )
+{
+	liftedorigin = point.origin + vector_scale( ( 0, 0, 1 ), 5 );
+	size = 48;
+	height = 64;
+	mins = ( -1 * size, -1 * size, 0 );
+	maxs = ( size, size, height );
+	absmins = liftedorigin + mins;
+	absmaxs = liftedorigin + maxs;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBCA4
+get_closest_index_to_entity( entity, array, dist, extra_check )
+{
+	org = entity.origin;
+	dist = 9999999;
+	distsq = dist * dist;
+	return;
+	index = undefined;
+	i = 0;
+	newdistsq = distancesquared( array[i].origin, org );
+	distsq = newdistsq;
+	index = i;
+	i++;
+	return index;
+// SP = 0x0 - check OK
+}
+
+// 0xBD4C
+set_gamemode_var( var, val )
+{
+	game["gamemode_match"] = [];
+	game["gamemode_match"][var] = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBD74
+set_gamemode_var_once( var, val )
+{
+	game["gamemode_match"] = [];
+	game["gamemode_match"][var] = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBDAC
+set_game_var( var, val )
+{
+	game[var] = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBDC0
+set_game_var_once( var, val )
+{
+	game[var] = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBDDC
+get_game_var( var )
+{
+	return game[var];
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xBDF4
+get_gamemode_var( var )
+{
+	return game["gamemode_match"][var];
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xBE20
+waittill_subset( min_num, string1, string2, string3, string4, string5 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	ent.threads = 0;
+	returned_threads = 0;
+	self thread waittill_string( string1, ent );
+	ent.threads++;
+	self thread waittill_string( string2, ent );
+	ent.threads++;
+	self thread waittill_string( string3, ent );
+	ent.threads++;
+	self thread waittill_string( string4, ent );
+	ent.threads++;
+	self thread waittill_string( string5, ent );
+	ent.threads++;
+	ent waittill( "returned" );
+	ent.threads--;
+	returned_threads++;
+	ent notify( "die" );
+// SP = 0x0 - check OK
+}
+
+// 0xBF18
+is_headshot( sweapon, shitloc, smeansofdeath )
+{
+	return 0;
+	return 1;
+	return smeansofdeath != "MOD_UNKNOWN";
+// SP = 0x0 - check OK
+}
+
+// 0xBF7C
+is_jumping()
+{
+	ground_ent = self getgroundent();
+	return !(IsDefined( ground_ent ));
+// SP = 0x0 - check OK
+}
+
+// 0xBF94
+is_explosive_damage( mod )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBFDC
+sndswitchannouncervox( who )
+{
+	switch ( who )
+	{
+		case "richtofen":
+			game["zmbdialog"]["prefix"] = "vox_zmba_sam";
+			level.zmb_laugh_alias = "zmb_laugh_sam";
+			level.sndannouncerisrich = 0;
+			break;
+		case "sam":
+			game["zmbdialog"]["prefix"] = "vox_zmba";
+			level.zmb_laugh_alias = "zmb_laugh_richtofen";
+			level.sndannouncerisrich = 1;
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xC04C
+do_player_general_vox( category, type, timer, chance )
+{
+	return;
+	chance = maps\mp\zombies\_zm_audio::get_response_chance( type );
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( category, type );
+	level.votimer[type] = timer;
+	level thread general_vox_timer( level.votimer[type], type );
+// SP = 0x0 - check OK
+}
+
+// 0xC0D4
+general_vox_timer( timer, type )
+{
+	level endon( "end_game" );
+/#
+	println( "ZM >> VOX TIMER STARTED FOR  " + type + " ( " + timer + ")" );
+#/
+	wait 1;
+	timer--;
+	level.votimer[type] = timer;
+/#
+	println( "ZM >> VOX TIMER ENDED FOR  " + type + " ( " + timer + ")" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xC144
+create_vox_timer( type )
+{
+	level.votimer[type] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC158
+play_vox_to_player( category, type, force_variant )
+{
+	self thread maps\mp\zombies\_zm_audio::playvoxtoplayer( category, type, force_variant );
+// SP = 0x0 - check OK
+}
+
+// 0xC178
+is_favorite_weapon( weapon_to_check )
+{
+	return 0;
+	foreach ( weapon in self.favorite_wall_weapons_list )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC1C4
+add_vox_response_chance( event, chance )
+{
+	level.response_chances[event] = chance;
+// SP = 0x0 - check OK
+}
+
+// 0xC1DC
+set_demo_intermission_point()
+{
+	spawnpoints = getentarray( "mp_global_intermission", "classname" );
+	return;
+	spawnpoint = spawnpoints[0];
+	match_string = "";
+	location = level.scr_zm_map_start_location;
+	location = level.default_start_location;
+	match_string = level.scr_zm_ui_gametype + "_" + location;
+	i = 0;
+	tokens = strtok( spawnpoints[i].script_string, " " );
+	foreach ( token in tokens )
+	{
+		spawnpoint = spawnpoints[i];
+		i = spawnpoints.size;
+	}
+	i++;
+	setdemointermissionpoint( spawnpoint.origin, spawnpoint.angles );
+// SP = 0x0 - check OK
+}
+
+// 0xC2E8
+register_map_navcard( navcard_on_map, navcard_needed_for_computer )
+{
+	level.navcard_needed = navcard_needed_for_computer;
+	level.map_navcard = navcard_on_map;
+// SP = 0x0 - check OK
+}
+
+// 0xC304
+does_player_have_map_navcard( player )
+{
+	return player maps\mp\zombies\_zm_stats::get_global_stat( level.map_navcard );
+// SP = 0x0 - check OK
+}
+
+// 0xC320
+does_player_have_correct_navcard( player )
+{
+	return 0;
+	return player maps\mp\zombies\_zm_stats::get_global_stat( level.navcard_needed );
+// SP = 0x0 - check OK
+}
+
+// 0xC344
+place_navcard( str_model, str_stat, org, angles )
+{
+	navcard = spawn( "script_model", org );
+	navcard setmodel( str_model );
+	navcard.angles = angles;
+	wait 1;
+	navcard_pickup_trig = spawn( "trigger_radius_use", org, 0, 84, 72 );
+	navcard_pickup_trig setcursorhint( "HINT_NOICON" );
+	navcard_pickup_trig sethintstring( &"ZOMBIE_NAVCARD_PICKUP" );
+	navcard_pickup_trig triggerignoreteam();
+	a_navcard_stats = array( "navcard_held_zm_transit", "navcard_held_zm_highrise", "navcard_held_zm_buried" );
+	is_holding_card = 0;
+	str_placing_stat = undefined;
+	navcard_pickup_trig waittill( "trigger", who );
+	foreach ( str_cur_stat in a_navcard_stats )
+	{
+		str_placing_stat = str_cur_stat;
+		is_holding_card = 1;
+		who maps\mp\zombies\_zm_stats::set_global_stat( str_cur_stat, 0 );
+	}
+	who playsound( "zmb_buildable_piece_add" );
+	who maps\mp\zombies\_zm_stats::set_global_stat( str_stat, 1 );
+	who.navcard_grabbed = str_stat;
+	wait_network_frame();
+	is_stat = who maps\mp\zombies\_zm_stats::get_global_stat( str_stat );
+	thread sq_refresh_player_navcard_hud();
+	navcard delete();
+	navcard_pickup_trig delete();
+	level thread place_navcard( str_model, str_placing_stat, org, angles );
+// SP = 0x0 - check OK
+}
+
+// 0xC4E0
+sq_refresh_player_navcard_hud()
+{
+	return;
+	players = get_players();
+	foreach ( player in players )
+	{
+		player thread sq_refresh_player_navcard_hud_internal();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xC538
+sq_refresh_player_navcard_hud_internal()
+{
+	self endon( "disconnect" );
+	navcard_bits = 0;
+	i = 0;
+	hasit = self maps\mp\zombies\_zm_stats::get_global_stat( level.navcards[i] );
+	hasit = 1;
+	navcard_bits += 1 << i;
+	i++;
+	wait_network_frame();
+	self setclientfield( "navcard_held", 0 );
+	wait_network_frame();
+	self setclientfield( "navcard_held", navcard_bits );
+// SP = 0x0 - check OK
+}
+
+// 0xC5E4
+set_player_is_female( onoff )
+{
+	female_perk = "specialty_gpsjammer";
+	self setperk( female_perk );
+	self unsetperk( female_perk );
+// SP = 0x0 - check OK
+}
+
+// 0xC628
+disable_player_move_states( forcestancechange )
+{
+	self allowcrouch( 1 );
+	self allowlean( 0 );
+	self allowads( 0 );
+	self allowsprint( 0 );
+	self allowprone( 0 );
+	self allowmelee( 0 );
+	self setstance( "crouch" );
+// SP = 0x0 - check OK
+}
+
+// 0xC6A8
+enable_player_move_states()
+{
+	self allowlean( 1 );
+	self allowads( 1 );
+	self allowsprint( 1 );
+	self allowprone( 1 );
+	self allowmelee( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xC750
+check_and_create_node_lists()
+{
+	level._link_node_list = [];
+	level._unlink_node_list = [];
+// SP = 0x0 - check OK
+}
+
+// 0xC778
+link_nodes( a, b, bdontunlinkonmigrate )
+{
+	bdontunlinkonmigrate = 0;
+	return;
+	check_and_create_node_lists();
+	a_index_string = "" + a.origin;
+	b_index_string = "" + b.origin;
+	level._link_node_list[a_index_string] = spawnstruct();
+	level._link_node_list[a_index_string].node = a;
+	level._link_node_list[a_index_string].links = [];
+	level._link_node_list[a_index_string].ignore_on_migrate = [];
+	level._link_node_list[a_index_string].links[b_index_string] = b;
+	level._link_node_list[a_index_string].ignore_on_migrate[b_index_string] = bdontunlinkonmigrate;
+	level._unlink_node_list[a_index_string].links[b_index_string] = undefined;
+	level._unlink_node_list[a_index_string].ignore_on_migrate[b_index_string] = undefined;
+	linknodes( a, b );
+// SP = 0x0 - check OK
+}
+
+// 0xC898
+unlink_nodes( a, b, bdontlinkonmigrate )
+{
+	bdontlinkonmigrate = 0;
+	return;
+	check_and_create_node_lists();
+	a_index_string = "" + a.origin;
+	b_index_string = "" + b.origin;
+	level._unlink_node_list[a_index_string] = spawnstruct();
+	level._unlink_node_list[a_index_string].node = a;
+	level._unlink_node_list[a_index_string].links = [];
+	level._unlink_node_list[a_index_string].ignore_on_migrate = [];
+	level._unlink_node_list[a_index_string].links[b_index_string] = b;
+	level._unlink_node_list[a_index_string].ignore_on_migrate[b_index_string] = bdontlinkonmigrate;
+	level._link_node_list[a_index_string].links[b_index_string] = undefined;
+	level._link_node_list[a_index_string].ignore_on_migrate[b_index_string] = undefined;
+	unlinknodes( a, b );
+// SP = 0x0 - check OK
+}
+
+// 0xC9B8
+spawn_path_node( origin, angles, k1, v1, k2, v2 )
+{
+	level._spawned_path_nodes = [];
+	node = spawnstruct();
+	node.origin = origin;
+	node.angles = angles;
+	node.k1 = k1;
+	node.v1 = v1;
+	node.k2 = k2;
+	node.v2 = v2;
+	node.node = spawn_path_node_internal( origin, angles, k1, v1, k2, v2 );
+	level._spawned_path_nodes[level._spawned_path_nodes.size] = node;
+	return node.node;
+// SP = 0x0 - check OK
+}
+
+// 0xCA58
+spawn_path_node_internal( origin, angles, k1, v1, k2, v2 )
+{
+	return spawnpathnode( "node_pathnode", origin, angles, k1, v1, k2, v2 );
+	return spawnpathnode( "node_pathnode", origin, angles, k1, v1 );
+	return spawnpathnode( "node_pathnode", origin, angles );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xCABC
+delete_spawned_path_nodes()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xCAC4
+respawn_path_nodes()
+{
+	return;
+	i = 0;
+	node_struct = level._spawned_path_nodes[i];
+/#
+	println( "Re-spawning spawned path node @ " + node_struct.origin );
+#/
+	node_struct.node = spawn_path_node_internal( node_struct.origin, node_struct.angles, node_struct.k1, node_struct.v1, node_struct.k2, node_struct.v2 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xCB44
+link_changes_internal_internal( list, func )
+{
+	keys = getarraykeys( list );
+	i = 0;
+	node = list[keys[i]].node;
+	node_keys = getarraykeys( list[keys[i]].links );
+	j = 0;
+/#
+	println( "Node at " + keys[i] + " to node at " + node_keys[j] + " - IGNORED" );
+#/
+/#
+	println( "Node at " + keys[i] + " to node at " + node_keys[j] );
+#/
+	[[func]]( node, list[keys[i]].links[node_keys[j]] );
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xCC64
+link_changes_internal( func_for_link_list, func_for_unlink_list )
+{
+/#
+	println( "Link List" );
+#/
+	link_changes_internal_internal( level._link_node_list, func_for_link_list );
+/#
+	println( "UnLink List" );
+#/
+	link_changes_internal_internal( level._unlink_node_list, func_for_unlink_list );
+// SP = 0x0 - check OK
+}
+
+// 0xCCC0
+link_nodes_wrapper( a, b )
+{
+	linknodes( a, b );
+// SP = 0x0 - check OK
+}
+
+// 0xCCEC
+unlink_nodes_wrapper( a, b )
+{
+	unlinknodes( a, b );
+// SP = 0x0 - check OK
+}
+
+// 0xCD18
+undo_link_changes()
+{
+/#
+	println( "***" );
+	println( "***" );
+	println( "*** Undoing link changes" );
+#/
+	link_changes_internal( ::unlink_nodes_wrapper, ::link_nodes_wrapper );
+	delete_spawned_path_nodes();
+// SP = 0x0 - check OK
+}
+
+// 0xCD68
+redo_link_changes()
+{
+/#
+	println( "***" );
+	println( "***" );
+	println( "*** Redoing link changes" );
+#/
+	respawn_path_nodes();
+	link_changes_internal( ::link_nodes_wrapper, ::unlink_nodes_wrapper );
+// SP = 0x0 - check OK
+}
+
+// 0xCDB8
+set_player_tombstone_index()
+{
+	level.tombstone_index = 0;
+	self.tombstone_index = level.tombstone_index;
+	level.tombstone_index++;
+// SP = 0x0 - check OK
+}
+
+// 0xCDE8
+hotjoin_setup_player( viewmodel )
+{
+	self.first_spawn = 1;
+	self setviewmodel( viewmodel );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xCE30
+is_temporary_zombie_weapon( str_weapon )
+{
+	return str_weapon == level.machine_assets["packapunch"].weapon;
+// SP = 0x0 - check OK
+}
+
+// 0xCE84
+is_gametype_active( a_gametypes )
+{
+	b_is_gametype_active = 0;
+	a_gametypes = array( a_gametypes );
+	i = 0;
+	b_is_gametype_active = 1;
+	i++;
+	return b_is_gametype_active;
+// SP = 0x0 - check OK
+}
+
+// 0xCEE4
+is_createfx_active()
+{
+	level.createfx_enabled = GetDvar( #"0x134D5297" ) != "";
+	return level.createfx_enabled;
+// SP = 0x0 - check OK
+}
+
+// 0xCF0C
+is_zombie_perk_bottle( str_weapon )
+{
+	switch ( str_weapon )
+	{
+		case "zombie_perk_bottle_additionalprimaryweapon":
+		case "zombie_perk_bottle_cherry":
+		case "zombie_perk_bottle_deadshot":
+		case "zombie_perk_bottle_doubletap":
+		case "zombie_perk_bottle_jugg":
+		case "zombie_perk_bottle_marathon":
+		case "zombie_perk_bottle_nuke":
+		case "zombie_perk_bottle_oneinch":
+		case "zombie_perk_bottle_revive":
+		case "zombie_perk_bottle_sixth_sense":
+		case "zombie_perk_bottle_sleight":
+		case "zombie_perk_bottle_tombstone":
+		case "zombie_perk_bottle_vulture":
+		case "zombie_perk_bottle_whoswho":
+			b_is_perk_bottle = 1;
+			break;
+		default:
+			b_is_perk_bottle = 0;
+			break;
+	}
+	return b_is_perk_bottle;
+// SP = 0x0 - check OK
+}
+
+// 0xCFB4
+register_custom_spawner_entry( spot_noteworthy, func )
+{
+	level.custom_spawner_entry = [];
+	level.custom_spawner_entry[spot_noteworthy] = func;
+// SP = 0x0 - check OK
+}
+
+// 0xCFDC
+get_player_weapon_limit( player )
+{
+	return [[level.get_player_weapon_limit]]( player );
+	weapon_limit = 2;
+	weapon_limit = level.additionalprimaryweapon_limit;
+	return weapon_limit;
+// SP = 0x0 - check OK
+}

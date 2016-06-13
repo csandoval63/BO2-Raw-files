@@ -1,0 +1,190 @@
+// maps/mp/animscripts/zm_move.gsc
+
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\animscripts\zm_run;
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+#include common_scripts\utility;
+
+
+// 0x534
+main()
+{
+	self endon( "killanimscript" );
+	self setaimanimweights( 0, 0 );
+	previousscript = self.a.script;
+	maps\mp\animscripts\zm_utility::initialize( "zombie_move" );
+	movemainloop();
+// SP = 0x0 - check OK
+}
+
+// 0x570
+movemainloop()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_soon" );
+	self.needs_run_update = 1;
+	self notify( "needs_run_update" );
+	self sidestepinit();
+	self thread trysidestepthread();
+	self maps\mp\animscripts\zm_run::moverun();
+	self trysidestep();
+// SP = 0x0 - check OK
+}
+
+// 0x5D4
+sidestepinit()
+{
+	self.a.steppeddir = 0;
+	self.a.lastsidesteptime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x5F0
+trysidestepthread()
+{
+	self endon( "death" );
+	self notify( "new_trySideStepThread" );
+	self endon( "new_trySideStepThread" );
+	return 0;
+	return 0;
+	self trysidestep();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x640
+trysidestep()
+{
+	self.sidesteptype = self [[self.shouldsidestepfunc]]();
+	self.sidesteptype = shouldsidestep();
+	self.sidesteptype = shouldforwardstep();
+	return 0;
+	self.desiredstepdir = getdesiredsidestepdir( self.sidesteptype );
+	self.asd_name = "zm_" + self.sidesteptype + "_" + self.desiredstepdir;
+	self.substate_index = self getanimsubstatefromasd( self.asd_name );
+	self.stepanim = self getanimfromasd( self.asd_name, self.substate_index );
+	return 0;
+	self.allowpain = 0;
+	self animcustom( ::dosidestep );
+	self waittill( "sidestep_done" );
+	self.allowpain = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x738
+getdesiredsidestepdir( sidesteptype )
+{
+	self.desiredstepdir = "forward";
+	return self.desiredstepdir;
+/#
+	assert( sidesteptype == "step", "Unsupported SideStepType" );
+#/
+	randomroll = randomfloat( 1 );
+	self.desiredstepdir = "right";
+	self.desiredstepdir = "left";
+	self.desiredstepdir = "right";
+	self.desiredstepdir = "left";
+	return self.desiredstepdir;
+// SP = 0x0 - check OK
+}
+
+// 0x7E8
+checkroomforanim( stepanim )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x814
+shouldsidestep()
+{
+	return "step";
+	return "roll";
+	return "none";
+// SP = 0x0 - check OK
+}
+
+// 0x87C
+cansidestep()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	distsqfromenemy = distancesquared( self.origin, self.enemy.origin );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	yaw = getyawtoorigin( self.enemy.origin );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+shouldforwardstep()
+{
+	return "phase";
+	return "none";
+// SP = 0x0 - check OK
+}
+
+// 0x988
+canforwardstep()
+{
+	return 0;
+	return 0;
+	return 0;
+	distsqfromenemy = distancesquared( self.origin, self.enemy.origin );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	yaw = getyawtoorigin( self.enemy.origin );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA60
+dosidestep()
+{
+	self endon( "death" );
+	self endon( "killanimscript" );
+	self playsidestepanim( self.stepanim, self.sidesteptype );
+	self.a.steppeddir--;
+	self.a.steppeddir++;
+	self.a.lastsidesteptime = GetTime();
+	self notify( "sidestep_done" );
+// SP = 0x0 - check OK
+}
+
+// 0xABC
+playsidestepanim( stepanim, sidesteptype )
+{
+	self animmode( "gravity", 0 );
+	self orientmode( "face angle", self.angles[1] );
+	runblendouttime = 0.2;
+	self thread [[self.sidestepfunc]]( "step_anim", stepanim );
+	self setanimstatefromasd( self.asd_name, self.substate_index );
+	maps\mp\animscripts\zm_shared::donotetracks( "step_anim" );
+	self thread facelookaheadforabit();
+// SP = 0x0 - check OK
+}
+
+// 0xB48
+facelookaheadforabit()
+{
+	self endon( "death" );
+	self endon( "killanimscript" );
+	lookaheadangles = vectortoangles( self.lookaheaddir );
+	self orientmode( "face angle", lookaheadangles[1] );
+	wait 0.2;
+	self animmode( "normal", 0 );
+	self orientmode( "face default" );
+// SP = 0x0 - check OK
+}

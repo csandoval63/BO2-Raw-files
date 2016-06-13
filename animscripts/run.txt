@@ -1,0 +1,836 @@
+// animscripts/run.gsc
+
+#include animscripts\shoot_behavior;
+#include animscripts\turn;
+#include animscripts\run;
+#include animscripts\shared;
+#include animscripts\move;
+#include animscripts\cqb;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\debug;
+#include animscripts\setposemovement;
+#include animscripts\combat_utility;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1598
+moverun()
+{
+/#
+	self animscripts\debug::debugpushstate( "MoveRun" );
+#/
+	desiredpose = self animscripts\utility::choosepose( "stand" );
+	switch ( desiredpose )
+	{
+		case "crouch":
+/#
+			self animscripts\debug::debugpopstate( "MoveRun", "now running" );
+#/
+/#
+			self animscripts\debug::debugpopstate( "MoveRun", "reloaded" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveStandCombatNormal (CQB)" );
+#/
+			movestandcombatnormal();
+/#
+			self animscripts\debug::debugpopstate( "MoveStandCombatNormal (CQB)" );
+#/
+/#
+			self animscripts\debug::debugpopstate( "MoveRun" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveStandCombatOverride" );
+#/
+			movestandcombatoverride();
+/#
+			self animscripts\debug::debugpopstate( "MoveStandCombatOverride" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveStandCombatNormal" );
+#/
+			movestandcombatnormal();
+/#
+			self animscripts\debug::debugpopstate( "MoveStandCombatNormal" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveStandNoncombatOverride" );
+#/
+			movestandnoncombatoverride();
+/#
+			self animscripts\debug::debugpopstate( "MoveStandNoncombatOverride" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveStandNoncombatNormal" );
+#/
+			movestandnoncombatnormal();
+/#
+			self animscripts\debug::debugpopstate( "MoveStandNoncombatNormal" );
+#/
+			break;
+		case "stand":
+/#
+			self animscripts\debug::debugpopstate( "MoveRun", "already running" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveCrouchRunOverride" );
+#/
+			movecrouchrunoverride();
+/#
+			self animscripts\debug::debugpopstate( "MoveCrouchRunOverride" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "MoveCrouchRunNormal" );
+#/
+			movecrouchrunnormal();
+/#
+			self animscripts\debug::debugpopstate( "MoveCrouchRunNormal" );
+#/
+			break;
+		default:
+/#
+			assert( desiredpose == "prone" );
+#/
+/#
+			self animscripts\debug::debugpopstate( "MoveRun", "already running" );
+#/
+/#
+			self animscripts\debug::debugpushstate( "proneCrawl" );
+#/
+			pronecrawl();
+/#
+			self animscripts\debug::debugpopstate();
+#/
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "MoveRun" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1840
+movestandcombatoverride()
+{
+	self clearanim( %combatrun, 0.6 );
+	self setanimknoball( %combatrun, %body, 1, 0.5, self.moveplaybackrate );
+	self setflaggedanimknob( "runanim", self.run_combatanim, 1, 0.5, self.moveplaybackrate );
+	donotetracksnoshootstandcombat( "runanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x18B0
+movestandcombatnormal()
+{
+	self clearanim( %walk_and_run_loops, 0.2 );
+	self setanimknob( %combatrun, 1, 0.5, self.moveplaybackrate );
+	shouldsprint = shouldfullsprint();
+	decidedanimation = 0;
+	mayshootwhilemoving = animscripts\move::mayshootwhilemoving();
+	aimingoff();
+	self orientmode( "face default" );
+	cheatammoifnecessary();
+/#
+	rundebuginfo();
+#/
+	self animscripts\shared::updatelaserstatus( 1 );
+	animscripts\run::stopupdaterunanimweights();
+	runshootwhilemovingthreads();
+	cheatammoifrunningbackward();
+	self updateplayersightaccuracy();
+	tacticalwalkforwardtobackwardtransition();
+	decidedanimation = tacticalwalk();
+	decidedanimation = runngunforward();
+	self animscripts\shared::updatelaserstatus( 0 );
+	stoptacticalwalk();
+	stoprunngun();
+	fullsprint();
+	stopfullsprint();
+	combatrun();
+	donotetracksnoshootstandcombat( "runanim" );
+	self thread stopshootwhilemovingthreads();
+// SP = 0x0 - check OK
+}
+
+// 0x1A5C
+cheatammoifrunningbackward()
+{
+	self.bulletsinclip = weaponclipsize( self.weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x1A98
+shouldfullsprint()
+{
+	return 1;
+	return distance2dsquared( self.origin, self.enemy.origin ) > 90000;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1AE4
+fullsprint()
+{
+	self.a.fullsprintanim = animarraypickrandom( "cqb_sprint_f" );
+	self.a.fullsprintanim = animarraypickrandom( "sprint" );
+	self orientmode( "face motion" );
+	self setflaggedanimknob( "runanim", self.a.fullsprintanim, 1, 0.5, self.moveplaybackrate );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1B7C
+stopfullsprint()
+{
+	self.a.fullsprintanim = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1B8C
+shouldsprintforvariation()
+{
+	return 0;
+	return 0;
+	time = GetTime();
+	return 1;
+	return 0;
+	return 0;
+	isallowedtosprint = distancesquared( self.enemy.origin, self.origin ) > 360000;
+	self.a.dangersprinttime = time + 2000 + randomint( 1000 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1CA8
+shouldtacticalwalk()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1CCC
+tacticalwalk()
+{
+	self.a.tacticalwalking = 1;
+	relativedir = anim.moveglobals.relativediranimmap[self.relativedir];
+	aimingon( "tactical_f", 45 );
+	aimingon( "tactical_b", 45 );
+	aimingon( "tactical_l", 45 );
+	self orientmode( "face default" );
+	motionangle = self getmotionangle();
+	blendtime = 0.4;
+	blendtime = 0.2;
+	runforwardanimname = "tactical_walk_" + relativedir;
+	runforwardanim = animarraypickrandom( runforwardanimname, "move", 1 );
+	self setflaggedanimknob( "runanim", runforwardanim, 1, blendtime, self.tacticalwalkrate );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1DB4
+tacticalwalkforwardtobackwardtransition()
+{
+	return;
+	return;
+	toenemyyaw = vectortoangles( self.enemy.origin - self.origin )[1];
+	anglediff = angleclamp180( toenemyyaw - self.angles[1] );
+	isrunningforward = absangleclamp180( self getmotionangle() ) < 20;
+	facedir = vector_scale( self.lookaheaddir, -1 );
+	faceangle = vectortoangles( facedir )[1];
+	yawtoenemy = absangleclamp180( self.angles[1] - faceangle );
+	self thread stopshootwhilemovingthreads();
+	self animscripts\shared::stoptracking();
+	animpostfix = "_cqb";
+	animpostfix = "";
+	transitionanim = animarray( "run_f_to_bR" + animpostfix, "move" );
+	transitionanim = animarray( "run_f_to_bL" + animpostfix, "move" );
+	runanimname = "tactical_walk";
+	self.a.turnangle = yawtoenemy * sign( anglediff );
+	self animscripts\turn::doturn( transitionanim, animarray( runanimname + "_b" ), -180, 1 );
+	self animscripts\shared::setaiminganims( %run_aim_2, %run_aim_4, %run_aim_6, %run_aim_8 );
+	runshootwhilemovingthreads();
+	self animscripts\shared::trackloopstart();
+	self orientmode( "face default" );
+// SP = 0x0 - check OK
+}
+
+// 0x1F84
+stoptacticalwalk()
+{
+	self.a.tacticalwalking = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1F94
+shouldrunngun()
+{
+	return 0;
+	toenemyyaw = vectortoangles( self.enemy.origin - self.origin )[1];
+	anglediff = angleclamp180( toenemyyaw - self.angles[1] );
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2008
+runngunchooserunanimname()
+{
+	runanimname = "run_n_gun";
+	runanimname = "cqb_run_n_gun";
+	return runanimname;
+// SP = 0x0 - check OK
+}
+
+// 0x2044
+runngunchooseaimanimnameprefix()
+{
+	aimanimname = "add";
+	aimanimname = "cqb_add";
+	return aimanimname;
+// SP = 0x0 - check OK
+}
+
+// 0x2080
+runngunforward()
+{
+	runanimname = runngunchooserunanimname();
+	aimanimname = runngunchooseaimanimnameprefix();
+	runbackwardanimname = animarraypickrandom( runanimname + "_b", "move", 1 );
+	toenemyyaw = vectortoangles( self.enemy.origin - self.origin )[1];
+	anglediff = angleclamp180( toenemyyaw - self.angles[1] );
+	runforwardanimname = runanimname + "_f";
+	aimingon( aimanimname + "_f", 45 );
+	runforwardanimname = runanimname + "_l";
+	aimingon( aimanimname + "_l", 45 );
+	runforwardanimname = runanimname + "_r";
+	aimingon( aimanimname + "_r", 45 );
+	runforwardanimname = runanimname + "_l_120";
+	aimingon( aimanimname + "_l_120", 45 );
+	runforwardanimname = runanimname + "_r_120";
+	aimingon( aimanimname + "_r_120", 45 );
+	return 0;
+	runforwardanimname = animarraypickrandom( runforwardanimname, "move", 1 );
+	self setflaggedanimknob( "runanim", runforwardanimname, 1, 0.2, self.runngunrate );
+	self.a.allowedpartialreloadontheruntime = GetTime() + 600;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2268
+runngunforwardtobackwardtransition()
+{
+	toenemyyaw = vectortoangles( self.enemy.origin - self.origin )[1];
+	anglediff = angleclamp180( toenemyyaw - self.angles[1] );
+	facedir = vector_scale( self.lookaheaddir, -1 );
+	faceangle = vectortoangles( facedir )[1];
+	yawtoenemy = absangleclamp180( self.angles[1] - faceangle );
+	self thread stopshootwhilemovingthreads();
+	self animscripts\shared::stoptracking();
+	transitionanim = animarray( "run_f_to_bR", "move" );
+	transitionanim = animarray( "run_f_to_bL", "move" );
+	runanimname = "run_n_gun";
+	self.a.turnangle = yawtoenemy * sign( anglediff );
+	self animscripts\turn::doturn( transitionanim, animarray( runanimname + "_b" ), -180, 1 );
+	self orientmode( "face angle", self.angles[1] );
+	self animscripts\shared::setaiminganims( %run_aim_2, %run_aim_4, %run_aim_6, %run_aim_8 );
+	runshootwhilemovingthreads();
+	self animscripts\shared::trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x23A4
+runngunbackward()
+{
+	runanimname = runngunchooserunanimname();
+	runforwardanimname = animarraypickrandom( runanimname + "_f", "move", 1 );
+	runbackwardanimname = animarraypickrandom( runanimname + "_b", "move", 1 );
+	aimingon( "add_f", 50 );
+	facedir = vector_scale( self.lookaheaddir, -1 );
+	faceangle = vectortoangles( facedir )[1];
+	self orientmode( "face angle", faceangle );
+	self setflaggedanimknob( "runanim", runbackwardanimname, 1, 0.2, self.runngunrate );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2440
+stoprunngun()
+{
+	self clearanim( %run_n_gun_f, 0.3 );
+	self clearanim( %run_n_gun_r, 0.3 );
+	self clearanim( %run_n_gun_l, 0.3 );
+	self clearanim( %ai_run_n_gun_l_120, 0.3 );
+	self clearanim( %ai_run_n_gun_l_120, 0.3 );
+	aimingoff( 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x24D4
+combatrun()
+{
+	aimingon( "cqb_f", 45 );
+	self orientmode( "face motion" );
+	runanim = getrunanim();
+	self setflaggedanimknob( "runanim", runanim, 1, 0.1, self.moveplaybackrate );
+// SP = 0x0 - check OK
+}
+
+// 0x2558
+movestandnoncombatnormal()
+{
+	self endon( "movemode" );
+	self clearanim( %combatrun, 0.6 );
+	self setanimknoball( %combatrun, %body, 1, 0.2, self.moveplaybackrate );
+	prerunanim = getrunanim();
+	self setflaggedanimknob( "runanim", prerunanim, 1, 0.3, self.moveplaybackrate );
+	self thread updaterunanimweightsthread( "NonCombat", %combatrun_forward, animarray( "combat_run_b" ), animarray( "combat_run_l" ), animarray( "combat_run_r" ) );
+	donotetracksnoshootstandcombat( "runanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x2610
+movestandnoncombatoverride()
+{
+	self endon( "movemode" );
+	self clearanim( %combatrun, 0.6 );
+	self setflaggedanimknoball( "runanim", self.run_noncombatanim, %body, 1, 0.3, self.moveplaybackrate );
+	donotetracksnoshootstandcombat( "runanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x2664
+shouldreloadwhilerunning()
+{
+/#
+	return 1;
+	self.bulletsinclip = 10;
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	return 0;
+#/
+	reloadifempty = self.a.allowedpartialreloadontheruntime > GetTime();
+	reloadifempty = distancesquared( self.origin, self.enemy.origin ) < anim.moveglobals.min_reload_distsq;
+	return 0;
+	return 0;
+	return 0;
+	canshootwhilerunning = canshootwhilerunningbackward();
+	return 0;
+	return 0;
+	motionangle = angleclamp180( self getmotionangle() );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2834
+reloadstandrun()
+{
+	return 0;
+	aimingoff();
+	reloadstandruninternal();
+	self notify( "abort_reload" );
+	self orientmode( "face default" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2870
+runloopisnearbeginning()
+{
+	animfraction = self getanimtime( %walk_and_run_loops );
+	looplength = getanimlength( animscripts\run::getrunanim() ) / 3;
+	animfraction *= 3;
+	animfraction -= 2;
+	animfraction -= 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x290C
+reloadstandruninternal()
+{
+	self endon( "movemode" );
+	self orientmode( "face motion" );
+	self delay_thread( 0.05, animscripts\shared::stoptracking );
+	flagname = "reload_" + getuniqueflagnameindex();
+	flagname = "reload_" + getuniqueflagnameindex();
+	reloadanim = undefined;
+	reloadanim = animarraypickrandom( "cqb_reload_walk" );
+	reloadanim = animarraypickrandom( "cqb_reload_run" );
+	reloadanim = animarraypickrandom( "reload" );
+/#
+	assert( IsDefined( reloadanim ) );
+#/
+	self setflaggedanimknoballrestart( flagname, reloadanim, %body, 1, 0.25 );
+	animscripts\shared::donotetracks( flagname );
+	self animscripts\shared::trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x2A0C
+aimingon( aimanimname, aimlimit )
+{
+	aimanimname = "add_f";
+	self.a.isaiming = 1;
+	ispistoltacticalwalkaim = aihasonlypistol();
+	ispistoltacticalwalkaim = 1;
+	self clearanim( %tactical_walk_pistol_aim2, 0 );
+	self clearanim( %tactical_walk_pistol_aim4, 0 );
+	self clearanim( %tactical_walk_pistol_aim6, 0 );
+	self clearanim( %tactical_walk_pistol_aim8, 0 );
+	self animscripts\shared::setaiminganims( %tactical_walk_pistol_aim2, %tactical_walk_pistol_aim4, %tactical_walk_pistol_aim6, %tactical_walk_pistol_aim8 );
+	self animscripts\shared::setaiminganims( %run_aim_2, %run_aim_4, %run_aim_6, %run_aim_8 );
+	aimlimit = 50;
+	self.rightaimlimit = aimlimit;
+	self.leftaimlimit = aimlimit * -1;
+	self.upaimlimit = aimlimit;
+	self.downaimlimit = aimlimit * -1;
+	self setanimknoblimited( animarray( aimanimname + "_aim_up" ), 1, 0.2 );
+	self setanimknoblimited( animarray( aimanimname + "_aim_down" ), 1, 0.2 );
+	self setanimknoblimited( animarray( aimanimname + "_aim_left" ), 1, 0.2 );
+	self setanimknoblimited( animarray( aimanimname + "_aim_right" ), 1, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x2BC0
+aimingoff( blendouttime )
+{
+	self.a.isaiming = 0;
+	blendouttime = 0.2;
+	self clearanim( self.a.aim_2, blendouttime );
+	self clearanim( self.a.aim_4, blendouttime );
+	self clearanim( self.a.aim_6, blendouttime );
+	self clearanim( self.a.aim_8, blendouttime );
+// SP = 0x0 - check OK
+}
+
+// 0x2C38
+runshootwhilemovingthreads()
+{
+	self notify( "want_shoot_while_moving" );
+	return;
+	self.shoot_while_moving_thread = 1;
+	self thread rundecidewhatandhowtoshoot();
+	self thread runshootwhilemoving();
+// SP = 0x0 - check OK
+}
+
+// 0x2C70
+rundecidewhatandhowtoshoot()
+{
+	self endon( "killanimscript" );
+	self endon( "end_shoot_while_moving" );
+	self animscripts\shoot_behavior::decidewhatandhowtoshoot( "normal" );
+// SP = 0x0 - check OK
+}
+
+// 0x2C90
+runshootwhilemoving()
+{
+	self endon( "killanimscript" );
+	self endon( "end_shoot_while_moving" );
+	self animscripts\move::shootwhilemoving();
+// SP = 0x0 - check OK
+}
+
+// 0x2CAC
+stopshootwhilemovingthreads()
+{
+	self endon( "killanimscript" );
+	self endon( "want_shoot_while_moving" );
+	wait 0.05;
+	self notify( "end_shoot_while_moving" );
+	self.shoot_while_moving_thread = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2CD4
+updaterunanimweightsthread( moveanimtype, frontanim, backanim, leftanim, rightanim )
+{
+	return;
+	self notify( "stop_move_anim_update" );
+	self.a.update_move_anim_type = moveanimtype;
+	self endon( "killanimscript" );
+	self endon( "stop_move_anim_update" );
+	updaterunweightsonce( frontanim, backanim, leftanim, rightanim );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2D44
+stopupdaterunanimweights()
+{
+	self notify( "stop_move_anim_update" );
+	self.a.update_move_anim_type = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2D5C
+updaterunweightsonce( frontanim, backanim, leftanim, rightanim )
+{
+	self setanim( frontanim, 1, 0.1, 1 );
+	self clearanim( backanim, 0.2 );
+	self clearanim( leftanim, 0.2 );
+	self clearanim( rightanim, 0.2 );
+	animweights = animscripts\utility::quadrantanimweights( self getmotionangle() );
+	animweights["back"] = 1;
+	animweights["left"] = 0;
+	animweights["right"] = 0;
+	self setanim( frontanim, animweights["front"], 0.1, 1 );
+	self setanim( backanim, animweights["back"], 0.1, 1 );
+	self setanim( leftanim, animweights["left"], 0.1, 1 );
+	self setanim( rightanim, animweights["right"], 0.1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2E90
+updaterunweights( notifystring, frontanim, backanim, leftanim, rightanim )
+{
+	self endon( "killanimscript" );
+	self endon( notifystring );
+	updaterunweightsonce( frontanim, backanim, leftanim, rightanim );
+	wait 0.05;
+	updaterunweightsonce( frontanim, backanim, leftanim, rightanim );
+	wait getrunanimupdatefrequency();
+// SP = 0x0 - check OK
+}
+
+// 0x2EF0
+movecrouchrunoverride()
+{
+	self endon( "movemode" );
+	self setflaggedanimknoball( "runanim", self.crouchrun_combatanim, %body, 1, 0.4, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.2, "runanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F38
+movecrouchrunnormal()
+{
+	self clearanim( %walk_and_run_loops, 0.2 );
+	self setanimknob( %combatrun, 1, 0.5, self.moveplaybackrate );
+	aimingoff();
+	self orientmode( "face motion" );
+	cheatammoifnecessary();
+	animscripts\run::stopupdaterunanimweights();
+	runshootwhilemovingthreads();
+/#
+	rundebuginfo();
+#/
+	self updateplayersightaccuracy();
+	aimingon( "add_f" );
+	runanim = getcrouchrunanim();
+	self setflaggedanimknob( "runanim", runanim, 1, 0.5 );
+	donotetracksnoshootstandcombat( "runanim" );
+	self thread stopshootwhilemovingthreads();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3050
+getcrouchrunanim()
+{
+	return self.a.crouchrunanim;
+	return animarray( "crouch_run_f", "move" );
+	return animarray( "combat_run_f", "move" );
+// SP = 0x0 - check OK
+}
+
+// 0x30A0
+pronecrawl()
+{
+	self.a.movement = "run";
+	self setflaggedanimknob( "runanim", animarray( "combat_run_f" ), 1, 0.3, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.25, "runanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x30EC
+canshootwhilerunningforward()
+{
+	return 0;
+	enemyyaw = self getpredictedyawtoenemy( 0.2 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3134
+canshootwhilerunningforward120()
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3190
+canshootwhilerunningbackward()
+{
+	return 0;
+	enemyyaw = self getpredictedyawtoenemy( 0.2 );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x31DC
+shouldshootwhilerunningbackward()
+{
+	return 0;
+	return 0;
+	toenemy = self.enemy.origin - self.origin;
+	toenemyyaw = vectortoangles( toenemy )[1];
+	togoalyaw = vectortoangles( self.lookaheaddir )[1];
+	closetogoal = 0;
+	isalreadyrunningbackwards = abs( self getmotionangle() ) >= anim.moveglobals.aim_yaw_threshold * 2;
+	closetogoal = 1;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3324
+getrunbackwardsdistancesquared()
+{
+	return anim.moveglobals.runbackwards_cqb_distsq;
+	return anim.moveglobals.runbackwards_distsq;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x337C
+shouldfacemotionwhilerunning()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3398
+getlookaheadangle()
+{
+	yawdiff = vectortoangles( self.lookaheaddir )[1] - self.angles[1];
+	yawdiff *= 0.00277778;
+	yawdiff = ( yawdiff - floor( yawdiff + 0.5 ) ) * 360;
+	return yawdiff;
+// SP = 0x0 - check OK
+}
+
+// 0x33E4
+donotetracksnoshootstandcombat( animname )
+{
+	animscripts\shared::donotetracksfortime( anim.moveglobals.serverspf, animname );
+// SP = 0x0 - check OK
+}
+
+// 0x3404
+getrunanimupdatefrequency()
+{
+	return anim.moveglobals.serverspf;
+// SP = 0x0 - check OK
+}
+
+// 0x3414
+getpredictedyawtoenemy( lookaheadtime )
+{
+/#
+	assert( isvalidenemy( self.enemy ) );
+#/
+	return self.predictedyawtoenemy;
+	selfpredictedpos = self.origin;
+	moveangle = self.angles[1] + self getmotionangle();
+	selfpredictedpos = ( selfpredictedpos + ( cos( moveangle ), sin( moveangle ), 0 ) ) * ( 200 * lookaheadtime );
+	yaw = self.angles[1] - vectortoangles( self.enemy.origin - selfpredictedpos )[1];
+	yaw = angleclamp180( yaw );
+	self.predictedyawtoenemy = yaw;
+	self.predictedyawtoenemytime = GetTime();
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x34D8
+getrunanim()
+{
+	run_anim = undefined;
+	run_anim = animarraypickrandom( "cqb_walk_f", "move", 1 );
+	run_anim = animarraypickrandom( "cqb_sprint_f", "move", 1 );
+	run_anim = animarraypickrandom( "cqb_run_f", "move", 1 );
+	run_anim = self.a.combatrunanim;
+	run_anim = self.a.fullsprintanim;
+	run_anim = animarraypickrandom( "sprint", "move" );
+	self.a.fullsprintanim = run_anim;
+	run_anim = animarray( "run_n_gun_f", "move" );
+	run_anim = animarray( "combat_run_f", "move" );
+/#
+	assert( IsDefined( run_anim ), "run.gsc - No run animation for this AI." );
+#/
+	return run_anim;
+// SP = 0x0 - check OK
+}
+
+// 0x363C
+run_end_script()
+{
+	self.a.fullsprintanim = undefined;
+	stoptacticalwalk();
+// SP = 0x0 - check OK
+}
+
+// 0x3658
+rundebuginfo()
+{
+/#
+	dist = distance2d( self.origin, self.enemy.origin );
+	recordenttext( "DistanceToEnemy - " + dist, self, level.color_debug["white"], "Script" );
+	faceangle = vectortoangles( self.lookaheaddir )[1];
+	toenemyyaw = vectortoangles( self.enemy.origin - self.origin )[1];
+	anglediff = angleclamp180( toenemyyaw - faceangle );
+	recordenttext( "Enemy Yaw: " + anglediff + " Predicted enemy yaw: " + self getpredictedyawtoenemy( 0.2 ) + " motion angle: " + abs( self getmotionangle() ), self, level.color_debug["yellow"], "Animscript" );
+	recordenttext( "FaceMotion", self, level.color_debug["yellow"], "Animscript" );
+	recordenttext( "FaceEnemy", self, level.color_debug["yellow"], "Animscript" );
+	relativedir = "UNKNOWN_DIRECTION";
+	switch ( self.relativedir )
+	{
+		case 0:
+			relativedir = "FRONT";
+			break;
+		case 1:
+			relativedir = "RIGHT";
+			break;
+		case 2:
+			relativedir = "LEFT";
+			break;
+		case 3:
+			relativedir = "BACK";
+			break;
+		case 4:
+		default:
+			relativedir = "NONE";
+			break;
+	}
+	recordenttext( relativedir, self, level.color_debug["red"], "Animscript" );
+	recordenttext( "motion angle: " + abs( self getmotionangle() ), self, level.color_debug["yellow"], "Animscript" );
+	recordenttext( "ShootStyle - " + self.shootstyle, self, level.color_debug["red"], "Script" );
+	recordenttext( "Bullets - " + self.bulletsinclip, self, level.color_debug["white"], "Script" );
+	dist = distance( self.pathstartpos, self.pathgoalpos );
+	recordenttext( "DistanceFromStartToGoal - " + dist, self, level.color_debug["white"], "Script" );
+	dist = distance( self.origin, self.pathgoalpos );
+	recordenttext( "DistanceToGoal - " + dist, self, level.color_debug["white"], "Script" );
+	dist = distance( self.origin, self.pathgoalpos );
+	recordenttext( "LookAheadDist - " + self.lookaheaddist, self, level.color_debug["white"], "Script" );
+#/
+// SP = 0x0 - check OK
+}

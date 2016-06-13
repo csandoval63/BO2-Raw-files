@@ -1,0 +1,145 @@
+// maps/mp/animscripts/zm_melee.gsc
+
+#include maps\mp\animscripts\zm_combat;
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+#include common_scripts\utility;
+
+
+// 0x5B4
+meleecombat()
+{
+	self endon( "end_melee" );
+	self endon( "killanimscript" );
+/#
+	assert( canmeleeanyrange() );
+#/
+	self orientmode( "face enemy" );
+	self animmode( "slide" );
+	self animmode( "zonly_physics" );
+	return;
+	angles = vectortoangles( self.enemy.origin - self.origin );
+	self orientmode( "face angle", angles[1] );
+	self playsound( self.zmb_vocals_attack );
+	self.safetochangescript = 0;
+	return;
+	set_zombie_melee_anim_state( self );
+	self thread [[self.melee_anim_func]]();
+	self waittill( "melee_anim", note );
+	self.enemy notify( "melee_swipe", self );
+	oldhealth = self.enemy.health;
+	self melee();
+	self [[self.melee_miss_func]]();
+	self [[level.melee_miss_func]]();
+/#
+	zombie_eye = self geteye();
+	player_eye = self.enemy geteye();
+	trace = bullettrace( zombie_eye, player_eye, 1, self );
+	hitpos = trace["position"];
+	dist = distance( zombie_eye, hitpos );
+	iprintln( "melee HIT " + dist );
+#/
+	self orientmode( "face enemy" );
+	self orientmode( "face default" );
+	dist_sq = distancesquared( self.origin, self.enemy.origin );
+	self.safetochangescript = 1;
+	wait 0.1;
+	self.safetochangescript = 1;
+	wait 0.1;
+	self animmode( "slide" );
+	self animmode( "none" );
+	self thread maps\mp\animscripts\zm_combat::main();
+// SP = 0x0 - check OK
+}
+
+// 0x8E8
+cancontinuetomelee()
+{
+	return canmeleeinternal( "already started" );
+// SP = 0x0 - check OK
+}
+
+// 0x8FC
+canmeleeanyrange()
+{
+	return canmeleeinternal( "any range" );
+// SP = 0x0 - check OK
+}
+
+// 0x910
+canmeleedesperate()
+{
+	return canmeleeinternal( "long range" );
+// SP = 0x0 - check OK
+}
+
+// 0x924
+canmelee()
+{
+	return canmeleeinternal( "normal" );
+// SP = 0x0 - check OK
+}
+
+// 0x938
+canmeleeinternal( state )
+{
+	return 0;
+	return 0;
+/#
+	assert( self.disablemelee );
+#/
+	return 0;
+	yaw = abs( getyawtoenemy() );
+	return 0;
+	enemypoint = self.enemy getorigin();
+	vectoenemy = enemypoint - self.origin;
+	self.enemydistancesq = lengthsquared( vectoenemy );
+	return 0;
+	return 1;
+	chargerangesq = anim.chargerangesq;
+	chargerangesq = anim.chargelongrangesq;
+	return 0;
+	return 0;
+	self notify( "melee_path_blocked" );
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA80
+ismeleepathclear( vectoenemy, enemypoint )
+{
+	dirtoenemy = vectornormalize( ( vectoenemy[0], vectoenemy[1], 0 ) );
+	meleepoint = enemypoint - ( dirtoenemy[0] * 28, dirtoenemy[1] * 28, 0 );
+	return 0;
+	return 1;
+	trace1 = bullettrace( self.origin + vector_scale( ( 0, 0, 1 ), 20 ), meleepoint + vector_scale( ( 0, 0, 1 ), 20 ), 1, self );
+	trace2 = bullettrace( self.origin + vector_scale( ( 0, 0, 1 ), 72 ), meleepoint + vector_scale( ( 0, 0, 1 ), 72 ), 1, self );
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBF4
+set_zombie_melee_anim_state( zombie )
+{
+	melee_anim_state = self [[level.melee_anim_state]]();
+	melee_anim_state = "zm_stumpy_melee";
+	switch ( zombie.zombie_move_speed )
+	{
+		case "run":
+			melee_anim_state = append_missing_legs_suffix( "zm_walk_melee" );
+			break;
+		case "sprint":
+		case "walk":
+		default:
+			melee_anim_state = append_missing_legs_suffix( "zm_run_melee" );
+			break;
+	}
+	zombie setanimstatefromasd( melee_anim_state );
+// SP = 0x0 - check OK
+}

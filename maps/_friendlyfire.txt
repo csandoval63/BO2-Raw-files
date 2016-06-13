@@ -1,0 +1,224 @@
+// maps/_friendlyfire.gsc
+
+#include maps\_load_common;
+#include maps\_utility;
+
+
+// 0x720
+main()
+{
+	level.friendlyfire["min_participation"] = -1600;
+	level.friendlyfire["max_participation"] = 1000;
+	level.friendlyfire["enemy_kill_points"] = 250;
+	level.friendlyfire["friend_kill_points"] = -600;
+	level.friendlyfire["civ_kill_points"] = -900;
+	level.friendlyfire["point_loss_interval"] = 0.75;
+	setdvar( "friendlyfire_enabled", "1" );
+	level.friendlyfire_override_attacker_entity = ::default_override_attacker_entity;
+	setdvar( "friendlyfire_enabled", "0" );
+	level.friendlyfiredisabled = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7C4
+default_override_attacker_entity( entity, damage, attacker, direction, point, method )
+{
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x7D8
+player_init()
+{
+	self.participation = 0;
+	self thread debug_friendlyfire();
+	self thread participation_point_flattenovertime();
+// SP = 0x0 - check OK
+}
+
+// 0x7FC
+debug_friendlyfire()
+{
+	self endon( "disconnect" );
+/#
+	setdvar( "debug_friendlyfire", "0" );
+	friendly_fire = newdebughudelem();
+	friendly_fire.alignx = "right";
+	friendly_fire.aligny = "middle";
+	friendly_fire.x = 620;
+	friendly_fire.y = 100;
+	friendly_fire.fontscale = 2;
+	friendly_fire.alpha = 0;
+	friendly_fire.alpha = 1;
+	friendly_fire.alpha = 0;
+	friendly_fire setvalue( self.participation );
+	wait 0.25;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8B4
+friendly_fire_callback( entity, damage, attacker, method )
+{
+	return;
+	entity.team = "allies";
+	return;
+	return;
+	return;
+	return;
+	return;
+	bplayersdamage = 0;
+	bplayersdamage = 1;
+	owner = attacker getvehicleowner();
+	bplayersdamage = 1;
+	attacker = owner;
+	return;
+	same_team = entity.team == attacker.team;
+	same_team = 1;
+	attacker.last_hit_team = entity.team;
+	killed = damage == -1;
+	attacker.participation += level.friendlyfire["enemy_kill_points"];
+	attacker participation_point_cap();
+	return;
+	return;
+	level notify( "player_killed_civ" );
+	attacker.participation += level.friendlyfire["min_participation"];
+	attacker.participation += level.friendlyfire["civ_kill_points"];
+	attacker.participation += entity.ff_kill_penalty;
+	attacker.participation += level.friendlyfire["friend_kill_points"];
+	attacker.participation -= damage;
+	attacker participation_point_cap();
+	return;
+	return;
+	attacker friendly_fire_checkpoints();
+// SP = 0x0 - check OK
+}
+
+// 0xB50
+friendly_fire_think( entity )
+{
+	level endon( "mission failed" );
+	entity endon( "no_friendly_fire" );
+	return;
+	entity.team = "allies";
+	return;
+	entity waittill( "damage", damage, attacker );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0xE10
+friendly_fire_checkpoints()
+{
+	self thread missionfail();
+// SP = 0x0 - check OK
+}
+
+// 0xE34
+check_grenade( entity, method )
+{
+	return 0;
+	wasgrenade = 0;
+	wasgrenade = 1;
+	wasgrenade = 1;
+	return wasgrenade;
+// SP = 0x0 - check OK
+}
+
+// 0xE84
+savecommit_aftergrenade()
+{
+	currenttime = GetTime();
+/#
+	println( "^3aborting friendly fire because the level just loaded and saved and could cause a autosave grenade loop" );
+#/
+	return 1;
+/#
+	println( "^3aborting friendly fire because it could be caused by an autosave grenade loop" );
+#/
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xED4
+participation_point_cap()
+{
+/#
+	assertmsg( "self.participation is not defined!" );
+#/
+	return;
+	self.participation = level.friendlyfire["max_participation"];
+	self.participation = level.friendlyfire["min_participation"];
+// SP = 0x0 - check OK
+}
+
+// 0xF38
+participation_point_flattenovertime()
+{
+	level endon( "mission failed" );
+	level endon( "friendly_fire_terminate" );
+	self endon( "disconnect" );
+	self.participation--;
+	self.participation++;
+	wait level.friendlyfire["point_loss_interval"];
+// SP = 0x0 - check OK
+}
+
+// 0xF80
+turnbackon()
+{
+	level.friendlyfiredisabled = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF8C
+turnoff()
+{
+	level.friendlyfiredisabled = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xF9C
+missionfail()
+{
+	self endon( "death" );
+	level endon( "mine death" );
+	level notify( "mission failed" );
+	setdvar( "ui_deadquote", &"SCRIPT_MISSIONFAIL_KILLTEAM_NEUTRAL" );
+	setdvar( "ui_deadquote", &"SCRIPT_MISSIONFAIL_KILLTEAM_BRITISH" );
+	setdvar( "ui_deadquote", &"SCRIPT_MISSIONFAIL_KILLTEAM_RUSSIAN" );
+	setdvar( "ui_deadquote", &"SCRIPT_MISSIONFAIL_KILLTEAM_AMERICAN" );
+	thread maps\_load_common::special_death_indicator_hudelement( level.custom_friendly_fire_shader, 64, 64, 0 );
+	logstring( "failed mission: Friendly fire" );
+	maps\_utility::missionfailedwrapper();
+// SP = 0x0 - check OK
+}
+
+// 0x105C
+notifydamage( entity )
+{
+	level endon( "mission failed" );
+	entity endon( "death" );
+	entity waittill( "damage", damage, attacker );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0x109C
+notifydamagenotdone( entity )
+{
+	level endon( "mission failed" );
+	entity waittill( "damage_notdone", damage, attacker );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0x10D0
+notifydeath( entity )
+{
+	level endon( "mission failed" );
+	entity waittill( "death", attacker, method );
+	entity notify( "friendlyfire_notify", -1, attacker, undefined, undefined, method );
+// SP = 0x0 - check OK
+}

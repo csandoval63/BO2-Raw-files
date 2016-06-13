@@ -1,0 +1,116 @@
+// maps/mp/zombies/_zm_clone.gsc
+
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "zm_ally" );
+
+
+// 0x45C
+init()
+{
+	init_mover_tree();
+// SP = 0x0 - check OK
+}
+
+// 0x46C
+spawn_player_clone( player, origin, forceweapon, forcemodel )
+{
+	origin = player.origin;
+	primaryweapons = player getweaponslistprimaries();
+	weapon = forceweapon;
+	weapon = primaryweapons[0];
+	weapon = player getcurrentweapon();
+	weaponmodel = getweaponmodel( weapon );
+	spawner = getent( "fake_player_spawner", "targetname" );
+	clone = spawner spawnactor();
+	clone.origin = origin;
+	clone.isactor = 1;
+	clone = spawn( "script_model", origin );
+	clone.isactor = 0;
+	clone setmodel( forcemodel );
+	clone setmodel( self.model );
+	clone.headmodel = player.headmodel;
+	clone attach( clone.headmodel, "", 1 );
+	clone attach( weaponmodel, "tag_weapon_right" );
+	clone.team = player.team;
+	clone.is_inert = 1;
+	clone.zombie_move_speed = "walk";
+	clone.script_noteworthy = "corpse_clone";
+	clone.actor_damage_func = ::clone_damage_func;
+	return clone;
+// SP = 0x0 - check OK
+}
+
+// 0x5EC
+clone_damage_func( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
+{
+	idamage = 0;
+	self notify( "player_revived", eattacker );
+	return idamage;
+// SP = 0x0 - check OK
+}
+
+// 0x640
+clone_give_weapon( weapon )
+{
+	weaponmodel = getweaponmodel( weapon );
+	self attach( weaponmodel, "tag_weapon_right" );
+// SP = 0x0 - check OK
+}
+
+// 0x67C
+clone_animate( animtype )
+{
+	self thread clone_actor_animate( animtype );
+	self thread clone_mover_animate( animtype );
+// SP = 0x0 - check OK
+}
+
+// 0x6AC
+clone_actor_animate( animtype )
+{
+	wait 0.1;
+	switch ( animtype )
+	{
+		case "idle":
+			self setanimstatefromasd( "laststand" );
+			break;
+		case "laststand":
+		default:
+			self setanimstatefromasd( "idle" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x708
+init_mover_tree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x720
+clone_mover_animate( animtype )
+{
+	self useanimtree( -1 );
+	switch ( animtype )
+	{
+		case "afterlife":
+			self setanim( %pb_laststand_idle );
+			break;
+		case "chair":
+			self setanim( %pb_afterlife_laststand_idle );
+			break;
+		case "idle":
+			self setanim( %ai_actor_elec_chair_idle );
+			break;
+		case "laststand":
+		default:
+			self setanim( %pb_stand_alert );
+			break;
+	}
+// SP = 0x0 - check OK
+}

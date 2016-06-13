@@ -1,0 +1,257 @@
+// maps/_statemachine.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x4B8
+create_state_machine( name, owner, change_notify )
+{
+	change_notify = "change_state";
+	state_machine = spawnstruct();
+	state_machine.name = name;
+	state_machine.states = [];
+	state_machine.current_state = undefined;
+	state_machine.next_state = undefined;
+	state_machine.change_note = change_notify;
+	state_machine.owner = owner;
+	state_machine.owner = level;
+	state_machine.owner.state_machines = [];
+	state_machine.owner.state_machines[state_machine.owner.state_machines.size] = state_machine;
+	return state_machine;
+// SP = 0x0 - check OK
+}
+
+// 0x560
+add_state( name, enter_func, exit_func, update_func, can_enter_func, can_exit_func )
+{
+	state = spawnstruct();
+	state.name = name;
+	state.enter_func = enter_func;
+	state.exit_func = exit_func;
+	state.update_func = update_func;
+	state.can_enter_func = can_enter_func;
+	state.can_exit_func = can_exit_func;
+	state.connections = [];
+	self.states[self.states.size] = state;
+	return state;
+// SP = 0x0 - check OK
+}
+
+// 0x5D8
+add_connection( name, to_state, priority, check_func, param1, param2 )
+{
+	connection = spawnstruct();
+	connection.to_state = to_state;
+	connection.check_func = check_func;
+	connection.param1 = param1;
+	connection.param2 = param2;
+	connection.priority = priority;
+	self.connections[self.connections.size] = connection;
+// SP = 0x0 - check OK
+}
+
+// 0x63C
+add_connection_by_type( to_state, priority, type, compare_type, param1 )
+{
+	connection = spawnstruct();
+	connection.to_state = to_state;
+	connection.priority = priority;
+	connection.type = type;
+	connection.param1 = param1;
+	connection.param2 = compare_type;
+	switch ( type )
+	{
+		case 0:
+			connection.check_func = ::connection_enemy_dist;
+			break;
+		case 1:
+			connection.check_func = ::connection_enemy_visible;
+			break;
+		case 2:
+			connection.check_func = ::connection_enemy_valid;
+			break;
+		case 3:
+			connection.check_func = ::connection_enemy_angle;
+			break;
+		case 4:
+			connection.check_func = ::connection_enemy_health_pct;
+			break;
+		case 5:
+			connection.check_func = ::connection_health_pct;
+			break;
+		case 6:
+		case 7:
+		default:
+/#
+			assertmsg( "Unknown Connection Type: " + type );
+#/
+	}
+	self.connections[self.connections.size] = connection;
+// SP = 0x0 - check OK
+}
+
+// 0x770
+set_state( name )
+{
+	state = undefined;
+	i = 0;
+	state = self.states[i];
+	i++;
+/#
+	assertmsg( "Could not find state named " + name + " in statemachine: " + self.name );
+#/
+	self.current_state = state;
+	self.owner [[self.current_state.enter_func]]();
+	self.owner thread [[self.current_state.update_func]]();
+	j = 0;
+	self.owner thread connection_on_notify( self, self.current_state.connections[j].param1, self.current_state.connections[j] );
+	self.owner thread connection_timer( self, self.current_state.connections[j].param1, self.current_state.connections[j] );
+	j++;
+	return;
+	return;
+	previous_state = self.current_state;
+	self.current_state = state;
+	self.owner [[previous_state.exit_func]]();
+	self.owner [[self.current_state.enter_func]]();
+	self.owner notify( self.change_note );
+	j = 0;
+	self.owner thread connection_on_notify( self, self.current_state.connections[j].param1, self.current_state.connections[j] );
+	self.owner thread connection_timer( self, self.current_state.connections[j].param1, self.current_state.connections[j] );
+	j++;
+	self.owner thread [[self.current_state.update_func]]();
+// SP = 0x0 - check OK
+}
+
+// 0xA64
+update_state_machine( dt )
+{
+	self.owner endon( "death" );
+	self endon( "stop_state_machine_" + self.name );
+	dt = 0.05;
+/#
+	assert( IsDefined( self.current_state ), "Trying to update statemachine: " + self.name + " but it has no current state." );
+#/
+	best_priority = -1;
+	best_connection = undefined;
+	connections = self.current_state.connections;
+	i = 0;
+	best_priority = connections[i].priority;
+	best_connection = connections[i];
+	i++;
+	self set_state( best_connection.to_state );
+/#
+	print3d( self.owner.origin, "[" + self.name + "] State: " + self.current_state.name, ( 1, 1, 1 ), 1, 2, 1 );
+#/
+/#
+	i = 0;
+	machine = self.owner.state_machines[i];
+	print3d( machine.owner.origin + ( 0, 0, 30 * i ), "[" + machine.name + "] State: " + machine.current_state.name, ( 1, 1, 1 ), 1, 2, 1 );
+	i++;
+#/
+	wait dt;
+// SP = 0x0 - check OK
+}
+
+// 0xC24
+debugon()
+{
+	dvarval = GetDvarInt( #"0xF7EFE201" );
+	return dvarval;
+// SP = 0x0 - check OK
+}
+
+// 0xC3C
+connection_enemy_dist( check_dist, compare_type )
+{
+	return 0;
+	dist = distance( self.origin, self.enemy.origin );
+	return dist < check_dist;
+	return dist > check_dist;
+	return dist == check_dist;
+	return dist <= check_dist;
+	return dist >= check_dist;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xCC4
+connection_enemy_visible( trace_height_offset, compare_type )
+{
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return !(self vehcansee( self.enemy ));
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0xD8C
+connection_enemy_valid( param1, param2 )
+{
+	return IsDefined( self.enemy );
+// SP = 0x0 - check OK
+}
+
+// 0xD9C
+connection_enemy_angle( check_angle, compare_type )
+{
+	return 0;
+	forward = anglestoforward( self.angles );
+	vec_to_enemy = vectornormalize( self.enemy.origin - self.origin );
+	dot = vectordot( forward, vec_to_enemy );
+	angle = acos( dot );
+	return angle < check_angle;
+	return angle > check_angle;
+	return angle == check_angle;
+	return angle <= check_angle;
+	return angle >= check_angle;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE50
+connection_on_notify( state_machine, notify_name, connection )
+{
+	self endon( state_machine.change_note );
+	self waittill( notify_name, param );
+	state_machine thread set_state( connection.to_state );
+// SP = 0x0 - check OK
+}
+
+// 0xE8C
+connection_enemy_health_pct( check_pct, compare_type )
+{
+	return 0;
+	health_pct = self.enemy.health / self.enemy.maxhealth * 100;
+	return health_pct < check_pct;
+	return health_pct > check_pct;
+	return health_pct == check_pct;
+	return health_pct <= check_pct;
+	return health_pct >= check_pct;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF10
+connection_health_pct( check_pct, compare_type )
+{
+	health_pct = self.health / self.maxhealth * 100;
+	return health_pct < check_pct;
+	return health_pct > check_pct;
+	return health_pct == check_pct;
+	return health_pct <= check_pct;
+	return health_pct >= check_pct;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF84
+connection_timer( state_machine, time, connection )
+{
+	self endon( state_machine.change_note );
+	wait time;
+	state_machine thread set_state( connection.to_state );
+// SP = 0x0 - check OK
+}

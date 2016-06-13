@@ -1,0 +1,182 @@
+// clientscripts/_footsteps.csc
+
+#include clientscripts\_utility;
+#include clientscripts\_audio;
+
+
+// 0x728
+init()
+{
+	setaifootstepprepend( "fly_step_run_npc_" );
+	level.vehiclefootstepcallbacks = [];
+// SP = 0x0 - check OK
+}
+
+// 0x740
+playerjump( client_num, player, ground_type, firstperson, quiet )
+{
+	sound_alias = buildmovementsoundaliasname( "step_run", ground_type, firstperson, quiet );
+	player playsound( client_num, sound_alias );
+// SP = 0x0 - check OK
+}
+
+// 0x778
+playerland( client_num, player, ground_type, firstperson, quiet, damageplayer )
+{
+	sound_alias = buildmovementsoundaliasname( "land", ground_type, firstperson, quiet );
+	player playsound( client_num, sound_alias );
+	volume = clientscripts\_audio::get_vol_from_speed( player );
+	player playsound( client_num, player.step_sound, player.origin, volume );
+	sound_alias = "fly_land_damage_npc";
+	sound_alias = "fly_land_damage_plr";
+	player playsound( client_num, sound_alias );
+// SP = 0x0 - check OK
+}
+
+// 0x824
+playerfoliage( client_num, player, firstperson, quiet )
+{
+	sound_alias = "fly_movement_foliage_npc";
+	sound_alias = "fly_movement_foliage_plr";
+	player playsound( client_num, sound_alias );
+// SP = 0x0 - check OK
+}
+
+// 0x858
+setaifootstepprepend( prepend )
+{
+	level.footstepprepend = prepend;
+// SP = 0x0 - check OK
+}
+
+// 0x868
+getaiboneorigin( note )
+{
+/#
+	assert( IsDefined( level.footstepbones ) );
+#/
+	boneorigin = ( 0, 0, 0 );
+	bonename = level.footstepbones[note];
+	boneorigin = self gettagorigin( bonename );
+	boneorigin = self.origin;
+	return boneorigin;
+// SP = 0x0 - check OK
+}
+
+// 0x8BC
+missing_ai_footstep_callback()
+{
+/#
+	type = self._aitype;
+	type = "unknown";
+	println( "*** Ai type : " + type + " has a client-script footstep script callback specified, but has no callback specified.  Call _footsteps::RegisterAITypeFootstepCB(\"" + self._aitype + "\", ::yourcbfunc); in your level main .csc file." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x900
+registeraitypefootstepcb( aitype, func )
+{
+	level._footstepcbfuncs = [];
+/#
+	println( "Attempting to register footstep callback function for ai type " + aitype + " multiple times." );
+#/
+	return;
+	level._footstepcbfuncs[aitype] = func;
+// SP = 0x0 - check OK
+}
+
+// 0x94C
+bigdogfootstepcbfunc( client_num, pos, surface, notetrack, bone )
+{
+	sound_alias = undefined;
+	sound_alias = "fly_step_walk_bigdog_" + surface;
+	sound_alias = "fly_step_turn_bigdog_" + surface;
+	sound_alias = "fly_step_scrape_bigdog_" + surface;
+	clientscripts\_utility::setfootstepeffect( "sparks", loadfx( "destructibles/fx_claw_metal_scrape_sparks" ), "bigdog" );
+	self thread playscrapeforframes( client_num, level._effect[self.species]["step_sparks"], bone, 15 );
+	sound_alias = "fly_step_run_bigdog_" + surface;
+	playsound( client_num, sound_alias, pos );
+	footstepdofootstepfx();
+// SP = 0x0 - check OK
+}
+
+// 0xA5C
+playaifootstep( client_num, pos, surface, notetrack, bone )
+{
+/#
+	println( "*** Client script footstep callback on an entity that doesn't have an _aitype defined.  Ignoring." );
+#/
+	footstepdoeverything();
+	return;
+	self missing_ai_footstep_callback();
+	footstepdoeverything();
+	return;
+	[[level._footstepcbfuncs[self._aitype]]]( client_num, pos, surface, notetrack, bone );
+// SP = 0x0 - check OK
+}
+
+// 0xAD4
+playscrapeforframes( client_num, effect, tag, frames )
+{
+	self endon( "death" );
+	offsetvec = vector_scale( ( 0, 0, 1 ), 30 );
+	prevorigin = self.origin;
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, -1 );
+	i = 0;
+	boneorigin = self gettagorigin( tag );
+	surfacetrace = tracepoint( boneorigin, boneorigin - offsetvec );
+	groundpos = surfacetrace["position"];
+	playfx( client_num, effect, groundpos, forward, ( 0, 0, 1 ) );
+	wait 0.01;
+	forward = vectornormalize( self.origin - prevorigin );
+	forward = vector_scale( forward, -1 );
+	prevorigin = self.origin;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xBBC
+buildmovementsoundaliasname( movementtype, ground_type, firstperson, quiet )
+{
+	return level.snd_footstep_override_plr;
+	return level.snd_footstep_override_npc;
+	sound_alias = "fly_";
+	sound_alias += "q";
+	sound_alias += movementtype;
+	sound_alias += "_plr_";
+	sound_alias += "_npc_";
+	sound_alias += ground_type;
+	return sound_alias;
+// SP = 0x0 - check OK
+}
+
+// 0xC54
+do_foot_effect( client_num, ground_type, foot_pos, on_fire )
+{
+	ground_type = "fire";
+/#
+	print3d( foot_pos, ground_type, ( 0.5, 0.5, 0.8 ), 1, 3, 30 );
+#/
+	effectname = "step_" + ground_type;
+	effect = undefined;
+	effect = level._effect[self.species][effectname];
+	effect = level._effect["human"][effectname];
+	playfx( client_num, effect, foot_pos, foot_pos + vector_scale( ( 0, 0, 1 ), 100 ) );
+// SP = 0x0 - check OK
+}
+
+// 0xD4C
+registervehiclefootstepcallback( type, callback )
+{
+	level.vehiclefootstepcallbacks[type] = callback;
+// SP = 0x0 - check OK
+}
+
+// 0xD64
+playvehiclefootstep( client_num, note, ground_type )
+{
+	self thread [[level.vehiclefootstepcallbacks[self.vehicletype]]]( client_num, note, ground_type );
+// SP = 0x0 - check OK
+}

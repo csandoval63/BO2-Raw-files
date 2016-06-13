@@ -1,0 +1,271 @@
+// clientscripts/haiti.csc
+
+#include clientscripts\_audio;
+#include clientscripts\haiti_amb;
+#include clientscripts\_fire_direction;
+#include clientscripts\_claw_grenade;
+#include clientscripts\_load;
+#include clientscripts\haiti_fx;
+#include clientscripts\_glasses;
+#include clientscripts\_filter;
+#include clientscripts\_utility;
+
+
+// 0x7A8
+main()
+{
+	clientscripts\haiti_fx::main();
+	clientscripts\_load::main();
+	clientscripts\_claw_grenade::main();
+	thread clientscripts\_fire_direction::init();
+	clientscripts\haiti_amb::snd_create_randoms();
+	thread clientscripts\_audio::audio_init( 0 );
+	thread clientscripts\haiti_amb::main();
+	register_clientflag_callback( "actor", 12, ::toggle_camo_suit );
+	register_clientflag_callback( "scriptmover", 6, ::set_sky_fog );
+	init_lighting_pairs();
+	waitforclient( 0 );
+/#
+	println( "*** Client : haiti running..." );
+#/
+	setup_fullscreen_postfx();
+	level thread reset_fov();
+	level thread scenarios_fov();
+	level thread helmet_crack_sound();
+	level thread walkway_bridge_pieces();
+// SP = 0x0 - check OK
+}
+
+// 0x870
+setup_fullscreen_postfx()
+{
+	init_filter_oxygenmask( level.localplayers[0] );
+	set_filter_oxygenmask_amount( level.localplayers[0], 0, 1 );
+	set_filter_oxygenmask_smoke_amount( level.localplayers[0], 0, 0 );
+	set_filter_oxygenmask_radialblur_amount( level.localplayers[0], 0, 0 );
+	set_filter_oxygenmask_condensation_amount( level.localplayers[0], 1, 0 );
+	level.mask_crack_stage = 1;
+	level.mask_smoke_amount = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8F4
+put_on_oxygen_mask()
+{
+	enable_filter_oxygenmask( level.localplayers[0], 0, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x914
+take_off_oxygen_mask()
+{
+	disable_filter_oxygenmask( level.localplayers[0], 0, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x930
+oxygen_mask_crack()
+{
+	level.mask_crack_stage += 1;
+	level.mask_crack_stage = min( level.mask_crack_stage, 4 );
+	level notify( "h_crk" );
+	set_filter_oxygenmask_crack_state( level.localplayers[0], 0, level.mask_crack_stage );
+// SP = 0x0 - check OK
+}
+
+// 0x974
+helmet_crack_sound()
+{
+	level waittill( "h_crk" );
+	playsound( 0, "veh_jetwing_helmet_crack" );
+// SP = 0x0 - check OK
+}
+
+// 0x99C
+oxygen_mask_smoke()
+{
+	level endon( "mask_smoke_clear" );
+	level notify( "mask_smoke" );
+	level.mask_smoke_amount += 1 * 0.05;
+	level.mask_smoke_amount = 1;
+	set_filter_oxygenmask_smoke_amount( level.localplayers[0], 0, level.mask_smoke_amount );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xA04
+oxygen_mask_smoke_clear()
+{
+	level endon( "mask_smoke" );
+	level notify( "mask_smoke_clear" );
+	level.mask_smoke_amount -= 1 * 0.05;
+	level.mask_smoke_amount = 0;
+	set_filter_oxygenmask_smoke_amount( level.localplayers[0], 0, level.mask_smoke_amount );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xA6C
+oxygen_mask_blur()
+{
+	set_filter_oxygenmask_radialblur_amount( level.localplayers[0], 0, 0.35 );
+// SP = 0x0 - check OK
+}
+
+// 0xA8C
+set_intro_fog()
+{
+	setworldfogactivebank( 0, 1 );
+	set_filter_oxygenmask_condensation_amount( level.localplayers[0], 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xAB8
+set_cloud_fog()
+{
+	setworldfogactivebank( 0, 2 );
+	set_filter_oxygenmask_condensation_amount( level.localplayers[0], 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xAE4
+walkway_bridge_pieces()
+{
+	a_n_piece_index[0] = findstaticmodelindex( ( -9086.79, 7458.75, 490.92 ) );
+	a_n_piece_index[1] = findstaticmodelindex( ( -8311.01, 7409.58, 333.43 ) );
+	a_n_piece_index[2] = findstaticmodelindex( ( -7686.81, 7519.54, 454.5 ) );
+	foreach ( n_index in a_n_piece_index )
+	{
+		hidestaticmodel( n_index );
+	}
+	level waittill( "unhide_debris" );
+	foreach ( n_index in a_n_piece_index )
+	{
+		unhidestaticmodel( n_index );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xBD8
+toggle_camo_suit( localclientnum, set, newent )
+{
+	self endon( "entityshutdown" );
+	self mapshaderconstant( localclientnum, 0, "ScriptVector0" );
+	s_timer = new_timer();
+/#
+	println( "**** AI at origin " + self.origin + " camo suit turned off ****" );
+#/
+	wait 0.01;
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 0, 1, n_current_time / 3 );
+	self setshaderconstant( localclientnum, 0, n_delta_val, 0, 0, 0 );
+/#
+	println( "**** AI at origin " + self.origin + " camo suit turned on ****" );
+#/
+	wait 0.01;
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 1, 0, n_current_time / 3 );
+	self setshaderconstant( localclientnum, 0, n_delta_val, 0, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xCD4
+set_sky_fog( localclientnum, set, newent )
+{
+	self endon( "entityshutdown" );
+	self mapshaderconstant( localclientnum, 0, "ScriptVector0", 0, 0, 0, 0 );
+	s_timer = new_timer();
+/#
+	println( "**** AI at origin " + self.origin + " camo suit turned off ****" );
+#/
+	self mapshaderconstant( localclientnum, 0, "ScriptVector0", 0, 0, 0, 0 );
+	wait 0.01;
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 0, 1, n_current_time / 1 );
+	self setshaderconstant( localclientnum, 0, n_delta_val, 0, 0, 0 );
+	self mapshaderconstant( localclientnum, 0, "ScriptVector0", 1, 0, 0, 0 );
+/#
+	println( "**** AI at origin " + self.origin + " camo suit turned on ****" );
+#/
+	wait 0.01;
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 1, 0, n_current_time / 0.5 );
+	self setshaderconstant( localclientnum, 0, n_delta_val, 0, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xE04
+reset_fov()
+{
+	level waittill( "fov_reset" );
+	lerp_fov_overtime( 1, GetDvarFloat( #"0x55DDAF3D" ) );
+// SP = 0x0 - check OK
+}
+
+// 0xE2C
+scenarios_fov()
+{
+	level waittill( "fov_change_1_start" );
+	lerp_fov_overtime( 2, 26 );
+	level waittill( "fov_change_1" );
+	lerp_fov_overtime( 0.5, 45 );
+	level waittill( "fov_change_2" );
+	lerp_fov_overtime( 1.5, 35 );
+	level waittill( "fov_change_3" );
+	lerp_fov_overtime( 1, GetDvarFloat( #"0x55DDAF3D" ) );
+// SP = 0x0 - check OK
+}
+
+// 0xE9C
+lerp_fov_overtime( time, dest )
+{
+	basefov = GetDvarFloat( #"0xF64B6F99" );
+	incs = int( time / 0.05 );
+	incfov = ( dest - basefov ) / incs;
+	currentfov = basefov;
+	return;
+	i = 0;
+	currentfov += incfov;
+	setclientdvar( "cg_fov", currentfov );
+	wait 0.05;
+	i++;
+	setclientdvar( "cg_fov", dest );
+// SP = 0x0 - check OK
+}
+
+// 0xF28
+screen_flash()
+{
+	playsound( 0, "evt_smashcut_flash", ( 0, 0, 0 ) );
+	screen_flash_visionset();
+// SP = 0x0 - check OK
+}
+
+// 0xF48
+screen_flash_dvar()
+{
+	n_exposure = GetDvarFloat( #"0x3113AF0E" );
+	setdvar( "r_exposureTweak", 1 );
+	setdvarfloat( "r_exposureValue", -6 );
+	wait frames( 3 );
+	lerp_dvar( "r_exposureValue", -6, n_exposure, frames( 2.5 - 1.5 ), 0 );
+	setdvar( "r_exposureTweak", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xFC0
+screen_flash_visionset()
+{
+	str_vision_set = getvisionsetnaked( 0 );
+	visionsetnaked( 0, "camera_flash", 0 );
+	wait frames( 3 );
+	visionsetnaked( 0, str_vision_set, frames( 2.5 - 1.5 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1014
+frames( n_frame_count )
+{
+	return n_frame_count * 0.01666;
+// SP = 0x0 - check OK
+}

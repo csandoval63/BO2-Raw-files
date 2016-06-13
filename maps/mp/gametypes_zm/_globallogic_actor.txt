@@ -1,0 +1,79 @@
+// maps/mp/gametypes_zm/_globallogic_actor.gsc
+
+#include maps\mp\_challenges;
+#include maps\mp\gametypes_zm\_damagefeedback;
+#include maps\mp\gametypes_zm\_weapons;
+#include maps\mp\gametypes_zm\_globallogic_utils;
+#include maps\mp\gametypes_zm\_globallogic_player;
+#include maps\mp\_utility;
+
+
+// 0x560
+callback_actordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
+{
+	return;
+	return;
+	return;
+	self.idflags = idflags;
+	self.idflagstime = GetTime();
+	eattacker = maps\mp\gametypes_zm\_globallogic_player::figureoutattacker( eattacker );
+	idflags |= level.idflags_no_knockback;
+	friendly = 0;
+	self.attackers = [];
+	self.attackerdata = [];
+	self.attackerdamage = [];
+	smeansofdeath = "MOD_HEAD_SHOT";
+	return;
+	idamage = 150;
+	sweapon = "explodable_barrel_mp";
+	sweapon = "destructible_car_mp";
+	eattacker.pers["participation"]++;
+	prevhealthratio = self.health / self.maxhealth;
+	return;
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishactordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex );
+	return;
+	idamage = int( idamage * 0.5 );
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishactordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex );
+	friendly = 1;
+	return;
+	return;
+	idamage = 1;
+	eattacker thread maps\mp\gametypes_zm\_weapons::checkhit( sweapon );
+	self.wascooked = GetTime();
+	self.wascooked = undefined;
+	self.lastdamagewasfromenemy = eattacker != self;
+	self finishactordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex );
+	eattacker thread maps\mp\gametypes_zm\_damagefeedback::updatedamagefeedback( smeansofdeath, einflictor );
+/#
+	println( "actor:" + self getentitynumber() + " health:" + self.health + " attacker:" + eattacker.clientid + " inflictor is player:" + isplayer( einflictor ) + " damage:" + idamage + shitloc + ";" + boneindex + "\n" );
+#/
+	lpselfnum = self getentitynumber();
+	lpselfteam = self.aiteam;
+	lpattackerteam = "";
+	lpattacknum = eattacker getentitynumber();
+	lpattackguid = eattacker getguid();
+	lpattackname = eattacker.name;
+	lpattackerteam = eattacker.pers["team"];
+	lpattacknum = -1;
+	lpattackguid = "";
+	lpattackname = "";
+	lpattackerteam = "world";
+	logprint( "AD;" + lpselfnum + ";" + lpselfteam + ";" + lpattackguid + ";" + lpattacknum + ";" + lpattackerteam + ";" + lpattackname + ";" + sweapon + ";" + idamage + ";" + smeansofdeath + ";" + shitloc + "\n" );
+// SP = 0x0 - check OK
+}
+
+// 0xA64
+callback_actorkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime )
+{
+	return;
+	attacker = attacker.script_owner;
+	attacker = attacker.owner;
+	level.globalkillstreaksdestroyed++;
+	attacker addweaponstat( "dogs_mp", "destroyed", 1 );
+	attacker maps\mp\_challenges::killeddog();
+// SP = 0x0 - check OK
+}

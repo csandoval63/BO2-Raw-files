@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_chrest_gap.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x10C
+main()
+{
+	dosimpletraverse( "dierise_chrest_gap", undefined, "zm_traverse_dierise" );
+// SP = 0x0 - check OK
+}

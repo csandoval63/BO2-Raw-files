@@ -1,0 +1,200 @@
+// maps/mp/zm_buried_ee.gsc
+
+#include maps\mp\zombies\_zm_powerups;
+#include maps\mp\zombies\_zm_perks;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "zm_buried_ghost" );
+#using_animtree ( "€GSC
+" );
+
+
+// 0x89C
+init_ghost_piano()
+{
+	t_bullseye = getent( "bullseye", "script_noteworthy" );
+	t_chalk_line = getent( "ee_bar_chalk_line_trigger", "targetname" );
+	return;
+	t_bullseye thread wait_for_valid_damage();
+	t_chalk_line thread set_flags_while_players_stand_in_trigger();
+	level thread mansion_ghost_plays_piano();
+	level thread reward_think();
+/#
+	level thread devgui_support_ee();
+#/
+	flag_init( "player_piano_song_active" );
+// SP = 0x0 - check OK
+}
+
+// 0x924
+init_ee_ghost_piano_flags()
+{
+	self ent_flag_init( "ee_standing_behind_chalk_line" );
+// SP = 0x0 - check OK
+}
+
+// 0x93C
+wait_for_valid_damage()
+{
+	self setcandamage( 1 );
+	self waittill( "damage" );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0x9C0
+is_ballistic_knife_variant( str_weapon )
+{
+	return issubstr( str_weapon, "knife_ballistic_" );
+// SP = 0x0 - check OK
+}
+
+// 0x9D8
+set_flags_while_players_stand_in_trigger()
+{
+	self waittill( "trigger", player );
+	player ent_flag_init( "ee_standing_behind_chalk_line" );
+	player thread clear_flag_when_player_leaves_trigger( self );
+// SP = 0x0 - check OK
+}
+
+// 0xA34
+clear_flag_when_player_leaves_trigger( trigger )
+{
+	self endon( "death_or_disconnect" );
+	self ent_flag_set( "ee_standing_behind_chalk_line" );
+	wait 0.25;
+	self ent_flag_clear( "ee_standing_behind_chalk_line" );
+// SP = 0x0 - check OK
+}
+
+// 0xA7C
+player_piano_starts()
+{
+/#
+	iprintln( "player piano tune song start" );
+#/
+	flag_set( "player_piano_song_active" );
+	level notify( "piano_play" );
+	level setclientfield( "mansion_piano_play", 1 );
+	level setclientfield( "saloon_piano_play", 1 );
+	wait getanimlength( %fxanim_gp_piano_old_anim );
+/#
+	iprintln( "player piano song done" );
+#/
+	level setclientfield( "mansion_piano_play", 0 );
+	level setclientfield( "saloon_piano_play", 0 );
+	flag_clear( "player_piano_song_active" );
+// SP = 0x0 - check OK
+}
+
+// 0xB14
+mansion_ghost_plays_piano()
+{
+	flag_wait( "player_piano_song_active" );
+	e_ghost = spawn_and_animate_ghost_pianist();
+	flag_waitopen( "player_piano_song_active" );
+	e_ghost thread delete_ghost_pianist();
+// SP = 0x0 - check OK
+}
+
+// 0xB58
+spawn_and_animate_ghost_pianist()
+{
+	s_anim = getstruct( "ee_mansion_piano_anim_struct", "targetname" );
+	e_temp = spawn( "script_model", s_anim.origin );
+	e_temp.angles = s_anim.angles;
+	e_temp setclientfield( "ghost_fx", 3 );
+	e_temp setmodel( "c_zom_zombie_buried_ghost_woman_fb" );
+	e_temp useanimtree( -1 );
+	e_temp setanim( %ai_zombie_ghost_playing_piano );
+	e_temp setclientfield( "sndGhostAudio", 1 );
+/#
+	iprintln( "ghost piano player spawned" );
+#/
+	return e_temp;
+// SP = 0x0 - check OK
+}
+
+// 0xBF8
+reward_think()
+{
+	t_use = getent( "ee_ghost_piano_mansion_use_trigger", "targetname" );
+	t_use sethintstring( &"ZM_BURIED_HINT_GHOST_PIANO", 10 );
+	t_use setinvisibletoall();
+	level waittill( "player_can_interact_with_ghost_piano_player", player );
+	level thread player_piano_starts();
+	t_use setvisibletoplayer( player );
+	t_use thread player_can_use_ghost_piano_trigger( player );
+	flag_waitopen( "player_piano_song_active" );
+	t_use setinvisibletoall();
+	level notify( "ghost_piano_reward_unavailable" );
+// SP = 0x0 - check OK
+}
+
+// 0xC98
+player_can_use_ghost_piano_trigger( player )
+{
+	player endon( "death_or_disconnect" );
+	level endon( "ghost_piano_reward_unavailable" );
+	self waittill( "trigger", user );
+	self give_reward( player );
+// SP = 0x0 - check OK
+}
+
+// 0xCFC
+give_reward( player )
+{
+	player maps\mp\zombies\_zm_score::minus_to_player_score( 10 );
+	player.got_easter_egg_reward = 1;
+	self setinvisibletoplayer( player );
+	player notify( "player_received_ghost_round_free_perk" );
+	free_perk = player maps\mp\zombies\_zm_perks::give_random_perk();
+	player thread maps\mp\zombies\_zm_powerups::disable_perk_before_power( free_perk );
+/#
+	iprintln( "player got reward!!" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xD74
+has_player_received_reward()
+{
+	return is_true( self.got_easter_egg_reward );
+// SP = 0x0 - check OK
+}
+
+// 0xD88
+delete_ghost_pianist()
+{
+	self setclientfield( "ghost_fx", 5 );
+	self playsound( "zmb_ai_ghost_death" );
+	wait_network_frame();
+	self delete();
+/#
+	iprintln( "ghost piano player deleted" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+devgui_support_ee()
+{
+	str_notify = level waittill_any_return( "ghost_piano_warp_to_mansion_piano", "ghost_piano_warp_to_bar" );
+	get_players()[0] warp_to_struct( "ee_warp_mansion_piano", "targetname" );
+	get_players()[0] warp_to_struct( "ee_warp_bar", "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0xE48
+warp_to_struct( str_value, str_key )
+{
+	str_key = "targetname";
+	s_warp = getstruct( str_value, str_key );
+	self setorigin( s_warp.origin );
+	self setplayerangles( s_warp.angles );
+// SP = 0x0 - check OK
+}

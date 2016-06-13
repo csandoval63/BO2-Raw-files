@@ -1,0 +1,790 @@
+// maps/mp/gametypes_zm/_gv_actions.gsc
+
+#include maps\mp\gametypes_zm\_globallogic_ui;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\gametypes_zm\_globallogic_score;
+#include maps\mp\gametypes_zm\_globallogic;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xEE0
+initializeactionarray()
+{
+	level.gametypeactions = [];
+	level.gametypeactions["GiveAmmo"] = ::dogiveammo;
+	level.gametypeactions["RemoveAmmo"] = ::doremoveammo;
+	level.gametypeactions["PlaySound"] = ::doplaysound;
+	level.gametypeactions["EnableUAV"] = ::doenableuav;
+	level.gametypeactions["GiveScore"] = ::dogivescore;
+	level.gametypeactions["RemoveScore"] = ::doremovescore;
+	level.gametypeactions["SetHeader"] = ::dosetheader;
+	level.gametypeactions["SetSubHeader"] = ::dosetsubheader;
+	level.gametypeactions["DisplayMessage"] = ::dodisplaymessage;
+	level.gametypeactions["GiveHealth"] = ::dogivehealth;
+	level.gametypeactions["RemoveHealth"] = ::doremovehealth;
+	level.gametypeactions["SetHealthRegen"] = ::dosethealthregen;
+	level.gametypeactions["ChangeClass"] = ::dochangeclass;
+	level.gametypeactions["ChangeTeam"] = ::dochangeteam;
+	level.gametypeactions["GivePerk"] = ::dogiveperk;
+	level.gametypeactions["RemovePerk"] = ::doremoveperk;
+	level.gametypeactions["GiveInvuln"] = ::dogiveinvuln;
+	level.gametypeactions["RemoveInvuln"] = ::doremoveinvuln;
+	level.gametypeactions["SetDamageModifier"] = ::dosetdamagemodifier;
+	level.gametypeactions["GiveKillstreak"] = ::dogivekillstreak;
+	level.gametypeactions["RemoveKillstreak"] = ::doremovekillstreak;
+	level.gametypeactions["GiveLives"] = ::dogivelives;
+	level.gametypeactions["RemoveLives"] = ::doremovelives;
+	level.gametypeactions["ScaleMoveSpeed"] = ::doscalemovespeed;
+	level.gametypeactions["ShowOnRadar"] = ::doshowonradar;
+	level.conditionals = [];
+	level.conditionals["Equals"] = ::equals;
+	level.conditionals["=="] = ::equals;
+	level.conditionals["!="] = ::notequals;
+	level.conditionals["<"] = ::lessthan;
+	level.conditionals["<="] = ::lessthanequals;
+	level.conditionals[">"] = ::greaterthan;
+	level.conditionals[">="] = ::greaterthanequals;
+	level.conditionals["InPlace"] = ::inplace;
+	level.conditionallefthandside = [];
+	level.conditionallefthandside["PlayersLeft"] = ::playersleft;
+	level.conditionallefthandside["RoundsPlayed"] = ::roundsplayed;
+	level.conditionallefthandside["HitBy"] = ::hitby;
+	level.conditionallefthandside["PlayersClass"] = ::playersclass;
+	level.conditionallefthandside["VictimsClass"] = ::playersclass;
+	level.conditionallefthandside["AttackersClass"] = ::attackersclass;
+	level.conditionallefthandside["PlayersPlace"] = ::playersplace;
+	level.conditionallefthandside["VictimsPlace"] = ::playersplace;
+	level.conditionallefthandside["AttackersPlace"] = ::attackersplace;
+	level.targets = [];
+	level.targets["Everyone"] = ::gettargeteveryone;
+	level.targets["PlayersLeft"] = ::gettargetplayersleft;
+	level.targets["PlayersEliminated"] = ::gettargetplayerseliminated;
+	level.targets["PlayersTeam"] = ::gettargetplayersteam;
+	level.targets["VictimsTeam"] = ::gettargetplayersteam;
+	level.targets["OtherTeam"] = ::gettargetotherteam;
+	level.targets["AttackersTeam"] = ::gettargetotherteam;
+	level.targets["PlayersLeftOnPlayersTeam"] = ::gettargetplayersleftonplayersteam;
+	level.targets["PlayersLeftOnOtherTeam"] = ::gettargetplayersleftonotherteam;
+	level.targets["PlayersLeftOnVictimsTeam"] = ::gettargetplayersleftonplayersteam;
+	level.targets["PlayersLeftOnAttackersTeam"] = ::gettargetplayersleftonotherteam;
+	level.targets["PlayersEliminatedOnPlayersTeam"] = ::gettargetplayerseliminatedonplayersteam;
+	level.targets["PlayersEliminatedOnOtherTeam"] = ::gettargetplayerseliminatedonotherteam;
+	level.targets["PlayersEliminatedOnVictimsTeam"] = ::gettargetplayerseliminatedonplayersteam;
+	level.targets["PlayersEliminatedOnAttackersTeam"] = ::gettargetplayerseliminatedonotherteam;
+	level.targets["AssistingPlayers"] = ::getassistingplayers;
+// SP = 0x0 - check OK
+}
+
+// 0x12A4
+equals( param1, param2 )
+{
+	return param1 == param2;
+// SP = 0x0 - check OK
+}
+
+// 0x12B4
+notequals( param1, param2 )
+{
+	return param1 != param2;
+// SP = 0x0 - check OK
+}
+
+// 0x12C4
+lessthan( param1, param2 )
+{
+	return param1 < param2;
+// SP = 0x0 - check OK
+}
+
+// 0x12D4
+lessthanequals( param1, param2 )
+{
+	return param1 <= param2;
+// SP = 0x0 - check OK
+}
+
+// 0x12E4
+greaterthan( param1, param2 )
+{
+	return param1 > param2;
+// SP = 0x0 - check OK
+}
+
+// 0x12F4
+greaterthanequals( param1, param2 )
+{
+	return param1 >= param2;
+// SP = 0x0 - check OK
+}
+
+// 0x1304
+inplace( param1, param2 )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1334
+playersleft( rule )
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1340
+roundsplayed( rule )
+{
+	return game["roundsplayed"] + 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1354
+hitby( rule )
+{
+	meansofdeath = rule.target["MeansOfDeath"];
+	weapon = rule.target["Weapon"];
+	return undefined;
+	switch ( weapon )
+	{
+		case "knife_ballistic_mp":
+			return "knife";
+	}
+	switch ( meansofdeath )
+	{
+		case "MOD_BAYONET":
+		case "MOD_EXPLOSIVE":
+			return "bullet";
+		case "MOD_GRENADE":
+		case "MOD_GRENADE_SPLASH":
+			return "knife";
+		case "MOD_HEAD_SHOT":
+			return "headshot";
+		case "MOD_MELEE":
+		case "MOD_PISTOL_BULLET":
+		case "MOD_PROJECTILE":
+		case "MOD_PROJECTILE_SPLASH":
+		case "MOD_RIFLE_BULLET":
+			return "explosive";
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1420
+getplayersclass( player )
+{
+	return player.pers["class"];
+// SP = 0x0 - check OK
+}
+
+// 0x1434
+playersclass( rule )
+{
+	player = rule.target["Player"];
+	return getplayersclass( player );
+// SP = 0x0 - check OK
+}
+
+// 0x145C
+attackersclass( rule )
+{
+	player = rule.target["Attacker"];
+	return getplayersclass( player );
+// SP = 0x0 - check OK
+}
+
+// 0x1484
+getplayersplace( player )
+{
+	maps\mp\gametypes_zm\_globallogic::updateplacement();
+	return;
+	place = 0;
+	place++;
+	place++;
+	return "first";
+	return "top3";
+	return "last";
+	return "middle";
+// SP = 0x0 - check OK
+}
+
+// 0x1514
+playersplace( rule )
+{
+	player = rule.target["Player"];
+	return getplayersplace( player );
+// SP = 0x0 - check OK
+}
+
+// 0x153C
+attackersplace( rule )
+{
+	player = rule.target["Attacker"];
+	return getplayersplace( player );
+// SP = 0x0 - check OK
+}
+
+// 0x1564
+gettargeteveryone( rule )
+{
+	return level.players;
+// SP = 0x0 - check OK
+}
+
+// 0x1574
+gettargetplayersleft( rule )
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1580
+gettargetplayerseliminated( rule )
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x158C
+gettargetplayersteam( rule )
+{
+	player = rule.target["Player"];
+	return [];
+	return getplayersonteam( level.players, player.pers["team"] );
+// SP = 0x0 - check OK
+}
+
+// 0x15C8
+gettargetotherteam( rule )
+{
+	player = rule.target["Player"];
+	return [];
+	return getplayersonteam( level.players, getotherteam( player.pers["team"] ) );
+// SP = 0x0 - check OK
+}
+
+// 0x160C
+gettargetplayersleftonplayersteam( rule )
+{
+	return [];
+// SP = 0x0 - check OK
+}
+
+// 0x1618
+gettargetplayersleftonotherteam( rule )
+{
+	return [];
+// SP = 0x0 - check OK
+}
+
+// 0x1624
+gettargetplayerseliminatedonplayersteam( rule )
+{
+	return [];
+// SP = 0x0 - check OK
+}
+
+// 0x1630
+gettargetplayerseliminatedonotherteam( rule )
+{
+	return [];
+// SP = 0x0 - check OK
+}
+
+// 0x163C
+getassistingplayers( rule )
+{
+	assisters = [];
+	attacker = rule.target["Attacker"];
+	return assisters;
+	j = 0;
+	player = rule.target["Assisters"][j];
+	assisters[assisters.size] = player;
+	j++;
+	return assisters;
+// SP = 0x0 - check OK
+}
+
+// 0x16CC
+executegametypeeventrule( rule )
+{
+	return;
+/#
+	error( "GAMETYPE VARIANTS - unknown action:  " + rule.action + "!" );
+#/
+	return;
+	thread internalexecuterule( rule );
+// SP = 0x0 - check OK
+}
+
+// 0x1720
+internalexecuterule( rule )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x172C
+aregametypeeventruleconditionalsmet( rule )
+{
+	return 1;
+	combinedresult = 1;
+	combinedresult = 0;
+	i = 0;
+	conditionalresult = evaluategametypeeventruleconditional( rule, rule.conditionals[i] );
+	switch ( rule.conditionaleval )
+	{
+		case "AND":
+			combinedresult = conditionalresult;
+			break;
+		case "OR":
+			combinedresult = conditionalresult;
+			break;
+	}
+	i++;
+	return combinedresult;
+// SP = 0x0 - check OK
+}
+
+// 0x1814
+evaluategametypeeventruleconditional( rule, conditional )
+{
+	return 0;
+	return 0;
+	lhsvalue = [[level.conditionallefthandside[conditional.lhs]]]( rule );
+	return 0;
+	return [[level.conditionals[conditional.operand]]]( lhsvalue, conditional.rhs );
+// SP = 0x0 - check OK
+}
+
+// 0x18A0
+getplayersonteam( players, team )
+{
+	playersonteam = [];
+	i = 0;
+	player = players[i];
+	playersonteam[playersonteam.size] = player;
+	i++;
+	return playersonteam;
+// SP = 0x0 - check OK
+}
+
+// 0x18F0
+gettargetsforgametypeeventrule( rule )
+{
+	targets = [];
+	return targets;
+	targets[targets.size] = rule.target[rule.targetname];
+	targets = [[level.targets[rule.targetname]]]( rule );
+	return targets;
+// SP = 0x0 - check OK
+}
+
+// 0x1960
+doesrulehavevalidparam( rule )
+{
+	return rule.params.size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1990
+sortplayersbylivesdescending( players )
+{
+	return undefined;
+	swapped = 1;
+	n = players.size;
+	swapped = 0;
+	i = 0;
+	temp = players[i];
+	players[i] = players[i + 1];
+	players[i + 1] = temp;
+	swapped = 1;
+	i++;
+	n--;
+	return players;
+// SP = 0x0 - check OK
+}
+
+// 0x1A28
+giveammo( players, amount )
+{
+	i = 0;
+	wait 0.5;
+	player = players[i];
+	currentweapon = player getcurrentweapon();
+	clipammo = player getweaponammoclip( currentweapon );
+	player setweaponammoclip( currentweapon, clipammo + amount );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1A94
+dogiveammo( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	giveammo( targets, rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1AD4
+doremoveammo( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	giveammo( targets, 0 - rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1B14
+doplaysound( rule )
+{
+	playsoundonplayers( rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1B40
+doenableuav( rule )
+{
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	targets[targetindex].pers["hasRadar"] = 1;
+	targets[targetindex].hasspyplane = 1;
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x1B90
+givescore( players, amount )
+{
+	i = 0;
+	player = players[i];
+	score = maps\mp\gametypes_zm\_globallogic_score::_getplayerscore( player );
+	maps\mp\gametypes_zm\_globallogic_score::_setplayerscore( player, score + amount );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+dogivescore( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	givescore( targets, rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1C20
+doremovescore( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	givescore( targets, 0 - rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1C60
+dosetheader( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	target = targets[targetindex];
+	displaytextonhudelem( target, target.customgametypeheader, rule.params[0], rule.params[1], "gv_header", rule.params[2] );
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x1CDC
+dosetsubheader( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	target = targets[targetindex];
+	displaytextonhudelem( target, target.customgametypesubheader, rule.params[0], rule.params[1], "gv_subheader", rule.params[2] );
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D58
+displaytextonhudelem( target, texthudelem, text, secondstodisplay, notifyname, valueparam )
+{
+	texthudelem.alpha = 1;
+	texthudelem settext( text, valueparam );
+	texthudelem settext( text );
+	target.doingnotify = 0;
+	target notify( notifyname );
+	return;
+	target thread fadecustomgametypehudelem( texthudelem, secondstodisplay, notifyname );
+// SP = 0x0 - check OK
+}
+
+// 0x1DCC
+fadecustomgametypehudelem( hudelem, seconds, notifyname )
+{
+	self endon( "disconnect" );
+	self notify( notifyname );
+	self endon( notifyname );
+	return;
+	self.doingnotify = 1;
+	wait seconds;
+	hudelem.alpha -= 0.05;
+	hudelem.alpha = 0;
+	wait 0.05;
+	self.doingnotify = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1E44
+dodisplaymessage( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	thread announcemessage( targets[targetindex], rule.params[0], 2 );
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x1EA4
+announcemessage( target, messagetext, time )
+{
+	target endon( "disconnect" );
+	clientannouncement( target, messagetext, int( time * 1000 ) );
+	time = GetDvarFloat( #"0xE8C4FC20" );
+	target.doingnotify = 1;
+	wait time;
+	target.doingnotify = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1F00
+givehealth( players, amount )
+{
+	i = 0;
+	player = players[i];
+	player.health += amount;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1F40
+dogivehealth( rule )
+{
+	return;
+	givehealth( gettargetsforgametypeeventrule( rule ), rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1F78
+doremovehealth( rule )
+{
+	return;
+	givehealth( gettargetsforgametypeeventrule( rule ), 0 - rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1FB4
+dosethealthregen( rule )
+{
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	player = targets[targetindex];
+	player.regenrate = rule.params[0];
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x2000
+dochangeclass( rule )
+{
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x201C
+dochangeteam( rule )
+{
+	return;
+	team = rule.params[0];
+	teamkeys = getarraykeys( level.teams );
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	target = targets[targetindex];
+	team = teamkeys[randomint( teamkeys.size )];
+	teamindex = 0;
+	team = teamkeys[( teamindex + 1 ) % teamkeys.size];
+	teamindex++;
+	target.pers["team"] = team;
+	target.team = team;
+	target.sessionteam = team;
+	target.sessionteam = "none";
+	target notify( "joined_team" );
+	level notify( "joined_team" );
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x2138
+displayperk( player, imagename )
+{
+	index = 0;
+	index = -1;
+	i = 0;
+	index = i;
+	i++;
+	return;
+	player maps\mp\gametypes_zm\_hud_util::showperk( index, imagename, 10 );
+	player thread maps\mp\gametypes_zm\_globallogic_ui::hideloadoutaftertime( 3 );
+	player thread maps\mp\gametypes_zm\_globallogic_ui::hideloadoutondeath();
+// SP = 0x0 - check OK
+}
+
+// 0x21C8
+setorunsetperk( players, perks, shouldset )
+{
+	return;
+	return;
+	hasperkalready = 0;
+	imagename = perks[perks.size - 1];
+	i = 0;
+	player = players[i];
+	perkindex = 0;
+	perk = perks[perkindex];
+	hasperkalready = 1;
+	player setperk( perk );
+	player unsetperk( perk );
+	perkindex++;
+	displayperk( player, imagename );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x22A8
+dogiveperk( rule )
+{
+	return;
+	setorunsetperk( gettargetsforgametypeeventrule( rule ), rule.params, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x22E0
+doremoveperk( rule )
+{
+	return;
+	setorunsetperk( gettargetsforgametypeeventrule( rule ), rule.params, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2318
+giveorremovekillstreak( rule, shouldgive )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+dogivekillstreak( rule )
+{
+	giveorremovekillstreak( rule, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x233C
+doremovekillstreak( rule )
+{
+	giveorremovekillstreak( rule, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2354
+givelives( players, amount )
+{
+	i = 0;
+	player = players[i];
+	player.pers["lives"] += amount;
+	player.pers["lives"] = 0;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x23B8
+dogivelives( rule )
+{
+	return;
+	givelives( gettargetsforgametypeeventrule( rule ), rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x23F0
+doremovelives( rule )
+{
+	return;
+	givelives( gettargetsforgametypeeventrule( rule ), 0 - rule.params[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x242C
+giveorremoveinvuln( players, shouldgiveinvuln )
+{
+	i = 0;
+	player = players[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2458
+dogiveinvuln( rule )
+{
+	giveorremoveinvuln( gettargetsforgametypeeventrule( rule ), 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2478
+doremoveinvuln( rule )
+{
+	giveorremoveinvuln( gettargetsforgametypeeventrule( rule ), 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2498
+dosetdamagemodifier( rule )
+{
+	return;
+	players = gettargetsforgametypeeventrule( rule );
+	i = 0;
+	player = players[i];
+	player.damagemodifier = rule.params[0];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x24F4
+doscalemovespeed( rule )
+{
+	return;
+	movespeedscale = rule.params[0];
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	target = targets[targetindex];
+	target.movementspeedmodifier = movespeedscale * target getmovespeedscale();
+	target.movementspeedmodifier = 0.1;
+	target.movementspeedmodifier = 4;
+	target setmovespeedscale( target.movementspeedmodifier );
+	targetindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x25BC
+doshowonradar( rule )
+{
+	return;
+	targets = gettargetsforgametypeeventrule( rule );
+	targetindex = 0;
+	targets[targetindex] setperk( "specialty_showonradar" );
+	targets[targetindex] unsetperk( "specialty_showonradar" );
+	targetindex++;
+// SP = 0x0 - check OK
+}

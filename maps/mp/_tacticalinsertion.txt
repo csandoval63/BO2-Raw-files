@@ -1,0 +1,276 @@
+// maps/mp/_tacticalinsertion.gsc
+
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\_hacker_tool;
+#include maps\mp\gametypes\_weaponobjects;
+#include maps\mp\_scoreevents;
+#include maps\mp\_challenges;
+#include maps\mp\gametypes\_globallogic_audio;
+#include maps\mp\gametypes\_hud_util;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xB20
+init()
+{
+	level.tacticalinsertionweapon = "tactical_insertion_mp";
+	precachemodel( "t6_wpn_tac_insert_world" );
+	loadfx( "misc/fx_equip_tac_insert_light_grn" );
+	loadfx( "misc/fx_equip_tac_insert_light_red" );
+	level._effect["tacticalInsertionFizzle"] = loadfx( "misc/fx_equip_tac_insert_exp" );
+	maps\mp\gametypes\_globallogic_audio::registerdialoggroup( "item_destroyed", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB78
+istacspawntouchingcrates( origin, angles )
+{
+	crate_ents = getentarray( "care_package", "script_noteworthy" );
+	mins = ( -17, -17, -40 );
+	maxs = ( 17, 17, 40 );
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBE8
+overridespawn( ispredictedspawn )
+{
+	return 0;
+	origin = self.tacticalinsertion.origin;
+	angles = self.tacticalinsertion.angles;
+	team = self.tacticalinsertion.team;
+	self.tacticalinsertion destroy_tactical_insertion();
+	return 0;
+	return 0;
+	self.tacticalinsertiontime = GetTime();
+	self spawn( origin, angles, "tactical insertion" );
+	self setspawnclientflag( "SCDFL_DISABLE_LOGGING" );
+	self addweaponstat( "tactical_insertion_mp", "used", 1 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xC98
+waitanddelete( time )
+{
+	self endon( "death" );
+	wait 0.05;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCBC
+watch( player )
+{
+	player.tacticalinsertion destroy_tactical_insertion();
+	player thread spawntacticalinsertion();
+	self waitanddelete( 0.05 );
+// SP = 0x0 - check OK
+}
+
+// 0xCFC
+watchusetrigger( trigger, callback, playersoundonuse, npcsoundonuse )
+{
+	self endon( "delete" );
+	trigger waittill( "trigger", player );
+	player playlocalsound( playersoundonuse );
+	player playsound( npcsoundonuse );
+	self thread [[callback]]( player );
+// SP = 0x0 - check OK
+}
+
+// 0xDFC
+watchdisconnect()
+{
+	self.tacticalinsertion endon( "delete" );
+	self waittill( "disconnect" );
+	self.tacticalinsertion thread destroy_tactical_insertion();
+// SP = 0x0 - check OK
+}
+
+// 0xE20
+destroy_tactical_insertion( attacker )
+{
+	self.owner.tacticalinsertion = undefined;
+	self notify( "delete" );
+	self.owner notify( "tactical_insertion_destroyed" );
+	self.friendlytrigger delete();
+	self.enemytrigger delete();
+	attacker notify( "destroyed_explosive" );
+	attacker maps\mp\_challenges::destroyedequipment();
+	attacker maps\mp\_challenges::destroyedtacticalinsert();
+	maps\mp\_scoreevents::processscoreevent( "destroyed_tac_insert", attacker );
+	attacker notify( "destroyed_explosive" );
+	attacker maps\mp\_challenges::destroyedequipment();
+	attacker maps\mp\_challenges::destroyedtacticalinsert();
+	maps\mp\_scoreevents::processscoreevent( "destroyed_tac_insert", attacker );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xF28
+fizzle( attacker )
+{
+	return;
+	self.fizzle = 1;
+	playfx( level._effect["tacticalInsertionFizzle"], self.origin );
+	self playsound( "dst_tac_insert_break" );
+	self.owner maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "tact_destroyed", "item_destroyed" );
+	self destroy_tactical_insertion( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0xFA4
+pickup( attacker )
+{
+	player = self.owner;
+	self destroy_tactical_insertion();
+	player giveweapon( level.tacticalinsertionweapon );
+	player setweaponammoclip( level.tacticalinsertionweapon, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xFE4
+spawntacticalinsertion()
+{
+	self endon( "disconnect" );
+	self.tacticalinsertion = spawn( "script_model", self.origin + ( 0, 0, 1 ) );
+	self.tacticalinsertion setmodel( "t6_wpn_tac_insert_world" );
+	self.tacticalinsertion.origin = self.origin + ( 0, 0, 1 );
+	self.tacticalinsertion.angles = self.angles;
+	self.tacticalinsertion.team = self.team;
+	self.tacticalinsertion setteam( self.team );
+	self.tacticalinsertion.owner = self;
+	self.tacticalinsertion setowner( self );
+	self.tacticalinsertion setweapon( level.tacticalinsertionweapon );
+	self.tacticalinsertion thread maps\mp\gametypes\_weaponobjects::attachreconmodel( "t6_wpn_tac_insert_detect", self );
+	self.tacticalinsertion endon( "delete" );
+	self.tacticalinsertion maps\mp\_hacker_tool::registerwithhackertool( level.equipmenthackertoolradius, level.equipmenthackertooltimems );
+	triggerheight = 64;
+	triggerradius = 128;
+	self.tacticalinsertion.friendlytrigger = spawn( "trigger_radius_use", self.tacticalinsertion.origin + vector_scale( ( 0, 0, 1 ), 3 ) );
+	self.tacticalinsertion.friendlytrigger setcursorhint( "HINT_NOICON", self.tacticalinsertion );
+	self.tacticalinsertion.friendlytrigger sethintstring( &"MP_TACTICAL_INSERTION_PICKUP" );
+	self.tacticalinsertion.friendlytrigger setteamfortrigger( self.team );
+	self.tacticalinsertion.friendlytrigger.triggerteam = self.team;
+	self clientclaimtrigger( self.tacticalinsertion.friendlytrigger );
+	self.tacticalinsertion.friendlytrigger.claimedby = self;
+	self.tacticalinsertion.enemytrigger = spawn( "trigger_radius_use", self.tacticalinsertion.origin + vector_scale( ( 0, 0, 1 ), 3 ) );
+	self.tacticalinsertion.enemytrigger setcursorhint( "HINT_NOICON", self.tacticalinsertion );
+	self.tacticalinsertion.enemytrigger sethintstring( &"MP_TACTICAL_INSERTION_DESTROY" );
+	self.tacticalinsertion.enemytrigger setinvisibletoplayer( self );
+	self.tacticalinsertion.enemytrigger setexcludeteamfortrigger( self.team );
+	self.tacticalinsertion.enemytrigger.triggerteamignore = self.team;
+	self.tacticalinsertion setclientflag( 2 );
+	self thread watchdisconnect();
+	watcher = maps\mp\gametypes\_weaponobjects::getweaponobjectwatcherbyweapon( level.tacticalinsertionweapon );
+	self.tacticalinsertion thread watchusetrigger( self.tacticalinsertion.friendlytrigger, ::pickup, watcher.pickupsoundplayer, watcher.pickupsound );
+	self.tacticalinsertion thread watchusetrigger( self.tacticalinsertion.enemytrigger, ::fizzle );
+	self.tacticalinsertioncount++;
+	self.tacticalinsertioncount = 1;
+	self.tacticalinsertion setcandamage( 1 );
+	self.tacticalinsertion.health = 1;
+	self.tacticalinsertion waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname, idflags );
+	attacker maps\mp\_challenges::destroyedequipment( weaponname );
+	attacker maps\mp\_challenges::destroyedtacticalinsert();
+	maps\mp\_scoreevents::processscoreevent( "destroyed_tac_insert", attacker );
+	switch ( weaponname )
+	{
+		case "concussion_grenade_mp":
+		case "flash_grenade_mp":
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+		default:
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+	}
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "tact_destroyed", "item_destroyed" );
+	self.tacticalinsertion thread fizzle();
+// SP = 0x0 - check OK
+}
+
+// 0x1440
+cancel_button_think()
+{
+	return;
+	text = cancel_text_create();
+	self thread cancel_button_press();
+	event = self waittill_any_return( "tactical_insertion_destroyed", "disconnect", "end_killcam", "abort_killcam", "tactical_insertion_canceled", "spawned" );
+	self.tacticalinsertion destroy_tactical_insertion();
+	text destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x14BC
+canceltackinsertionbutton()
+{
+	return self changeseatbuttonpressed();
+	return self jumpbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x14E4
+cancel_button_press()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	self endon( "abort_killcam" );
+	wait 0.05;
+	self notify( "tactical_insertion_canceled" );
+// SP = 0x0 - check OK
+}
+
+// 0x1528
+cancel_text_create()
+{
+	text = newclienthudelem( self );
+	text.archived = 0;
+	text.y = -100;
+	text.alignx = "center";
+	text.aligny = "middle";
+	text.horzalign = "center";
+	text.vertalign = "bottom";
+	text.sort = 10;
+	text.font = "small";
+	text.foreground = 1;
+	text.hidewheninmenu = 1;
+	text.y = -80;
+	text.fontscale = 1.2;
+	text.fontscale = 1.6;
+	text settext( &"PLATFORM_PRESS_TO_CANCEL_TACTICAL_INSERTION" );
+	text.alpha = 1;
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x15F0
+gettacticalinsertions()
+{
+	tac_inserts = [];
+	foreach ( player in level.players )
+	{
+		tac_inserts[tac_inserts.size] = player.tacticalinsertion;
+	}
+	return tac_inserts;
+// SP = 0x0 - check OK
+}
+
+// 0x1644
+tacticalinsertiondestroyedbytrophysystem( attacker, trophysystem )
+{
+	owner = self.owner;
+	attacker maps\mp\_challenges::destroyedequipment( trophysystem.name );
+	attacker maps\mp\_challenges::destroyedtacticalinsert();
+	self thread fizzle();
+	owner endon( "death" );
+	owner endon( "disconnect" );
+	wait 0.05;
+	owner maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "tact_destroyed", "item_destroyed" );
+// SP = 0x0 - check OK
+}

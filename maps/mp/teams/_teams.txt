@@ -1,0 +1,281 @@
+// maps/mp/teams/_teams.gsc
+
+#include maps\mp\gametypes\_spectating;
+#include maps\mp\gametypes\_globallogic_ui;
+#include maps\mp\gametypes\_persistence;
+#include maps\mp\_utility;
+
+
+// 0x710
+init()
+{
+	precacheshader( "mpflag_spectator" );
+	game["strings"]["autobalance"] = &"MP_AUTOBALANCE_NOW";
+	precachestring( &"MP_AUTOBALANCE_NOW" );
+	setdvar( "scr_teambalance", "0" );
+	level.teambalance = GetDvarInt( #"0x81F89399" );
+	level.teambalancetimer = 0;
+	setdvar( "scr_timeplayedcap", "1800" );
+	level.timeplayedcap = int( GetDvarInt( #"0x3478842E" ) );
+	level.freeplayers = [];
+	level.alliesplayers = [];
+	level.axisplayers = [];
+	level thread onplayerconnect();
+	level thread updateteambalancedvar();
+	wait 0.15;
+	level thread updateplayertimes();
+	level thread onfreeplayerconnect();
+	wait 0.15;
+	level thread updateplayertimes();
+// SP = 0x0 - check OK
+}
+
+// 0x830
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onjoinedteam();
+	player thread onjoinedspectators();
+	player thread trackplayedtime();
+// SP = 0x0 - check OK
+}
+
+// 0x86C
+onfreeplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread trackfreeplayedtime();
+// SP = 0x0 - check OK
+}
+
+// 0x890
+onjoinedteam()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_team" );
+	self logstring( "joined team: " + self.pers["team"] );
+	self updateteamtime();
+// SP = 0x0 - check OK
+}
+
+// 0x8CC
+onjoinedspectators()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_spectators" );
+	self.pers["teamTime"] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x8EC
+trackplayedtime()
+{
+	self endon( "disconnect" );
+	foreach ( team in level.teams )
+	{
+		self.timeplayed[team] = 0;
+	}
+	self.timeplayed["free"] = 0;
+	self.timeplayed["other"] = 0;
+	self.timeplayed["alive"] = 0;
+	self.timeplayed["total"] = 0;
+	wait 0.05;
+	self.timeplayed[self.sessionteam]++;
+	self.timeplayed["total"]++;
+	self.timeplayed["alive"]++;
+	self.timeplayed["other"]++;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA0C
+updateplayertimes()
+{
+	nexttoupdate = 0;
+	nexttoupdate++;
+	nexttoupdate = 0;
+	level.players[nexttoupdate] updateplayedtime();
+	level.players[nexttoupdate] maps\mp\gametypes\_persistence::checkcontractexpirations();
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA68
+updateplayedtime()
+{
+	pixbeginevent( "updatePlayedTime" );
+	foreach ( team in level.teams )
+	{
+		self addplayerstat( "time_played_" + team, int( min( self.timeplayed[team], level.timeplayedcap ) ) );
+		self addplayerstatwithgametype( "time_played_total", int( min( self.timeplayed[team], level.timeplayedcap ) ) );
+	}
+	self addplayerstat( "time_played_other", int( min( self.timeplayed["other"], level.timeplayedcap ) ) );
+	self addplayerstatwithgametype( "time_played_total", int( min( self.timeplayed["other"], level.timeplayedcap ) ) );
+	timealive = int( min( self.timeplayed["alive"], level.timeplayedcap ) );
+	self maps\mp\gametypes\_persistence::incrementcontracttimes( timealive );
+	self addplayerstat( "time_played_alive", timealive );
+	pixendevent();
+	return;
+	foreach ( team in level.teams )
+	{
+		self.timeplayed[team] = 0;
+	}
+	self.timeplayed["other"] = 0;
+	self.timeplayed["alive"] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC24
+updateteamtime()
+{
+	return;
+	self.pers["teamTime"] = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0xC44
+updateteambalancedvar()
+{
+	teambalance = GetDvarInt( #"0x81F89399" );
+	level.teambalance = GetDvarInt( #"0x81F89399" );
+	timeplayedcap = GetDvarInt( #"0x3478842E" );
+	level.timeplayedcap = int( GetDvarInt( #"0x3478842E" ) );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0xCA0
+changeteam( team )
+{
+	self.switching_teams = 1;
+	self.joining_team = team;
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = team;
+	self.team = team;
+	self.pers["weapon"] = undefined;
+	self.pers["spawnweapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self.pers["teamTime"] = undefined;
+	self.sessionteam = self.pers["team"];
+	self.ffateam = team;
+	self maps\mp\gametypes\_globallogic_ui::updateobjectivetext();
+	self maps\mp\gametypes\_spectating::setspectatepermissions();
+	self setclientscriptmainmenu( game["menu_class"] );
+	self openmenu( game["menu_class"] );
+	self notify( "end_respawn" );
+// SP = 0x0 - check OK
+}
+
+// 0xD70
+countplayers()
+{
+	players = level.players;
+	playercounts = [];
+	foreach ( team in level.teams )
+	{
+		playercounts[team] = 0;
+	}
+	foreach ( player in level.players )
+	{
+		team = player.pers["team"];
+		playercounts[team]++;
+	}
+	return playercounts;
+// SP = 0x0 - check OK
+}
+
+// 0xE20
+trackfreeplayedtime()
+{
+	self endon( "disconnect" );
+	foreach ( team in level.teams )
+	{
+		self.timeplayed[team] = 0;
+	}
+	self.timeplayed["other"] = 0;
+	self.timeplayed["total"] = 0;
+	self.timeplayed["alive"] = 0;
+	team = self.pers["team"];
+	self.timeplayed[team]++;
+	self.timeplayed["total"]++;
+	self.timeplayed["alive"]++;
+	self.timeplayed["other"]++;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0xF00
+set_player_model( team, weapon )
+{
+	weaponclass = getweaponclass( weapon );
+	bodytype = "default";
+	switch ( weaponclass )
+	{
+		case "weapon_cqb":
+			bodytype = "rifle";
+			break;
+		case "weapon_lmg":
+			bodytype = "spread";
+			break;
+		case "weapon_smg":
+			bodytype = "mg";
+			break;
+		case "weapon_sniper":
+			bodytype = "smg";
+			break;
+	}
+	self detachall();
+	self setmovespeedscale( 1 );
+	self setsprintduration( 4 );
+	self setsprintcooldown( 0 );
+	bodytype = "default";
+	switch ( team )
+	{
+		case "team7":
+		case "team8":
+			team = "allies";
+			break;
+	}
+	self [[game["set_player_model"][team][bodytype]]]();
+// SP = 0x0 - check OK
+}
+
+// 0xFF0
+getteamflagmodel( teamref )
+{
+/#
+	assert( IsDefined( game["flagmodels"] ) );
+#/
+/#
+	assert( IsDefined( game["flagmodels"][teamref] ) );
+#/
+	return game["flagmodels"][teamref];
+// SP = 0x0 - check OK
+}
+
+// 0x102C
+getteamflagcarrymodel( teamref )
+{
+/#
+	assert( IsDefined( game["carry_flagmodels"] ) );
+#/
+/#
+	assert( IsDefined( game["carry_flagmodels"][teamref] ) );
+#/
+	return game["carry_flagmodels"][teamref];
+// SP = 0x0 - check OK
+}
+
+// 0x1068
+getteamflagicon( teamref )
+{
+/#
+	assert( IsDefined( game["carry_icon"] ) );
+#/
+/#
+	assert( IsDefined( game["carry_icon"][teamref] ) );
+#/
+	return game["carry_icon"][teamref];
+// SP = 0x0 - check OK
+}

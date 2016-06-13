@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_gap5b_from_conference.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x110
+main()
+{
+	dosimpletraverse( "dierise_gap5b_from_conference" );
+// SP = 0x0 - check OK
+}

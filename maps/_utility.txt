@@ -1,0 +1,8012 @@
+// maps/_utility.gsc
+
+#include maps\_destructible;
+#include animscripts\shoot_behavior;
+#include maps\_spawn_manager;
+#include maps\_callbackglobal;
+#include maps\_cheat;
+#include maps\_gameskill;
+#include animscripts\pain;
+#include maps\_anim;
+#include maps\_debug;
+#include maps\_friendlyfire;
+#include maps\_names;
+#include animscripts\weaponlist;
+#include animscripts\init;
+#include animscripts\shared;
+#include animscripts\combat_utility;
+#include maps\ai_subclass\_subclass_elite;
+#include animscripts\anims_table_cqb;
+#include animscripts\cqb;
+#include animscripts\anims_table;
+#include maps\_skipto;
+#include maps\_createfx;
+#include maps\_colors;
+#include maps\_vehicle;
+#include maps\_vehicle_aianim;
+#include maps\_endmission;
+#include maps\_load_common;
+#include maps\_dds;
+#include animscripts\utility;
+#include maps\_spawner;
+#include maps\_utility;
+#include codescripts\character;
+#include maps\_autosave;
+#include maps\_utility_code;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0xAC40
+ent_flag_wait( msg )
+{
+	self endon( "death" );
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0xAC64
+init_leaderboards()
+{
+	lb_string = "LB_SP_CAMPAIGN LB_SP_ANGOLA LB_SP_MYANMAR LB_SP_AFGHANISTAN LB_SP_NICARAGUA LB_SP_PAKISTAN LB_SP_KARMA LB_SP_PANAMA LB_SP_YEMEN LB_SP_BLACKOUT LB_SP_LA LB_SP_HAITI LB_SP_WAR_SINGAPORE LB_SP_WAR_SOCOTRA LB_SP_WAR_AFGHANISTAN LB_SP_WAR_PAKISTAN LB_SP_WAR_DRONE";
+	precacheleaderboards( lb_string );
+// SP = 0x0 - check OK
+}
+
+// 0xAC80
+ent_flag_wait_either( flag1, flag2 )
+{
+	self endon( "death" );
+	return;
+	return;
+	self waittill_either( flag1, flag2 );
+// SP = 0x0 - check OK
+}
+
+// 0xACC8
+ent_flag_wait_or_timeout( flagname, timer )
+{
+	self endon( "death" );
+	start_time = GetTime();
+	self ent_wait_for_flag_or_time_elapses( flagname, timer );
+// SP = 0x0 - check OK
+}
+
+// 0xAD14
+ent_flag_waitopen( msg )
+{
+	self endon( "death" );
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0xAD38
+ent_flag_init( message, val )
+{
+	self.ent_flag = [];
+	self.ent_flags_lock = [];
+/#
+	assert( !(IsDefined( self.ent_flag[message] )), "Attempt to reinitialize existing flag '" + message + "' on entity." );
+#/
+	self.ent_flag[message] = 1;
+/#
+	self.ent_flags_lock[message] = 1;
+#/
+	self.ent_flag[message] = 0;
+/#
+	self.ent_flags_lock[message] = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xADC8
+ent_flag_exist( message )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xADEC
+ent_flag_set( message )
+{
+/#
+/#
+	assert( IsDefined( self ), "Attempt to set a flag on entity that is not defined" );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Attempt to set a flag before calling flag_init: '" + message + "'." );
+#/
+/#
+	assert( self.ent_flag[message] == self.ent_flags_lock[message] );
+#/
+	self.ent_flags_lock[message] = 1;
+#/
+	self.ent_flag[message] = 1;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0xAE60
+ent_flag_toggle( message )
+{
+	self ent_flag_clear( message );
+	self ent_flag_set( message );
+// SP = 0x0 - check OK
+}
+
+// 0xAE98
+ent_flag_clear( message )
+{
+/#
+/#
+	assert( IsDefined( self ), "Attempt to clear a flag on entity that is not defined" );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Attempt to set a flag before calling flag_init: '" + message + "'." );
+#/
+/#
+	assert( self.ent_flag[message] == self.ent_flags_lock[message] );
+#/
+	self.ent_flags_lock[message] = 0;
+#/
+	self.ent_flag[message] = 0;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0xAF14
+ent_flag( message )
+{
+/#
+	assert( IsDefined( message ), "Tried to check flag but the flag was not defined." );
+#/
+/#
+	assert( IsDefined( self.ent_flag[message] ), "Tried to check entity flag '" + message + "', but the flag was not initialized." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xAF64
+ent_flag_init_ai_standards()
+{
+	message_array = [];
+	message_array[message_array.size] = "goal";
+	message_array[message_array.size] = "damage";
+	i = 0;
+	self ent_flag_init( message_array[i] );
+	self thread ent_flag_wait_ai_standards( message_array[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xAFC0
+ent_flag_wait_ai_standards( message )
+{
+	self endon( "death" );
+	self waittill( message );
+	self.ent_flag[message] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xAFE0
+flag_wait_either( flag1, flag2 )
+{
+	return;
+	return;
+	level waittill_either( flag1, flag2 );
+// SP = 0x0 - check OK
+}
+
+// 0xB020
+flag_wait_all( flag1, flag2, flag3, flag4 )
+{
+	flag_wait( flag1 );
+	flag_wait( flag2 );
+	flag_wait( flag3 );
+	flag_wait( flag4 );
+// SP = 0x0 - check OK
+}
+
+// 0xB080
+flag_wait_array( a_flags )
+{
+	i = 0;
+	str_flag = a_flags[i];
+	flag_wait( str_flag );
+	i = -1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xB0CC
+flag_wait_or_timeout( flagname, timer )
+{
+	start_time = GetTime();
+	wait_for_flag_or_time_elapses( flagname, timer );
+// SP = 0x0 - check OK
+}
+
+// 0xB110
+flag_waitopen_or_timeout( flagname, timer )
+{
+	start_time = GetTime();
+	wait_for_flag_or_time_elapses( flagname, timer );
+// SP = 0x0 - check OK
+}
+
+// 0xB154
+autosave_by_name( name )
+{
+	thread autosave_by_name_thread( name );
+// SP = 0x0 - check OK
+}
+
+// 0xB16C
+autosave_by_name_thread( name )
+{
+	level.curautosave = 1;
+	imagename = "levelshots / autosave / autosave_" + level.script + level.curautosave;
+	result = level maps\_autosave::try_auto_save( level.curautosave, imagename );
+	level.curautosave++;
+// SP = 0x0 - check OK
+}
+
+// 0xB1C0
+error( message )
+{
+/#
+	println( "^c * ERROR * ", message );
+	wait 0.05;
+/#
+	assertmsg( message );
+#/
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB208
+debug_message( message, origin, duration )
+{
+/#
+	duration = 5;
+	time = 0;
+	print3d( origin + vector_scale( ( 0, 0, 1 ), 45 ), message, ( 0.48, 9.4, 0.76 ), 0.85 );
+	wait 0.05;
+	time++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB280
+debug_message_clear( message, origin, duration, extraendon )
+{
+/#
+	level notify( message + extraendon );
+	level endon( message + extraendon );
+	level notify( message );
+	level endon( message );
+	duration = 5;
+	time = 0;
+	print3d( origin + vector_scale( ( 0, 0, 1 ), 45 ), message, ( 0.48, 9.4, 0.76 ), 0.85 );
+	wait 0.05;
+	time++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB31C
+debugline( a, b, color )
+{
+/#
+	i = 0;
+	line( a, b, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB360
+debugorigin()
+{
+/#
+	self notify( "Debug origin" );
+	self endon( "Debug origin" );
+	self endon( "death" );
+	forward = anglestoforward( self.angles );
+	forwardfar = vector_scale( forward, 30 );
+	forwardclose = vector_scale( forward, 20 );
+	right = anglestoright( self.angles );
+	left = vector_scale( right, -10 );
+	right = vector_scale( right, 10 );
+	line( self.origin, self.origin + forwardfar, ( 0.9, 0.7, 0.6 ), 0.9 );
+	line( self.origin + forwardfar, self.origin + forwardclose + right, ( 0.9, 0.7, 0.6 ), 0.9 );
+	line( self.origin + forwardfar, self.origin + forwardclose + left, ( 0.9, 0.7, 0.6 ), 0.9 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xB470
+precache( model )
+{
+	ent = spawn( "script_model", ( 0, 0, 0 ) );
+	ent.origin = get_players()[0] getorigin();
+	ent setmodel( model );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0xB4C0
+closerfunc( dist1, dist2 )
+{
+	return dist1 >= dist2;
+// SP = 0x0 - check OK
+}
+
+// 0xB4D0
+fartherfunc( dist1, dist2 )
+{
+	return dist1 <= dist2;
+// SP = 0x0 - check OK
+}
+
+// 0xB4E0
+getclosest( org, array, dist )
+{
+	return comparesizes( org, array, dist, ::closerfunc );
+// SP = 0x0 - check OK
+}
+
+// 0xB504
+getfarthest( org, array, dist )
+{
+	return comparesizes( org, array, dist, ::fartherfunc );
+// SP = 0x0 - check OK
+}
+
+// 0xB528
+comparesizesfx( org, array, dist, comparefunc )
+{
+	return undefined;
+	struct = undefined;
+	keys = getarraykeys( array );
+	i = 0;
+	newdist = distance( array[keys[i]].v["origin"], org );
+	dist = newdist;
+	struct = array[keys[i]];
+	i++;
+	return struct;
+	keys = getarraykeys( array );
+	struct = array[keys[0]];
+	dist = distance( struct.v["origin"], org );
+	i = 1;
+	newdist = distance( array[keys[i]].v["origin"], org );
+	dist = newdist;
+	struct = array[keys[i]];
+	i++;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0xB640
+comparesizes( org, array, dist, comparefunc )
+{
+	return undefined;
+	distsqr = dist * dist;
+	ent = undefined;
+	keys = getarraykeys( array );
+	i = 0;
+	newdistsqr = distancesquared( array[keys[i]].origin, org );
+	distsqr = newdistsqr;
+	ent = array[keys[i]];
+	i++;
+	return ent;
+	keys = getarraykeys( array );
+	ent = array[keys[0]];
+	distsqr = distancesquared( ent.origin, org );
+	i = 1;
+	newdistsqr = distancesquared( array[keys[i]].origin, org );
+	distsqr = newdistsqr;
+	ent = array[keys[i]];
+	i++;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xB750
+get_closest_point( origin, points, maxdist )
+{
+/#
+	assert( points.size );
+#/
+	maxdist *= maxdist;
+	closestpoint = points[0];
+	distsq = distancesquared( origin, closestpoint );
+	index = 0;
+	testdistsq = distancesquared( origin, points[index] );
+	distsq = testdistsq;
+	closestpoint = points[index];
+	index++;
+	return closestpoint;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xB7F4
+get_within_range( org, array, dist )
+{
+	distsq = dist * dist;
+	guys = [];
+	i = 0;
+	guys[guys.size] = array[i];
+	i++;
+	return guys;
+// SP = 0x0 - check OK
+}
+
+// 0xB850
+get_outside_range( org, array, dist )
+{
+	distsq = dist * dist;
+	guys = [];
+	i = 0;
+	guys[guys.size] = array[i];
+	i++;
+	return guys;
+// SP = 0x0 - check OK
+}
+
+// 0xB8AC
+get_closest_living( org, array, dist )
+{
+	dist = 9999999;
+	distsq = dist * dist;
+	return;
+	ent = undefined;
+	i = 0;
+	newdistsq = distancesquared( array[i].origin, org );
+	distsq = newdistsq;
+	ent = array[i];
+	i++;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xB944
+get_highest_dot( start, end, array )
+{
+	return;
+	ent = undefined;
+	angles = vectortoangles( end - start );
+	dotforward = anglestoforward( angles );
+	dot = -1;
+	i = 0;
+	angles = vectortoangles( array[i].origin - start );
+	forward = anglestoforward( angles );
+	newdot = vectordot( dotforward, forward );
+	dot = newdot;
+	ent = array[i];
+	i++;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xB9D4
+get_closest_index( org, array, dist )
+{
+	dist = 9999999;
+	distsq = dist * dist;
+	return;
+	index = undefined;
+	i = 0;
+	newdistsq = distancesquared( array[i].origin, org );
+	distsq = newdistsq;
+	index = i;
+	i++;
+	return index;
+// SP = 0x0 - check OK
+}
+
+// 0xBA50
+get_farthest( org, array )
+{
+	return;
+	distsq = distancesquared( array[0].origin, org );
+	ent = array[0];
+	i = 1;
+	newdistsq = distancesquared( array[i].origin, org );
+	distsq = newdistsq;
+	ent = array[i];
+	i++;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xBAD4
+get_closest_ai( org, team )
+{
+	ents = getaiarray( team );
+	ents = getaiarray();
+	return undefined;
+	return getclosest( org, ents );
+// SP = 0x0 - check OK
+}
+
+// 0xBB20
+get_array_of_closest( org, array, excluders, max, maxdist )
+{
+	max = array.size;
+	excluders = [];
+	maxdists2rd = undefined;
+	maxdists2rd = maxdist * maxdist;
+	dist = [];
+	index = [];
+	i = 0;
+	length = distancesquared( org, array[i] );
+	length = distancesquared( org, array[i].origin );
+	dist[dist.size] = length;
+	index[index.size] = i;
+	i++;
+	change = 0;
+	i = 0;
+	change = 1;
+	temp = dist[i];
+	dist[i] = dist[i + 1];
+	dist[i + 1] = temp;
+	temp = index[i];
+	index[i] = index[i + 1];
+	index[i + 1] = temp;
+	i++;
+	newarray = [];
+	max = dist.size;
+	i = 0;
+	newarray[i] = array[index[i]];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xBCC8
+get_array_of_farthest( org, array, excluders, max )
+{
+	sorted_array = get_array_of_closest( org, array, excluders );
+	temp_array = [];
+	i = 0;
+	temp_array[temp_array.size] = sorted_array[sorted_array.size - i];
+	i++;
+	sorted_array = temp_array;
+	sorted_array = array_reverse( sorted_array );
+	return sorted_array;
+// SP = 0x0 - check OK
+}
+
+// 0xBD34
+stop_magic_bullet_shield( ent )
+{
+	ent = self;
+	ent bloodimpact( "normal" );
+	ent.attackeraccuracy = 1;
+	ent notify( "stop_magic_bullet_shield" );
+	ent.magic_bullet_shield = undefined;
+	ent._mbs = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xBD84
+magic_bullet_shield( ent )
+{
+	ent = self;
+	ent.magic_bullet_shield = 1;
+/#
+	level thread debug_magic_bullet_shield_death( ent );
+#/
+	ent._mbs = spawnstruct();
+/#
+	assert( isalive( ent ), "Tried to do magic_bullet_shield on a dead or undefined guy." );
+#/
+	ent._mbs.last_pain_time = 0;
+	ent._mbs.ignore_time = 2;
+	ent._mbs.turret_ignore_time = 5;
+	ent bloodimpact( "hero" );
+	ent.attackeraccuracy = 0.1;
+/#
+	assertmsg( "Use veh_magic_bullet_shield for vehicles." );
+#/
+/#
+	assertmsg( "magic_bullet_shield does not support entity of classname '" + ent.classname + "'." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xBEC8
+debug_magic_bullet_shield_death( guy )
+{
+	targetname = "none";
+	targetname = guy.targetname;
+	guy endon( "stop_magic_bullet_shield" );
+	guy waittill( "death" );
+/#
+	assert( !(IsDefined( guy )), "Guy died with magic bullet shield on with targetname: " + targetname );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xBF14
+disable_long_death()
+{
+/#
+	assert( isalive( self ), "Tried to disable long death on a non living thing" );
+#/
+	self.a.disablelongdeath = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBF40
+enable_long_death()
+{
+/#
+	assert( isalive( self ), "Tried to enable long death on a non living thing" );
+#/
+	self.a.disablelongdeath = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBF68
+get_ignoreme()
+{
+	return self.ignoreme;
+// SP = 0x0 - check OK
+}
+
+// 0xBF74
+set_ignoreme( val )
+{
+/#
+	assert( issentient( self ), "Non ai tried to set ignoreme" );
+#/
+	self.ignoreme = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBFA0
+set_ignoreall( val )
+{
+/#
+	assert( issentient( self ), "Non ai tried to set ignoraell" );
+#/
+	self.ignoreall = val;
+// SP = 0x0 - check OK
+}
+
+// 0xBFCC
+get_pacifist()
+{
+	return self.pacifist;
+// SP = 0x0 - check OK
+}
+
+// 0xBFD8
+set_pacifist( val )
+{
+/#
+	assert( issentient( self ), "Non ai tried to set pacifist" );
+#/
+	self.pacifist = val;
+// SP = 0x0 - check OK
+}
+
+// 0xC004
+turret_ignore_me_timer( time )
+{
+	self endon( "death" );
+	self endon( "pain" );
+	self.turretinvulnerability = 1;
+	wait time;
+	self.turretinvulnerability = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC02C
+exploder_damage()
+{
+	delay = self.v["delay"];
+	delay = 0;
+	radius = self.v["damage_radius"];
+	radius = 128;
+	damage = self.v["damage"];
+	origin = self.v["origin"];
+	wait delay;
+	self.model radiusdamage( origin, radius, damage, damage / 3 );
+// SP = 0x0 - check OK
+}
+
+// 0xC0B4
+exploder( num )
+{
+	[[level.exploderfunction]]( num );
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xC0CC
+exploder_before_load( num )
+{
+	waittillframeend;
+	waittillframeend;
+	activate_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0xC0E4
+exploder_after_load( num )
+{
+	activate_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0xC0FC
+activate_exploder_on_clients( num )
+{
+	return;
+	level._client_exploders[num] = 1;
+	level._client_exploder_ids[num] = 1;
+	activateclientexploder( level._exploder_ids[num] );
+// SP = 0x0 - check OK
+}
+
+// 0xC154
+delete_exploder_on_clients( num )
+{
+	return;
+	return;
+	level._client_exploders[num] = undefined;
+	level._client_exploder_ids[num] = undefined;
+	deactivateclientexploder( level._exploder_ids[num] );
+// SP = 0x0 - check OK
+}
+
+// 0xC19C
+activate_exploder( num )
+{
+	num = int( num );
+	level notify( "exploder" + num );
+/#
+	i = 0;
+	ent = level.createfxent[i];
+	client_send = 0;
+	ent activate_individual_exploder( num );
+	i++;
+#/
+	client_send = 1;
+	i = 0;
+	client_send = 0;
+	level.createfxexploders[num][i] activate_individual_exploder( num );
+	i++;
+	activate_exploder_on_clients( num );
+// SP = 0x0 - check OK
+}
+
+// 0xC2E4
+stop_exploder( num )
+{
+	num = int( num );
+/#
+	i = 0;
+	ent = level.createfxent[i];
+	ent.looper delete();
+	i++;
+#/
+	delete_exploder_on_clients( num );
+	i = 0;
+	level.createfxexploders[num][i].looper delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xC408
+delete_exploder( n_num, n_high_num )
+{
+	n_num = int( n_num );
+	n_high_num = int( n_high_num );
+/#
+	assertmsg( "delete_exploder: The high number parameter needs to be larger than the first number" );
+#/
+	n_high_num = n_num;
+	n_exploder = n_num;
+	delete_exploder_on_clients( n_exploder );
+	i = 0;
+	level.createfxexploders[n_exploder][i].looper delete();
+	level.createfxexploders[n_exploder][i].v = [];
+	level.createfxexploders[n_exploder][i] = undefined;
+	i++;
+	level.createfxexploders[n_exploder] = undefined;
+	level._exploder_ids[n_exploder] = undefined;
+	n_exploder++;
+// SP = 0x0 - check OK
+}
+
+// 0xC4FC
+activate_individual_exploder( num )
+{
+/#
+	println( "Exploder " + num + " created on server." );
+#/
+	self thread fire_effect();
+	self thread cannon_effect();
+	self thread sound_effect();
+	self thread exploder_earthquake();
+	self thread exploder_rumble();
+	self thread trail_effect();
+	self thread exploder_damage();
+	self thread brush_show();
+	self thread brush_throw();
+	self thread brush_delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC654
+does_exploder_exist( n_exploder )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC678
+loop_sound_delete( ender, ent )
+{
+	ent endon( "death" );
+	self waittill( ender );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC69C
+loop_fx_sound( alias, origin, ender, timeout )
+{
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	thread loop_sound_delete( ender, org );
+	self endon( ender );
+	org.origin = origin;
+	org playloopsound( alias );
+	return;
+	wait timeout;
+// SP = 0x0 - check OK
+}
+
+// 0xC6FC
+brush_delete()
+{
+	num = self.v["exploder"];
+	wait self.v["delay"];
+	wait 0.05;
+	return;
+/#
+	assert( IsDefined( self.model ) );
+#/
+	self.model connectpaths();
+	self.v["exploder"] = undefined;
+	waittillframeend;
+	self.model delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC7A8
+brush_show()
+{
+	wait self.v["delay"];
+/#
+	assert( IsDefined( self.model ) );
+#/
+	self.model show();
+	self.model solid();
+	self.model connectpaths();
+	self.model disconnectpaths();
+// SP = 0x0 - check OK
+}
+
+// 0xC830
+brush_throw()
+{
+	wait self.v["delay"];
+	ent = undefined;
+	ent = getent( self.v["target"], "targetname" );
+	ent = getstruct( self.v["target"], "targetname" );
+	self.model delete();
+	return;
+	self.model show();
+	startorg = self.v["origin"];
+	startang = self.v["angles"];
+	org = ent.origin;
+	temp_vec = org - self.v["origin"];
+	x = temp_vec[0];
+	y = temp_vec[1];
+	z = temp_vec[2];
+	physics = IsDefined( self.v["physics"] );
+	target = undefined;
+	target = getent( ent.target, "targetname" );
+	contact_point = startorg;
+	throw_vec = ent.origin;
+	contact_point = ent.origin;
+	throw_vec = vector_scale( target.origin - ent.origin, self.v["physics"] );
+	self.model physicslaunch( contact_point, throw_vec );
+	return;
+	self.model rotatevelocity( ( x, y, z ), 12 );
+	self.model movegravity( ( x, y, z ), 12 );
+	self.v["exploder"] = undefined;
+	wait 6;
+	self.model delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC9EC
+shock_onpain()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	setdvar( "blurpain", "on" );
+	oldhealth = self.health;
+	self waittill( "damage", damage, attacker, direction_vec, point, mod );
+	self shock_onexplosion( damage );
+	self shellshock( "pain", 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0xCAF0
+shock_onexplosion( damage )
+{
+	time = 0;
+	multiplier = self.maxhealth / 100;
+	scaled_damage = damage * multiplier;
+	time = 4;
+	time = 3;
+	time = 2;
+	time = 1;
+	self shellshock( "explosion", time );
+// SP = 0x0 - check OK
+}
+
+// 0xCB68
+shock_ondeath()
+{
+	self waittill( "death" );
+	return;
+	return;
+	return;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xCBB4
+delete_on_death( ent )
+{
+	ent endon( "death" );
+	self waittill( "death" );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCBE0
+delete_on_death_wait_sound( ent, sounddone )
+{
+	ent endon( "death" );
+	self waittill( "death" );
+	ent waittill( sounddone );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCC20
+is_dead_sentient()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xCC4C
+is_alive_sentient()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xCC78
+is_alive( ent )
+{
+	return isalive( ent );
+// SP = 0x0 - check OK
+}
+
+// 0xCCA0
+is_corpse( veh )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xCCE4
+play_sound_on_tag( alias, tag, ends_on_death )
+{
+	return;
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	org endon( "death" );
+	thread delete_on_death_wait_sound( org, "sounddone" );
+	org linkto( self, tag, ( 0, 0, 0 ), ( 0, 0, 0 ) );
+	org.origin = self.origin;
+	org.angles = self.angles;
+	org linkto( self );
+	org playsound( alias, "sounddone" );
+/#
+	assert( ends_on_death, "ends_on_death must be true or undefined" );
+#/
+	wait_for_sounddone_or_death( org );
+	org stopsounds();
+	wait 0.05;
+	org waittill( "sounddone" );
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCDD8
+play_sound_on_tag_endon_death( alias, tag )
+{
+	play_sound_on_tag( alias, tag, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xCDF4
+play_sound_on_entity( alias )
+{
+	play_sound_on_tag( alias );
+// SP = 0x0 - check OK
+}
+
+// 0xCE0C
+play_loop_sound_on_tag( alias, tag, bstopsoundondeath )
+{
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	org endon( "death" );
+	bstopsoundondeath = 1;
+	thread delete_on_death( org );
+	org linkto( self, tag, ( 0, 0, 0 ), ( 0, 0, 0 ) );
+	org.origin = self.origin;
+	org.angles = self.angles;
+	org linkto( self );
+	org playloopsound( alias );
+	self waittill( "stop sound" + alias );
+	org stoploopsound( alias );
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCEC0
+stop_loop_sound_on_entity( alias )
+{
+	self notify( "stop sound" + alias );
+// SP = 0x0 - check OK
+}
+
+// 0xCED4
+play_loop_sound_on_entity( alias, offset )
+{
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	org endon( "death" );
+	thread delete_on_death( org );
+	org.origin = self.origin + offset;
+	org.angles = self.angles;
+	org linkto( self );
+	org.origin = self.origin;
+	org.angles = self.angles;
+	org linkto( self );
+	org playloopsound( alias );
+	self waittill( "stop sound" + alias );
+	org stoploopsound( 0.1 );
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0xCF8C
+play_sound_in_space( alias, origin, master )
+{
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	origin = self.origin;
+	org.origin = origin;
+	org playsoundasmaster( alias, "sounddone" );
+	org playsound( alias, "sounddone" );
+	org waittill( "sounddone" );
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0xD010
+spawn_failed( spawn )
+{
+	spawn waittill( "finished spawning" );
+	waittillframeend;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xD050
+spawn_setcharacter( data )
+{
+	codescripts\character::precache( data );
+	self waittill( "spawned", spawn );
+	return;
+/#
+	println( "Size is ", data["attach"].size );
+#/
+	spawn codescripts\character::new();
+	spawn codescripts\character::load( data );
+// SP = 0x0 - check OK
+}
+
+// 0xD0B0
+assign_animtree( animname, animtree_override )
+{
+	animtree = animtree_override;
+	self.animname = animname;
+/#
+	assert( IsDefined( level.scr_animtree[self.animname] ), "There is no level.scr_animtree for animname " + self.animname );
+#/
+	animtree = level.scr_animtree[self.animname];
+	self useanimtree( animtree );
+// SP = 0x0 - check OK
+}
+
+// 0xD110
+assign_model( str_animname )
+{
+	str_animname = self.animname;
+/#
+	assert( IsDefined( level.scr_model[str_animname] ), "There is no level.scr_model for animname " + str_animname );
+#/
+	self setmodel( level.scr_model[str_animname] );
+// SP = 0x0 - check OK
+}
+
+// 0xD154
+spawn_anim_model( str_animname, origin, angles, is_simple_prop )
+{
+	origin = ( 0, 0, 0 );
+	angles = ( 0, 0, 0 );
+	model = spawn( "script_model", origin );
+	model.angles = angles;
+	model assign_model( str_animname );
+	model init_anim_model( str_animname, is_simple_prop );
+	return model;
+// SP = 0x0 - check OK
+}
+
+// 0xD1B4
+init_anim_model( animname, is_simple_prop, animtree_override )
+{
+	is_simple_prop = 0;
+	animname = self.animname;
+/#
+	assert( IsDefined( animname ), "Trying to init anim model with no animname." );
+#/
+	self.animname = animname;
+	self.anim_link = spawn( "script_model", self.origin );
+	self.anim_link setmodel( "tag_origin_animate" );
+	level thread delete_anim_link_on_death( self, self.anim_link );
+	self.anim_link.animname = animname;
+	self.anim_link assign_animtree( animname, animtree_override );
+	self unlink();
+	self.anim_link.angles = self.angles;
+	self.anim_link.origin = self.origin;
+	self linkto( self.anim_link, "origin_animate_jnt" );
+	self assign_animtree( self.animname, animtree_override );
+// SP = 0x0 - check OK
+}
+
+// 0xD2A4
+delete_anim_link_on_death( ent, anim_link )
+{
+	anim_link endon( "death" );
+	ent waittill( "death" );
+	anim_link delete();
+// SP = 0x0 - check OK
+}
+
+// 0xD2CC
+triggeroff()
+{
+	self.realorigin = self.origin;
+	self.origin += vector_scale( ( 0, 0, -1 ), 10000 );
+// SP = 0x0 - check OK
+}
+
+// 0xD308
+triggeron()
+{
+	self.origin = self.realorigin;
+// SP = 0x0 - check OK
+}
+
+// 0xD320
+set_flag_on_notify( notifystr, strflag )
+{
+	self endon( "death" );
+	self waittill( notifystr );
+	flag_set( strflag );
+// SP = 0x0 - check OK
+}
+
+// 0xD358
+set_flag_on_trigger( etrigger, strflag )
+{
+	etrigger waittill( "trigger", eother );
+	flag_set( strflag );
+	return eother;
+// SP = 0x0 - check OK
+}
+
+// 0xD38C
+set_flag_on_targetname_trigger( msg )
+{
+/#
+	assert( IsDefined( level.flag[msg] ) );
+#/
+	return;
+	trigger = getent( msg, "targetname" );
+	trigger waittill( "trigger" );
+	flag_set( msg );
+// SP = 0x0 - check OK
+}
+
+// 0xD3E4
+waittill_dead( guys, num, timeoutlength )
+{
+	allalive = 1;
+	i = 0;
+	allalive = 0;
+	i++;
+/#
+	assert( allalive, "Waittill_Dead was called with dead or removed AI in the array, meaning it will never pass." );
+#/
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = guys[i];
+	i++;
+	guys = newarray;
+	ent = spawnstruct();
+	ent endon( "thread_timed_out" );
+	ent thread waittill_dead_timeout( timeoutlength );
+	ent.count = guys.size;
+	ent.count = num;
+	array_thread( guys, ::waittill_dead_thread, ent );
+	ent waittill( "waittill_dead guy died" );
+// SP = 0x0 - check OK
+}
+
+// 0xD4F8
+waittill_dead_or_dying( guys, num, timeoutlength )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = guys[i];
+	i++;
+	guys = newarray;
+	ent = spawnstruct();
+	ent endon( "thread_timed_out" );
+	ent thread waittill_dead_timeout( timeoutlength );
+	ent.count = guys.size;
+	ent.count = num;
+	array_thread( guys, ::waittill_dead_or_dying_thread, ent );
+	ent waittill( "waittill_dead_guy_dead_or_dying" );
+// SP = 0x0 - check OK
+}
+
+// 0xD5C8
+waittill_dead_thread( ent )
+{
+	self waittill( "death" );
+	ent.count--;
+	ent notify( "waittill_dead guy died" );
+// SP = 0x0 - check OK
+}
+
+// 0xD5E8
+waittill_dead_or_dying_thread( ent )
+{
+	self waittill_either( "death", "pain_death" );
+	ent.count--;
+	ent notify( "waittill_dead_guy_dead_or_dying" );
+// SP = 0x0 - check OK
+}
+
+// 0xD614
+waittill_dead_timeout( timeoutlength )
+{
+	wait timeoutlength;
+	self notify( "thread_timed_out" );
+// SP = 0x0 - check OK
+}
+
+// 0xD628
+set_ai_group_cleared_count( aigroup, count )
+{
+	maps\_spawner::aigroup_init( aigroup );
+	level._ai_group[aigroup].cleared_count = count;
+// SP = 0x0 - check OK
+}
+
+// 0xD650
+waittill_ai_group_cleared( aigroup )
+{
+/#
+	assert( IsDefined( level._ai_group[aigroup] ), "The aigroup " + aigroup + " does not exist" );
+#/
+	flag_wait( aigroup + "_cleared" );
+// SP = 0x0 - check OK
+}
+
+// 0xD68C
+waittill_ai_group_count( aigroup, count )
+{
+	level._ai_group[aigroup] waittill( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0xD6C8
+waittill_ai_group_ai_count( aigroup, count )
+{
+	level._ai_group[aigroup] waittill( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0xD6F8
+waittill_ai_group_spawner_count( aigroup, count )
+{
+	level._ai_group[aigroup] waittill( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0xD724
+waittill_ai_group_amount_killed( aigroup, amount_killed )
+{
+	level._ai_group[aigroup] waittill( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0xD754
+get_ai_group_count( aigroup )
+{
+	return get_ai_group_spawner_count( aigroup ) + level._ai_group[aigroup].aicount;
+// SP = 0x0 - check OK
+}
+
+// 0xD778
+get_ai_group_sentient_count( aigroup )
+{
+	return level._ai_group[aigroup].aicount;
+// SP = 0x0 - check OK
+}
+
+// 0xD790
+get_ai_group_spawner_count( aigroup )
+{
+	n_count = 0;
+	foreach ( sp in level._ai_group[aigroup].spawners )
+	{
+		n_count += sp.count;
+	}
+	return n_count;
+// SP = 0x0 - check OK
+}
+
+// 0xD7EC
+get_ai_group_ai( aigroup )
+{
+	aiset = [];
+	index = 0;
+	aiset[aiset.size] = level._ai_group[aigroup].ai[index];
+	index++;
+	return aiset;
+// SP = 0x0 - check OK
+}
+
+// 0xD854
+get_ai( name, type )
+{
+	array = get_ai_array( name, type );
+/#
+	assertmsg( "get_ai used for more than one living ai of type " + type + " called " + name + "." );
+#/
+	return undefined;
+	return array[0];
+// SP = 0x0 - check OK
+}
+
+// 0xD8A0
+get_ai_array( name, type )
+{
+	type = "script_noteworthy";
+	ai = getaiarray();
+	array = [];
+	i = 0;
+	switch ( type )
+	{
+		case "classname":
+			array[array.size] = ai[i];
+			break;
+		case "script_noteworthy":
+			array[array.size] = ai[i];
+			break;
+		case "script_string":
+			array[array.size] = ai[i];
+			break;
+		case "targetname":
+			array[array.size] = ai[i];
+			break;
+	}
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0xD9CC
+set_environment( env )
+{
+	animscripts\utility::setenv( env );
+// SP = 0x0 - check OK
+}
+
+// 0xD9E4
+waittill_either( msg1, msg2 )
+{
+	self endon( msg1 );
+	self waittill( msg2 );
+// SP = 0x0 - check OK
+}
+
+// 0xD9F8
+flat_angle( angle )
+{
+	rangle = ( 0, angle[1], 0 );
+	return rangle;
+// SP = 0x0 - check OK
+}
+
+// 0xDA10
+plot_points( plotpoints, r, g, b, timer )
+{
+/#
+	lastpoint = plotpoints[0];
+	r = 1;
+	g = 1;
+	b = 1;
+	timer = 0.05;
+	i = 1;
+	thread draw_line_for_time( lastpoint, plotpoints[i], r, g, b, timer );
+	lastpoint = plotpoints[i];
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDA9C
+draw_line_for_time( org1, org2, r, g, b, timer )
+{
+/#
+	timer = GetTime() + timer * 1000;
+	line( org1, org2, ( r, g, b ), 1 );
+	recordline( org1, org2, ( 1, 1, 1 ), "Script" );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDAFC
+draw_point( org, scale, color, timer )
+{
+/#
+	timer = GetTime() + timer * 1000;
+	range = 10 * scale;
+	rt = ( range, 0, 0 );
+	ot = ( 0, range, 0 );
+	up = ( 0, 0, range );
+	v1_1 = org + rt;
+	v2_1 = org + ot;
+	v3_1 = org + up;
+	v1_2 = org - rt;
+	v2_2 = org - ot;
+	v3_2 = org - up;
+	line( v1_1, v1_2, color, 1 );
+	line( v2_1, v2_2, color, 1 );
+	line( v3_1, v3_2, color, 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDBC4
+draw_line_to_ent_for_time( org1, ent, r, g, b, timer )
+{
+/#
+	timer = GetTime() + timer * 1000;
+	line( org1, ent.origin, ( r, g, b ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDC14
+draw_line_from_ent_for_time( ent, org, r, g, b, timer )
+{
+/#
+	draw_line_to_ent_for_time( org, ent, r, g, b, timer );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDC44
+draw_line_from_ent_to_ent_for_time( ent1, ent2, r, g, b, timer )
+{
+/#
+	ent1 endon( "death" );
+	ent2 endon( "death" );
+	timer = GetTime() + timer * 1000;
+	line( ent1.origin, ent2.origin, ( r, g, b ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDCA8
+draw_line_from_ent_to_ent_until_notify( ent1, ent2, r, g, b, notifyent, notifystring )
+{
+/#
+/#
+	assert( IsDefined( notifyent ) );
+#/
+/#
+	assert( IsDefined( notifystring ) );
+#/
+	ent1 endon( "death" );
+	ent2 endon( "death" );
+	notifyent endon( notifystring );
+	line( ent1.origin, ent2.origin, ( r, g, b ), 0.05 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDD2C
+draw_line_until_notify( org1, org2, r, g, b, notifyent, notifystring )
+{
+/#
+/#
+	assert( IsDefined( notifyent ) );
+#/
+/#
+	assert( IsDefined( notifystring ) );
+#/
+	notifyent endon( notifystring );
+	draw_line_for_time( org1, org2, r, g, b, 0.05 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDD90
+draw_arrow_time( start, end, color, duration )
+{
+/#
+	level endon( "newpath" );
+	pts = [];
+	angles = vectortoangles( start - end );
+	right = anglestoright( angles );
+	forward = anglestoforward( angles );
+	up = anglestoup( angles );
+	dist = distance( start, end );
+	arrow = [];
+	arrow[0] = start;
+	arrow[1] = start + vector_scale( right, dist * 0.1 ) + vector_scale( forward, dist * -0.1 );
+	arrow[2] = end;
+	arrow[3] = start + vector_scale( right, dist * ( -1 * 0.1 ) ) + vector_scale( forward, dist * -0.1 );
+	arrow[4] = start;
+	arrow[5] = start + vector_scale( up, dist * 0.1 ) + vector_scale( forward, dist * -0.1 );
+	arrow[6] = end;
+	arrow[7] = start + vector_scale( up, dist * ( -1 * 0.1 ) ) + vector_scale( forward, dist * -0.1 );
+	arrow[8] = start;
+	r = color[0];
+	g = color[1];
+	b = color[2];
+	plot_points( arrow, r, g, b, duration );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDED4
+draw_arrow( start, end, color )
+{
+/#
+	level endon( "newpath" );
+	pts = [];
+	angles = vectortoangles( start - end );
+	right = anglestoright( angles );
+	forward = anglestoforward( angles );
+	dist = distance( start, end );
+	arrow = [];
+	arrow[0] = start;
+	arrow[1] = start + vector_scale( right, dist * 0.05 ) + vector_scale( forward, dist * -0.2 );
+	arrow[2] = end;
+	arrow[3] = start + vector_scale( right, dist * ( -1 * 0.05 ) ) + vector_scale( forward, dist * -0.2 );
+	p = 0;
+	nextpoint = p + 1;
+	nextpoint = 0;
+	line( arrow[p], arrow[nextpoint], color, 1 );
+	p++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDFC8
+battlechatter_off( team )
+{
+	maps\_dds::dds_disable( team );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xDFE0
+battlechatter_on( team )
+{
+	maps\_dds::dds_enable( team );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xDFF8
+dds_set_player_character_name( hero_name )
+{
+/#
+	println( "dds 'dds_set_player_character_name' function was not called on a player. No changes made." );
+#/
+	return;
+	switch ( hero_name )
+	{
+		case "hudson":
+		case "mason":
+		case "reznov":
+			level.dds.player_character_name = getsubstr( hero_name, 0, 3 );
+/#
+			println( "dds setting player name to '" + level.dds.player_character_name + "'" );
+#/
+			break;
+		default:
+/#
+			println( "dds: '" + hero_name + "' not a valid player name; setting to 'mason' (mas)" );
+#/
+			level.dds.player_character_name = "mas";
+			break;
+	}
+	self.dds_characterid = level.dds.player_character_name;
+// SP = 0x0 - check OK
+}
+
+// 0xE0BC
+dds_exclude_this_ai()
+{
+	self.dds_characterid = undefined;
+/#
+	println( "Tried to mark an entity for DDS removal that was not an AI or not alive." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE0F8
+get_links()
+{
+	return strtok( self.script_linkto, " " );
+// SP = 0x0 - check OK
+}
+
+// 0xE110
+get_linked_ents()
+{
+	array = [];
+	linknames = get_links();
+	i = 0;
+	ent = getent( linknames[i], "script_linkname" );
+	array[array.size] = ent;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0xE174
+get_linked_structs()
+{
+	array = [];
+	linknames = get_links();
+	i = 0;
+	ent = getstruct( linknames[i], "script_linkname" );
+	array[array.size] = ent;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0xE1D8
+get_last_ent_in_chain( sentitytype )
+{
+	epathpoint = self;
+	wait 0.05;
+	switch ( sentitytype )
+	{
+		case "ent":
+			epathpoint = getvehiclenode( epathpoint.target, "targetname" );
+			break;
+		case "pathnode":
+			epathpoint = getnode( epathpoint.target, "targetname" );
+			break;
+		case "vehiclenode":
+			epathpoint = getent( epathpoint.target, "targetname" );
+			break;
+		default:
+/#
+			assertmsg( "sEntityType needs to be 'vehiclenode', 'pathnode' or 'ent'" );
+#/
+	}
+	epathend = epathpoint;
+	return epathend;
+// SP = 0x0 - check OK
+}
+
+// 0xE29C
+set_forcegoal()
+{
+	return;
+	self.oldfightdist = self.pathenemyfightdist;
+	self.oldmaxdist = self.pathenemylookahead;
+	self.oldmaxsight = self.maxsightdistsqrd;
+	self.pathenemyfightdist = 8;
+	self.pathenemylookahead = 8;
+	self.maxsightdistsqrd = 1;
+	self.set_forcedgoal = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE2EC
+unset_forcegoal()
+{
+	return;
+	self.pathenemyfightdist = self.oldfightdist;
+	self.pathenemylookahead = self.oldmaxdist;
+	self.maxsightdistsqrd = self.oldmaxsight;
+	self.set_forcedgoal = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xE320
+array_removedead( array )
+{
+	newarray = [];
+	return undefined;
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xE390
+struct_arrayspawn()
+{
+	struct = spawnstruct();
+	struct.array = [];
+	struct.lastindex = 0;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0xE3B8
+structarray_add( struct, object )
+{
+/#
+	assert( !(IsDefined( object.struct_array_index )) );
+#/
+	struct.array[struct.lastindex] = object;
+	object.struct_array_index = struct.lastindex;
+	struct.lastindex++;
+// SP = 0x0 - check OK
+}
+
+// 0xE400
+structarray_remove( struct, object )
+{
+	structarray_swaptolast( struct, object );
+	struct.array[struct.lastindex - 1] = undefined;
+	struct.lastindex--;
+// SP = 0x0 - check OK
+}
+
+// 0xE434
+structarray_swaptolast( struct, object )
+{
+	struct structarray_swap( struct.array[struct.lastindex - 1], object );
+// SP = 0x0 - check OK
+}
+
+// 0xE460
+missionfailedwrapper( fail_hint, shader, iwidth, iheight, fdelay, x, y, b_count_as_death )
+{
+	b_count_as_death = 1;
+	return;
+	return;
+	return;
+	screen_message_delete();
+	setdvar( "ui_deadquote", fail_hint );
+	get_players()[0] thread maps\_load_common::special_death_indicator_hudelement( shader, iwidth, iheight, fdelay, x, y );
+	level.missionfailed = 1;
+	flag_set( "missionfailed" );
+	get_players()[0] inc_general_stat( "deaths" );
+	missionfailed();
+// SP = 0x0 - check OK
+}
+
+// 0xE524
+missionfailedwrapper_nodeath( fail_hint, shader, iwidth, iheight, fdelay, x, y )
+{
+	missionfailedwrapper( fail_hint, shader, iwidth, iheight, fdelay, x, y, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xE554
+nextmission()
+{
+	maps\_endmission::_nextmission();
+// SP = 0x0 - check OK
+}
+
+// 0xE564
+script_flag_wait()
+{
+	self flag_wait( self.script_flag_wait );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE588
+script_delay()
+{
+	wait self.script_delay;
+	return 1;
+	wait randomfloatrange( self.script_delay_min, self.script_delay_max );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE5CC
+script_wait( called_from_spawner )
+{
+	called_from_spawner = 0;
+	coop_scalar = 1;
+	players = get_players();
+	coop_scalar = 0.7;
+	coop_scalar = 0.4;
+	coop_scalar = 0.1;
+	starttime = GetTime();
+	wait self.script_wait * coop_scalar;
+	self.script_wait += self.script_wait_add;
+	wait randomfloatrange( self.script_wait_min, self.script_wait_max ) * coop_scalar;
+	self.script_wait_min += self.script_wait_add;
+	self.script_wait_max += self.script_wait_add;
+	return GetTime() - starttime;
+// SP = 0x0 - check OK
+}
+
+// 0xE6C0
+enter_vehicle( vehicle, tag )
+{
+	self maps\_vehicle_aianim::vehicle_enter( vehicle, tag );
+// SP = 0x0 - check OK
+}
+
+// 0xE6DC
+guy_array_enter_vehicle( guy, vehicle )
+{
+	maps\_vehicle_aianim::guy_array_enter( guy, vehicle );
+// SP = 0x0 - check OK
+}
+
+// 0xE6F8
+run_to_vehicle_load( vehicle, bgoddriver, seat_tag )
+{
+	self maps\_vehicle_aianim::run_to_vehicle( vehicle, bgoddriver, seat_tag );
+// SP = 0x0 - check OK
+}
+
+// 0xE718
+vehicle_unload( delay )
+{
+	self maps\_vehicle::do_unload( delay );
+// SP = 0x0 - check OK
+}
+
+// 0xE730
+vehicle_override_anim( action, tag, animation )
+{
+	self maps\_vehicle_aianim::override_anim( action, tag, animation );
+// SP = 0x0 - check OK
+}
+
+// 0xE750
+set_wait_for_players( seat_tag, player_array )
+{
+	vehicleanim = level.vehicle_aianims[self.vehicletype];
+	i = 0;
+	vehicleanim[i].wait_for_player = [];
+	j = 0;
+	vehicleanim[i].wait_for_player[j] = player_array[j];
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xE7C8
+set_wait_for_notify( seat_tag, custom_notify )
+{
+	vehicleanim = level.vehicle_aianims[self.vehicletype];
+	i = 0;
+	vehicleanim[i].wait_for_notify = custom_notify;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xE818
+is_on_vehicle( vehicle )
+{
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE85C
+get_force_color_guys( team, color )
+{
+	ai = getaiarray( team );
+	guys = [];
+	i = 0;
+	guy = ai[i];
+	guys[guys.size] = guy;
+	i++;
+	return guys;
+// SP = 0x0 - check OK
+}
+
+// 0xE8C8
+get_all_force_color_friendlies()
+{
+	ai = getaiarray( "allies" );
+	guys = [];
+	i = 0;
+	guy = ai[i];
+	guys[guys.size] = guy;
+	i++;
+	return guys;
+// SP = 0x0 - check OK
+}
+
+// 0xE920
+enable_ai_color()
+{
+	return;
+	return;
+	set_force_color( self.old_forcecolor );
+	self.old_forcecolor = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xE94C
+disable_ai_color( stop_being_careful )
+{
+	self endon( "death" );
+	self waittill( "done_setting_new_color" );
+	self notify( "stop_going_to_node" );
+	self notify( "stop_being_careful" );
+	self clearfixednodesafevolume();
+	return;
+/#
+	assert( !(IsDefined( self.old_forcecolor )), "Tried to disable forcecolor on a guy that somehow had a old_forcecolor already. Investigate!!!" );
+#/
+	self.old_forcecolor = self.script_forcecolor;
+	arrayremovevalue( level.arrays_of_colorforced_ai[self.team][self.script_forcecolor], self );
+	maps\_colors::left_color_node();
+	self.script_forcecolor = undefined;
+	self.currentcolorcode = undefined;
+/#
+	update_debug_friendlycolor( self.ai_number );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE9F8
+clear_force_color()
+{
+	disable_ai_color();
+// SP = 0x0 - check OK
+}
+
+// 0xEA08
+check_force_color( _color )
+{
+	color = level.colorchecklist[tolower( _color )];
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xEA40
+get_force_color()
+{
+	color = self.script_forcecolor;
+	return color;
+// SP = 0x0 - check OK
+}
+
+// 0xEA54
+shortencolor( color )
+{
+/#
+	assert( IsDefined( level.colorchecklist[tolower( color )] ), "Tried to set force color on an undefined color: " + color );
+#/
+	return level.colorchecklist[tolower( color )];
+// SP = 0x0 - check OK
+}
+
+// 0xEA90
+set_force_color( _color )
+{
+	color = shortencolor( _color );
+/#
+	assert( maps\_colors::colorislegit( color ), "Tried to set force color on an undefined color: " + color );
+#/
+	set_force_color_spawner( color );
+	return;
+/#
+	assert( isalive( self ), "Tried to set force color on a dead / undefined entity." );
+#/
+	self.fixednode = 1;
+	self.fixednodesaferadius = 64;
+	self.pathenemyfightdist = 0;
+	self.pathenemylookahead = 0;
+	self.script_color_axis = undefined;
+	self.script_color_allies = undefined;
+	self.old_forcecolor = undefined;
+	arrayremovevalue( level.arrays_of_colorforced_ai[self.team][self.script_forcecolor], self );
+	self.script_forcecolor = color;
+	level.arrays_of_colorforced_ai[self.team][self.script_forcecolor][level.arrays_of_colorforced_ai[self.team][self.script_forcecolor].size] = self;
+	thread new_color_being_set( color );
+// SP = 0x0 - check OK
+}
+
+// 0xEB88
+set_force_color_spawner( color )
+{
+	self.script_forcecolor = color;
+	self.old_forcecolor = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xEBA0
+disable_replace_on_death()
+{
+	self.replace_on_death = undefined;
+	self notify( "_disable_reinforcement" );
+// SP = 0x0 - check OK
+}
+
+// 0xEBB4
+createloopeffect( fxid )
+{
+	ent = maps\_createfx::createeffect( "loopfx", fxid );
+	ent.v["delay"] = 0.5;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xEBE4
+createoneshoteffect( fxid )
+{
+	ent = maps\_createfx::createeffect( "oneshotfx", fxid );
+	ent.v["delay"] = -15;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xEC10
+reportexploderids()
+{
+	return;
+	keys = getarraykeys( level._exploder_ids );
+/#
+	println( "Server Exploder dictionary : " );
+	i = 0;
+	println( keys[i] + " : " + level._exploder_ids[keys[i]] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEC78
+getexploderid( ent )
+{
+	level._exploder_ids = [];
+	level._exploder_id = 1;
+	level._exploder_ids[ent.v["exploder"]] = level._exploder_id;
+	level._exploder_id++;
+	return level._exploder_ids[ent.v["exploder"]];
+// SP = 0x0 - check OK
+}
+
+// 0xECD8
+createexploder( fxid )
+{
+	ent = maps\_createfx::createeffect( "exploder", fxid );
+	ent.v["delay"] = 0;
+	ent.v["exploder"] = 1;
+	ent.v["exploder_type"] = "normal";
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0xED24
+vehicle_detachfrompath()
+{
+	maps\_vehicle::vehicle_pathdetach();
+// SP = 0x0 - check OK
+}
+
+// 0xED34
+vehicle_resumepath()
+{
+	thread maps\_vehicle::vehicle_resumepathvehicle();
+// SP = 0x0 - check OK
+}
+
+// 0xED44
+vehicle_land()
+{
+	maps\_vehicle::vehicle_landvehicle();
+// SP = 0x0 - check OK
+}
+
+// 0xED54
+vehicle_liftoff( height )
+{
+	maps\_vehicle::vehicle_liftoffvehicle( height );
+// SP = 0x0 - check OK
+}
+
+// 0xED6C
+add_skipto( msg, func, loc_string, optional_func )
+{
+	maps\_skipto::add_skipto_assert();
+	msg = tolower( msg );
+	array = maps\_skipto::add_skipto_construct( msg, func, loc_string, optional_func );
+/#
+	assert( IsDefined( func ), "add_skipto() called with no func parameter.." );
+#/
+	level.skipto_functions[level.skipto_functions.size] = array;
+	level.skipto_arrays[msg] = array;
+// SP = 0x0 - check OK
+}
+
+// 0xEDDC
+set_skipto_cleanup_func( func )
+{
+	level.func_skipto_cleanup = func;
+// SP = 0x0 - check OK
+}
+
+// 0xEDEC
+default_skipto( skipto )
+{
+	level.default_skipto = skipto;
+// SP = 0x0 - check OK
+}
+
+// 0xEDFC
+skipto_teleport( skipto_name, friendly_ai, coop_sort )
+{
+	skipto_teleport_ai( skipto_name, friendly_ai );
+	skipto_teleport_players( skipto_name, coop_sort );
+// SP = 0x0 - check OK
+}
+
+// 0xEE24
+skipto_teleport_ai( skipto_name, friendly_ai )
+{
+	friendly_ai = level.heroes;
+	friendly_ai = getaiarray( "allies" );
+	friendly_ai = get_ai_array( friendly_ai, "script_noteworthy" );
+	friendly_ai = array( friendly_ai );
+	a_skipto_structs = getstructarray( skipto_name + "_ai", "targetname" );
+	return;
+/#
+	assert( a_skipto_structs.size >= friendly_ai.size, "Need more start positions for ai for " + skipto_name + "!  Tried to teleport " + friendly_ai.size + " AI to only " + a_skipto_structs.size + " structs" );
+#/
+	i = 0;
+	start_i = 0;
+	j = 0;
+	start_i = j;
+	j++;
+	friendly_ai[i] skipto_teleport_single_ai( a_skipto_structs[start_i] );
+	arrayremovevalue( a_skipto_structs, a_skipto_structs[start_i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xEF70
+skipto_teleport_single_ai( ai_skipto_spot )
+{
+	self forceteleport( ai_skipto_spot.origin, ai_skipto_spot.angles );
+	self forceteleport( ai_skipto_spot.origin );
+	node = getnode( ai_skipto_spot.target, "targetname" );
+	self setgoalnode( node );
+	return;
+	self setgoalpos( ai_skipto_spot.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xEFF8
+skipto_teleport_players( skipto_name, coop_sort )
+{
+	wait_for_first_player();
+	players = get_players();
+	skipto_spots = get_sorted_skipto_spots( skipto_name );
+	skipto_spots = getstructarray( skipto_name, "targetname" );
+/#
+	assert( skipto_spots.size >= players.size, "Need more skipto positions for players!" );
+#/
+	i = 0;
+	players[i] setorigin( skipto_spots[i].origin );
+	players[i] setplayerangles( skipto_spots[i].angles );
+	i++;
+	set_breadcrumbs( skipto_spots );
+// SP = 0x0 - check OK
+}
+
+// 0xF0C0
+get_sorted_skipto_spots( skipto_name )
+{
+	player_skipto_spots = getstructarray( skipto_name, "targetname" );
+	i = 0;
+	j = i;
+/#
+	assert( IsDefined( player_skipto_spots[j].script_int ), "player skipto struct at: " + player_skipto_spots[j].origin + " must have a script_int set for coop spawning" );
+#/
+/#
+	assert( IsDefined( player_skipto_spots[i].script_int ), "player skipto struct at: " + player_skipto_spots[i].origin + " must have a script_int set for coop spawning" );
+#/
+	temp = player_skipto_spots[i];
+	player_skipto_spots[i] = player_skipto_spots[j];
+	player_skipto_spots[j] = temp;
+	j++;
+	i++;
+	return player_skipto_spots;
+// SP = 0x0 - check OK
+}
+
+// 0xF190
+within_fov( start_origin, start_angles, end_origin, fov )
+{
+	normal = vectornormalize( end_origin - start_origin );
+	forward = anglestoforward( start_angles );
+	dot = vectordot( forward, normal );
+	return dot >= fov;
+// SP = 0x0 - check OK
+}
+
+// 0xF1D0
+wait_for_buffer_time_to_pass( last_queue_time, buffer_time )
+{
+	timer = buffer_time * 1000 - ( GetTime() - last_queue_time );
+	timer *= 0.001;
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0xF204
+string( val )
+{
+	return "" + val;
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0xF224
+clear_threatbias( group1, group2 )
+{
+	setthreatbias( group1, group2, 0 );
+	setthreatbias( group2, group1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xF250
+add_global_spawn_function( team, function, param1, param2, param3 )
+{
+/#
+	assert( IsDefined( level.spawn_funcs ), "Tried to add_global_spawn_function before calling _load" );
+#/
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	level.spawn_funcs[team][level.spawn_funcs[team].size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0xF2B8
+add_global_drone_spawn_function( team, function, param1, param2, param3 )
+{
+	level.spawn_funcs_drones = [];
+	level.spawn_funcs_drones["axis"] = [];
+	level.spawn_funcs_drones["allies"] = [];
+	level.spawn_funcs_drones["neutral"] = [];
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	level.spawn_funcs_drones[team][level.spawn_funcs_drones[team].size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0xF360
+remove_global_spawn_function( team, function )
+{
+/#
+	assert( IsDefined( level.spawn_funcs ), "Tried to remove_global_spawn_function before calling _load" );
+#/
+	array = [];
+	i = 0;
+	array[array.size] = level.spawn_funcs[team][i];
+	i++;
+/#
+	assert( level.spawn_funcs[team].size != array.size, "Tried to remove a function from level.spawn_funcs, but that function didn't exist!" );
+#/
+	level.spawn_funcs[team] = array;
+// SP = 0x0 - check OK
+}
+
+// 0xF3F4
+add_spawn_function( function, param1, param2, param3, param4, param5 )
+{
+/#
+	assert( !(isalive( self )), "Tried to add_spawn_function to a living guy." );
+#/
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	func["param4"] = param4;
+	func["param5"] = param5;
+	self.spawn_funcs = [];
+	self.spawn_funcs[self.spawn_funcs.size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0xF48C
+add_spawn_function_veh( veh_targetname, function, param1, param2, param3, param4 )
+{
+/#
+	println( "Tried to add_spawn_function_veh to vehicle spawners named *" + veh_targetname + "* but none were found" );
+#/
+	return;
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	func["param4"] = param4;
+	foreach ( a_spawners in level.vehicle_spawners )
+	{
+		foreach ( spawner in a_spawners )
+		{
+			spawner.spawn_funcs = [];
+			spawner.spawn_funcs[spawner.spawn_funcs.size] = func;
+		}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xF59C
+add_spawn_function_veh_by_type( veh_type, function, param1, param2, param3, param4 )
+{
+/#
+	assert( IsDefined( level.vehicle_spawners ), "Tried to add_spawn_function_veh_by_type before vehicle spawners were inited" );
+#/
+	func = [];
+	func["function"] = function;
+	func["param1"] = param1;
+	func["param2"] = param2;
+	func["param3"] = param3;
+	func["param4"] = param4;
+	foreach ( a_spawners in level.vehicle_spawners )
+	{
+		foreach ( spawner in a_spawners )
+		{
+			spawner.spawn_funcs = [];
+			spawner.spawn_funcs[spawner.spawn_funcs.size] = func;
+		}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xF694
+get_vehicle_spawner_array( str_value, str_key )
+{
+	str_key = "targetname";
+/#
+	assert( IsDefined( str_value ), "Missing <str_value> argument to get_vehicle_spawner_array()" );
+#/
+	str_value += "_vehiclespawner";
+	a_spawners = get_struct_array( str_value, str_key );
+	return a_spawners;
+// SP = 0x0 - check OK
+}
+
+// 0xF6E8
+get_vehicle_spawner( str_value, str_key )
+{
+	str_key = "targetname";
+/#
+	assert( IsDefined( str_value ), "Missing <str_value> argument to get_vehicle_spawner()" );
+#/
+	str_value += "_vehiclespawner";
+	a_spawners = get_struct_array( str_value, str_key );
+/#
+	assert( a_spawners.size < 2, "More than one vehicle spawner found with kvp '" + str_key + "/" + str_value );
+#/
+	return a_spawners[0];
+// SP = 0x0 - check OK
+}
+
+// 0xF75C
+get_vehicle_array( str_value, str_key )
+{
+	str_key = "targetname";
+	a_all_vehicles = getvehiclearray();
+	a_veh = [];
+	foreach ( veh in a_all_vehicles )
+	{
+		switch ( str_key )
+		{
+			case "model":
+				a_veh[a_veh.size] = veh;
+				break;
+			case "script_noteworthy":
+				a_veh[a_veh.size] = veh;
+				break;
+			case "script_string":
+				a_veh[a_veh.size] = veh;
+				break;
+			case "targetname":
+				a_veh[a_veh.size] = veh;
+				break;
+		}
+	}
+	return a_veh;
+	return a_all_vehicles;
+// SP = 0x0 - check OK
+}
+
+// 0xF8E0
+ignore_triggers( timer )
+{
+	self endon( "death" );
+	self.ignoretriggers = 1;
+	wait timer;
+	wait 0.5;
+	self.ignoretriggers = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF910
+is_hero()
+{
+	return IsDefined( level.hero_list[get_ai_number()] );
+// SP = 0x0 - check OK
+}
+
+// 0xF924
+get_ai_number()
+{
+	set_ai_number();
+	return self.ai_number;
+// SP = 0x0 - check OK
+}
+
+// 0xF944
+set_ai_number()
+{
+	level.ai_number = 0;
+	self.ai_number = level.ai_number;
+	level.ai_number++;
+// SP = 0x0 - check OK
+}
+
+// 0xF96C
+make_hero( ent )
+{
+	ent = self;
+	ent magic_bullet_shield();
+	level.hero_list[ent.ai_number] = ent;
+	ent thread unmake_hero_on_death();
+// SP = 0x0 - check OK
+}
+
+// 0xF9B8
+unmake_hero_on_death()
+{
+	self waittill( "death" );
+	level.hero_list[self.ai_number] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xF9D0
+unmake_hero( ent )
+{
+	ent = self;
+	ent stop_magic_bullet_shield();
+	level.hero_list[ent.ai_number] = undefined;
+	ent.ikpriority = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xFA04
+get_heroes()
+{
+	return level.hero_list;
+// SP = 0x0 - check OK
+}
+
+// 0xFA10
+replace_on_death()
+{
+	maps\_colors::colornode_replace_on_death();
+// SP = 0x0 - check OK
+}
+
+// 0xFA20
+remove_dead_from_array( array )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFA6C
+remove_heroes_from_array( array )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFAB8
+remove_all_animnamed_guys_from_array( array )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFB00
+remove_color_from_array( array, color )
+{
+	newarray = [];
+	i = 0;
+	guy = array[i];
+	newarray[newarray.size] = guy;
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFB5C
+remove_noteworthy_from_array( array, noteworthy )
+{
+	newarray = [];
+	i = 0;
+	guy = array[i];
+	newarray[newarray.size] = guy;
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFBB4
+remove_without_classname( array, classname )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFC08
+remove_without_model( array, model )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0xFC5C
+wait_for_either_trigger( str_targetname1, str_targetname2 )
+{
+	ent = spawnstruct();
+	array = [];
+	array = arraycombine( array, getentarray( str_targetname1, "targetname" ), 1, 0 );
+	array = arraycombine( array, getentarray( str_targetname2, "targetname" ), 1, 0 );
+	i = 0;
+	ent thread ent_waits_for_trigger( array[i] );
+	i++;
+	ent waittill( "done", t_hit );
+	return t_hit;
+// SP = 0x0 - check OK
+}
+
+// 0xFCEC
+get_trigger_flag( flag_name_override )
+{
+	return flag_name_override;
+	return self.script_flag;
+	return self.script_noteworthy;
+/#
+	assert( 0, "Flag trigger at " + self.origin + " has no script_flag set." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xFD34
+is_spawner( ent )
+{
+	b_spawner = 0;
+	b_spawner = ent has_spawnflag( 2 );
+	b_spawner = isspawner( ent );
+	return b_spawner;
+// SP = 0x0 - check OK
+}
+
+// 0xFD80
+set_default_pathenemy_settings()
+{
+	self.pathenemylookahead = 192;
+	self.pathenemyfightdist = 192;
+// SP = 0x0 - check OK
+}
+
+// 0xFD98
+enable_heat()
+{
+	self thread animscripts\anims_table::setup_heat_anim_array();
+// SP = 0x0 - check OK
+}
+
+// 0xFDAC
+disable_heat()
+{
+	self thread animscripts\anims_table::reset_heat_anim_array();
+// SP = 0x0 - check OK
+}
+
+// 0xFDC0
+enable_cqb()
+{
+	return;
+	self.cqb = 1;
+	level thread animscripts\cqb::findcqbpointsofinterest();
+	self thread animscripts\anims_table_cqb::setup_cqb_anim_array();
+/#
+	self thread animscripts\cqb::cqbdebug();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xFE04
+disable_cqb()
+{
+	return;
+	self.cqb = 0;
+	self.cqb_point_of_interest = undefined;
+	self thread animscripts\anims_table_cqb::reset_cqb_anim_array();
+/#
+	self notify( "end_cqb_debug" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xFE64
+set_cqb_run_anim( runanim, walkanim, sprintanim )
+{
+	self thread animscripts\anims_table_cqb::set_cqb_run_anim( runanim, walkanim, sprintanim );
+// SP = 0x0 - check OK
+}
+
+// 0xFE84
+clear_cqb_run_anim()
+{
+	self thread animscripts\anims_table_cqb::clear_cqb_run_anim();
+// SP = 0x0 - check OK
+}
+
+// 0xFE98
+change_movemode( movemode )
+{
+	self notify( "change_movemode", movemode );
+	movemode = "run";
+	self maps\ai_subclass\_subclass_elite::disable_elite();
+	enable_cqb();
+	disable_cqb();
+	switch ( movemode )
+	{
+		case "cqb":
+		case "cqb_run":
+		case "cqb_sprint":
+			self.sprint = 0;
+			self.walk = 0;
+			break;
+		case "cqb_walk":
+		case "default":
+			self.sprint = 0;
+			self.walk = 1;
+			break;
+		case "run":
+		case "sprint":
+			self.sprint = 1;
+			self.walk = 0;
+			break;
+		case "walk":
+/#
+			assertmsg( "Unsupported move mode." );
+#/
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xFF98
+reset_movemode()
+{
+	disable_cqb();
+	maps\ai_subclass\_subclass_elite::enable_elite();
+	self.sprint = 0;
+	self.walk = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xFFD0
+disable_tactical_walk()
+{
+/#
+	assert( isai( self ), "Tried to disable_tactical_walk but it wasn't called on an AI" );
+#/
+	self.old_maxfaceenemydist = self.maxfaceenemydist;
+	self.maxfaceenemydist = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x10000
+enable_tactical_walk()
+{
+/#
+	assert( isai( self ), "Tried to enable_tactical_walk but it wasn't called on an AI" );
+#/
+	self.maxfaceenemydist = self.old_maxfaceenemydist;
+	self.maxfaceenemydist = anim.moveglobals.code_face_enemy_dist;
+// SP = 0x0 - check OK
+}
+
+// 0x10040
+cqb_aim( the_target )
+{
+	self.cqb_target = undefined;
+	self.cqb_target = the_target;
+/#
+	assertmsg( "target passed into cqb_aim does not have an origin!" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1007C
+waittill_notify_or_timeout( msg, timer )
+{
+	self endon( msg );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0x10090
+waittill_any_or_timeout( timer, string1, string2, string3, string4, string5 )
+{
+/#
+	assert( IsDefined( string1 ) );
+#/
+	self endon( string1 );
+	self endon( string2 );
+	self endon( string3 );
+	self endon( string4 );
+	self endon( string5 );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0x100E4
+getfx( fx )
+{
+/#
+	assert( IsDefined( level._effect[fx] ), "Fx " + fx + " is not defined in level._effect." );
+#/
+	return level._effect[fx];
+// SP = 0x0 - check OK
+}
+
+// 0x10118
+play_fx( str_fx, v_origin, v_angles, time_to_delete_or_notify, b_link_to_self, str_tag, b_no_cull )
+{
+	playfxontag( getfx( str_fx ), self, str_tag );
+	return self;
+	m_fx = spawn_model( "tag_origin", v_origin, v_angles );
+	m_fx linkto( self, str_tag, ( 0, 0, 0 ), ( 0, 0, 0 ) );
+	m_fx linkto( self );
+	m_fx setforcenocull();
+	playfxontag( getfx( str_fx ), m_fx, "tag_origin" );
+	m_fx thread _play_fx_delete( self, time_to_delete_or_notify );
+	return m_fx;
+// SP = 0x0 - check OK
+}
+
+// 0x1020C
+_play_fx_delete( ent, time_to_delete_or_notify )
+{
+	time_to_delete_or_notify = -1;
+	ent waittill_either( "death", time_to_delete_or_notify );
+	ent waittill_notify_or_timeout( "death", time_to_delete_or_notify );
+	ent waittill( "death" );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1027C
+getanim( anime )
+{
+/#
+	assert( IsDefined( self.animname ), "Called getanim on a guy with no animname" );
+#/
+/#
+	assert( IsDefined( level.scr_anim[self.animname][anime] ), "Called getanim on an inexistent anim.  Animname:" + self.animname + ".  Animname:" + anime );
+#/
+	return level.scr_anim[self.animname][anime];
+// SP = 0x0 - check OK
+}
+
+// 0x102D0
+getanim_from_animname( anime, animname )
+{
+/#
+	assert( IsDefined( animname ), "Must supply an animname" );
+#/
+/#
+	assert( IsDefined( level.scr_anim[animname][anime] ), "Called getanim on an inexistent anim" );
+#/
+	return level.scr_anim[animname][anime];
+// SP = 0x0 - check OK
+}
+
+// 0x10318
+getanim_generic( anime )
+{
+/#
+	assert( IsDefined( level.scr_anim["generic"][anime] ), "Called getanim_generic on an inexistent anim" );
+#/
+	return level.scr_anim["generic"][anime];
+// SP = 0x0 - check OK
+}
+
+// 0x1034C
+add_hint_string( name, string, optionalfunc )
+{
+/#
+	assert( IsDefined( level.trigger_hint_string ), "Tried to add a hint string before _load was called." );
+#/
+/#
+	assert( IsDefined( name ), "Set a name for the hint string. This should be the same as the script_hint on the trigger_hint." );
+#/
+/#
+	assert( IsDefined( string ), "Set a string for the hint string. This is the string you want to appear when the trigger is hit." );
+#/
+	level.trigger_hint_string[name] = string;
+	precachestring( string );
+	level.trigger_hint_func[name] = optionalfunc;
+// SP = 0x0 - check OK
+}
+
+// 0x103C0
+throwgrenadeatenemyasap( atenemy )
+{
+	animscripts\combat_utility::throwgrenadeatenemyasap_combat_utility( self.enemy );
+	animscripts\combat_utility::throwgrenadeatenemyasap_combat_utility();
+// SP = 0x0 - check OK
+}
+
+// 0x10400
+switch_weapon_asap()
+{
+/#
+	assert( isai( self ), "Can only call this function on an AI character" );
+#/
+	self.a.weapon_switch_asap = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10444
+sg_precachemodel( model )
+{
+	script_gen_dump_addline( "precachemodel( \"" + model + "\" );", "xmodel_" + model );
+// SP = 0x0 - check OK
+}
+
+// 0x10468
+sg_precacheitem( item )
+{
+	script_gen_dump_addline( "precacheitem( \"" + item + "\" );", "item_" + item );
+// SP = 0x0 - check OK
+}
+
+// 0x1048C
+sg_precachemenu( menu )
+{
+	script_gen_dump_addline( "precachemenu( \"" + menu + "\" );", "menu_" + menu );
+// SP = 0x0 - check OK
+}
+
+// 0x104B0
+sg_precacherumble( rumble )
+{
+	script_gen_dump_addline( "precacherumble( \"" + rumble + "\" );", "rumble_" + rumble );
+// SP = 0x0 - check OK
+}
+
+// 0x104D4
+sg_precacheshader( shader )
+{
+	script_gen_dump_addline( "precacheshader( \"" + shader + "\" );", "shader_" + shader );
+// SP = 0x0 - check OK
+}
+
+// 0x104F8
+sg_precacheshellshock( shock )
+{
+	script_gen_dump_addline( "precacheshellshock( \"" + shock + "\" );", "shock_" + shock );
+// SP = 0x0 - check OK
+}
+
+// 0x1051C
+sg_precachestring( string )
+{
+	script_gen_dump_addline( "precachestring( \"" + string + "\" );", "string_" + string );
+// SP = 0x0 - check OK
+}
+
+// 0x10540
+sg_precacheturret( turret )
+{
+	script_gen_dump_addline( "precacheturret( \"" + turret + "\" );", "turret_" + turret );
+// SP = 0x0 - check OK
+}
+
+// 0x10564
+sg_precachevehicle( vehicle )
+{
+	script_gen_dump_addline( "precachevehicle( \"" + vehicle + "\" );", "vehicle_" + vehicle );
+// SP = 0x0 - check OK
+}
+
+// 0x10588
+sg_getanim( animation )
+{
+	return level.sg_anim[animation];
+// SP = 0x0 - check OK
+}
+
+// 0x10598
+sg_getanimtree( animtree )
+{
+	return level.sg_animtree[animtree];
+// SP = 0x0 - check OK
+}
+
+// 0x105A8
+sg_precacheanim( animation, animtree )
+{
+	animtree = "generic_human";
+	sg_csv_addtype( "xanim", animation );
+	level.sg_precacheanims = [];
+	level.sg_precacheanims[animtree] = [];
+	level.sg_precacheanims[animtree][animation] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10604
+sg_getfx( fx )
+{
+	return level.sg_effect[fx];
+// SP = 0x0 - check OK
+}
+
+// 0x10614
+sg_precachefx( fx )
+{
+	script_gen_dump_addline( "level.sg_effect[ \"" + fx + "\" ] = loadfx( \"" + fx + "\" );", "fx_" + fx );
+// SP = 0x0 - check OK
+}
+
+// 0x10640
+sg_wait_dump()
+{
+	flag_wait( "scriptgen_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x10654
+sg_standard_includes()
+{
+	sg_csv_addtype( "ignore", "code_post_gfx" );
+	sg_csv_addtype( "ignore", "common" );
+	sg_csv_addtype( "col_map_sp", "maps/" + tolower( GetDvar( #"0xB4B895C4" ) ) + ".d3dbsp" );
+	sg_csv_addtype( "gfx_map", "maps/" + tolower( GetDvar( #"0xB4B895C4" ) ) + ".d3dbsp" );
+	sg_csv_addtype( "rawfile", "maps/" + tolower( GetDvar( #"0xB4B895C4" ) ) + ".gsc" );
+	sg_csv_addtype( "rawfile", "maps / scriptgen/" + tolower( GetDvar( #"0xB4B895C4" ) ) + "_scriptgen.gsc" );
+	sg_csv_soundadd( "us_battlechatter", "all_sp" );
+	sg_csv_soundadd( "ab_battlechatter", "all_sp" );
+	sg_csv_soundadd( "voiceovers", "all_sp" );
+	sg_csv_soundadd( "common", "all_sp" );
+	sg_csv_soundadd( "generic", "all_sp" );
+	sg_csv_soundadd( "requests", "all_sp" );
+// SP = 0x0 - check OK
+}
+
+// 0x1076C
+sg_csv_soundadd( type, loadspec )
+{
+	script_gen_dump_addline( "nowrite Sound CSV entry: " + type, "sound_" + type + ", " + tolower( GetDvar( #"0xB4B895C4" ) ) + ", " + loadspec );
+// SP = 0x0 - check OK
+}
+
+// 0x107AC
+sg_csv_addtype( type, string )
+{
+	script_gen_dump_addline( "nowrite CSV entry: " + type + ", " + string, type + "_" + string );
+// SP = 0x0 - check OK
+}
+
+// 0x107D8
+set_ignoresuppression( val )
+{
+	self.ignoresuppression = val;
+// SP = 0x0 - check OK
+}
+
+// 0x107E8
+set_goalradius( radius )
+{
+	self.goalradius = radius;
+// SP = 0x0 - check OK
+}
+
+// 0x107F8
+set_allowdeath( val )
+{
+	self.allowdeath = val;
+// SP = 0x0 - check OK
+}
+
+// 0x10808
+set_run_anim( anime, alwaysrunforward )
+{
+/#
+	assert( IsDefined( anime ), "Tried to set run anim but didn't specify which animation to ues" );
+#/
+/#
+	assert( IsDefined( self.animname ), "Tried to set run anim on a guy that had no anim name" );
+#/
+/#
+	assert( IsDefined( level.scr_anim[self.animname][anime] ), "Tried to set run anim but the anim was not defined in the maps _anim file" );
+#/
+	self.alwaysrunforward = alwaysrunforward;
+	self.alwaysrunforward = 1;
+	self.a.combatrunanim = level.scr_anim[self.animname][anime];
+	self.run_noncombatanim = self.a.combatrunanim;
+	self.walk_combatanim = self.a.combatrunanim;
+	self.walk_noncombatanim = self.a.combatrunanim;
+	self.precombatrunenabled = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x108B4
+set_generic_run_anim( anime, alwaysrunforward )
+{
+/#
+	assert( IsDefined( anime ), "Tried to set generic run anim but didn't specify which animation to ues" );
+#/
+/#
+	assert( IsDefined( level.scr_anim["generic"][anime] ), "Tried to set generic run anim but the anim was not defined in the maps _anim file" );
+#/
+	self.alwaysrunforward = alwaysrunforward;
+	self.alwaysrunforward = undefined;
+	self.alwaysrunforward = 1;
+	self.a.combatrunanim = level.scr_anim["generic"][anime];
+	self.run_noncombatanim = self.a.combatrunanim;
+	self.walk_combatanim = self.a.combatrunanim;
+	self.walk_noncombatanim = self.a.combatrunanim;
+	self.precombatrunenabled = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x10958
+clear_run_anim()
+{
+	self.alwaysrunforward = undefined;
+	self.a.combatrunanim = undefined;
+	self.run_noncombatanim = undefined;
+	self.walk_combatanim = undefined;
+	self.walk_noncombatanim = undefined;
+	self.precombatrunenabled = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10980
+physicsjolt_proximity( outer_radius, inner_radius, force )
+{
+	self endon( "death" );
+	self endon( "stop_physicsjolt" );
+	outer_radius = 400;
+	inner_radius = 256;
+	force = vector_scale( ( 0, 0, 1 ), 0.075 );
+	fade_distance = outer_radius * outer_radius;
+	base_force = force;
+	wait 0.1;
+	force = base_force;
+	speed = self getspeedmph();
+	scale = speed / 3;
+	force = vector_scale( base_force, scale );
+	dist = distancesquared( self.origin, get_players()[0].origin );
+	scale = fade_distance / dist;
+	scale = 1;
+	force = vector_scale( force, scale );
+	total_force = force[0] + force[1] + force[2];
+// SP = 0x0 - check OK
+}
+
+// 0x10A80
+activate_trigger()
+{
+/#
+	assert( !(IsDefined( self.trigger_off )), "Tried to activate trigger that is OFF( either from trigger_off or from flags set on it through shift - G menu" );
+#/
+	self.activated_color_trigger = 1;
+	maps\_colors::activate_color_trigger( "allies" );
+	self.activated_color_trigger = 1;
+	maps\_colors::activate_color_trigger( "axis" );
+	self notify( "trigger" );
+// SP = 0x0 - check OK
+}
+
+// 0x10ADC
+self_delete()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x10AF4
+has_color()
+{
+	return IsDefined( self.script_forcecolor );
+	return IsDefined( self.script_forcecolor );
+// SP = 0x0 - check OK
+}
+
+// 0x10B24
+get_script_palette()
+{
+	rgb = [];
+	rgb["r"] = ( 1, 0, 0 );
+	rgb["o"] = ( 1, 0.5, 0 );
+	rgb["y"] = ( 1, 1, 0 );
+	rgb["g"] = ( 0, 1, 0 );
+	rgb["c"] = ( 0, 1, 1 );
+	rgb["b"] = ( 0, 0, 1 );
+	rgb["p"] = ( 1, 0, 1 );
+	return rgb;
+// SP = 0x0 - check OK
+}
+
+// 0x10B84
+notify_delay( snotifystring, fdelay )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( snotifystring ) );
+#/
+/#
+	assert( IsDefined( fdelay ) );
+#/
+	self endon( "death" );
+	wait fdelay;
+	return;
+	self notify( snotifystring );
+// SP = 0x0 - check OK
+}
+
+// 0x10BDC
+notify_delay_with_ender( snotifystring, fdelay, ender )
+{
+	level endon( ender );
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( snotifystring ) );
+#/
+/#
+	assert( IsDefined( fdelay ) );
+#/
+	self endon( "death" );
+	wait fdelay;
+	return;
+	self notify( snotifystring );
+// SP = 0x0 - check OK
+}
+
+// 0x10C40
+gun_remove()
+{
+	self animscripts\shared::placeweaponon( self.weapon, "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x10C5C
+gun_switchto( weaponname, whichhand )
+{
+	self animscripts\shared::placeweaponon( weaponname, whichhand );
+// SP = 0x0 - check OK
+}
+
+// 0x10C78
+gun_recall()
+{
+	self animscripts\shared::placeweaponon( self.primaryweapon, "right" );
+// SP = 0x0 - check OK
+}
+
+// 0x10C94
+custom_ai_weapon_loadout( primary, secondary, sidearm )
+{
+	self animscripts\shared::detachallweaponmodels();
+	self animscripts\shared::detachweapon( self.primaryweapon );
+	self animscripts\shared::detachweapon( self.secondaryweapon );
+	self animscripts\shared::detachweapon( self.sidearm );
+	self setprimaryweapon( "" );
+	self setsecondaryweapon( "" );
+	self.sidearm = "";
+	self setprimaryweapon( primary );
+	self animscripts\init::initweapon( self.primaryweapon );
+	self animscripts\shared::placeweaponon( self.primaryweapon, "right" );
+/#
+	assert( 0, "custom_ai_weapon_loadout: primary weapon " + primary + " is not in a csv or isn't precached" );
+#/
+	self setsecondaryweapon( secondary );
+	self animscripts\init::initweapon( self.secondaryweapon );
+	self animscripts\shared::placeweaponon( self.secondaryweapon, "back" );
+/#
+	assert( 0, "custom_ai_weapon_loadout: secondary weapon " + secondary + " is not in a csv or isn't precached" );
+#/
+	self.sidearm = sidearm;
+	self animscripts\init::initweapon( self.sidearm );
+/#
+	assert( 0, "custom_ai_weapon_loadout: sidearm weapon " + sidearm + " is not in a csv or isn't precached" );
+#/
+	self setcurrentweapon( self.primaryweapon );
+	self animscripts\weaponlist::refillclip();
+	self.issniper = animscripts\combat_utility::issniperrifle( self.weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x10E88
+lerp_player_view_to_tag( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc )
+{
+	self endon( "disconnect" );
+	lerp_player_view_to_tag_internal( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x10ED0
+lerp_player_view_to_tag_and_hit_geo( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc )
+{
+	self endon( "disconnect" );
+	lerp_player_view_to_tag_internal( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x10F18
+lerp_player_view_to_position( origin, angles, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	linker = spawn( "script_origin", ( 0, 0, 0 ) );
+	linker.origin = self.origin;
+	linker.angles = self getplayerangles();
+	self playerlinkto( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo );
+	self playerlinkto( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc );
+	self playerlinkto( linker, "", fraction );
+	self playerlinkto( linker );
+	linker moveto( origin, lerptime, lerptime * 0.25 );
+	linker rotateto( angles, lerptime, lerptime * 0.25 );
+	linker waittill( "movedone" );
+	linker delete();
+// SP = 0x0 - check OK
+}
+
+// 0x11034
+lerp_player_view_to_tag_oldstyle( tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc )
+{
+	lerp_player_view_to_tag_oldstyle_internal( tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x11064
+lerp_player_view_to_position_oldstyle( origin, angles, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	linker = spawn( "script_origin", ( 0, 0, 0 ) );
+	linker.origin = get_player_feet_from_view();
+	linker.angles = self getplayerangles();
+	self playerlinktodelta( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo );
+	self playerlinktodelta( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc );
+	self playerlinktodelta( linker, "", fraction );
+	self playerlinktodelta( linker );
+	linker moveto( origin, lerptime, lerptime * 0.25 );
+	linker rotateto( angles, lerptime, lerptime * 0.25 );
+	linker waittill( "movedone" );
+	linker delete();
+// SP = 0x0 - check OK
+}
+
+// 0x11184
+lerp_player_view_to_moving_position_oldstyle( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	linker = spawn( "script_origin", ( 0, 0, 0 ) );
+	linker.origin = self.origin;
+	linker.angles = self getplayerangles();
+	self playerlinktodelta( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo );
+	self playerlinktodelta( linker, "", fraction, right_arc, left_arc, top_arc, bottom_arc );
+	self playerlinktodelta( linker, "", fraction );
+	self playerlinktodelta( linker );
+	max_count = lerptime / 0.0167;
+	count = 0;
+	origin = ent gettagorigin( tag );
+	angles = ent gettagangles( tag );
+	linker moveto( origin, 0.0167 * ( max_count - count ) );
+	linker rotateto( angles, 0.0167 * ( max_count - count ) );
+	wait 0.0167;
+	count++;
+	linker delete();
+// SP = 0x0 - check OK
+}
+
+// 0x112E0
+waittill_either_function( func1, parm1, func2, parm2 )
+{
+	ent = spawnstruct();
+	thread waittill_either_function_internal( ent, func1, parm1 );
+	thread waittill_either_function_internal( ent, func2, parm2 );
+	ent waittill( "done" );
+// SP = 0x0 - check OK
+}
+
+// 0x11324
+waittill_msg( msg )
+{
+	self endon( "disconnect" );
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x11344
+display_hint( hint )
+{
+	return;
+	return;
+	hintprint( level.trigger_hint_string[hint], level.trigger_hint_func[hint] );
+	hintprint( level.trigger_hint_string[hint] );
+// SP = 0x0 - check OK
+}
+
+// 0x113A8
+enable_careful()
+{
+/#
+	assert( isai( self ), "Tried to make an ai careful but it wasn't called on an AI" );
+#/
+	self.script_careful = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x113D0
+disable_careful()
+{
+/#
+	assert( isai( self ), "Tried to unmake an ai careful but it wasn't called on an AI" );
+#/
+	self.script_careful = 0;
+	self notify( "stop_being_careful" );
+// SP = 0x0 - check OK
+}
+
+// 0x113FC
+set_fixednode( b_toggle )
+{
+/#
+	assert( IsDefined( b_toggle ), "Missing parameter: must set fixednode to true or false" );
+#/
+	self.fixednode = b_toggle;
+// SP = 0x0 - check OK
+}
+
+// 0x11424
+spawn_ai( bforcespawn, str_targetname )
+{
+	ai = undefined;
+	wait 0.05;
+	no_enemy_info = self.script_noenemyinfo;
+	no_threat_update_on_first_frame = self.script_no_threat_on_spawn;
+	delete_on_count_zero = self.script_delete_on_zero;
+	ai = self stalingradspawn( no_enemy_info, str_targetname, no_threat_update_on_first_frame );
+	ai = self dospawn( no_enemy_info, str_targetname, no_threat_update_on_first_frame );
+	self.lastspawntime = GetTime();
+	self delete();
+	return ai;
+// SP = 0x0 - check OK
+}
+
+// 0x11508
+spawn_drone( b_make_fake_ai, str_targetname, b_spawn_collision, do_ragdoll_death, b_auto_delete_on_death )
+{
+	b_make_fake_ai = 0;
+	b_spawn_collision = 0;
+	do_ragdoll_death = 0;
+	b_auto_delete_on_death = 0;
+/#
+	assert( IsDefined( self.classname ), "No classname set for drone" );
+#/
+	m_drone = spawn( "script_model", self.origin );
+	m_drone getdronemodel( self.classname );
+	m_drone.angles = self.angles;
+	m_drone.is_drone = 1;
+	m_drone makefakeai();
+	m_drone.takedamage = 1;
+	m_drone.dr_ai_classname = self.classname;
+	m_drone.name = "";
+	m_drone.name = self.script_friendname;
+	m_drone maps\_names::get_name();
+	m_drone setlookattext( m_drone.name, &"" );
+	level thread maps\_friendlyfire::friendly_fire_think( m_drone );
+	m_drone.drone_collision = spawn_model( "drone_collision", m_drone.origin );
+	m_drone.drone_collision linkto( m_drone );
+	m_drone.health = self.script_health;
+	m_drone.do_ragdoll_death = do_ragdoll_death;
+	m_drone thread _drone_death( b_auto_delete_on_death );
+	m_drone useanimtree( -1 );
+	m_drone.targetname = str_targetname;
+	m_drone.targetname = self.targetname + "_drone";
+	foreach ( func in level.spawn_funcs_drones[m_drone.team] )
+	{
+		single_thread( m_drone, func["function"], func["param1"], func["param2"], func["param3"] );
+	}
+/#
+	m_drone thread _debug_drone();
+#/
+	return m_drone;
+// SP = 0x0 - check OK
+}
+
+// 0x11750
+debug_drones_thread()
+{
+/#
+	level.debug_drone_count = 0;
+	_set_debug_drone_count( level.debug_drone_count );
+	_destroy_debug_drones_count_hud();
+	wait 0.2;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x117A4
+_create_debug_drones_count_hud()
+{
+/#
+	level.hud_debug_drone_count_label = maps\_debug::new_hud( "drone_count_label", "drones ", 645, 190, 0.8 );
+	level.hud_debug_drone_count_label.font = "smallfixed";
+	level.hud_debug_drone_count = maps\_debug::new_hud( "drone_count", "", 620, 190, 0.8 );
+	level.hud_debug_drone_count.font = "smallfixed";
+	level.hud_debug_drone_count.horzalign = "right";
+	level.hud_debug_drone_count.alignx = "right";
+	level.hud_debug_drone_count.x = -50;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11834
+_destroy_debug_drones_count_hud()
+{
+/#
+	level.hud_debug_drone_count_label destroy();
+	level.hud_debug_drone_count destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1186C
+_set_debug_drone_count( n_count )
+{
+/#
+	_create_debug_drones_count_hud();
+	level.hud_debug_drone_count setvalue( n_count );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11894
+_debug_drone()
+{
+/#
+	level.debug_drone_count = 0;
+	level.debug_drone_count++;
+	self waittill( "death" );
+	level.debug_drone_count--;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x118C8
+_drone_death( b_auto_delete_on_death )
+{
+	self waittill( "death" );
+	self notify( "drone_corpse" );
+	self.is_drone_corpse = 1;
+	self setcandamage( 0 );
+	self.drone_collision delete();
+	self setlookattext( "", &"" );
+	self unlink();
+	self startragdoll();
+	self thread auto_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1195C
+auto_delete( e_ref )
+{
+	self endon( "death" );
+	self notify( "auto_deleting" );
+	self endon( "auto_deleting" );
+	n_now = GetTime();
+	n_seconds_alive = 10;
+	v_eye = level.player geteye();
+	v_to_self = vectornormalize( self.origin - v_eye );
+	n_dot_ref = -1;
+	v_player_to_ref = vectornormalize( e_ref.origin - v_eye );
+	n_dot_ref = vectordot( v_to_self, v_player_to_ref );
+	v_player_forward = anglestoforward( level.player getplayerangles() );
+	n_dot_player = vectordot( v_to_self, v_player_forward );
+	self.delete_on_death = 1;
+	self notify( "death" );
+	self delete();
+	self delete();
+	wait randomfloatrange( 0.2, 1 );
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x11AEC
+kill_spawnernum( number )
+{
+	spawners = getspawnerarray();
+	i = 0;
+	spawners[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x11B50
+function_stack( func, param1, param2, param3, param4 )
+{
+	self endon( "death" );
+	localentity = spawnstruct();
+	localentity thread function_stack_proc( self, func, param1, param2, param3, param4 );
+	localentity waittill_either( "function_done", "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x11BA0
+set_goal_node( node )
+{
+	self.last_set_goalnode = node;
+	self.last_set_goalpos = undefined;
+	self.last_set_goalent = undefined;
+	self setgoalnode( node );
+// SP = 0x0 - check OK
+}
+
+// 0x11BC8
+set_goal_pos( origin )
+{
+	self.last_set_goalnode = undefined;
+	self.last_set_goalpos = origin;
+	self.last_set_goalent = undefined;
+	self setgoalpos( origin );
+// SP = 0x0 - check OK
+}
+
+// 0x11BF0
+set_goal_ent( target )
+{
+	set_goal_pos( target.origin );
+	self.last_set_goalnode = undefined;
+	self.last_set_goalpos = undefined;
+	self.last_set_goalent = target;
+// SP = 0x0 - check OK
+}
+
+// 0x11C1C
+set_maxvisibledist( dist )
+{
+	self.maxvisibledist = dist;
+// SP = 0x0 - check OK
+}
+
+// 0x11C2C
+run_thread_on_targetname( msg, func, param1, param2, param3 )
+{
+	array = getentarray( msg, "targetname" );
+	array_thread( array, func, param1, param2, param3 );
+// SP = 0x0 - check OK
+}
+
+// 0x11C64
+run_thread_on_noteworthy( msg, func, param1, param2, param3 )
+{
+	array = getentarray( msg, "script_noteworthy" );
+	array_thread( array, func, param1, param2, param3 );
+// SP = 0x0 - check OK
+}
+
+// 0x11C9C
+handsignal( action, end_on, wait_till )
+{
+	level endon( end_on );
+	level waittill( wait_till );
+	switch ( action )
+	{
+		case "go":
+			self maps\_anim::anim_generic( self, "signal_go" );
+			break;
+		case "moveout":
+			self maps\_anim::anim_generic( self, "signal_onme" );
+			break;
+		case "moveup":
+			self maps\_anim::anim_generic( self, "signal_stop" );
+			break;
+		case "onme":
+			self maps\_anim::anim_generic( self, "signal_moveup" );
+			break;
+		case "stop":
+			self maps\_anim::anim_generic( self, "signal_moveout" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x11D48
+set_grenadeammo( count )
+{
+	self.grenadeammo = count;
+// SP = 0x0 - check OK
+}
+
+// 0x11D58
+get_player_feet_from_view()
+{
+	tagorigin = self.origin;
+	upvec = anglestoup( self getplayerangles() );
+	height = self getplayerviewheight();
+	player_eye = tagorigin + ( 0, 0, height );
+	player_eye_fake = tagorigin + vector_scale( upvec, height );
+	diff_vec = player_eye - player_eye_fake;
+	fake_origin = tagorigin + diff_vec;
+	return fake_origin;
+// SP = 0x0 - check OK
+}
+
+// 0x11DB4
+set_console_status()
+{
+	level.console = GetDvar( #"0xD1AF4972" ) == "true";
+/#
+	assert( level.console == ( GetDvar( #"0xD1AF4972" ) == "true" ), "Level.console got set incorrectly." );
+#/
+	level.xenon = GetDvar( #"0xE0DDE627" ) == "true";
+/#
+	assert( level.xenon == ( GetDvar( #"0xE0DDE627" ) == "true" ), "Level.xenon got set incorrectly." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11E34
+autosave_now( optional_useless_string, suppress_print )
+{
+	return maps\_autosave::autosave_game_now( suppress_print );
+// SP = 0x0 - check OK
+}
+
+// 0x11E4C
+set_deathanim( deathanim )
+{
+	self.deathanim = getanim( deathanim );
+// SP = 0x0 - check OK
+}
+
+// 0x11E68
+clear_deathanim()
+{
+	self.deathanim = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x11E74
+lerp_fov_overtime( time, destfov, use_camera_tween )
+{
+	level notify( "lerp_fov_overtime" );
+	level endon( "lerp_fov_overtime" );
+	basefov = GetDvarFloat( #"0xF64B6F99" );
+	destfov = float( destfov );
+	return;
+/#
+	iprintln( "!lerp fov: " + destfov + ", " + time );
+#/
+	incs = int( time / 0.05 );
+	incfov = ( destfov - basefov ) / incs;
+	currentfov = basefov;
+	return;
+	i = 0;
+	currentfov += incfov;
+	self setclientdvar( "cg_fov", currentfov );
+	wait 0.05;
+	i++;
+	self setclientdvar( "cg_fov", destfov );
+	self startcameratween( time );
+	self setclientdvar( "cg_fov", destfov );
+// SP = 0x0 - check OK
+}
+
+// 0x11F6C
+anim_stopanimscripted( n_blend_time )
+{
+	anim_ent = get_anim_ent();
+	anim_ent stopanimscripted( n_blend_time );
+	anim_ent notify( "single anim", "end" );
+	anim_ent notify( "looping anim", "end" );
+	anim_ent maps\_anim::_stop_anim_threads();
+	anim_ent notify( "_anim_stopped" );
+// SP = 0x0 - check OK
+}
+
+// 0x11FC0
+anim_stopscene( n_blend_time )
+{
+	anim_ent = get_anim_ent();
+	anim_ent stopanimscripted( n_blend_time );
+	anim_ent notify( "single anim", "end" );
+	anim_ent notify( "looping anim", "end" );
+	anim_ent maps\_anim::_stop_anim_threads();
+	anim_ent notify( "_scene_stopped" );
+// SP = 0x0 - check OK
+}
+
+// 0x12014
+get_anim_ent()
+{
+	self.anim_link.animname = self.animname;
+	return self.anim_link;
+	return self;
+// SP = 0x0 - check OK
+}
+
+// 0x12038
+enable_additive_pain( enable_regular_pain_on_low_health )
+{
+/#
+	assert( isai( self ), "Enable_additive_pain should be called on AI only." );
+#/
+	self thread animscripts\pain::additive_pain_think( enable_regular_pain_on_low_health );
+// SP = 0x0 - check OK
+}
+
+// 0x12068
+disable_pain()
+{
+/#
+	assert( isalive( self ), "Tried to disable pain on a non ai" );
+#/
+	self.a.disablepain = 1;
+	self.allowpain = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x12098
+enable_pain()
+{
+/#
+	assert( isalive( self ), "Tried to enable pain on a non ai" );
+#/
+	self.a.disablepain = 0;
+	self.allowpain = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x120C8
+disable_react()
+{
+/#
+	assert( isalive( self ), "Tried to disable react on a non ai" );
+#/
+	self.a.disablereact = 1;
+	self.allowreact = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x120F8
+enable_react()
+{
+/#
+	assert( isalive( self ), "Tried to enable react on a non ai" );
+#/
+	self.a.disablereact = 0;
+	self.allowreact = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x12128
+enable_rambo()
+{
+	level.norambo = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1213C
+disable_rambo()
+{
+	level.norambo = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1214C
+die()
+{
+	self dodamage( self.health + 150, ( 0, 0, 0 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x12168
+is_ads()
+{
+	return self playerads() > 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x12184
+enable_auto_adjust_threatbias( player )
+{
+	level.auto_adjust_threatbias = 1;
+	players = get_players();
+	level.coop_player_threatbias_scalar = maps\_gameskill::getcoopvalue( "coopFriendlyThreatBiasScalar", players.size );
+	level.coop_player_threatbias_scalar = 1;
+	player.threatbias = int( maps\_gameskill::get_locked_difficulty_val( "threatbias", 1 ) * level.coop_player_threatbias_scalar );
+// SP = 0x0 - check OK
+}
+
+// 0x121E4
+disable_auto_adjust_threatbias()
+{
+	level.auto_adjust_threatbias = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x121F0
+waittill_player_looking_at( origin, arc_angle_degrees, do_trace, e_ignore )
+{
+	arc_angle_degrees = 90;
+	arc_angle_degrees = absangleclamp360( arc_angle_degrees );
+	dot = cos( arc_angle_degrees * 0.5 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x12250
+waittill_player_not_looking_at( origin, dot, do_trace )
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x12280
+is_player_looking_at( origin, dot, do_trace, ignore_ent )
+{
+/#
+	assert( isplayer( self ), "player_looking_at must be called on a player." );
+#/
+	dot = 0.7;
+	do_trace = 1;
+	eye = self get_eye();
+	delta_vec = anglestoforward( vectortoangles( origin - eye ) );
+	view_vec = anglestoforward( self getplayerangles() );
+	new_dot = vectordot( delta_vec, view_vec );
+	return bullettracepassed( origin, eye, 0, ignore_ent );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1232C
+look_at( origin_or_ent, tween, force, tag, offset )
+{
+	self freezecontrols( 1 );
+	self startcameratween( tween );
+	self notify( "look_at_begin" );
+	origin = origin_or_ent;
+	ent = origin_or_ent;
+	origin = ent gettagorigin( tag );
+/#
+	assert( IsDefined( origin ), "No tag '" + tag + "' to look at." );
+#/
+	origin = ent get_eye();
+	origin = ent.origin;
+	origin += offset;
+	player_org = self get_eye();
+	vec_to_pt = origin - player_org;
+	self setplayerangles( vectortoangles( vec_to_pt ) );
+	wait tween;
+	self freezecontrols( 0 );
+	self notify( "look_at_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x1245C
+add_wait( func, parm1, parm2, parm3 )
+{
+	ent = spawnstruct();
+	ent.caller = self;
+	ent.func = func;
+	ent.parms = [];
+	ent.parms[ent.parms.size] = parm1;
+	ent.parms[ent.parms.size] = parm2;
+	ent.parms[ent.parms.size] = parm3;
+	level.wait_any_func_array[level.wait_any_func_array.size] = ent;
+// SP = 0x0 - check OK
+}
+
+// 0x124EC
+do_wait_any()
+{
+/#
+	assert( IsDefined( level.wait_any_func_array ), "Tried to do a do_wait without addings funcs first" );
+#/
+/#
+	assert( level.wait_any_func_array.size > 0, "Tried to do a do_wait without addings funcs first" );
+#/
+	do_wait( level.wait_any_func_array.size - 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x12530
+do_wait( count_to_reach )
+{
+	count_to_reach = 0;
+/#
+	assert( IsDefined( level.wait_any_func_array ), "Tried to do a do_wait without addings funcs first" );
+#/
+	ent = spawnstruct();
+	array = level.wait_any_func_array;
+	endons = level.do_wait_endons_array;
+	after_array = level.run_func_after_wait_array;
+	level.wait_any_func_array = [];
+	level.run_func_after_wait_array = [];
+	level.do_wait_endons_array = [];
+	ent.count = array.size;
+	ent array_ent_thread( array, ::waittill_func_ends, endons );
+	ent waittill( "func_ended" );
+	ent notify( "all_funcs_ended" );
+	array_ent_thread( after_array, ::exec_func, [] );
+// SP = 0x0 - check OK
+}
+
+// 0x125EC
+fail_on_friendly_fire()
+{
+	level.friendlyfire_friendly_kill_points = level.friendlyfire["friend_kill_points"];
+	level.friendlyfire["friend_kill_points"] = -60000;
+// SP = 0x0 - check OK
+}
+
+// 0x1261C
+giveachievement_wrapper( achievement, all_players )
+{
+	return;
+	return;
+	players = get_players();
+	i = 0;
+	players[i] giveachievement( achievement );
+	i++;
+/#
+	println( "^1self needs to be a player for _utility::giveachievement_wrapper()" );
+#/
+	return;
+	self giveachievement( achievement );
+// SP = 0x0 - check OK
+}
+
+// 0x126C8
+slowmo_start()
+{
+	flag_set( "disable_slowmo_cheat" );
+// SP = 0x0 - check OK
+}
+
+// 0x126DC
+slowmo_end()
+{
+	maps\_cheat::slowmo_system_defaults();
+	flag_clear( "disable_slowmo_cheat" );
+// SP = 0x0 - check OK
+}
+
+// 0x126F8
+slowmo_setspeed_slow( speed )
+{
+	return;
+	level.slowmo.speed_slow = speed;
+// SP = 0x0 - check OK
+}
+
+// 0x1271C
+slowmo_setspeed_norm( speed )
+{
+	return;
+	level.slowmo.speed_norm = speed;
+// SP = 0x0 - check OK
+}
+
+// 0x12740
+slowmo_setlerptime_in( time )
+{
+	return;
+	level.slowmo.lerp_time_in = time;
+// SP = 0x0 - check OK
+}
+
+// 0x12764
+slowmo_setlerptime_out( time )
+{
+	return;
+	level.slowmo.lerp_time_out = time;
+// SP = 0x0 - check OK
+}
+
+// 0x12788
+slowmo_lerp_in()
+{
+	return;
+	level.slowmo thread maps\_cheat::gamespeed_set( level.slowmo.speed_slow, level.slowmo.speed_current, level.slowmo.lerp_time_in );
+// SP = 0x0 - check OK
+}
+
+// 0x127C4
+slowmo_lerp_out()
+{
+	return;
+	level.slowmo thread maps\_cheat::gamespeed_reset();
+// SP = 0x0 - check OK
+}
+
+// 0x127E8
+coopgame()
+{
+	return issplitscreen();
+// SP = 0x0 - check OK
+}
+
+// 0x12810
+player_is_near_live_grenade()
+{
+	grenades = getentarray( "grenade", "classname" );
+	i = 0;
+	grenade = grenades[i];
+	players = get_players();
+	j = 0;
+/#
+	maps\_autosave::auto_save_print( "autosave failed: live grenade too close to player " + j );
+#/
+	return 1;
+	j++;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x128AC
+player_died_recently()
+{
+	return GetDvarInt( #"0xB93E75EC" ) > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x128BC
+set_splitscreen_fog( start_dist, halfway_dist, halfway_height, base_height, red, green, blue, trans_time, cull_dist )
+{
+	return;
+/#
+	level thread default_fog_print();
+#/
+	start_dist = 0;
+	halfway_dist = 200;
+	base_height = -2000;
+	red = 1;
+	green = 1;
+	blue = 0;
+	trans_time = 0;
+	cull_dist = 2000;
+	halfway_height = base_height + 2000;
+	level.splitscreen_fog = 1;
+	setvolfog( start_dist, halfway_dist, halfway_height, base_height, red, green, blue, 0 );
+	setculldist( cull_dist );
+// SP = 0x0 - check OK
+}
+
+// 0x129BC
+default_fog_print()
+{
+	wait_for_first_player();
+/#
+	iprintlnbold( "^3USING DEFAULT FOG SETTINGS FOR SPLITSCREEN" );
+	wait 8;
+	iprintlnbold( "^3USING DEFAULT FOG SETTINGS FOR SPLITSCREEN" );
+	wait 8;
+	iprintlnbold( "^3USING DEFAULT FOG SETTINGS FOR SPLITSCREEN" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x129FC
+get_host()
+{
+	players = get_players( "all" );
+	i = 0;
+	return players[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x12A40
+any_player_istouching( ent, t )
+{
+	players = [];
+	players = get_players( t );
+	players = get_players();
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x12AB4
+waittill_player_touches( ent )
+{
+	self endon( "death" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x12AE0
+waittill_player_leaves( ent )
+{
+	self endon( "death" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x12B0C
+get_closest_player( org, t )
+{
+	players = [];
+	players = get_players( t );
+	players = get_players();
+	return getclosest( org, players );
+// SP = 0x0 - check OK
+}
+
+// 0x12B50
+freezecontrols_all( toggle, delay )
+{
+	wait delay;
+	players = get_players( "all" );
+	i = 0;
+	players[i] freezecontrols( toggle );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x12BA0
+player_flag_wait( msg )
+{
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x12BBC
+player_flag_wait_either( flag1, flag2 )
+{
+	return;
+	return;
+	self waittill_either( flag1, flag2 );
+// SP = 0x0 - check OK
+}
+
+// 0x12BFC
+player_flag_waitopen( msg )
+{
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x12C18
+player_flag_init( message, trigger )
+{
+	self.flag = [];
+	self.flags_lock = [];
+/#
+	assert( !(IsDefined( self.flag[message] )), "Attempt to reinitialize existing message: " + message );
+#/
+	self.flag[message] = 0;
+/#
+	self.flags_lock[message] = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x12C70
+player_flag_set( message )
+{
+/#
+/#
+	assert( IsDefined( self.flag[message] ), "Attempt to set a flag before calling flag_init: " + message );
+#/
+/#
+	assert( self.flag[message] == self.flags_lock[message] );
+#/
+	self.flags_lock[message] = 1;
+#/
+	self.flag[message] = 1;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0x12CD0
+player_flag_clear( message )
+{
+/#
+/#
+	assert( IsDefined( self.flag[message] ), "Attempt to set a flag before calling flag_init: " + message );
+#/
+/#
+	assert( self.flag[message] == self.flags_lock[message] );
+#/
+	self.flags_lock[message] = 0;
+#/
+	self.flag[message] = 0;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0x12D30
+player_flag( message )
+{
+/#
+	assert( IsDefined( message ), "Tried to check flag but the flag was not defined." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x12D60
+wait_for_first_player()
+{
+	players = get_players( "all" );
+	level waittill( "first_player_ready" );
+// SP = 0x0 - check OK
+}
+
+// 0x12D90
+wait_for_all_players()
+{
+	flag_wait( "all_players_connected" );
+// SP = 0x0 - check OK
+}
+
+// 0x12DA4
+findboxcenter( mins, maxs )
+{
+	center = ( 0, 0, 0 );
+	center = maxs - mins;
+	center = ( center[0] / 2, center[1] / 2, center[2] / 2 ) + mins;
+	return center;
+// SP = 0x0 - check OK
+}
+
+// 0x12DE0
+expandmins( mins, point )
+{
+	mins = ( point[0], mins[1], mins[2] );
+	mins = ( mins[0], point[1], mins[2] );
+	mins = ( mins[0], mins[1], point[2] );
+	return mins;
+// SP = 0x0 - check OK
+}
+
+// 0x12E4C
+expandmaxs( maxs, point )
+{
+	maxs = ( point[0], maxs[1], maxs[2] );
+	maxs = ( maxs[0], point[1], maxs[2] );
+	maxs = ( maxs[0], maxs[1], point[2] );
+	return maxs;
+// SP = 0x0 - check OK
+}
+
+// 0x12EB8
+get_ai_touching_volume( team, volume_name, volume )
+{
+	volume = getent( volume_name, "targetname" );
+/#
+	assert( IsDefined( volume ), volume_name + " does not exist" );
+#/
+	guys = getaiarray( team );
+	guys_touching_volume = [];
+	i = 0;
+	guys_touching_volume[guys_touching_volume.size] = guys[i];
+	i++;
+	return guys_touching_volume;
+// SP = 0x0 - check OK
+}
+
+// 0x12F40
+get_ai_touching( str_team, str_species )
+{
+	str_team = "all";
+	str_species = "all";
+	ai_potential = getaispeciesarray( str_team, str_species );
+	a_ai_touching = [];
+	foreach ( ai in ai_potential )
+	{
+		a_ai_touching[a_ai_touching.size] = ai;
+	}
+	return a_ai_touching;
+// SP = 0x0 - check OK
+}
+
+// 0x12FC4
+registerclientsys( ssysname )
+{
+	level._clientsys = [];
+/#
+	error( "Max num client systems exceeded." );
+#/
+	return;
+/#
+	error( "Attempt to re-register client system : " + ssysname );
+#/
+	return;
+	level._clientsys[ssysname] = spawnstruct();
+	level._clientsys[ssysname].sysid = clientsysregister( ssysname );
+/#
+	println( "registered client system " + ssysname + " to id " + level._clientsys[ssysname].sysid );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x13070
+setclientsysstate( ssysname, ssysstate, player )
+{
+/#
+	error( "setClientSysState called before registration of any systems." );
+#/
+	return;
+/#
+	error( "setClientSysState called on unregistered system " + ssysname );
+#/
+	return;
+	player clientsyssetstate( level._clientsys[ssysname].sysid, ssysstate );
+	clientsyssetstate( level._clientsys[ssysname].sysid, ssysstate );
+	level._clientsys[ssysname].sysstate = ssysstate;
+/#
+	println( "set client system " + ssysname + "(" + level._clientsys[ssysname].sysid + ")" + " to " + ssysstate );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x13134
+wait_network_frame()
+{
+	snapshot_ids = getsnapshotindexarray();
+	acked = undefined;
+	level waittill( "snapacknowledged" );
+	acked = snapshotacknowledged( snapshot_ids );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x13188
+clientnotify( event )
+{
+	maps\_utility::setclientsysstate( "levelNotify", event, self );
+	maps\_utility::setclientsysstate( "levelNotify", event );
+// SP = 0x0 - check OK
+}
+
+// 0x131C8
+ok_to_spawn( max_wait_seconds )
+{
+	timer = GetTime() + max_wait_seconds * 1000;
+	wait 0.05;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x13224
+set_breadcrumbs( starts )
+{
+	maps\_callbackglobal::player_breadcrumb_reset( ( 0, 0, 0 ) );
+	i = 0;
+	j = 0;
+	level._player_breadcrumbs[i][j].pos = starts[j].origin;
+	level._player_breadcrumbs[i][j].ang = starts[j].angles;
+	level._player_breadcrumbs[i][j].ang = ( 0, 0, 0 );
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x132C4
+set_breadcrumbs_player_positions()
+{
+	maps\_callbackglobal::player_breadcrumb_reset( ( 0, 0, 0 ) );
+	players = get_players();
+	i = 0;
+	level._player_breadcrumbs[i][0].pos = players[i].origin;
+	level._player_breadcrumbs[i][0].ang = players[i].angles;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x13334
+spread_array_thread( entities, process, var1, var2, var3 )
+{
+	keys = getarraykeys( entities );
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1, var2, var3 );
+	wait_network_frame();
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1, var2 );
+	wait_network_frame();
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1 );
+	wait_network_frame();
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]();
+	wait_network_frame();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x13430
+simple_floodspawn( name, spawn_func, spawn_func_2 )
+{
+	spawners = getentarray( name, "targetname" );
+/#
+	assert( spawners.size, "no spawners with targetname " + name + " found!" );
+#/
+	i = 0;
+	spawners[i] add_spawn_function( spawn_func );
+	i++;
+	i = 0;
+	spawners[i] add_spawn_function( spawn_func_2 );
+	i++;
+	i = 0;
+	wait_network_frame();
+	spawners[i] thread maps\_spawner::flood_spawner_init();
+	spawners[i] thread maps\_spawner::flood_spawner_think();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1350C
+simple_spawn( name_or_spawners, spawn_func, param1, param2, param3, param4, param5, bforce )
+{
+	spawners = [];
+	spawners = getentarray( name_or_spawners, "targetname" );
+/#
+	assert( spawners.size, "no spawners with targetname " + name_or_spawners + " found!" );
+#/
+	spawners = name_or_spawners;
+	spawners[0] = name_or_spawners;
+	ai_array = [];
+	i = 0;
+	wait_network_frame();
+	spawners[i].spawning = 1;
+	wait_network_frame();
+	ai = spawners[i] spawn_drone();
+	ai = spawners[i] spawn_ai( bforce );
+	spawners[i].spawning = undefined;
+	single_thread( ai, spawn_func, param1, param2, param3, param4, param5 );
+	ai_array[ai_array.size] = ai;
+	i++;
+	return ai_array;
+// SP = 0x0 - check OK
+}
+
+// 0x13674
+simple_spawn_single( name_or_spawner, spawn_func, param1, param2, param3, param4, param5, bforce )
+{
+	spawner = getent( name_or_spawner, "targetname" );
+/#
+	assert( IsDefined( spawner ), "no spawner with targetname " + name_or_spawner + " found!" );
+#/
+/#
+	assertmsg( "simple_spawn_single cannot be used on an array of spawners.  use simple_spawn instead." );
+#/
+	ai = simple_spawn( name_or_spawner, spawn_func, param1, param2, param3, param4, param5, bforce );
+/#
+	assert( ai.size <= 1, "simple_spawn called from simple_spawn_single somehow spawned more than one guy!" );
+#/
+	return ai[0];
+// SP = 0x0 - check OK
+}
+
+// 0x13728
+canspawnthink()
+{
+	level.canspawninoneframe = 3;
+	level.canspawncount = 0;
+	wait_network_frame();
+// SP = 0x0 - check OK
+}
+
+// 0x1374C
+canspawn()
+{
+	thread canspawnthink();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x13768
+spawnthrottleenablethread()
+{
+	level notify( "spawn_throttle_enable_thread_ender" );
+	level endon( "spawn_throttle_enable_thread_ender" );
+	flag_wait( "all_players_connected" );
+	level.spawnthrottleenable = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x137A0
+spawnthrottleenable()
+{
+	level.spawnthrottleenable = 0;
+	thread spawnthrottleenablethread();
+	return level.spawnthrottleenable;
+// SP = 0x0 - check OK
+}
+
+// 0x137D8
+dospawn( noenemyinfo, targetname, nothreatupdate )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	noenemyinfo = 0;
+	nothreatupdate = 0;
+	return self codespawnerspawn( noenemyinfo, targetname, nothreatupdate );
+// SP = 0x0 - check OK
+}
+
+// 0x13844
+stalingradspawn( noenemyinfo, targetname, nothreatupdate )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	noenemyinfo = 0;
+	nothreatupdate = 0;
+	return self codespawnerforcespawn( noenemyinfo, targetname, nothreatupdate );
+// SP = 0x0 - check OK
+}
+
+// 0x138B0
+spawn( classname, origin, flags, radius, height, destructibledef )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	return codespawn( classname, origin, flags, radius, height, destructibledef );
+	return codespawn( classname, origin, flags, radius, height );
+	return codespawn( classname, origin, flags, radius );
+	return codespawn( classname, origin, flags );
+	return codespawn( classname, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1397C
+spawnvehicle( modelname, targetname, vehicletype, origin, angles, destructibledef )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+/#
+	assert( IsDefined( targetname ) );
+#/
+/#
+	assert( IsDefined( vehicletype ) );
+#/
+/#
+	assert( IsDefined( origin ) );
+#/
+/#
+	assert( IsDefined( angles ) );
+#/
+	return codespawnvehicle( modelname, targetname, vehicletype, origin, angles, destructibledef );
+	return codespawnvehicle( modelname, targetname, vehicletype, origin, angles );
+// SP = 0x0 - check OK
+}
+
+// 0x13A40
+spawnturret( classname, origin, weaponinfoname )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	return codespawnturret( classname, origin, weaponinfoname );
+// SP = 0x0 - check OK
+}
+
+// 0x13A98
+playloopedfx( effectid, repeat, position, cull, forward, up, primlightfrac, lightoriginoffs )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	return codeplayloopedfx( effectid, repeat, position, cull, forward, up, primlightfrac, lightoriginoffs );
+	return codeplayloopedfx( effectid, repeat, position, cull, forward, up, primlightfrac );
+	return codeplayloopedfx( effectid, repeat, position, cull, forward, up );
+	return codeplayloopedfx( effectid, repeat, position, cull, forward );
+	return codeplayloopedfx( effectid, repeat, position, cull );
+	return codeplayloopedfx( effectid, repeat, position );
+// SP = 0x0 - check OK
+}
+
+// 0x13B98
+spawnfx( effect, position, forward, up, primlightfrac, lightoriginoffs )
+{
+	wait_network_frame();
+	level.canspawncount += 1;
+	return codespawnfx( effect, position, forward, up, primlightfrac, lightoriginoffs );
+	return codespawnfx( effect, position, forward, up, primlightfrac );
+	return codespawnfx( effect, position, forward, up );
+	return codespawnfx( effect, position, forward );
+	return codespawnfx( effect, position );
+// SP = 0x0 - check OK
+}
+
+// 0x13C64
+spawn_model( model_name, origin, angles, n_spawnflags )
+{
+	n_spawnflags = 0;
+	origin = ( 0, 0, 0 );
+	model = spawn( "script_model", origin, n_spawnflags );
+	model setmodel( model_name );
+	model.angles = angles;
+	return model;
+// SP = 0x0 - check OK
+}
+
+// 0x13CBC
+go_path( path_start )
+{
+	self maps\_vehicle::getonpath( path_start );
+	self maps\_vehicle::gopath();
+// SP = 0x0 - check OK
+}
+
+// 0x13CE0
+disable_driver_turret()
+{
+	self notify( "stop_turret_shoot" );
+// SP = 0x0 - check OK
+}
+
+// 0x13CF0
+enable_driver_turret()
+{
+	self notify( "stop_turret_shoot" );
+	self thread maps\_vehicle::turret_shoot();
+// SP = 0x0 - check OK
+}
+
+// 0x13D08
+set_switch_node( src_node, dst_node )
+{
+/#
+	assert( IsDefined( src_node ) );
+#/
+/#
+	assert( IsDefined( dst_node ) );
+#/
+	self.bswitchingnodes = 1;
+	self.dst_node = dst_node;
+	self setswitchnode( src_node, dst_node );
+// SP = 0x0 - check OK
+}
+
+// 0x13D54
+veh_toggle_tread_fx( on )
+{
+	self setclientflag( 6 );
+	self clearclientflag( 6 );
+// SP = 0x0 - check OK
+}
+
+// 0x13D80
+veh_toggle_exhaust_fx( on )
+{
+	self setclientflag( 8 );
+	self clearclientflag( 8 );
+// SP = 0x0 - check OK
+}
+
+// 0x13DAC
+veh_toggle_lights( on )
+{
+	self setclientflag( 10 );
+	self clearclientflag( 10 );
+// SP = 0x0 - check OK
+}
+
+// 0x13DD8
+vehicle_toggle_sounds( on )
+{
+	self setclientflag( 2 );
+	self clearclientflag( 2 );
+// SP = 0x0 - check OK
+}
+
+// 0x13E04
+spawn_manager_set_global_active_count( cnt )
+{
+/#
+	assert( cnt <= 32, "Max number of Active AI at a given time cant be more than 32" );
+#/
+	level.spawn_manager_max_ai = cnt;
+// SP = 0x0 - check OK
+}
+
+// 0x13E2C
+sm_use_trig_when_complete( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	self thread sm_use_trig_when_complete_internal( spawn_manager_targetname, trig_name, trig_key, once_only );
+// SP = 0x0 - check OK
+}
+
+// 0x13E50
+sm_use_trig_when_complete_internal( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	trigger = getent( trig_name, trig_key );
+/#
+	assert( IsDefined( trigger ), "The trigger " + trig_key + " / " + trig_name + " does not exist." );
+#/
+	trigger endon( "trigger" );
+	flag_wait( "sm_" + spawn_manager_targetname + "_complete" );
+	trigger_use( trig_name, trig_key );
+/#
+	assertmsg( "sm_use_trig_when_complete: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x13EFC
+sm_use_trig_when_cleared( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	self thread sm_use_trig_when_cleared_internal( spawn_manager_targetname, trig_name, trig_key, once_only );
+// SP = 0x0 - check OK
+}
+
+// 0x13F20
+sm_use_trig_when_cleared_internal( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	trigger = getent( trig_name, trig_key );
+/#
+	assert( IsDefined( trigger ), "The trigger " + trig_key + " / " + trig_name + " does not exist." );
+#/
+	trigger endon( "trigger" );
+	flag_wait( "sm_" + spawn_manager_targetname + "_cleared" );
+	trigger_use( trig_name, trig_key );
+/#
+	assertmsg( "sm_use_trig_when_cleared: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x13FCC
+sm_use_trig_when_enabled( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	self thread sm_use_trig_when_enabled_internal( spawn_manager_targetname, trig_name, trig_key, once_only );
+// SP = 0x0 - check OK
+}
+
+// 0x13FF0
+sm_use_trig_when_enabled_internal( spawn_manager_targetname, trig_name, trig_key, once_only )
+{
+	trigger = getent( trig_name, trig_key );
+/#
+	assert( IsDefined( trigger ), "The trigger " + trig_key + " / " + trig_name + " does not exist." );
+#/
+	trigger endon( "trigger" );
+	flag_wait( "sm_" + spawn_manager_targetname + "_enabled" );
+	trigger_use( trig_name, trig_key );
+/#
+	assertmsg( "sm_use_trig_when_cleared: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1409C
+sm_run_func_when_complete( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+	self thread sm_run_func_when_complete_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x140D0
+sm_run_func_when_complete_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+/#
+	assert( IsDefined( process ), "sm_run_func_when_complete: the function is not defined" );
+#/
+/#
+	assert( level flag_exists( "sm_" + spawn_manager_targetname + "_enabled" ), "sm_run_func_when_complete: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+	waittill_spawn_manager_complete( spawn_manager_targetname );
+	single_func( ent, process, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x1414C
+sm_run_func_when_cleared( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+	self thread sm_run_func_when_cleared_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x14180
+sm_run_func_when_cleared_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+/#
+	assert( IsDefined( process ), "sm_run_func_when_cleared: the function is not defined" );
+#/
+/#
+	assert( level flag_exists( "sm_" + spawn_manager_targetname + "_enabled" ), "sm_run_func_when_cleared: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+	waittill_spawn_manager_cleared( spawn_manager_targetname );
+	single_func( ent, process, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x141FC
+sm_run_func_when_enabled( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+	self thread sm_run_func_when_enabled_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x14230
+sm_run_func_when_enabled_internal( spawn_manager_targetname, process, ent, var1, var2, var3, var4, var5 )
+{
+/#
+	assert( IsDefined( process ), "sm_run_func_when_enabled: the function is not defined" );
+#/
+/#
+	assert( level flag_exists( "sm_" + spawn_manager_targetname + "_enabled" ), "sm_run_func_when_enabled: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+	waittill_spawn_manager_enabled( spawn_manager_targetname );
+	single_func( ent, process, var1, var2, var3, var4, var5 );
+// SP = 0x0 - check OK
+}
+
+// 0x142AC
+spawn_manager_enable( spawn_manager_targetname, no_assert )
+{
+	i = 0;
+	level.spawn_managers[i] notify( "enable" );
+	return;
+	i++;
+/#
+	assertmsg( "spawn_manager_enable: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14334
+spawn_manager_disable( spawn_manager_targetname, no_assert )
+{
+	i = 0;
+	level.spawn_managers[i] notify( "disable" );
+	return;
+	i++;
+/#
+	assertmsg( "spawn_manager_disable: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x143BC
+spawn_manager_kill( spawn_manager_targetname, no_assert )
+{
+	i = 0;
+	level.spawn_managers[i] notify( "kill" );
+	return;
+	i++;
+/#
+	assertmsg( "spawn_manager_kill: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14444
+is_spawn_manager_enabled( spawn_manager_targetname )
+{
+	return 1;
+	return 0;
+/#
+	assertmsg( "is_spawn_manager_enabled: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x144A0
+is_spawn_manager_complete( spawn_manager_targetname )
+{
+	return 1;
+	return 0;
+/#
+	assertmsg( "is_spawn_manager_complete: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x144FC
+is_spawn_manager_cleared( spawn_manager_targetname )
+{
+	return 1;
+	return 0;
+/#
+	assertmsg( "is_spawn_manager_cleared: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14558
+is_spawn_manager_killed( spawn_manager_targetname )
+{
+	return 1;
+	return 0;
+/#
+	assertmsg( "is_spawn_manager_killed: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x145B4
+waittill_spawn_manager_cleared( spawn_manager_targetname )
+{
+	flag_wait( "sm_" + spawn_manager_targetname + "_cleared" );
+/#
+	assertmsg( "waittill_spawn_manager_cleared: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14608
+waittill_spawn_manager_ai_remaining( spawn_manager_targetname, count_to_reach )
+{
+/#
+	assert( IsDefined( count_to_reach ), "# of AI remaining not specified in _utility::waittill_spawn_manager_ai_remaining()" );
+#/
+/#
+	assert( count_to_reach, "# of AI remaining specified in _utility::waittill_spawn_manager_ai_remaining() is 0, use waittill_spawn_manager_cleared" );
+#/
+	flag_wait( "sm_" + spawn_manager_targetname + "_complete" );
+/#
+	assertmsg( "waittill_spawn_manager_ai_remaining: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+	return;
+	spawn_manager = maps\_spawn_manager::get_spawn_manager_array( spawn_manager_targetname );
+/#
+	assert( spawn_manager.size, "Somehow the spawn manager doesnt exist, but related flag existed before." );
+#/
+/#
+	assert( spawn_manager.size == 1, "Found two spawn managers with same targetname." );
+#/
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x146F4
+waittill_spawn_manager_complete( spawn_manager_targetname )
+{
+	flag_wait( "sm_" + spawn_manager_targetname + "_complete" );
+/#
+	assertmsg( "waittill_spawn_manager_complete: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14748
+waittill_spawn_manager_enabled( spawn_manager_targetname )
+{
+	flag_wait( "sm_" + spawn_manager_targetname + "_enabled" );
+/#
+	assertmsg( "waittill_spawn_manager_enabled: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1479C
+waittill_spawn_manager_spawned_count( spawn_manager_targetname, count )
+{
+	flag_wait( "sm_" + spawn_manager_targetname + "_enabled" );
+/#
+	assertmsg( "waittill_spawn_manager_spawned_count: Spawn manager '" + spawn_manager_targetname + "' not found." );
+#/
+	spawn_manager = maps\_spawn_manager::get_spawn_manager_array( spawn_manager_targetname );
+/#
+	assert( spawn_manager.size, "Somehow the spawn manager doesnt exist, but related flag existed before." );
+#/
+/#
+	assert( spawn_manager.size == 1, "Found two spawn managers with same targetname." );
+#/
+/#
+	assert( spawn_manager[0].count > count, "waittill_spawn_manager_spawned_count : Count should be less than total count on the spawn manager." );
+#/
+	original_count = spawn_manager[0].count;
+	wait 0.5;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x14894
+get_ai_from_spawn_manager( spawn_manager_targetname, no_assert )
+{
+	no_assert = 0;
+	sm = getent( spawn_manager_targetname, "targetname" );
+	i = 0;
+	sm = level.spawn_managers[i];
+	i++;
+/#
+	assert( IsDefined( sm ), "Spawn manager: " + spawn_manager_targetname + " does not exist." );
+#/
+	return [];
+	a_spawners = getentarray( sm.target, "targetname" );
+	a_ai = [];
+	foreach ( spawner in a_spawners )
+	{
+		a_guys = getentarray( spawner.targetname + "_ai", "targetname" );
+		a_ai = arraycombine( a_ai, a_guys, 1, 0 );
+	}
+	return a_ai;
+// SP = 0x0 - check OK
+}
+
+// 0x149A8
+veh_magic_bullet_shield( on )
+{
+	on = 1;
+/#
+	assert( !(isai( self )), "This is for vehicles, please use magic_bullet_shield for AI." );
+#/
+/#
+	assert( !(isplayer( self )), "This is for vehicles, please use magic_bullet_shield for players." );
+#/
+	self.magic_bullet_shield = undefined;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x14A00
+onfirstplayerconnect_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_first_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A18
+onfirstplayerconnect_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_first_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A30
+onplayerconnect_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A48
+onplayerconnect_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A60
+onplayerdisconnect_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_player_disconnect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A78
+onplayerdisconnect_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_player_disconnect", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14A90
+onplayerdamage_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_player_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14AA8
+onplayerdamage_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_player_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14AC0
+onplayerlaststand_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_player_last_stand", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14AD8
+onplayerlaststand_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_player_last_stand", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14AF0
+onplayerkilled_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_player_killed", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B08
+onplayerkilled_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_player_killed", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B20
+onactordamage_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_actor_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B38
+onactordamage_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_actor_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B50
+onactorkilled_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_actor_killed", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B68
+onactorkilled_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_actor_killed", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B80
+onvehicledamage_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_vehicle_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14B98
+onvehicledamage_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_vehicle_damage", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14BB0
+onsaverestored_callback( func )
+{
+	maps\_callbackglobal::addcallback( "on_save_restored", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14BC8
+onsaverestored_callbackremove( func )
+{
+	maps\_callbackglobal::removecallback( "on_save_restored", func );
+// SP = 0x0 - check OK
+}
+
+// 0x14BE0
+aim_at_target( target, duration )
+{
+	self endon( "death" );
+	self endon( "stop_aim_at_target" );
+/#
+	assert( IsDefined( target ) );
+#/
+	return;
+	self setentitytarget( target );
+	self.a.allow_shooting = 0;
+	elapsed = 0;
+	elapsed += 0.05;
+	wait 0.05;
+	stop_aim_at_target();
+// SP = 0x0 - check OK
+}
+
+// 0x14C68
+stop_aim_at_target()
+{
+	self clearentitytarget();
+	self.a.allow_shooting = 1;
+	self notify( "stop_aim_at_target" );
+// SP = 0x0 - check OK
+}
+
+// 0x14C90
+shoot_at_target( target, tag, firedelay, duration )
+{
+	self endon( "death" );
+	self endon( "stop_shoot_at_target" );
+/#
+	assert( IsDefined( target ), "shoot_at_target was passed an undefined target" );
+#/
+	return;
+	self setentitytarget( target, 1, tag );
+	self setentitytarget( target );
+	self animscripts\weaponlist::refillclip();
+	self.a.allow_shooting = 0;
+	wait firedelay;
+	self.a.allow_shooting = 1;
+	self.cansee_override = 1;
+	self animscripts\shoot_behavior::setshootent( target );
+	self waittill( "shoot" );
+	elapsed = 0;
+	elapsed += 0.05;
+	wait 0.05;
+	target waittill( "death" );
+	stop_shoot_at_target();
+// SP = 0x0 - check OK
+}
+
+// 0x14DE0
+shoot_at_target_untill_dead( target, tag, firedelay )
+{
+	shoot_at_target( target, tag, firedelay, -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x14E00
+shoot_and_kill( e_enemy, n_fire_delay )
+{
+	self endon( "death" );
+	self.old_perfectaim = self.perfectaim;
+	self.perfectaim = 1;
+	self shoot_at_target( e_enemy, "J_head", n_fire_delay, -1 );
+	self.perfectaim = self.old_perfectaim;
+	self.old_pefectaim = undefined;
+	self notify( "enemy_killed" );
+// SP = 0x0 - check OK
+}
+
+// 0x14E4C
+stop_shoot_at_target()
+{
+	self clearentitytarget();
+	self.cansee_override = 0;
+	self notify( "stop_shoot_at_target" );
+// SP = 0x0 - check OK
+}
+
+// 0x14E6C
+add_trigger_to_ent( ent )
+{
+	ent._triggers = [];
+	ent._triggers[self getentitynumber()] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x14EA0
+remove_trigger_from_ent( ent )
+{
+	return;
+	return;
+	ent._triggers[self getentitynumber()] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14EE0
+ent_already_in_trigger( trig )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x14F24
+trigger_thread( ent, on_enter_payload, on_exit_payload )
+{
+	ent endon( "entityshutdown" );
+	ent endon( "death" );
+	return;
+	self add_trigger_to_ent( ent );
+	endon_condition = "leave_trigger_" + self getentitynumber();
+	self thread [[on_enter_payload]]( ent, endon_condition );
+	wait 0.01;
+	ent notify( endon_condition );
+	self thread [[on_exit_payload]]( ent );
+	self remove_trigger_from_ent( ent );
+// SP = 0x0 - check OK
+}
+
+// 0x14FD0
+delete_ents( mask, origin, radius )
+{
+	ents = entsearch( mask, origin, radius );
+	i = 0;
+	ents[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x15018
+set_drop_weapon( weapon_name )
+{
+/#
+	assert( isstring( weapon_name ), "_utility::set_drop_weapon: Invalid weapon name!" );
+#/
+	self.script_dropweapon = weapon_name;
+// SP = 0x0 - check OK
+}
+
+// 0x1504C
+take_and_giveback_weapons( mynotify, no_autoswitch )
+{
+	take_weapons();
+	self waittill( mynotify );
+	give_weapons( no_autoswitch );
+// SP = 0x0 - check OK
+}
+
+// 0x15074
+take_weapons()
+{
+	self.curweapon = self getcurrentweapon();
+	self.weapons_list = self getweaponslist();
+	self.offhand = self getcurrentoffhand();
+	weapon_list_modified = [];
+	i = 0;
+	weapon_list_modified[weapon_list_modified.size] = self.weapons_list[i];
+	i++;
+	self.weapons_list = weapon_list_modified;
+	self.curweapon = get_baseweapon_for_attachment( self.curweapon );
+	self.weapons_info = [];
+	i = 0;
+	self.weapons_info[i] = spawnstruct();
+	self.weapons_info[i]._ammo = 0;
+	self.weapons_info[i]._stock = self getweaponammostock( self.weapons_list[i] );
+	self.weapons_info[i]._ammo = self getweaponammoclip( self.weapons_list[i] );
+	self.weapons_info[i]._stock = self getweaponammostock( self.weapons_list[i] );
+	self.weapons_info[i]._renderoptions = self getweaponrenderoptions( self.weapons_list[i] );
+	i++;
+	self takeallweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x151EC
+give_weapons( no_autoswitch )
+{
+	return;
+	i = 0;
+	self giveweapon( self.weapons_list[i], 0, self.weapons_info[i]._renderoptions );
+	self giveweapon( self.weapons_list[i] );
+	self setweaponammoclip( self.weapons_list[i], self.weapons_info[i]._ammo );
+	self setweaponammostock( self.weapons_list[i], self.weapons_info[i]._stock );
+	i++;
+	self.weapons_info = undefined;
+	self switchtoweapon( self.curweapon );
+	str_primary = "";
+	foreach ( str_weapon in self.weapons_list )
+	{
+		str_primary = str_weapon;
+	}
+	self switchtoweapon( str_primary );
+// SP = 0x0 - check OK
+}
+
+// 0x15348
+is_weapon_attachment( weapon_name )
+{
+	weapon_pieces = strtok( weapon_name, "_" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1538C
+get_baseweapon_for_attachment( weapon_name )
+{
+/#
+	assert( is_weapon_attachment( weapon_name ) );
+#/
+	weapon_pieces = strtok( weapon_name, "_" );
+	attachment = weapon_pieces[0];
+/#
+	assert( weapon_pieces[0] == "db" );
+#/
+	weapon = weapon_pieces[1];
+/#
+	assert( weapon_pieces[1] != "db" );
+#/
+	i = 0;
+	return self.weapons_list[i];
+	i++;
+	return self.weapons_list[0];
+// SP = 0x0 - check OK
+}
+
+// 0x154A4
+screen_message_create( string_message_1, string_message_2, string_message_3, n_offset_y, n_time )
+{
+	level notify( "screen_message_create" );
+	level endon( "screen_message_create" );
+	return;
+	return;
+	n_offset_y = 0;
+	level._screen_message_1 = newhudelem();
+	level._screen_message_1.elemtype = "font";
+	level._screen_message_1.font = "objective";
+	level._screen_message_1.fontscale = 1.8;
+	level._screen_message_1.horzalign = "center";
+	level._screen_message_1.vertalign = "middle";
+	level._screen_message_1.alignx = "center";
+	level._screen_message_1.aligny = "middle";
+	level._screen_message_1.y = -60 + n_offset_y;
+	level._screen_message_1.sort = 2;
+	level._screen_message_1.color = ( 1, 1, 1 );
+	level._screen_message_1.alpha = 1;
+	level._screen_message_1.hidewheninmenu = 1;
+	level._screen_message_1 settext( string_message_1 );
+	level._screen_message_2 = newhudelem();
+	level._screen_message_2.elemtype = "font";
+	level._screen_message_2.font = "objective";
+	level._screen_message_2.fontscale = 1.8;
+	level._screen_message_2.horzalign = "center";
+	level._screen_message_2.vertalign = "middle";
+	level._screen_message_2.alignx = "center";
+	level._screen_message_2.aligny = "middle";
+	level._screen_message_2.y = -33 + n_offset_y;
+	level._screen_message_2.sort = 2;
+	level._screen_message_2.color = ( 1, 1, 1 );
+	level._screen_message_2.alpha = 1;
+	level._screen_message_2.hidewheninmenu = 1;
+	level._screen_message_2 settext( string_message_2 );
+	level._screen_message_2 destroy();
+	level._screen_message_3 = newhudelem();
+	level._screen_message_3.elemtype = "font";
+	level._screen_message_3.font = "objective";
+	level._screen_message_3.fontscale = 1.8;
+	level._screen_message_3.horzalign = "center";
+	level._screen_message_3.vertalign = "middle";
+	level._screen_message_3.alignx = "center";
+	level._screen_message_3.aligny = "middle";
+	level._screen_message_3.y = -6 + n_offset_y;
+	level._screen_message_3.sort = 2;
+	level._screen_message_3.color = ( 1, 1, 1 );
+	level._screen_message_3.alpha = 1;
+	level._screen_message_3.hidewheninmenu = 1;
+	level._screen_message_3 settext( string_message_3 );
+	level._screen_message_3 destroy();
+	wait n_time;
+	screen_message_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x15774
+screen_message_delete( delay )
+{
+	wait delay;
+	level._screen_message_1 destroy();
+	level._screen_message_2 destroy();
+	level._screen_message_3 destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x157D0
+get_eye()
+{
+	linked_ent = self getlinkedent();
+	camera = linked_ent gettagorigin( "tag_camera" );
+	return camera;
+	pos = self geteye();
+	return pos;
+// SP = 0x0 - check OK
+}
+
+// 0x15834
+vehicle_node_wait( strname, strkey )
+{
+	strkey = "targetname";
+	nodes = getvehiclenodearray( strname, strkey );
+/#
+	assert( nodes.size > 0, "_utility::vehicle_node_wait - vehicle node not found: " + strname + " key: " + strkey );
+#/
+	ent = spawnstruct();
+	array_thread( nodes, common_scripts\utility::_trigger_wait_think, ent );
+	ent waittill( "trigger", eother, node_hit );
+	level notify( strname, eother );
+	node_hit.who = eother;
+	return node_hit;
+	return eother;
+// SP = 0x0 - check OK
+}
+
+// 0x158D4
+timescale_tween( start, end, time, delay, step_time )
+{
+	delay = 0;
+	step_time = 0.1;
+	start = gettimescale();
+	num_steps = time / step_time;
+	time_scale_range = end - start;
+	time_scale_step = 0;
+	time_scale_step = abs( time_scale_range ) / num_steps;
+	wait delay;
+	level notify( "timescale_tween" );
+	level endon( "timescale_tween" );
+	time_scale = start;
+	settimescale( time_scale );
+	wait step_time;
+	time_scale = min( time_scale + time_scale_step, end );
+	time_scale = max( time_scale - time_scale_step, end );
+	settimescale( time_scale );
+// SP = 0x0 - check OK
+}
+
+// 0x159C4
+depth_of_field_tween( n_near_start, n_near_end, n_far_start, n_far_end, n_near_blur, n_far_blur, n_time, n_step_time )
+{
+	self notify( "depth_of_field_tween" );
+	self endon( "depth_of_field_tween" );
+	n_step_time = 0.05;
+	n_steps = n_time / n_step_time;
+	n_near_start_current = self getdepthoffield_nearstart();
+	n_near_end_current = self getdepthoffield_nearend();
+	n_far_start_current = self getdepthoffield_farstart();
+	n_far_end_current = self getdepthoffield_farend();
+	n_near_blur_current = self getdepthoffield_nearblur();
+	n_far_blur_current = self getdepthoffield_farblur();
+	n_far_start_current = max( n_far_start_current, n_near_end_current );
+	n_near_start_step = 0;
+	n_near_end_step = 0;
+	n_far_start_step = 0;
+	n_far_end_step = 0;
+	n_near_blur_step = 0;
+	n_far_blur_step = 0;
+	n_near_start_step = ( n_near_start - n_near_start_current ) / n_steps;
+	n_near_end_step = ( n_near_end - n_near_end_current ) / n_steps;
+	n_far_start_step = ( n_far_start - n_far_start_current ) / n_steps;
+	n_far_end_step = ( n_far_end - n_far_end_current ) / n_steps;
+	n_near_blur_step = ( n_near_blur - n_near_blur_current ) / n_steps;
+	n_far_blur_step = ( n_far_blur - n_far_blur_current ) / n_steps;
+	i = 0;
+	n_near_start_current += n_near_start_step;
+	n_near_end_current += n_near_end_step;
+	n_far_start_current += n_far_start_step;
+	n_far_end_current += n_far_end_step;
+	n_near_blur_current += n_near_blur_step;
+	n_far_blur_current += n_far_blur_step;
+	n_near_blur_current = max( n_near_blur_current, 4 );
+	n_far_blur_current = 0;
+	self setdepthoffield( n_near_start_current, n_near_end_current, n_far_start_current, n_far_end_current, n_near_blur_current, n_far_blur_current );
+	wait n_step_time;
+	i++;
+	n_near_blur = max( n_near_blur, 4 );
+	self setdepthoffield( n_near_start, n_near_end, n_far_start, n_far_end, n_near_blur, n_far_blur );
+// SP = 0x0 - check OK
+}
+
+// 0x15B78
+depth_of_field_off( n_time )
+{
+	n_time = 0;
+	n_near_start_current = self getdepthoffield_nearstart();
+	n_near_end_current = self getdepthoffield_nearend();
+	n_far_start_current = self getdepthoffield_farstart();
+	n_far_end_current = self getdepthoffield_farend();
+	n_near_blur_current = self getdepthoffield_nearblur();
+	n_far_blur_current = self getdepthoffield_farblur();
+	n_start_time = GetTime();
+	wait 0.05;
+	n_time_delta = GetTime() - n_start_time;
+	n_time_frac = 1;
+	n_near_start = lerpfloat( n_near_start_current, 1, n_time_frac );
+	n_near_end = lerpfloat( n_near_end_current, 0, n_time_frac );
+	n_far_start = lerpfloat( n_far_start_current, 1, n_time_frac );
+	n_far_end = lerpfloat( n_far_end_current, 0, n_time_frac );
+	n_near_blur = lerpfloat( n_near_blur_current, 6, n_time_frac );
+	n_far_blur = lerpfloat( n_far_blur_current, 4, n_time_frac );
+	self setdepthoffield( n_near_start, n_near_end, n_far_start, n_far_end, n_near_blur, n_far_blur );
+// SP = 0x8 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x15CB0
+player_seek( delayed )
+{
+	self endon( "death" );
+	self.ignoresuppression = 1;
+	self waittill( "goal" );
+	wait randomintrange( 6, 12 );
+	wait 0.05;
+	self.goalradius -= 100;
+	self.pathenemyfightdist = self.goalradius;
+	closest_player = get_closest_player( self.origin );
+	self setgoalentity( closest_player );
+	self animscripts\combat_utility::lookforbettercover();
+// SP = 0x0 - check OK
+}
+
+// 0x15D58
+set_spawner_targets( spawner_targets )
+{
+	self thread maps\_spawner::go_to_spawner_target( strtok( spawner_targets, " " ) );
+// SP = 0x0 - check OK
+}
+
+// 0x15D7C
+ragdoll_death()
+{
+	self animscripts\utility::do_ragdoll_death();
+// SP = 0x0 - check OK
+}
+
+// 0x15D90
+is_destructible()
+{
+	return 0;
+	switch ( self.script_noteworthy )
+	{
+		case "explodable_barrel":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15DC0
+waittill_not_moving()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "detonated" );
+	level endon( "game_ended" );
+	self waittill( "stationary" );
+	prevorigin = self.origin;
+	wait 0.15;
+	prevorigin = self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x15E24
+turn_off_friendly_player_look()
+{
+	level._dont_look_at_player = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x15E34
+turn_on_friendly_player_look()
+{
+	level._dont_look_at_player = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15E40
+force_goal( node_or_org, radius, shoot, end_on, keep_colors )
+{
+	shoot = 1;
+	keep_colors = 0;
+	self endon( "death" );
+	goalradius = self.goalradius;
+	self.goalradius = radius;
+	color_enabled = 0;
+	color_enabled = 1;
+	self disable_ai_color();
+	allowpain = self.allowpain;
+	allowreact = self.allowreact;
+	ignoreall = self.ignoreall;
+	ignoreme = self.ignoreme;
+	dontshootwhilemoving = self.dontshootwhilemoving;
+	ignoresuppression = self.ignoresuppression;
+	suppressionthreshold = self.suppressionthreshold;
+	nododgemove = self.nododgemove;
+	grenadeawareness = self.grenadeawareness;
+	pathenemylookahead = self.pathenemylookahead;
+	pathenemyfightdist = self.pathenemyfightdist;
+	meleeattackdist = self.meleeattackdist;
+	fixednodesaferadius = self.fixednodesaferadius;
+	self set_ignoreall( 1 );
+	self.dontshootwhilemoving = undefined;
+	self.pathenemyfightdist = 0;
+	self.pathenemylookahead = 0;
+	self.ignoresuppression = 1;
+	self.suppressionthreshold = 1;
+	self.nododgemove = 1;
+	self.grenadeawareness = 0;
+	self.meleeattackdist = 0;
+	self.fixednodesaferadius = 0;
+	self set_ignoreme( 1 );
+	self disable_react();
+	self disable_pain();
+	self pushplayer( 1 );
+	self.bulletsinclip = 15;
+	self set_goal_pos( node_or_org );
+	self set_goal_node( node_or_org );
+	self waittill( end_on );
+	self waittill( "goal" );
+	enable_ai_color();
+	self pushplayer( 0 );
+	self.goalradius = goalradius;
+	self set_ignoreall( ignoreall );
+	self set_ignoreme( ignoreme );
+	self enable_pain();
+	self enable_react();
+	self.ignoresuppression = ignoresuppression;
+	self.suppressionthreshold = suppressionthreshold;
+	self.nododgemove = nododgemove;
+	self.dontshootwhilemoving = dontshootwhilemoving;
+	self.grenadeawareness = grenadeawareness;
+	self.pathenemylookahead = pathenemylookahead;
+	self.pathenemyfightdist = pathenemyfightdist;
+	self.meleeattackdist = meleeattackdist;
+	self.fixednodesaferadius = fixednodesaferadius;
+// SP = 0x0 - check OK
+}
+
+// 0x160A8
+restore_ik_headtracking_limits()
+{
+	setsaveddvar( "ik_pitch_limit_thresh", 10 );
+	setsaveddvar( "ik_pitch_limit_max", 60 );
+	setsaveddvar( "ik_roll_limit_thresh", 30 );
+	setsaveddvar( "ik_roll_limit_max", 100 );
+	setsaveddvar( "ik_yaw_limit_thresh", 10 );
+	setsaveddvar( "ik_yaw_limit_max", 90 );
+// SP = 0x0 - check OK
+}
+
+// 0x16110
+relax_ik_headtracking_limits()
+{
+	setsaveddvar( "ik_pitch_limit_thresh", 110 );
+	setsaveddvar( "ik_pitch_limit_max", 120 );
+	setsaveddvar( "ik_roll_limit_thresh", 90 );
+	setsaveddvar( "ik_roll_limit_max", 100 );
+	setsaveddvar( "ik_yaw_limit_thresh", 80 );
+	setsaveddvar( "ik_yaw_limit_max", 90 );
+// SP = 0x0 - check OK
+}
+
+// 0x16178
+button_held_think( which_button )
+{
+	self endon( "disconnect" );
+	self._holding_button = [];
+	self._holding_button[which_button] = 0;
+	time_started = 0;
+	self._holding_button[which_button] = 0;
+	time_started = GetTime();
+	self._holding_button[which_button] = 1;
+	time_started = 0;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16220
+use_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_use );
+	self._use_button_think_threaded = 1;
+	return self._holding_button[level.button_use];
+// SP = 0x0 - check OK
+}
+
+// 0x16258
+ads_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_ads );
+	self._ads_button_think_threaded = 1;
+	return self._holding_button[level.button_ads];
+// SP = 0x0 - check OK
+}
+
+// 0x16290
+attack_button_held()
+{
+	init_button_wrappers();
+	self thread button_held_think( level.button_attack );
+	self._attack_button_think_threaded = 1;
+	return self._holding_button[level.button_attack];
+// SP = 0x0 - check OK
+}
+
+// 0x162C8
+use_button_pressed()
+{
+/#
+	assert( isplayer( self ), "Must call use_button_pressed() on a player." );
+#/
+	return self usebuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x162F4
+ads_button_pressed()
+{
+/#
+	assert( isplayer( self ), "Must call ads_button_pressed() on a player." );
+#/
+	return self adsbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x16320
+attack_button_pressed()
+{
+/#
+	assert( isplayer( self ), "Must call attack_button_pressed() on a player." );
+#/
+	return self attackbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x1634C
+waittill_use_button_pressed()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16370
+waittill_attack_button_pressed()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16394
+waittill_ads_button_pressed()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x163B8
+init_button_wrappers()
+{
+	level.button_use = 0;
+	level.button_ads = 1;
+	level.button_attack = 2;
+	level._button_funcs[level.button_use] = ::use_button_pressed;
+	level._button_funcs[level.button_ads] = ::ads_button_pressed;
+	level._button_funcs[level.button_attack] = ::attack_button_pressed;
+// SP = 0x0 - check OK
+}
+
+// 0x16410
+play_movie_on_surface_async( movie_name, is_looping, is_in_memory, start_on_notify, notify_when_done, notify_offset, seamless )
+{
+	is_looping = 0;
+	is_in_memory = 1;
+	notify_offset = 0.3;
+	seamless = 0;
+	notify_offset = 0.3;
+	cin_id = level load_movie_async( movie_name, is_looping, is_in_memory, IsDefined( start_on_notify ), seamless );
+	level thread play_movie_on_surface_thread( cin_id, movie_name, start_on_notify, notify_when_done, notify_offset );
+	return cin_id;
+// SP = 0x0 - check OK
+}
+
+// 0x164A0
+play_movie_on_surface_thread( cin_id, movie_name, start_on_notify, notify_when_done, notify_offset )
+{
+	level waittill( start_on_notify );
+	wait 0.05;
+	playsoundatposition( "evt_" + movie_name + "_movie", ( 0, 0, 0 ) );
+/#
+	println( "pausing " + movie_name + ": on surface" );
+#/
+	pause3dcinematic( cin_id, 0 );
+	waittill_movie_done( cin_id, notify_when_done, notify_offset );
+// SP = 0x0 - check OK
+}
+
+// 0x16520
+play_movie_on_surface( movie_name, is_looping, is_in_memory, start_on_notify, notify_when_done, notify_offset )
+{
+	cin_id = play_movie_on_surface_async( movie_name, is_looping, is_in_memory, start_on_notify, notify_when_done, notify_offset );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16568
+start_movie_scene()
+{
+	level notify( "kill_scene_subs_thread" );
+	level._scene_subs = [];
+// SP = 0x0 - check OK
+}
+
+// 0x1657C
+add_scene_line( scene_line, time, duration )
+{
+	level._scene_subs = [];
+	sl = spawnstruct();
+	sl.line = scene_line;
+	sl.time = time;
+	sl.duration = duration;
+	i = 0;
+/#
+	println( "*** ERROR:  Cannot add an earlier line after a later one.  Times must always increase." );
+#/
+	return;
+	i++;
+	level._scene_subs[level._scene_subs.size] = sl;
+// SP = 0x0 - check OK
+}
+
+// 0x16610
+sub_fade( alpha, duration )
+{
+	self notify( "kill_fade" );
+	self endon( "kill_fade" );
+	self.alpha = 0;
+	self fadeovertime( duration );
+	self.alpha = alpha;
+	wait duration;
+// SP = 0x0 - check OK
+}
+
+// 0x16650
+do_scene_sub( sub_string, duration )
+{
+	return;
+	level.vo_hud = newhudelem();
+	level.vo_hud.fontscale = 2;
+	level.vo_hud.horzalign = "center";
+	level.vo_hud.vertalign = "middle";
+	level.vo_hud.alignx = "center";
+	level.vo_hud.aligny = "middle";
+	level.vo_hud.y = 180;
+	level.vo_hud.sort = 0;
+	level.vo_hud thread sub_fade( 1, 0.2 );
+	old_scale = level.vo_hud.fontscale;
+	level.vo_hud.fontscale = 1.5;
+	old_sort = level.vo_hud.sort;
+	level.vo_hud.sort = 1;
+	level.vo_hud settext( sub_string );
+	wait duration - 0.2;
+	level.vo_hud sub_fade( 0, 0.2 );
+	level.vo_hud settext( "" );
+	level.vo_hud.sort = old_sort;
+	level.vo_hud.fontscale = old_scale;
+// SP = 0x0 - check OK
+}
+
+// 0x1677C
+playback_scene_subs()
+{
+	return;
+	level notify( "kill_scene_subs_thread" );
+	level endon( "kill_scene_subs_thread" );
+	scene_start = GetTime();
+	i = 0;
+	level._scene_subs[i].time = scene_start + level._scene_subs[i].time * 1000;
+	i++;
+	i = 0;
+	wait 0.05;
+	do_scene_sub( level._scene_subs[i].line, level._scene_subs[i].duration );
+	i++;
+	level._scene_subs = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x16834
+play_movie_async( movie_name, is_looping, is_in_memory, start_on_notify, use_fullscreen_trans, notify_when_done, notify_offset, seamless, foreground, check_for_webm, letterbox )
+{
+	is_looping = 0;
+	is_in_memory = 1;
+	seamless = 0;
+	foreground = 1;
+	check_for_webm = 0;
+	letterbox = 1;
+	notify_offset = 0.3;
+	fullscreen_trans_in = "none";
+	fullscreen_trans_out = "none";
+	fullscreen_trans_in = "white";
+	fullscreen_trans_out = "white";
+	fullscreen_trans_in = level.movie_trans_in;
+	fullscreen_trans_out = level.movie_trans_out;
+	cin_id = level load_movie_async( movie_name, is_looping, is_in_memory, IsDefined( start_on_notify ), seamless );
+	level thread play_movie_async_thread( cin_id, movie_name, start_on_notify, notify_when_done, notify_offset, fullscreen_trans_in, fullscreen_trans_out, foreground, check_for_webm, letterbox );
+	return cin_id;
+// SP = 0x0 - check OK
+}
+
+// 0x16934
+play_movie_async_thread( cin_id, movie_name, start_on_notify, notify_when_done, notify_offset, fullscreen_trans_in, fullscreen_trans_out, foreground, check_for_webm, letterbox )
+{
+	foreground = 1;
+	check_for_webm = 0;
+	level waittill( start_on_notify );
+	level thread playback_scene_subs();
+	level thread handle_movie_dvars( cin_id );
+	vision_set = movie_fade_in( movie_name, fullscreen_trans_in );
+	hud = start_movie( cin_id, movie_name, fullscreen_trans_in, foreground, check_for_webm, letterbox );
+	level notify( "movie_started" );
+	waittill_movie_done( cin_id, notify_when_done, notify_offset );
+	clientnotify( "pmo" );
+	level.movie_trans_in = undefined;
+	level.movie_trans_out = undefined;
+	level movie_fade_out( movie_name, vision_set, fullscreen_trans_out );
+// SP = 0x0 - check OK
+}
+
+// 0x169EC
+play_movie( movie_name, is_looping, is_in_memory, start_on_notify, use_fullscreen_trans, notify_when_done, notify_offset, check_for_webm )
+{
+	check_for_webm = 0;
+	cin_id = play_movie_async( movie_name, is_looping, is_in_memory, start_on_notify, use_fullscreen_trans, notify_when_done, notify_offset, check_for_webm );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x16A48
+handle_movie_dvars( cin_id )
+{
+	players = getplayers();
+	i = 0;
+	players[i]._hud_dvars = [];
+	players[i]._hud_dvars["cl_scoreDraw"] = int( GetDvar( #"0x2CED2C3D" ) );
+	players[i]._hud_dvars["compass"] = int( GetDvar( #"0xD3653F1B" ) );
+	players[i]._hud_dvars["hud_showstance"] = int( GetDvar( #"0x723A8A44" ) );
+	players[i]._hud_dvars["actionSlotsHide"] = int( GetDvar( #"0x72C9C8B2" ) );
+	players[i]._hud_dvars["ammoCounterHide"] = int( GetDvar( #"0xA0694A69" ) );
+	players[i]._hud_dvars["cg_cursorHints"] = int( GetDvar( #"0xEE75F792" ) );
+	players[i]._hud_dvars["hud_showobjectives"] = int( GetDvar( #"0x1F233594" ) );
+	players[i]._hud_dvars["cg_drawFriendlyNames"] = int( GetDvar( #"0xFB2AD76D" ) );
+	players[i] setclientdvars( "cl_scoreDraw", 0, "compass", 0, "hud_showstance", 0, "actionSlotsHide", 1, "ammoCounterHide", 1, "cg_cursorHints", 0, "hud_showobjectives", 0, "cg_drawfriendlynames", 0 );
+	i++;
+	wait 0.05;
+/#
+	println( "play_movie: resetting play movie dvars." );
+#/
+	players = getplayers();
+	i = 0;
+	keys = getarraykeys( players[i]._hud_dvars );
+	players[i] setclientdvars( keys[0], players[i]._hud_dvars[keys[0]], keys[1], players[i]._hud_dvars[keys[1]], keys[2], players[i]._hud_dvars[keys[2]], keys[3], players[i]._hud_dvars[keys[3]], keys[4], players[i]._hud_dvars[keys[4]], keys[5], players[i]._hud_dvars[keys[5]], keys[6], players[i]._hud_dvars[keys[6]], keys[7], players[i]._hud_dvars[keys[7]] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x16CC8
+load_movie_async( movie_name, is_looping, is_in_memory, paused, seamless )
+{
+	cin_id = start3dcinematic( movie_name, is_looping, is_in_memory, 0, 0, seamless );
+/#
+	println( "pausing " + movie_name + ": start notify defined" );
+#/
+	pause3dcinematic( cin_id, 1 );
+	return cin_id;
+// SP = 0x0 - check OK
+}
+
+// 0x16D24
+start_movie( cin_id, movie_name, fullscreen_trans, foreground, check_for_webm, letterbox )
+{
+	foreground = 1;
+	check_for_webm = 0;
+	level.fullscreen_hud_destroy_after_id = cin_id;
+	wait 0.05;
+	level.fullscreen_cin_hud = create_movie_hud( cin_id, fullscreen_trans, foreground, check_for_webm, letterbox );
+	playsoundatposition( movie_name + "_movie", ( 0, 0, 0 ) );
+	pause3dcinematic( cin_id, 0 );
+	return level.fullscreen_cin_hud;
+// SP = 0x0 - check OK
+}
+
+// 0x16DB4
+create_movie_hud( cin_id, fullscreen_trans, foreground, check_for_webm, letterbox )
+{
+	movie_hud = newhudelem();
+	movie_hud.x = 0;
+	movie_hud.y = 0;
+	movie_hud.horzalign = "fullscreen";
+	movie_hud.vertalign = "fullscreen";
+	movie_hud.foreground = foreground;
+	movie_hud.sort = 1;
+	movie_hud.alpha = 1;
+	otherhud = undefined;
+	height = 480;
+	otherhud = newhudelem();
+	otherhud.x = 0;
+	otherhud.y = 0;
+	otherhud.horzalign = "fullscreen";
+	otherhud.vertalign = "fullscreen";
+	otherhud.foreground = foreground;
+	otherhud.sort = 0;
+	otherhud.alpha = 1;
+	otherhud setshader( "black", 640, 480 );
+	setdvar( "r_loadingScreen", 1 );
+	height = int( 480 * GetDvarFloat( #"0x3783FECD" ) * 0.5625 );
+	movie_hud.y = ( 480 - height ) / 2;
+	movie_hud.y = 60;
+	height = 360;
+	movie_hud setshader( "cinematic2d", 640, height );
+	wait 0.05;
+	movie_hud setshader( "webm_720p", 640, height );
+	movie_hud thread destroy_when_movie_is_stopped( otherhud );
+	return movie_hud;
+// SP = 0x0 - check OK
+}
+
+// 0x16F6C
+destroy_when_movie_is_stopped( otherhudtodestroy )
+{
+	wait 0.05;
+	setdvar( "r_loadingScreen", 0 );
+/#
+	println( "destroy hud for movie id " + level.fullscreen_hud_destroy_after_id );
+#/
+	self destroy();
+	otherhudtodestroy destroy();
+	level.fullscreen_hud_destroy_after_id = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x16FE0
+movie_fade_in( movie_name, fullscreen_trans )
+{
+	current_vision_set = "";
+	fade_hud = newhudelem();
+	playsoundatposition( movie_name + "_fade_in", ( 0, 0, 0 ) );
+	fade_in = 0.5;
+	fade_in = level.movie_fade_in_time;
+	switch ( fullscreen_trans )
+	{
+		case "black":
+			current_vision_set = get_players()[0] getvisionsetnaked();
+			visionsetnaked( "int_frontend_char_trans", fade_in );
+			break;
+		case "white":
+			fade_hud.x = 0;
+			fade_hud.y = 0;
+			fade_hud.horzalign = "fullscreen";
+			fade_hud.vertalign = "fullscreen";
+			fade_hud.foreground = 0;
+			fade_hud.sort = 0;
+			fade_hud.alpha = 0;
+			fade_hud setshader( "white", 640, 480 );
+			fade_hud fadeovertime( fade_in );
+			fade_hud.alpha = 1;
+			break;
+		case "whitehud":
+			fade_hud.x = 0;
+			fade_hud.horzalign = "fullscreen";
+			fade_hud.vertalign = "fullscreen";
+			fade_hud.foreground = 0;
+			fade_hud.sort = 0;
+			fade_hud.alpha = 0;
+			fade_hud setshader( "black", 640, 480 );
+			fade_hud fadeovertime( fade_in );
+			fade_hud.alpha = 1;
+			break;
+	}
+	wait fade_in;
+	fade_hud destroy();
+	return current_vision_set;
+// SP = 0x0 - check OK
+}
+
+// 0x17168
+movie_fade_out( movie_name, vision_set, fullscreen_trans )
+{
+	fade_hud = newhudelem();
+	playsoundatposition( movie_name + "_fade_out", ( 0, 0, 0 ) );
+	fade_out = 0.5;
+	fade_out = level.movie_fade_out_time;
+	switch ( fullscreen_trans )
+	{
+		case "black":
+			current_vision_set = get_players()[0] getvisionsetnaked();
+			vision_set = current_vision_set;
+			visionsetnaked( "int_frontend_char_trans", 0 );
+			wait 0.1;
+			visionsetnaked( vision_set, fade_out );
+			break;
+		case "white":
+			fade_hud.x = 0;
+			fade_hud.y = 0;
+			fade_hud.horzalign = "fullscreen";
+			fade_hud.vertalign = "fullscreen";
+			fade_hud.foreground = 0;
+			fade_hud.sort = 0;
+			fade_hud.alpha = 1;
+			fade_hud setshader( "white", 640, 480 );
+			fade_hud fadeovertime( fade_out );
+			fade_hud.alpha = 0;
+			break;
+		case "whitehud":
+			fade_hud.x = 0;
+			fade_hud.y = 0;
+			fade_hud.horzalign = "fullscreen";
+			fade_hud.vertalign = "fullscreen";
+			fade_hud.foreground = 0;
+			fade_hud.sort = 0;
+			fade_hud.alpha = 1;
+			fade_hud setshader( "black", 640, 480 );
+			fade_hud fadeovertime( fade_out );
+			fade_hud.alpha = 0;
+			current_vision_set = get_players()[0] getvisionsetnaked();
+			visionsetnaked( vision_set, 0 );
+			break;
+	}
+	wait fade_out;
+	fade_hud destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x17340
+waittill_movie_done( cin_id, notify_when_done, notify_offset )
+{
+	wait 0.05;
+	wait 0.05;
+	level notify( notify_when_done );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x173AC
+allow_divetoprone( allowed )
+{
+	return;
+	setdvar( "dtp", allowed );
+// SP = 0x0 - check OK
+}
+
+// 0x173CC
+waittill_player_shoots( weapon_type, ender )
+{
+	self endon( ender );
+	weapon_type = "any";
+	self waittill( "weapon_fired" );
+	gun = self getcurrentweapon();
+	return gun;
+	return gun;
+	return gun;
+// SP = 0x0 - check OK
+}
+
+// 0x17454
+idle_at_cover( toggle )
+{
+/#
+	assert( isai( self ), "idle_at_cover should only be called on AI entity." );
+#/
+/#
+	assert( IsDefined( toggle ), "Incorrect use of idle_at_cover" );
+#/
+	self.a.coveridleonly = 1;
+	self.a.coveridleonly = 0;
+/#
+	assertmsg( "Incorrect use of idle_at_cover" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x174C8
+bloody_death( str_body_part_tag, n_delay_max )
+{
+	self endon( "death" );
+/#
+	assert( IsDefined( level._effect["flesh_hit"] ), "Define level._effect['flesh_hit'] in " + level.script + "_fx.gsc" );
+#/
+	return;
+	return;
+	return;
+	self.bloody_death = 1;
+	wait randomfloat( n_delay_max );
+	a_tags = [];
+	a_tags[0] = "j_hip_le";
+	a_tags[1] = "j_hip_ri";
+	a_tags[2] = "j_head";
+	a_tags[3] = "j_spine4";
+	a_tags[4] = "j_elbow_le";
+	a_tags[5] = "j_elbow_ri";
+	a_tags[6] = "j_clavicle_le";
+	a_tags[7] = "j_clavicle_ri";
+	a_tags = [];
+	switch ( str_body_part_tag )
+	{
+		case "body":
+			a_tags[0] = "j_head";
+			break;
+		case "head":
+			a_tags[0] = "j_spine4";
+			break;
+		case "neck":
+			a_tags[0] = "j_neck";
+			break;
+		default:
+/#
+			assertmsg( str_body_part_tag + " is not a valid tag for bloody_death! Valid types are head, body or neck" );
+#/
+			a_tags[0] = "j_head";
+			break;
+	}
+	i = 0;
+	n_wait_min = i * 0.1;
+	n_wait_max = ( i + 1 ) * 0.1;
+	self delay_thread( randomfloatrange( n_wait_min, n_wait_max ), ::bloody_death_fx, random( a_tags ), level._effect["flesh_hit"] );
+	i++;
+	wait 0.1 * 2;
+	self dodamage( self.health + 150, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x176B8
+bloody_death_fx( str_tag, str_fx_name )
+{
+/#
+	assert( IsDefined( str_tag ), "str_tag is a required parameter for bloody_death_fx" );
+#/
+	str_fx_name = level._effect["flesh_hit"];
+	playfxontag( str_fx_name, self, str_tag );
+// SP = 0x0 - check OK
+}
+
+// 0x176F8
+clientnotify_delay( msg, time )
+{
+	wait time;
+	clientnotify( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x17718
+fake_physics_launch( v_target_pos, n_force, n_rotate_angle, str_rotate_type )
+{
+/#
+	assert( IsDefined( v_target_pos ), "v_target_pos is a required parameter for fake_physics_launch" );
+#/
+	n_force = 1000;
+	v_start_pos = self.origin;
+	n_gravity = abs( GetDvarInt( #"0x55F139D3" ) ) * -1;
+	n_dist = distance( v_start_pos, v_target_pos );
+	n_time = n_dist / n_force;
+	v_delta = v_target_pos - v_start_pos;
+	n_drop_from_gravity = 0.5 * n_gravity * ( n_time * n_time );
+	v_launch = ( v_delta[0] / n_time, v_delta[1] / n_time, ( v_delta[2] - n_drop_from_gravity ) / n_time );
+	self movegravity( v_launch, n_time );
+	str_rotate_type = "pitch";
+	switch ( str_rotate_type )
+	{
+		case "pitch":
+			self rotateroll( n_rotate_angle, n_time );
+			break;
+		case "roll":
+			self rotatepitch( n_rotate_angle, n_time );
+			break;
+		case "yaw":
+			self rotateyaw( n_rotate_angle, n_time );
+			break;
+		default:
+/#
+			assertmsg( str_rotate_type + " is not a valid rotation type for fake_physics_launch" );
+#/
+			break;
+	}
+	return n_time;
+// SP = 0x0 - check OK
+}
+
+// 0x17858
+explosion_launch( v_point, n_radius, n_force_min, n_force_max, n_launch_angle_min, n_launch_angle_max, b_use_drones )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required argument for explosion_launch" );
+#/
+/#
+	assert( IsDefined( n_radius ), "n_radius is a required argument for explosion_launch" );
+#/
+	n_force_min = 50;
+	n_force_max = 150;
+	n_launch_angle_min = 25;
+	n_launch_angle_max = 45;
+	b_use_drones = 0;
+	a_guys = getaispeciesarray( "all", "all" );
+	a_drones = getentarray( "drone", "targetname" );
+	a_guys = arraycombine( a_drones, a_guys, 1, 0 );
+	n_radius_squared = n_radius * n_radius;
+	i = 0;
+	n_dist_squared = distancesquared( a_guys[i].origin, v_point );
+	v_launch_direction = a_guys[i].origin - v_point;
+	v_launch_direction = vectornormalize( v_launch_direction );
+	v_normalized = ( v_launch_direction[0], v_launch_direction[1], 0 );
+	n_scale = linear_map( n_dist_squared, 0, n_radius_squared, n_force_min, n_force_max );
+	n_angle = linear_map( n_dist_squared, 0, n_radius_squared, n_launch_angle_min, n_launch_angle_max );
+	v_normalized *= n_scale;
+	v_final = ( v_normalized[0], v_normalized[1], n_angle );
+	a_guys[i] anim_stopanimscripted();
+	a_guys[i].force_gib = 1;
+	a_guys[i] thread _launch_ai( v_final );
+	a_guys[i] thread _launch_drone( v_final );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x17A5C
+_launch_ai( v_physics_launch )
+{
+	self ragdoll_death();
+	self launchragdoll( v_physics_launch );
+// SP = 0x0 - check OK
+}
+
+// 0x17A7C
+_launch_drone( v_physics_launch )
+{
+	self dodamage( self.health + 100, v_physics_launch );
+	wait_network_frame();
+	self launchragdoll( v_physics_launch );
+// SP = 0x0 - check OK
+}
+
+// 0x17ABC
+rumble_loop( n_count, n_delay, str_rumble_type )
+{
+	self notify( "_rumble_loop_stop" );
+	self endon( "_rumble_loop_stop" );
+/#
+	assert( IsDefined( n_count ), "n_delay missing from rumble_loop" );
+#/
+/#
+	assert( isplayer( self ), "rumble_loop can only be used on players" );
+#/
+/#
+	assertmsg( "n_delay cannot be a zero or negative value in rumble_loop" );
+#/
+	n_delay = 0.5;
+	str_rumble_type = "damage_heavy";
+	b_loop_forever = n_count < 0;
+	n_times_played = 0;
+	self playrumbleonentity( str_rumble_type );
+	n_times_played++;
+	wait n_delay;
+// SP = 0x0 - check OK
+}
+
+// 0x17B74
+rumble_loop_stop()
+{
+	self notify( "_rumble_loop_stop" );
+// SP = 0x0 - check OK
+}
+
+// 0x17B84
+is_looking_at( ent_or_org, n_dot_range, do_trace, v_offset )
+{
+	n_dot_range = 0.67;
+	do_trace = 0;
+/#
+	assert( IsDefined( ent_or_org ), "ent_or_org is required parameter for is_facing function" );
+#/
+	v_point = ent_or_org.origin;
+	v_point += v_offset;
+	b_can_see = 0;
+	b_use_tag_eye = 0;
+	b_use_tag_eye = 1;
+	n_dot = self get_dot_direction( v_point, 0, 1, "forward", b_use_tag_eye );
+	v_eye = self get_eye();
+	b_can_see = sighttracepassed( v_eye, v_point, 0, ent_or_org );
+	b_can_see = 1;
+	return b_can_see;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x17C74
+is_behind( v_point, n_dot_range )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for is_behind" );
+#/
+	n_dot_range = 0;
+	b_is_behind = 0;
+	n_dot = self get_dot_forward( v_point );
+	b_is_behind = 1;
+	return b_is_behind;
+// SP = 0x0 - check OK
+}
+
+// 0x17CC4
+dot_to_fov( n_dot )
+{
+/#
+	assert( IsDefined( n_dot ), "n_dot is a required parameter for dot_to_fov" );
+#/
+	n_fov = acos( n_dot ) * 2;
+	return n_fov;
+// SP = 0x0 - check OK
+}
+
+// 0x17CF8
+fov_to_dot( n_fov )
+{
+/#
+	assert( IsDefined( n_fov ), "n_fov is required for fov_to_dot" );
+#/
+	n_dot = cos( n_fov * 0.5 );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x17D30
+get_ent( str_value, str_key, b_assert_if_missing )
+{
+/#
+	assert( IsDefined( str_value ), "str_value is a required parameter for get_ent" );
+#/
+	b_assert_if_missing = 0;
+	a_found = get_ent_array( str_value, str_key );
+/#
+	assertmsg( "get_ent found no entities with " + str_key + " " + str_value + "!" );
+#/
+/#
+	assert( a_found.size <= 1, "get_ent returned more than one entity with " + string( str_key ) + " " + str_value + "!" );
+#/
+	return a_found[0];
+// SP = 0x0 - check OK
+}
+
+// 0x17DD0
+get_ent_array( str_value, str_key, b_assert_if_missing )
+{
+	str_key = "targetname";
+/#
+	assert( IsDefined( str_value ), "str_value is a required parameter for get_ent_array" );
+#/
+/#
+	assertmsg( str_key + " is not a key supported by get_ent_array!" );
+#/
+	b_assert_if_missing = 0;
+	a_ents = getentarray( str_value, str_key );
+/#
+	assertmsg( "get_ent_array found no ents with " + str_key + " " + str_value + "!" );
+#/
+	return a_ents;
+// SP = 0x0 - check OK
+}
+
+// 0x17E80
+get_struct( str_value, str_key, b_assert_if_missing )
+{
+/#
+	assert( IsDefined( str_value ), "str_value is a required parameter for get_struct" );
+#/
+	str_key = "targetname";
+	b_assert_if_missing = 0;
+	a_found = get_struct_array( str_value, str_key );
+/#
+	assertmsg( "get_struct found no struct with " + str_key + " " + str_value + "!" );
+#/
+/#
+	assert( a_found.size <= 1, "get_struct found " + a_found.size + " structs with " + str_key + " " + str_value + "!" );
+#/
+	return a_found[0];
+// SP = 0x0 - check OK
+}
+
+// 0x17F30
+get_struct_array( str_value, str_key, b_assert_if_missing )
+{
+	str_key = "targetname";
+	b_assert_if_missing = 0;
+/#
+	assert( IsDefined( str_value ), "str_value is required parameter for get_struct_array" );
+#/
+	a_found = getstructarray( str_value, str_key );
+/#
+	assertmsg( "get_struct_array found no structs with " + str_key + " " + str_value + "!" );
+#/
+	return a_found;
+// SP = 0x0 - check OK
+}
+
+// 0x17FA8
+add_flag_function( str_flag_name, func_after_flag, param_1, param_2, param_3, param_4, param_5 )
+{
+/#
+	assert( IsDefined( str_flag_name ), "str_flag_name is a required parameter for add_flag_function" );
+#/
+/#
+	assert( IsDefined( func_after_flag ), "func_after_flag is a required parameter for add_flag_function" );
+#/
+	self thread _flag_wait_then_func( str_flag_name, func_after_flag, param_1, param_2, param_3, param_4, param_5 );
+// SP = 0x0 - check OK
+}
+
+// 0x18000
+_flag_wait_then_func( str_flag_name, func_after_flag, param_1, param_2, param_3, param_4, param_5 )
+{
+	flag_init( str_flag_name );
+	flag_wait( str_flag_name );
+	single_func( self, func_after_flag, param_1, param_2, param_3, param_4, param_5 );
+// SP = 0x0 - check OK
+}
+
+// 0x18054
+is_point_inside_volume( v_point, e_volume )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is missing in is_point_inside_volume" );
+#/
+/#
+	assert( IsDefined( e_volume ), "e_volume is missing in is_point_inside_volume" );
+#/
+	e_origin = spawn( "script_origin", v_point );
+	is_inside_volume = e_origin istouching( e_volume );
+	e_origin delete();
+	return is_inside_volume;
+// SP = 0x0 - check OK
+}
+
+// 0x180B8
+add_spawn_function_group( str_value, str_key, func_spawn, param_1, param_2, param_3, param_4, param_5 )
+{
+	str_key = "targetname";
+/#
+	assert( IsDefined( str_value ), "str_value is a required parameter for add_spawn_function_group" );
+#/
+/#
+	assert( IsDefined( func_spawn ), "func_spawn is a required parameter for add_spawn_function_group" );
+#/
+	a_spawners = [];
+	a_spawners = getspawnerarray( str_value, str_key );
+	a_all_spawners = getspawnerarray();
+	foreach ( sp in a_all_spawners )
+	{
+		a_spawners[a_spawners.size] = sp;
+	}
+/#
+	assertmsg( "add_spawn_function_group doesn't support " + str_key + "." );
+#/
+	array_func( a_spawners, ::add_spawn_function, func_spawn, param_1, param_2, param_3, param_4, param_5 );
+// SP = 0x0 - check OK
+}
+
+// 0x181F4
+add_spawn_function_ai_group( str_aigroup, func_spawn, param_1, param_2, param_3, param_4, param_5 )
+{
+/#
+	assert( IsDefined( str_aigroup ), "str_aigroup is a required parameter for add_spawn_function_ai_group" );
+#/
+/#
+	assert( IsDefined( func_spawn ), "func_spawn is a required parameter for add_spawn_function_ai_group" );
+#/
+	a_spawners = getspawnerarray();
+	foreach ( e_spawner in a_spawners )
+	{
+		e_spawner add_spawn_function( func_spawn, param_1, param_2, param_3, param_4, param_5 );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x18298
+add_trigger_function( trigger, func, param_1, param_2, param_3, param_4, param_5, param_6 )
+{
+	level thread _do_trigger_function( trigger, func, param_1, param_2, param_3, param_4, param_5, param_6 );
+// SP = 0x0 - check OK
+}
+
+// 0x182CC
+_do_trigger_function( trigger, func, param_1, param_2, param_3, param_4, param_5, param_6 )
+{
+	trigger_wait( trigger );
+	trigger endon( "death" );
+	trigger trigger_wait();
+	single_thread( level, func, param_1, param_2, param_3, param_4, param_5, param_6 );
+// SP = 0x0 - check OK
+}
+
+// 0x1832C
+get_dot_direction( v_point, b_ignore_z, b_normalize, str_direction, b_use_eye )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for get_dot" );
+#/
+	b_ignore_z = 0;
+	b_normalize = 1;
+	str_direction = "forward";
+	b_use_eye = 0;
+	b_use_eye = 1;
+	v_angles = self.angles;
+	v_origin = self.origin;
+	v_origin = self get_eye();
+	v_angles = self getplayerangles();
+	v_angles = self getgunangles();
+	v_angles = ( v_angles[0], v_angles[1], 0 );
+	v_point = ( v_point[0], v_point[1], 0 );
+	v_origin = ( v_origin[0], v_origin[1], 0 );
+	switch ( str_direction )
+	{
+		case "backward":
+			v_direction = anglestoforward( v_angles );
+			break;
+		case "down":
+			v_direction = anglestoforward( v_angles ) * -1;
+			break;
+		case "forward":
+			v_direction = anglestoright( v_angles );
+			break;
+		case "left":
+			v_direction = anglestoright( v_angles ) * -1;
+			break;
+		case "right":
+			v_direction = anglestoup( v_angles );
+			break;
+		case "up":
+			v_direction = anglestoup( v_angles ) * -1;
+			break;
+		default:
+/#
+			assertmsg( str_direction + " is not a valid str_direction for get_dot!" );
+#/
+			v_direction = anglestoforward( v_angles );
+			break;
+	}
+	v_to_point = v_point - v_origin;
+	v_to_point = vectornormalize( v_to_point );
+	n_dot = vectordot( v_direction, v_to_point );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x184EC
+get_dot_from_eye( v_point, b_ignore_z, b_normalize, str_direction )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for get_dot_forward" );
+#/
+/#
+	assert( isai( self ), "get_dot_from_eye was used on a " + self.classname + ". Valid ents are players and AI, since they have tag_eye." );
+#/
+	n_dot = get_dot_direction( v_point, b_ignore_z, b_normalize, str_direction, 1 );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x1855C
+get_dot_forward( v_point, b_ignore_z, b_normalize )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for get_dot_forward" );
+#/
+	n_dot = get_dot_direction( v_point, b_ignore_z, b_normalize, "forward" );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x18598
+get_dot_up( v_point, b_ignore_z, b_normalize )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for get_dot_up" );
+#/
+	n_dot = get_dot_direction( v_point, b_ignore_z, b_normalize, "up" );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x185D4
+get_dot_right( v_point, b_ignore_z, b_normalize )
+{
+/#
+	assert( IsDefined( v_point ), "v_point is a required parameter for get_dot_right" );
+#/
+	n_dot = get_dot_direction( v_point, b_ignore_z, b_normalize, "right" );
+	return n_dot;
+// SP = 0x0 - check OK
+}
+
+// 0x18610
+player_wakes_up( b_remove_weapons, str_return_weapons_notify )
+{
+/#
+	assert( isplayer( self ), "player_wakes_up can only be used on players!" );
+#/
+	flag_init( "player_awake" );
+	b_remove_weapons = 1;
+	e_temp = spawn( "script_origin", self.origin );
+	e_temp.angles = self getplayerangles();
+	self playerlinktodelta( e_temp, undefined, 0, 45, 45, 45, 45 );
+	self setstance( "prone" );
+	self allowstand( 0 );
+	self allowsprint( 0 );
+	self allowjump( 0 );
+	self allowads( !(b_remove_weapons) );
+	self setplayerviewratescale( 30 );
+	self hide_hud();
+	self thread _player_wakes_up_remove_weapons( str_return_weapons_notify );
+	self shellshock( "death", 12 );
+	self screen_fade_out( 0 );
+	wait 0.2;
+	self playrumbleonentity( "damage_light" );
+	wait 0.4;
+	self playrumbleonentity( "damage_light" );
+	wait 0.4;
+	self screen_fade_to_alpha_with_blur( 0.35, 2, 3 );
+	wait 3.5;
+	self screen_fade_to_alpha_with_blur( 1, 2.5, 6 );
+	self playrumbleonentity( "damage_light" );
+	wait 0.5;
+	self screen_fade_to_alpha_with_blur( 0.2, 2.5, 1.5 );
+	wait 2;
+	self screen_fade_to_alpha_with_blur( 1, 1, 6 );
+	wait 1;
+	self setplayerviewratescale( 80 );
+	self screen_fade_to_alpha_with_blur( 0.2, 5, 1 );
+	self allowstand( 1 );
+	self allowsprint( 1 );
+	self allowjump( 1 );
+	self allowads( 1 );
+	self resetplayerviewratescale();
+	self notify( "_give_back_weapons" );
+	self show_hud();
+	flag_set( "player_awake" );
+	self unlink();
+	e_temp delete();
+	self screen_fade_to_alpha_with_blur( 0, 6, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x18880
+_player_wakes_up_remove_weapons( str_return_weapons_notify )
+{
+	level endon( "player_awake" );
+	str_return_weapons_notify = "_give_back_weapons";
+	wait 0.05;
+	self thread take_and_giveback_weapons( str_return_weapons_notify );
+// SP = 0x0 - check OK
+}
+
+// 0x188C8
+screen_fade_out( n_time, str_shader, b_foreground, b_force )
+{
+	b_foreground = 0;
+	b_force = 0;
+	level notify( "_screen_fade" );
+	level endon( "_screen_fade" );
+	flag_init( "screen_fade_out_start" );
+	flag_init( "screen_fade_out_end" );
+	flag_init( "screen_fade_in_start" );
+	flag_init( "screen_fade_in_end" );
+	flag_clear( "screen_fade_in_end" );
+	return;
+	n_time = 2;
+	hud = get_fade_hud( str_shader );
+	hud.alpha = 0;
+	hud.foreground = b_foreground;
+	hud fadeovertime( n_time );
+	hud.alpha = 1;
+	flag_set( "screen_fade_out_start" );
+	wait n_time;
+	hud.alpha = 1;
+	flag_clear( "screen_fade_out_start" );
+	flag_set( "screen_fade_out_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x189E4
+screen_fade_in( n_time, str_shader, b_foreground, b_force )
+{
+	b_foreground = 0;
+	b_force = 0;
+	level notify( "_screen_fade" );
+	level endon( "_screen_fade" );
+	flag_init( "screen_fade_out_start" );
+	flag_init( "screen_fade_out_end" );
+	flag_init( "screen_fade_in_start" );
+	flag_init( "screen_fade_in_end" );
+	flag_clear( "screen_fade_out_end" );
+	return;
+	n_time = 2;
+	hud = get_fade_hud( str_shader );
+	hud.alpha = 1;
+	hud.foreground = b_foreground;
+	hud fadeovertime( n_time );
+	hud.alpha = 0;
+	flag_set( "screen_fade_in_start" );
+	wait n_time;
+	level.fade_hud destroy();
+	flag_clear( "screen_fade_in_start" );
+	flag_set( "screen_fade_in_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x18B00
+screen_fade_to_alpha_with_blur( n_alpha, n_fade_time, n_blur, str_shader )
+{
+/#
+	assert( IsDefined( n_alpha ), "Must specify an alpha value for screen_fade_to_alpha_with_blur." );
+#/
+/#
+	assert( isplayer( self ), "screen_fade_to_alpha_with_blur can only be called on players!" );
+#/
+	level notify( "_screen_fade" );
+	level endon( "_screen_fade" );
+	hud_fade = get_fade_hud( str_shader );
+	hud_fade fadeovertime( n_fade_time );
+	hud_fade.alpha = n_alpha;
+	self setblur( n_blur, n_fade_time );
+	wait n_fade_time;
+// SP = 0x0 - check OK
+}
+
+// 0x18B94
+screen_fade_to_alpha( n_alpha, n_fade_time, str_shader )
+{
+	screen_fade_to_alpha_with_blur( n_fade_time, n_alpha, 0, str_shader );
+// SP = 0x0 - check OK
+}
+
+// 0x18BB4
+get_fade_hud( str_shader )
+{
+	str_shader = "black";
+	level.fade_hud = newhudelem();
+	level.fade_hud.x = 0;
+	level.fade_hud.y = 0;
+	level.fade_hud.horzalign = "fullscreen";
+	level.fade_hud.vertalign = "fullscreen";
+	level.fade_hud.sort = 0;
+	level.fade_hud.alpha = 0;
+	level.fade_hud setshader( str_shader, 640, 480 );
+	return level.fade_hud;
+// SP = 0x0 - check OK
+}
+
+// 0x18C40
+get_triggers( type1, type2, type3, type4, type5, type6, type7, type8, type9 )
+{
+	type1 = "trigger_damage";
+	type2 = "trigger_hurt";
+	type3 = "trigger_lookat";
+	type4 = "trigger_once";
+	type5 = "trigger_radius";
+	type6 = "trigger_use";
+	type7 = "trigger_use_touch";
+	type8 = "trigger_box";
+	type9 = "trigger_multiple";
+/#
+	assert( _is_valid_trigger_type( type1 ) );
+#/
+	trigs = getentarray( type1, "classname" );
+/#
+	assert( _is_valid_trigger_type( type2 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type2, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type3 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type3, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type4 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type4, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type5 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type5, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type6 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type6, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type7 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type7, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type8 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type8, "classname" ), 1, 0 );
+/#
+	assert( _is_valid_trigger_type( type9 ) );
+#/
+	trigs = arraycombine( trigs, getentarray( type9, "classname" ), 1, 0 );
+	return trigs;
+// SP = 0x0 - check OK
+}
+
+// 0x18EA4
+_is_valid_trigger_type( type )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x18F28
+get_player_stat( stat_name )
+{
+/#
+	println( "ERROR: Tried to get player stat " + stat_name + "on a non-player entity!" );
+#/
+	return undefined;
+	return self getsessstat( "PlayerSessionStats", stat_name );
+// SP = 0x0 - check OK
+}
+
+// 0x18F6C
+set_player_stat( stat_name, value )
+{
+/#
+	println( "ERROR: Tried to set player stat " + stat_name + "on a non-player entity!" );
+#/
+	return undefined;
+	self setsessstat( "PlayerSessionStats", stat_name, value );
+// SP = 0x0 - check OK
+}
+
+// 0x18FB4
+waitforstats()
+{
+	flag_wait( "all_players_connected" );
+	players = get_players();
+	all_stats_fetched = 1;
+	i = 0;
+	all_stats_fetched = 0;
+	i++;
+	return;
+/#
+	println( "Stats not fetched yet!" );
+#/
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x19030
+init_hero( name, func_init, arg1, arg2, arg3, arg4, arg5 )
+{
+	level.heroes = [];
+	name = tolower( name );
+	ai_hero = getent( name + "_ai", "targetname" );
+	spawner = getent( name, "targetname" );
+	spawner.count++;
+	ai_hero = simple_spawn_single( spawner );
+	spawner notify( "hero_spawned", ai_hero );
+	spawner waittill( "hero_spawned", ai_hero );
+	ai_hero.animname = name;
+	ai_hero.name = "";
+	ai_hero.name = ai_hero.script_friendname;
+	ai_hero.name = name;
+	ai_hero make_hero();
+	single_thread( ai_hero, func_init, arg1, arg2, arg3, arg4, arg5 );
+	level.heroes = add_to_array( level.heroes, ai_hero, 0 );
+	return ai_hero;
+// SP = 0x0 - check OK
+}
+
+// 0x19160
+init_heroes( a_hero_names, func, arg1, arg2, arg3, arg4, arg5 )
+{
+	a_heroes = [];
+	foreach ( str_hero in a_hero_names )
+	{
+		a_heroes[a_heroes.size] = init_hero( str_hero, func, arg1, arg2, arg3, arg4, arg5 );
+	}
+	return a_heroes;
+// SP = 0x0 - check OK
+}
+
+// 0x191C8
+getdvarfloatdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return float( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x191F4
+getdvarintdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return int( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x19220
+weapondamagetrace( from, to, startradius, ignore )
+{
+	midpos = undefined;
+	diff = to - from;
+	midpos = to;
+	dir = vectornormalize( diff );
+	midpos = from + ( dir[0] * startradius, dir[1] * startradius, dir[2] * startradius );
+	trace = bullettrace( midpos, to, 0, ignore );
+/#
+	thread debugline( midpos, to, ( 1, 1, 1 ) );
+	thread debugline( midpos, trace["position"], ( 1, 0.9, 0.8 ) );
+	thread debugline( trace["position"], to, ( 1, 0.4, 0.3 ) );
+#/
+	return trace;
+// SP = 0x0 - check OK
+}
+
+// 0x19314
+closestpointonline( point, linestart, lineend )
+{
+	linemagsqrd = lengthsquared( lineend - linestart );
+	t = ( ( ( ( ( point[0] - linestart[0] ) * ( lineend[0] - linestart[0] ) + point[1] ) - linestart[1] * ( lineend[1] - linestart[1] ) ) + point[2] ) - linestart[2] * ( lineend[2] - linestart[2] ) ) / linemagsqrd;
+	return linestart;
+	return lineend;
+	start_x = linestart[0] + t * ( lineend[0] - linestart[0] );
+	start_y = linestart[1] + t * ( lineend[1] - linestart[1] );
+	start_z = linestart[2] + t * ( lineend[2] - linestart[2] );
+	return ( start_x, start_y, start_z );
+// SP = 0x0 - check OK
+}
+
+// 0x193F4
+get2dyaw( start, end )
+{
+	vector = ( end[0] - start[0], end[1] - start[1], 0 );
+	return vectoangles( vector );
+// SP = 0x0 - check OK
+}
+
+// 0x19428
+vectoangles( vector )
+{
+	yaw = 0;
+	vecx = vector[0];
+	vecy = vector[1];
+	return 0;
+	vecy = 0.001;
+	yaw = atan( vecx / vecy );
+	yaw += 180;
+	return 90 - yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x194A4
+wait_endon( waittime, endonstring, endonstring2, endonstring3 )
+{
+	self endon( endonstring );
+	self endon( endonstring2 );
+	self endon( endonstring3 );
+	wait waittime;
+// SP = 0x0 - check OK
+}
+
+// 0x194D0
+waittillnotmoving()
+{
+	self waittill( "stationary" );
+	prevorigin = self.origin;
+	wait 0.15;
+	prevorigin = self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x1951C
+playsoundinspace( alias, origin, master )
+{
+	master = 0;
+	origin = self.origin;
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	org.origin = origin;
+	org playsoundasmaster( alias );
+	org playsound( alias );
+	wait 10;
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x19598
+sort_by_distance( a_ents, v_origin )
+{
+	return maps\_utility_code::mergesort( a_ents, ::_sort_by_distance_compare_func, v_origin );
+// SP = 0x0 - check OK
+}
+
+// 0x195B8
+_sort_by_distance_compare_func( e1, e2, origin )
+{
+	dist1 = distancesquared( e1.origin, origin );
+	dist2 = distancesquared( e2.origin, origin );
+	return dist1 > dist2;
+// SP = 0x0 - check OK
+}
+
+// 0x195F8
+sort_by_script_int( a_ents, b_lowest_first )
+{
+	b_lowest_first = 0;
+	return maps\_utility_code::mergesort( a_ents, ::_sort_by_script_int_compare_func, b_lowest_first );
+// SP = 0x0 - check OK
+}
+
+// 0x19620
+_sort_by_script_int_compare_func( e1, e2, b_lowest_first )
+{
+	return e1.script_int < e2.script_int;
+	return e1.script_int > e2.script_int;
+// SP = 0x0 - check OK
+}
+
+// 0x19654
+set_battlechatter( state )
+{
+	return;
+	self.bsc_squelched = 1;
+	self wait_until_done_speaking();
+	self.bsc_squelched = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x19698
+playsmokesound( position, duration, startsound, stopsound, loopsound )
+{
+	smokesound = spawn( "script_origin", ( 0, 0, 1 ) );
+	smokesound.origin = position;
+	smokesound playsound( startsound );
+	smokesound playloopsound( loopsound );
+	wait duration - 0.5;
+	thread playsoundinspace( stopsound, position );
+	smokesound stoploopsound( 0.5 );
+	wait 0.5;
+	smokesound delete();
+// SP = 0x0 - check OK
+}
+
+// 0x19728
+freeze_player_controls( boolean )
+{
+/#
+	assert( IsDefined( boolean ), "'freeze_player_controls()' has not been passed an argument properly." );
+#/
+	self freezecontrols( boolean );
+	self freezecontrols( boolean );
+// SP = 0x0 - check OK
+}
+
+// 0x19794
+iskillstreaksenabled()
+{
+	return level.killstreaksenabled;
+// SP = 0x0 - check OK
+}
+
+// 0x197A8
+iskillstreaksstreakcountsenabled()
+{
+	return !(level.killstreakscountsdisabled);
+// SP = 0x0 - check OK
+}
+
+// 0x197C0
+get_story_stat( str_stat_name )
+{
+	return self getdstat( "PlayerCareerStats", "storypoints", str_stat_name );
+	return self getsessstat( "storypoints", str_stat_name );
+// SP = 0x0 - check OK
+}
+
+// 0x19800
+set_story_stat( str_stat_name, b_event_state )
+{
+	return self setdstat( "PlayerCareerStats", "storypoints", str_stat_name, b_event_state );
+	return self setsessstat( "storypoints", str_stat_name, b_event_state );
+// SP = 0x0 - check OK
+}
+
+// 0x19844
+get_temp_stat( n_temp_stat )
+{
+	return self getsessstat( "PlayerTempStats", "stat", "TEMPSTAT_" + n_temp_stat );
+// SP = 0x0 - check OK
+}
+
+// 0x19868
+set_temp_stat( n_temp_stat, n_val )
+{
+	self setsessstat( "PlayerTempStats", "stat", "TEMPSTAT_" + n_temp_stat, n_val );
+// SP = 0x0 - check OK
+}
+
+// 0x19890
+get_general_stat( str_stat_name )
+{
+	return self getsessstat( "PlayerSessionStats", str_stat_name );
+// SP = 0x0 - check OK
+}
+
+// 0x198AC
+inc_general_stat( str_stat_name )
+{
+	self addsessstat( "PlayerSessionStats", str_stat_name, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x198C8
+hide_hud( force )
+{
+	force = 0;
+	self setclientdvars( "cg_drawfriendlynames", 0 );
+	self setclientuivisibilityflag( "hud_visible", 0 );
+	setsaveddvar( "ammoCounterHide", 1 );
+	self._hide_hud_count = 1;
+	return;
+	self._hide_hud_count = 0;
+	self setclientdvars( "cg_drawfriendlynames", 0 );
+	self setclientuivisibilityflag( "hud_visible", 0 );
+	setsaveddvar( "ammoCounterHide", 1 );
+	self._hide_hud_count++;
+// SP = 0x0 - check OK
+}
+
+// 0x19960
+show_hud( force )
+{
+	force = 0;
+	self setclientdvars( "cg_drawfriendlynames", 1 );
+	self setclientuivisibilityflag( "hud_visible", 1 );
+	setsaveddvar( "ammoCounterHide", 0 );
+	self._hide_hud_count = undefined;
+	return;
+	self._hide_hud_count--;
+	self setclientdvars( "cg_drawfriendlynames", 1 );
+	self setclientuivisibilityflag( "hud_visible", 1 );
+	setsaveddvar( "ammoCounterHide", 0 );
+	self._hide_hud_count = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x199F8
+collected_all()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x19A38
+load_gump( str_gump )
+{
+	level flag_init( str_gump );
+	flush_gump( str_gump );
+	level.gump = str_gump;
+	loadgump( str_gump );
+	level waittill( "gump_loaded" );
+	level notify( "loaded_gump", str_gump );
+	level flag_set( str_gump );
+	flag_wait( str_gump );
+	maps\_autosave::allow_save();
+// SP = 0x0 - check OK
+}
+
+// 0x19AE0
+flush_gump( str_gump_loading )
+{
+	str_gump_to_dump = level.gump;
+	level.gump = str_gump_loading;
+	maps\_autosave::block_save();
+	level notify( "flushing_" + str_gump_to_dump );
+	flag_clear( str_gump_to_dump );
+	waittillframeend;
+	waittillframeend;
+	level.gump = undefined;
+	flushgump();
+	level waittill( "gump_flushed" );
+// SP = 0x0 - check OK
+}
+
+// 0x19B44
+add_gump_function( str_gump, func )
+{
+	level._gump_functions = [];
+	level._gump_functions[str_gump] = [];
+	level._gump_functions[str_gump][level._gump_functions[str_gump].size] = func;
+// SP = 0x0 - check OK
+}
+
+// 0x19B88
+waittill_player_has_brute_force_perk()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x19BB0
+waittill_player_has_intruder_perk()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x19BD8
+waittill_player_has_lock_breaker_perk()
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x19C00
+waittill_textures_loaded()
+{
+	wait 0.05;
+	level.texture_wait_was_called = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x19C24
+waittill_asset_loaded( str_type, str_name )
+{
+	level waittill( "gump_loaded" );
+// SP = 0x0 - check OK
+}
+
+// 0x19C4C
+new_timer()
+{
+	s_timer = spawnstruct();
+	s_timer.n_time_created = GetTime();
+	return s_timer;
+// SP = 0x0 - check OK
+}
+
+// 0x19C6C
+get_time()
+{
+	t_now = GetTime();
+	return t_now - self.n_time_created;
+// SP = 0x0 - check OK
+}
+
+// 0x19C80
+get_time_in_seconds()
+{
+	return get_time() / 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x19C94
+timer_wait( n_wait )
+{
+	wait n_wait;
+	return get_time_in_seconds();
+// SP = 0x0 - check OK
+}
+
+// 0x19CAC
+lerp_dvar( str_dvar, n_val, n_lerp_time, b_saved_dvar, b_client_dvar )
+{
+	n_start_val = GetDvarFloat( str_dvar );
+	s_timer = new_timer();
+	n_time_delta = s_timer timer_wait( 0.05 );
+	n_curr_val = lerpfloat( n_start_val, n_val, n_time_delta / n_lerp_time );
+	setsaveddvar( str_dvar, n_curr_val );
+	self setclientdvar( str_dvar, n_curr_val );
+	setdvar( str_dvar, n_curr_val );
+// SP = 0x0 - check OK
+}
+
+// 0x19D50
+get_level_era()
+{
+	str_era = tablelookup( "sp/levelLookup.csv", 1, level.script, 3 );
+	return str_era;
+// SP = 0x0 - check OK
+}
+
+// 0x19D74
+ishardpointsenabled()
+{
+	return level.hardpointsenabled;
+// SP = 0x0 - check OK
+}
+
+// 0x19D88
+flag_wait_on( flagname )
+{
+	wait 0.05;
+	flag_wait( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x19DBC
+set_screen_fade_timer( delay )
+{
+/#
+	assert( IsDefined( delay ), "You must specify a delay to change the fade screen's fadeTimer." );
+#/
+	level.fade_screen.fadetimer = delay;
+// SP = 0x0 - check OK
+}
+
+// 0x19DE8
+waittill_dialog_finished()
+{
+	self endon( "death" );
+	self waittill_any( "done speaking", "cancel speaking", "kill_pending_dialog" );
+// SP = 0x0 - check OK
+}
+
+// 0x19E2C
+waittill_dialog_finished_array( a_ents, str_line )
+{
+	i = 0;
+	ent = a_ents[i];
+	ent waittill_dialog_finished();
+	waittillframeend;
+	i = -1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x19E98
+ammo_refill_trigger()
+{
+	self sethintstring( &"SCRIPT_AMMO_REFILL" );
+	self setcursorhint( "HINT_NOICON" );
+	self waittill( "trigger", e_player );
+	e_player player_disable_weapons();
+	wait 2;
+	a_str_weapons = e_player getweaponslist();
+	foreach ( str_weapon in a_str_weapons )
+	{
+		e_player givemaxammo( str_weapon );
+		e_player setweaponammoclip( str_weapon, weaponclipsize( str_weapon ) );
+	}
+	e_player player_enable_weapons();
+// SP = 0x0 - check OK
+}
+
+// 0x19F4C
+player_enable_weapons()
+{
+/#
+	println( "ERROR: Tried to enable weapons on a non-player entity!" );
+#/
+	return undefined;
+	self.b_weapons_disabled = undefined;
+	luinotifyevent( &"hud_expand_ammo", 0 );
+	self enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x19FA4
+player_disable_weapons( notify_event )
+{
+/#
+	println( "ERROR: Tried to disable weapons on a non-player entity!" );
+#/
+	return undefined;
+	self.b_weapons_disabled = 1;
+	self disableweapons();
+	luinotifyevent( &"hud_shrink_ammo", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x19FEC
+player_walk_speed_adjustment( e_rubber_band_to, str_endon, n_dist_min, n_dist_max, n_speed_scale_min, n_speed_scale_max )
+{
+	n_speed_scale_min = 0;
+	n_speed_scale_max = 1;
+/#
+	assert( isplayer( self ), "player_walk_speed_adjustment() must be called on a player" );
+#/
+/#
+	assert( IsDefined( e_rubber_band_to ), "e_rubber_band_to is a required argument for player_walk_speed_adjustment()" );
+#/
+/#
+	assert( IsDefined( n_dist_min ), "n_dist_min is a required argument for player_walk_speed_adjustment()" );
+#/
+/#
+	assert( IsDefined( n_dist_max ), "n_dist_max is a required argument for player_walk_speed_adjustment()" );
+#/
+	level endon( str_endon );
+	n_dist_min_sq = n_dist_min * n_dist_min;
+	n_dist_max_sq = n_dist_max * n_dist_max;
+	self.n_speed_scale_min = n_speed_scale_min;
+	self.n_speed_scale_max = n_speed_scale_max;
+	self thread _player_walk_speed_reset( str_endon );
+	n_dist_sq = distance2dsquared( self.origin, e_rubber_band_to.origin );
+	n_speed_scale = linear_map( n_dist_sq, n_dist_min_sq, n_dist_max_sq, self.n_speed_scale_min, self.n_speed_scale_max );
+	self setmovespeedscale( n_speed_scale );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1A0F0
+_player_walk_speed_reset( str_endon )
+{
+	level waittill( str_endon );
+	self setmovespeedscale( 1 );
+	self.n_speed_scale_min = undefined;
+	self.n_speed_scale_max = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1A118
+set_lighting_pair( str_targetname_target, str_targetname_source, e_actor, e_source )
+{
+	e_actor = getent( str_targetname_target, "targetname" );
+	e_source = getent( str_targetname_source, "targetname" );
+/#
+	assert( IsDefined( e_actor ), "Undefined entity for creating lighting pair" );
+#/
+/#
+	assert( IsDefined( e_source ), "Undefined lighting source for lighting pair" );
+#/
+	e_source setclientflag( 15 );
+	wait 0.05;
+	e_actor setclientflag( 7 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A19C
+clear_lighting_pair( str_targetname, e_actor )
+{
+	e_actor = getent( str_targetname, "targetname" );
+	e_actor clearclientflag( 7 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A1CC
+get_normalized_movement( do_ignore_config, do_ignore_inversion )
+{
+	do_ignore_config = 0;
+	do_ignore_inversion = 0;
+	a_movement = [];
+	v_movement = self getnormalizedmovement();
+	a_movement[0] = v_movement[0];
+	a_movement[1] = v_movement[1];
+	return a_movement;
+	switch ( getlocalprofileint( "gpad_sticksConfig" ) )
+	{
+		case 0:
+			v_movement = self getnormalizedcameramovement();
+			a_movement[0] = v_movement[0];
+			a_movement[1] = v_movement[1];
+			a_movement[0] *= -1;
+			break;
+		case 1:
+			a_movement[1] = self getnormalizedcameramovement()[1];
+			break;
+		case 2:
+			a_movement[0] = self getnormalizedcameramovement()[0];
+			a_movement[0] *= -1;
+			break;
+		case 3:
+		default:
+	}
+	return a_movement;
+// SP = 0x0 - check OK
+}
+
+// 0x1A310
+get_normalized_camera_movement( do_ignore_config, do_ignore_inversion )
+{
+	do_ignore_config = 0;
+	do_ignore_inversion = 0;
+	a_camera_movement = [];
+	v_camera_movement = self getnormalizedcameramovement();
+	a_camera_movement[0] = v_camera_movement[0];
+	a_camera_movement[1] = v_camera_movement[1];
+	a_camera_movement[0] *= -1;
+	return a_camera_movement;
+	a_camera_movement[0] *= -1;
+	switch ( getlocalprofileint( "gpad_sticksConfig" ) )
+	{
+		case 0:
+			v_camera_movement = self getnormalizedmovement();
+			a_camera_movement[0] = v_camera_movement[0];
+			a_camera_movement[1] = v_camera_movement[1];
+			break;
+		case 1:
+			a_camera_movement[1] = self getnormalizedmovement()[1];
+			break;
+		case 2:
+			a_camera_movement[0] = self getnormalizedmovement()[0];
+			break;
+		case 3:
+		default:
+	}
+	return a_camera_movement;
+// SP = 0x0 - check OK
+}
+
+// 0x1A44C
+get_normalized_dpad_movement()
+{
+	a_dpad_movement = [];
+	a_dpad_movement[0] = 1;
+	a_dpad_movement[0] = -1;
+	a_dpad_movement[0] = 0;
+	a_dpad_movement[1] = 1;
+	a_dpad_movement[1] = -1;
+	a_dpad_movement[1] = 0;
+	return a_dpad_movement;
+// SP = 0x0 - check OK
+}
+
+// 0x1A4D8
+model_convert_areas()
+{
+	level._struct_models = [];
+	a_vol_areas = getentarray( "model_convert", "targetname" );
+	foreach ( vol_area in a_vol_areas )
+	{
+		model_convert_area( vol_area );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1A534
+model_convert_area( area )
+{
+	e_area = getent( area, "script_noteworthy" );
+	str_area = area;
+	e_area = area;
+	str_area = e_area.script_noteworthy;
+	str_area = "general";
+	level._struct_models[str_area] = [];
+	a_m_converts = getentarray( "script_model", "classname" );
+	foreach ( m_convert in a_m_converts )
+	{
+		s_model = spawnstruct();
+		m_convert model_convert_copy_kvps( s_model );
+		m_convert delete();
+		level._struct_models[str_area][level._struct_models[str_area].size] = s_model;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1A640
+model_convert( str_value, str_key )
+{
+	str_area = "general";
+	level._struct_models = [];
+	level._struct_models[str_area] = [];
+	a_m_converts = getentarray( str_value, str_key );
+	foreach ( m_convert in a_m_converts )
+	{
+		s_model = spawnstruct();
+		m_convert model_convert_copy_kvps( s_model );
+		m_convert delete();
+		level._struct_models[str_area][level._struct_models[str_area].size] = s_model;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1A708
+model_restore_area( str_area )
+{
+	str_area = "general";
+/#
+	assert( IsDefined( level._struct_models[str_area] ), "The area specified does not exist.  It was either not converted or already restored." );
+#/
+	foreach ( s_model in level._struct_models[str_area] )
+	{
+		m_restore = spawn( "script_model", s_model.origin, s_model.spawnflags_copy, undefined, undefined, s_model.destructibledef );
+		s_model model_convert_copy_kvps( m_restore );
+		s_model structdelete();
+	}
+	level._struct_models[str_area] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1A7B4
+model_restore( str_value, str_key )
+{
+	str_area = "general";
+	foreach ( s_model in level._struct_models[str_area] )
+	{
+		m_restore = spawn( "script_model", s_model.origin, s_model.spawnflags_copy, undefined, undefined, s_model.destructibledef );
+		s_model model_convert_copy_kvps( m_restore );
+		s_model structdelete();
+	}
+	foreach ( s_model in level._struct_models[str_area] )
+	{
+		m_restore = spawn( "script_model", s_model.origin, s_model.spawnflags_copy, undefined, undefined, s_model.destructibledef );
+		s_model model_convert_copy_kvps( m_restore );
+		s_model structdelete();
+	}
+	foreach ( s_model in level._struct_models[str_area] )
+	{
+		m_restore = spawn( "script_model", s_model.origin, s_model.spawnflags_copy, undefined, undefined, s_model.destructibledef );
+		s_model model_convert_copy_kvps( m_restore );
+		s_model structdelete();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1A988
+model_convert_copy_kvps( target )
+{
+	target.angles = self.angles;
+	target.destructibledef = self.destructibledef;
+	target.target = self.target;
+	target thread maps\_destructible::destructible_barrel_death_think();
+	target.origin = self.origin;
+	target.model_name = self.model;
+	target hide();
+	target.hidden = 1;
+	target.hidden = 0;
+	target setmodel( self.model_name );
+	target.script_float = self.script_float;
+	target.script_int = self.script_int;
+	target.script_noteworthy = self.script_noteworthy;
+	target.script_string = self.script_string;
+	target.spawnflags_copy = self.spawnflags;
+	target.targetname = self.targetname;
+// SP = 0x0 - check OK
+}
+
+// 0x1AB00
+model_delete_area( area )
+{
+	e_area = getent( area, "script_noteworthy" );
+	i = 0;
+	a_m_converts = getentarray( "script_model", "classname" );
+	foreach ( m_convert in a_m_converts )
+	{
+		m_clip = getent( m_convert.target, "targetname" );
+		m_clip delete();
+		m_convert delete();
+		i++;
+		wait 0.05;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1AC08
+_model_is_exempt( m_convert )
+{
+	return 1;
+	switch ( m_convert.script_noteworthy )
+	{
+		case "fxanim":
+			return 1;
+	}
+	return 1;
+	switch ( m_convert.targetname )
+	{
+		case "collectible":
+		case "sys_ammo_cache":
+		case "sys_weapon_cache":
+		case "trigger_ammo_refill":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}

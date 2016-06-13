@@ -1,0 +1,653 @@
+// clientscripts/mp/_ambientpackage.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x1080
+deactivateambientpackage( client, package, priority )
+{
+/#
+	assertmsg( "deactivateAmbientPackage: must declare ambient package \"" + package + "\" in level_amb main before it can be deactivated" );
+#/
+	return;
+	i = 0;
+	level.ambientpackages[package].refcount[i]--;
+	level notify( "updateActiveAmbientPackage" );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1114
+deactivateambientroom( client, room, priority )
+{
+/#
+	assertmsg( "deactivateAmbientRoom: must declare ambient room \"" + room + "\" in level_amb main before it can be deactivated" );
+#/
+	return;
+	i = 0;
+	level.ambientrooms[room].refcount[i]--;
+	level notify( "updateActiveAmbientRoom" );
+	return;
+	i++;
+	forceambientroom( 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x11C4
+ambientpackagetrigger()
+{
+	wait 1;
+	hasambientroom = IsDefined( self.script_ambientroom );
+	useambientroom = IsDefined( level.ambientrooms[self.script_ambientroom] );
+	hasambientpackage = IsDefined( self.script_ambientpackage );
+	useambientpackage = IsDefined( level.ambientpackages[self.script_ambientpackage] );
+	self.useambientroom = useambientroom;
+	self.useambientpackage = useambientpackage;
+/#
+	iprintlnbold( "Trigger at " + self.origin + " references ambient room '" + self.script_ambientroom + "', but no such room has been declared" );
+#/
+	return;
+/#
+	iprintlnbold( "Trigger at " + self.origin + " references ambient package '" + self.script_ambientpackage + "', but no such package has been declared" );
+#/
+	return;
+/#
+	iprintlnbold( "Trigger at " + self.origin + " is an ambient trigger but has no room or package" );
+#/
+	return;
+	self.script_ambientpriority = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x12BC
+init_ambient_package_triggers()
+{
+	waitforclient( 0 );
+	init_trigger_data();
+	trigs = getentarray( 0, "ambient_package", "targetname" );
+	array_thread( trigs, ::ambientpackagetrigger );
+/#
+	println( "Client : " + trigs.size + " ambient package triggers." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1318
+init()
+{
+	level.usecodetriggers = 1;
+	level.activeambientpackage = "";
+	level.ambientpackages = [];
+	level.ambientnummissedsounds = 0;
+	level.ambientnumseqmissedsounds = 0;
+	thread updateactiveambientpackage();
+	level.ambientpackagescriptoriginpool = [];
+	i = 0;
+	level.ambientpackagescriptoriginpool[i] = spawnstruct();
+	level.ambientpackagescriptoriginpool[i].org = spawnfakeent( 0 );
+	level.ambientpackagescriptoriginpool[i].inuse = 0;
+	level.ambientpackagescriptoriginpool[i] thread scriptoriginpoolthread();
+	i++;
+	level.activeambientroomname = "";
+	level.activeambientroom = undefined;
+	level.ambientrooms = [];
+	level thread updateactiveambientroom();
+	clientscripts\mp\_utility::registersystem( "ambientPackageCmd", ::ambientpackagecmdhandler );
+	clientscripts\mp\_utility::registersystem( "ambientRoomCmd", ::ambientroomcmdhandler );
+	level thread init_ambient_package_triggers();
+	declareambientroom( "final_kill_cam" );
+	declareambientpackage( "final_kill_cam" );
+	setambientroomreverb( "final_kill_cam", "mp_final_killcam", 1, 1, 1 );
+	setambientroomcontext( "final_kill_cam", "ringoff_plr", "outdoor" );
+	setambientroomtone( "final_kill_cam", "mpl_final_kill_cam_loop", 0.25, 2 );
+// SP = 0x0 - check OK
+}
+
+// 0x1460
+declareambientpackage( package, defaultpackage )
+{
+	return;
+	level.ambientpackages[package] = spawnstruct();
+	level.ambientpackages[package].priority = [];
+	level.ambientpackages[package].refcount = [];
+	level.ambientpackages[package].elements = [];
+	level.ambientpackages[package].defaultpackage = defaultpackage;
+	level.ambientpackages[package].defaultpackage = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14DC
+addambientelement( package, alias, spawnmin, spawnmax, distmin, distmax, anglemin, anglemax )
+{
+/#
+	assertmsg( "addAmbientElement: must declare ambient package \"" + package + "\" in level_amb main before it can have elements added to it" );
+#/
+	return;
+	index = level.ambientpackages[package].elements.size;
+	level.ambientpackages[package].elements[index] = spawnstruct();
+	level.ambientpackages[package].elements[index].alias = alias;
+	spawnmin = 0;
+	spawnmax = spawnmin + 1;
+	level.ambientpackages[package].elements[index].spawnmin = spawnmin;
+	level.ambientpackages[package].elements[index].spawnmax = spawnmax;
+	level.ambientpackages[package].elements[index].distmin = -1;
+	level.ambientpackages[package].elements[index].distmax = -1;
+	level.ambientpackages[package].elements[index].distmin = distmin;
+	level.ambientpackages[package].elements[index].distmax = distmax;
+	level.ambientpackages[package].elements[index].anglemin = 0;
+	level.ambientpackages[package].elements[index].anglemax = 359;
+	level.ambientpackages[package].elements[index].anglemin = anglemin;
+	level.ambientpackages[package].elements[index].anglemax = anglemax;
+// SP = 0x0 - check OK
+}
+
+// 0x16A8
+declareambientroom( room, defaultroom )
+{
+	return;
+	level.ambientrooms[room] = spawnstruct();
+	level.ambientrooms[room].priority = [];
+	level.ambientrooms[room].refcount = [];
+	level.ambientrooms[room].ent = spawnfakeent( 0 );
+	level.ambientrooms[room].defaultroom = defaultroom;
+	level.ambientrooms[room].defaultroom = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1730
+gettriggers( name )
+{
+	trigs = getentarray( 0, "ambient_package", "targetname" );
+	trigkeys = getarraykeys( trigs );
+	triggerentnums = [];
+	num = 0;
+	i = 0;
+	trigger = trigs[i];
+	triggernum = trigger getentitynumber();
+	triggerentnums[num] = triggernum;
+	num++;
+	i++;
+	return triggerentnums;
+// SP = 0x0 - check OK
+}
+
+// 0x17B4
+gettriggerpriorities( name )
+{
+	trigs = getentarray( 0, "ambient_package", "targetname" );
+	trigkeys = getarraykeys( trigs );
+	triggerpriorities = [];
+	num = 0;
+	i = 0;
+	trigger = trigs[i];
+	triggerpriority = trigger.script_ambientpriority;
+	triggerpriorities[num] = triggerpriority;
+	num++;
+	i++;
+	return triggerpriorities;
+// SP = 0x0 - check OK
+}
+
+// 0x1834
+setambientroomtone( room, alias, fadein, fadeout )
+{
+/#
+	assertmsg( "setAmbientRoomTone: must declare ambient room \"" + room + "\" in level_amb main before it can have a room tone set" );
+#/
+	return;
+	level.ambientrooms[room].tone = alias;
+	level.ambientrooms[room].fadein = 2;
+	level.ambientrooms[room].fadein = fadein;
+	level.ambientrooms[room].fadeout = 2;
+	level.ambientrooms[room].fadeout = fadeout;
+// SP = 0x0 - check OK
+}
+
+// 0x18D4
+setambientroomsnapshot( room, snapshot )
+{
+/#
+	assertmsg( "setAmbientRoomSnapshot: must declare ambient room \"" + room + "\" in level_amb main before it can have a room snapshot set" );
+#/
+	return;
+	level.ambientrooms[room].snapshot = snapshot;
+// SP = 0x0 - check OK
+}
+
+// 0x1914
+setambientroomsidechainduck( room, sidechainduck )
+{
+/#
+	assertmsg( "setAmbientRoomSnapshot: must declare ambient room \"" + room + "\" in level_amb main before it can have a room side chain duck set" );
+#/
+	return;
+	level.ambientrooms[room].sidechainduck = sidechainduck;
+// SP = 0x0 - check OK
+}
+
+// 0x1954
+setambientroomcontext( room, type, value )
+{
+/#
+	assertmsg( "setAmbientRoomContext: must declare ambient room \"" + room + "\" in level_amb main before it can have a room context set" );
+#/
+	return;
+	level.ambientrooms[room].context = [];
+	level.ambientrooms[room].context[type] = value;
+	level.ambientcontexts = [];
+	level.ambientcontexts[type] = type;
+// SP = 0x0 - check OK
+}
+
+// 0x19D4
+setambientroomreverb( room, reverbroomtype, dry, wet, fade )
+{
+/#
+	assertmsg( "setAmbientRoomReverb: must declare ambient room \"" + room + "\" in level_amb main before it can have a room reverb set" );
+#/
+	return;
+	level.ambientrooms[room].reverb = spawnstruct();
+	level.ambientrooms[room].reverb.reverbroomtype = reverbroomtype;
+	level.ambientrooms[room].reverb.dry = dry;
+	level.ambientrooms[room].reverb.wet = wet;
+	level.ambientrooms[room].reverb.fade = 2;
+	level.ambientrooms[room].reverb.fade = fade;
+// SP = 0x0 - check OK
+}
+
+// 0x1A94
+activateambientpackage( clientnum, package, priority )
+{
+/#
+	assertmsg( "activateAmbientPackage: must declare ambient package \"" + package + "\" in level_amb.csc main before it can be activated" );
+#/
+	return;
+	i = 0;
+	level.ambientpackages[package].refcount[i]++;
+	i++;
+	level.ambientpackages[package].priority[i] = priority;
+	level.ambientpackages[package].refcount[i] = 1;
+	level notify( "updateActiveAmbientPackage" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B50
+activateambientroom( clientnum, room, priority )
+{
+/#
+	assertmsg( "activateAmbientRoom: must declare ambient room \"" + room + "\" in level_amb.csc main before it can be activated" );
+#/
+	return;
+	i = 0;
+	level.ambientrooms[room].refcount[i]++;
+	i++;
+	level.ambientrooms[room].priority[i] = priority;
+	level.ambientrooms[room].refcount[i] = 1;
+	level notify( "updateActiveAmbientRoom" );
+	defaultroom = finddefaultroom();
+	roomkeys = getarraykeys( level.ambientrooms );
+	i = 0;
+	ambientroom = level.ambientrooms[roomkeys[i]];
+	forceambientroom( 1, 1, room );
+	return;
+	forceambientroom( 1, 0, room );
+	return;
+	i++;
+	forceambientroom( 1, 1, room );
+// SP = 0x0 - check OK
+}
+
+// 0x1CBC
+ambientpackagecmdhandler( clientnum, state, oldstate )
+{
+	split_state = splitargs( state );
+/#
+	println( "*** Client : Malformed arguements to ambient packages " + state );
+#/
+	command = split_state[0];
+	package = split_state[1];
+	priority = int( split_state[2] );
+/#
+	println( "### APC : " + command + " " + package + " " + priority );
+#/
+/#
+	assertmsg( "activateAmbientPackage: must declare ambient package \"" + package + "\" in level_amb.csc main before it can be activated" );
+#/
+	return;
+	i = 0;
+	level.ambientpackages[package].refcount[i]++;
+	i++;
+	level.ambientpackages[package].priority[i] = priority;
+	level.ambientpackages[package].refcount[i] = 1;
+/#
+#/
+	level notify( "updateActiveAmbientPackage" );
+/#
+	assertmsg( "deactivateAmbientPackage: must declare ambient package \"" + package + "\" in level_amb.csc main before it can be deactivated" );
+#/
+	return;
+	i = 0;
+	level.ambientpackages[package].refcount[i]--;
+/#
+#/
+	level notify( "updateActiveAmbientPackage" );
+	return;
+	i++;
+/#
+	assertmsg( "Unknown command in ambientPackageCmdHandler " + state );
+#/
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1EB4
+ambientroomcmdhandler( clientnum, state, oldstate )
+{
+	split_state = splitargs( state );
+/#
+	println( "*** Client : Malformed arguements to ambient packages " + state );
+#/
+	command = split_state[0];
+	room = split_state[1];
+	priority = int( split_state[2] );
+/#
+	assertmsg( "activateAmbientRoom: must declare ambient room \"" + room + "\" in level_amb.csc main before it can be activated" );
+#/
+	return;
+	i = 0;
+	level.ambientrooms[room].refcount[i]++;
+	i++;
+	level.ambientrooms[room].priority[i] = priority;
+	level.ambientrooms[room].refcount[i] = 1;
+/#
+#/
+	level notify( "updateActiveAmbientRoom" );
+/#
+	assertmsg( "deactivateAmbientRoom: must declare ambient room \"" + room + "\" in level_amb.csc main before it can be deactivated" );
+#/
+	return;
+	i = 0;
+	level.ambientrooms[room].refcount[i]--;
+/#
+#/
+	level notify( "updateActiveAmbientRoom" );
+	return;
+	i++;
+/#
+	assertmsg( "Unknown command in ambientRoomCmdHandler " + state );
+#/
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x208C
+ambientelementthread()
+{
+	level endon( "killambientElementThread" + level.activeambientpackage );
+	timer = 0;
+	timer = randomfloatrange( self.spawnmin, self.spawnmax );
+	wait timer;
+/#
+	iprintlnbold( "AP : playing2d: " + self.alias );
+#/
+	playsound( 0, self.alias );
+	dist = 0;
+	angle = 0;
+	offset = ( 0, 0, 0 );
+	index = -1;
+	timer = randomfloatrange( self.spawnmin, self.spawnmax );
+	wait timer;
+	index = getscriptoriginpoolindex();
+	dist = randomintrange( self.distmin, self.distmax );
+	angle = randomintrange( self.anglemin, self.anglemax );
+	player_angle = getlocalclientangles( 0 )[1];
+	offset = anglestoforward( ( 0, angle + player_angle, 0 ) );
+	offset = vector_scale( offset, dist );
+	pos = getlocalclienteyepos( 0 ) + offset;
+	setfakeentorg( 0, level.ambientpackagescriptoriginpool[index].org, pos );
+	level.ambientpackagescriptoriginpool[index].soundid = playsound( 0, self.alias, pos );
+/#
+	col = vector_scale( ( 1, 0, 0 ), 0.8 );
+	col = vector_scale( ( 0, 1, 0 ), 0.8 );
+	print3d( pos, "AP : " + self.alias, col, 1, 3, 30 );
+#/
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x2260
+getscriptoriginpoolindex()
+{
+	index = 0;
+	level.ambientpackagescriptoriginpool[index].inuse = 1;
+	level.ambientnumseqmissedsounds = 0;
+	return index;
+	index++;
+	level.ambientnummissedsounds++;
+	level.ambientnumseqmissedsounds++;
+/#
+	iprintlnbold( "No free origins " + level.ambientnumseqmissedsounds + " ( " + level.ambientnummissedsounds + " )" );
+#/
+	return -1;
+// SP = 0x0 - check OK
+}
+
+// 0x22E4
+scriptoriginpoolthread()
+{
+	self.inuse = 0;
+	self.soundid = -1;
+	self.inuse = 0;
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x2340
+findhighestpriorityambientpackage()
+{
+	package = "";
+	priority = -1;
+	packagearray = getarraykeys( level.ambientpackages );
+	i = 0;
+	j = 0;
+	package = packagearray[i];
+	priority = level.ambientpackages[packagearray[i]].priority[j];
+	j++;
+	i++;
+	return package;
+// SP = 0x0 - check OK
+}
+
+// 0x23F4
+updateactiveambientpackage()
+{
+	return;
+	level waittill( "updateActiveAmbientPackage" );
+	newambientpackage = findhighestpriorityambientpackage();
+/#
+	println( "*** nap " + newambientpackage + " " + level.activeambientpackage );
+#/
+	level notify( "killambientElementThread" + level.activeambientpackage );
+	level.activeambientpackage = newambientpackage;
+	array_thread( level.ambientpackages[level.activeambientpackage].elements, ::ambientelementthread );
+// SP = 0x0 - check OK
+}
+
+// 0x2480
+roomtonefadeouttimerthread( fadeout )
+{
+	self endon( "killRoomToneFadeOutTimer" );
+	wait fadeout;
+	self.inuse = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2498
+findhighestpriorityambientroom()
+{
+	room = "";
+	priority = -1;
+	roomarray = getarraykeys( level.ambientrooms );
+	i = 0;
+	j = 0;
+/#
+#/
+	room = roomarray[i];
+	priority = level.ambientrooms[roomarray[i]].priority[j];
+	j++;
+	i++;
+	return room;
+// SP = 0x0 - check OK
+}
+
+// 0x256C
+updateactiveambientroom()
+{
+	return;
+	newambientroom = findhighestpriorityambientroom();
+	level waittill( "updateActiveAmbientRoom" );
+/#
+	println( "*** nar " + newambientroom + " " + level.activeambientroomname );
+#/
+	oldroom = level.ambientrooms[level.activeambientroomname];
+	newroom = level.ambientrooms[newambientroom];
+	tmp = newroom.ent;
+	newroom.ent = oldroom.ent;
+	oldroom.ent = tmp;
+	newroom.id = playloopsound( 0, newroom.ent, newroom.tone, newroom.fadein );
+	stoploopsound( 0, oldroom.ent, oldroom.fadeout );
+	deactivatereverb( "snd_enveffectsprio_level", 2 );
+	setreverb( "snd_enveffectsprio_level", newroom.reverb.reverbroomtype, newroom.reverb.dry, newroom.reverb.wet, newroom.reverb.fade );
+	snapshot = "default";
+	snapshot = newroom.snapshot;
+	setambientsnapshot( snapshot );
+	sidechainduck = "default";
+	sidechainduck = newroom.sidechainduck;
+	setambientsidechainduck( sidechainduck );
+	level.activeambientroomname = newambientroom;
+// SP = 0x0 - check OK
+}
+
+// 0x2758
+init_trigger_data()
+{
+	defaultroom = undefined;
+	roomname = "";
+	roomkeys = getarraykeys( level.ambientrooms );
+	i = 0;
+	room = level.ambientrooms[roomkeys[i]];
+	roomname = roomkeys[i];
+	hasambientroom = IsDefined( level.ambientrooms[roomname] );
+	hasambientpackage = IsDefined( level.ambientpackages[roomname] );
+	triggerentnums = gettriggers( roomname );
+	triggerpriorities = gettriggerpriorities( roomname );
+	entnumkeys = getarraykeys( triggerentnums );
+	prioritykeys = getarraykeys( triggerpriorities );
+/#
+	println( "Ambient room problem. Room " + roomname + " exceeded limit of 8 triggers. Create a new room and lower the number of triggers. Number of triggers in room = " + entnumkeys.size );
+#/
+	setambientpackage( hasambientroom, hasambientpackage, 0, room.defaultroom, roomname, triggerentnums, triggerpriorities );
+	keys = getarraykeys( room.context );
+	j = 0;
+	setambientroomcontextengine( roomname, keys[j], room.context[keys[j]], 0 );
+	j++;
+	i++;
+	trigs = getentarray( 0, "ambient_package", "targetname" );
+	trigkeys = getarraykeys( trigs );
+	i = 0;
+	trigger = trigs[i];
+	trigger setambienttrigger();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x290C
+finddefaultroom()
+{
+	roomarray = getarraykeys( level.ambientrooms );
+	i = 0;
+	return roomarray[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2960
+finddefaultpackage()
+{
+	packagearray = getarraykeys( level.ambientpackages );
+	i = 0;
+	return packagearray[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x29B4
+switchactiveambientroom( ambientroom, roomcollidercent )
+{
+	oldroom = level.activeambientroom;
+	newroom = level.ambientrooms[ambientroom];
+	newroom = undefined;
+	defaultroom = finddefaultroom();
+	newroom = level.ambientrooms[defaultroom];
+	ambientroom = newroom;
+	tmp = newroom.ent;
+	newroom.ent = oldroom.ent;
+	oldroom.ent = tmp;
+	newroom.id = playloopsound( 0, newroom.ent, newroom.tone, newroom.fadein );
+	stoploopsound( 0, oldroom.ent, oldroom.fadeout );
+	deactivatereverb( "snd_enveffectsprio_level", 2 );
+	setreverb( "snd_enveffectsprio_level", newroom.reverb.reverbroomtype, newroom.reverb.dry, newroom.reverb.wet, newroom.reverb.fade );
+	snapshot = "default";
+	snapshot = newroom.snapshot;
+	setambientsnapshot( snapshot );
+	sidechainduck = "default";
+	sidechainduck = newroom.sidechainduck;
+	setambientsidechainduck( sidechainduck );
+	level.activeambientroom = newroom;
+// SP = 0x0 - check OK
+}
+
+// 0x2B90
+switchactiveambientpackage( ambientpackage, packagecollidercent )
+{
+	packagename = "";
+	newpackage = level.ambientpackages[ambientpackage];
+	packagename = ambientpackage;
+	newpackage = undefined;
+	defaultpackage = finddefaultpackage();
+	newpackage = level.ambientpackages[defaultpackage];
+	packagename = defaultpackage;
+	level notify( "killambientElementThread" + level.activeambientpackage );
+	level.activeambientpackage = packagename;
+	array_thread( newpackage.elements, ::ambientelementthread );
+// SP = 0x0 - check OK
+}
+
+// 0x2C44
+setcurrentambientstate( ambientroom, ambientpackage, roomcollidercent, packagecollidercent, defaultroom )
+{
+	return;
+	switchactiveambientroom( ambientroom, roomcollidercent );
+	switchactiveambientpackage( ambientpackage, packagecollidercent );
+// SP = 0x0 - check OK
+}
+
+// 0x2C7C
+setcurrentaiambientstate( triggers, actors, numtriggers )
+{
+	return;
+	wait 0.25;
+	i = 0;
+	ambientroom = triggers[i];
+	actorent = actors[i];
+	newroom = level.ambientrooms[ambientroom.script_ambientroom];
+	newroom = undefined;
+	defaultroom = finddefaultroom();
+	newroom = level.ambientrooms[defaultroom];
+	ambientroom = newroom;
+	i++;
+// SP = 0x0 - check OK
+}

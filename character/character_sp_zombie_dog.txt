@@ -1,0 +1,18 @@
+// character/character_sp_zombie_dog.gsc
+
+
+// 0xBC
+main()
+{
+	self setmodel( "zombie_wolf" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xE4
+precache()
+{
+	precachemodel( "zombie_wolf" );
+// SP = 0x0 - check OK
+}

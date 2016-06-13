@@ -1,0 +1,125 @@
+// animscripts/bigdog/bigdog_utility.gsc
+
+#include animscripts\debug;
+#include common_scripts\utility;
+#include animscripts\anims;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x478
+initanimtree( animscript )
+{
+	self clearanim( %body, 0.3 );
+	self setanim( %body, 1, 0 );
+/#
+	assert( IsDefined( animscript ), "Animscript not specified in initAnimTree" );
+#/
+	self.a.prevscript = self.a.script;
+	self.a.script = animscript;
+	self.a.script_suffix = undefined;
+	self animscripts\anims::clearanimcache();
+// SP = 0x0 - check OK
+}
+
+// 0x4F4
+initialize( animscript )
+{
+/#
+	self animscripts\debug::debugpopstate( self.a.script );
+	self animscripts\debug::debugclearstate();
+	self animscripts\debug::debugpushstate( animscript );
+#/
+	self.a.scriptstarttime = GetTime();
+	initanimtree( animscript );
+// SP = 0x0 - check OK
+}
+
+// 0x55C
+fire_grenade_at_target( target )
+{
+	scriptedenemy = self.scriptenemy;
+	self setentitytarget( target );
+	self.grenadeammo = 1;
+	self waittill( "grenade_fire" );
+	self.grenadeammo = 0;
+	self setentitytarget( target );
+	self clearentitytarget();
+// SP = 0x0 - check OK
+}
+
+// 0x5B0
+setactivegrenadetimer( throwingat )
+{
+	self.activegrenadetimer = "player_frag_grenade_sp";
+	self.activegrenadetimer = "AI_frag_grenade_sp";
+	anim.grenadetimers[self.activegrenadetimer] = randomintrange( 1000, 20000 );
+// SP = 0x0 - check OK
+}
+
+// 0x608
+animsuffix()
+{
+	animsuffix = "";
+	animsuffix = "_all_legs";
+	animsuffix = "_frontlegs";
+	animsuffix = "_fr_rl";
+	animsuffix = "_fl_rr";
+	animsuffix = "_rearlegs";
+	animsuffix = "_leftlegs";
+	animsuffix = "_rightlegs";
+	animsuffix = "_frontright";
+	animsuffix = "_frontleft";
+	animsuffix = "_rearright";
+	animsuffix = "_rearleft";
+	return animsuffix;
+// SP = 0x0 - check OK
+}
+
+// 0x79C
+wasdamagedbyempgrenade( weapon, meansofdeath )
+{
+	return meansofdeath != "MOD_IMPACT";
+// SP = 0x0 - check OK
+}
+
+// 0x7C0
+bigdog_isemped()
+{
+	return GetTime() <= self.a.empedendtime;
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+wasdamagedbychargedsnipershot()
+{
+	weaponchargeable = ischargedshotsniperrifle( self.damageweapon );
+	weaponischarged = self.attacker.chargeshotlevel >= 2;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x83C
+wasdamagedbyfullychargedsnipershot()
+{
+	weaponchargeable = ischargedshotsniperrifle( self.damageweapon );
+	weaponischarged = self.attacker.chargeshotlevel >= 3;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x898
+ischargedshotsniperrifle( weapon )
+{
+	return weaponissniperweapon( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x8C0
+wasdamagedbysnipershot()
+{
+	return weaponissniperweapon( self.damageweapon );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,319 @@
+// maps/mp/zombies/_zm_weap_claymore.gsc
+
+#include maps\mp\gametypes_zm\_weaponobjects;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_equipment;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xAD0
+init()
+{
+	level.claymores_max_per_player = 12;
+	trigs = getentarray( "claymore_purchase", "targetname" );
+	i = 0;
+	model = getent( trigs[i].target, "targetname" );
+	model hide();
+	i++;
+	array_thread( trigs, ::buy_claymores );
+	level thread give_claymores_after_rounds();
+	level.claymores_on_damage = ::satchel_damage;
+	level.pickup_claymores = ::pickup_claymores;
+	level.pickup_claymores_trigger_listener = ::pickup_claymores_trigger_listener;
+	level.claymore_detectiondot = cos( 70 );
+	level.claymore_detectionmindist = 20;
+	level._effect["claymore_laser"] = loadfx( "weapon/claymore/fx_claymore_laser" );
+// SP = 0x0 - check OK
+}
+
+// 0xBAC
+buy_claymores()
+{
+	self.zombie_cost = 1000;
+	self sethintstring( &"ZOMBIE_CLAYMORE_PURCHASE" );
+	self setcursorhint( "HINT_WEAPON", "claymore_zm" );
+	self endon( "kill_trigger" );
+	return;
+	self.stub.claymores_triggered = 0;
+	self.claymores_triggered = self.stub.claymores_triggered;
+	self waittill( "trigger", who );
+	wait 0.1;
+	play_sound_at_pos( "purchase", self.origin );
+	who maps\mp\zombies\_zm_score::minus_to_player_score( self.zombie_cost );
+	who thread claymore_setup();
+	who thread show_claymore_hint( "claymore_purchased" );
+	who thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "weapon_pickup", "grenade" );
+	self.claymores_triggered = self.stub.claymores_triggered;
+	model = getent( self.target, "targetname" );
+	model thread maps\mp\zombies\_zm_weapons::weapon_show( who );
+	level setclientfield( self.clientfieldname, 1 );
+	self.claymores_triggered = 1;
+	self.stub.claymores_triggered = 1;
+	trigs = getentarray( "claymore_purchase", "targetname" );
+	i = 0;
+	trigs[i] setinvisibletoplayer( who );
+	i++;
+	who thread show_claymore_hint( "already_purchased" );
+// SP = 0x0 - check OK
+}
+
+// 0xDB0
+claymore_unitrigger_update_prompt( player )
+{
+	self sethintstring( "" );
+	self setcursorhint( "HINT_NOICON" );
+	return 0;
+	self sethintstring( &"ZOMBIE_CLAYMORE_PURCHASE" );
+	self setcursorhint( "HINT_WEAPON", "claymore_zm" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE0C
+set_claymore_visible()
+{
+	players = get_players();
+	trigs = getentarray( "claymore_purchase", "targetname" );
+	j = 0;
+	i = 0;
+	trigs[i] setinvisibletoplayer( players[j], 0 );
+	i++;
+	j++;
+	wait 1;
+	players = get_players();
+// SP = 0x0 - check OK
+}
+
+// 0xEA4
+claymore_safe_to_plant()
+{
+	return 0;
+	return self [[level.claymore_safe_to_plant]]();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xED4
+claymore_wait_and_detonate()
+{
+	wait 0.1;
+	self detonate( self.owner );
+// SP = 0x0 - check OK
+}
+
+// 0xEF4
+claymore_watch()
+{
+	self endon( "death" );
+	self notify( "claymore_watch" );
+	self endon( "claymore_watch" );
+	self waittill( "grenade_fire", claymore, weapname );
+	claymore.owner = self;
+	claymore.team = self.team;
+	self notify( "zmb_enable_claymore_prompt" );
+	self thread [[level.claymore_planted]]( claymore );
+	claymore thread claymore_detonation();
+	claymore thread play_claymore_effects();
+	self maps\mp\zombies\_zm_stats::increment_client_stat( "claymores_planted" );
+	self maps\mp\zombies\_zm_stats::increment_player_stat( "claymores_planted" );
+	claymore thread claymore_wait_and_detonate();
+// SP = 0x0 - check OK
+}
+
+// 0xFB4
+claymore_setup()
+{
+	self.claymores = [];
+	self thread claymore_watch();
+	self giveweapon( "claymore_zm" );
+	self set_player_placeable_mine( "claymore_zm" );
+	self setactionslot( 4, "weapon", "claymore_zm" );
+	self setweaponammostock( "claymore_zm", 2 );
+// SP = 0x0 - check OK
+}
+
+// 0x101C
+adjust_trigger_origin( origin )
+{
+	origin += vector_scale( ( 0, 0, 1 ), 20 );
+	return origin;
+// SP = 0x0 - check OK
+}
+
+// 0x1038
+on_spawn_retrieve_trigger( watcher, player )
+{
+	self maps\mp\gametypes_zm\_weaponobjects::onspawnretrievableweaponobject( watcher, player );
+	self.pickuptrigger sethintlowpriority( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x106C
+pickup_claymores()
+{
+	player = self.owner;
+	player thread claymore_watch();
+	player giveweapon( "claymore_zm" );
+	player set_player_placeable_mine( "claymore_zm" );
+	player setactionslot( 4, "weapon", "claymore_zm" );
+	player setweaponammoclip( "claymore_zm", 0 );
+	player notify( "zmb_enable_claymore_prompt" );
+	clip_ammo = player getweaponammoclip( self.name );
+	clip_max_ammo = weaponclipsize( self.name );
+	self destroy_ent();
+	player notify( "zmb_disable_claymore_prompt" );
+	return;
+	self pick_up();
+	clip_ammo = player getweaponammoclip( self.name );
+	clip_max_ammo = weaponclipsize( self.name );
+	player notify( "zmb_disable_claymore_prompt" );
+	player maps\mp\zombies\_zm_stats::increment_client_stat( "claymores_pickedup" );
+	player maps\mp\zombies\_zm_stats::increment_player_stat( "claymores_pickedup" );
+// SP = 0x0 - check OK
+}
+
+// 0x1188
+pickup_claymores_trigger_listener( trigger, player )
+{
+	self thread pickup_claymores_trigger_listener_enable( trigger, player );
+	self thread pickup_claymores_trigger_listener_disable( trigger, player );
+// SP = 0x0 - check OK
+}
+
+// 0x11B4
+pickup_claymores_trigger_listener_enable( trigger, player )
+{
+	self endon( "delete" );
+	self endon( "death" );
+	player waittill_any( "zmb_enable_claymore_prompt", "spawned_player" );
+	return;
+	trigger trigger_on();
+	trigger linkto( self );
+// SP = 0x0 - check OK
+}
+
+// 0x1208
+pickup_claymores_trigger_listener_disable( trigger, player )
+{
+	self endon( "delete" );
+	self endon( "death" );
+	player waittill( "zmb_disable_claymore_prompt" );
+	return;
+	trigger unlink();
+	trigger trigger_off();
+// SP = 0x0 - check OK
+}
+
+// 0x1250
+shouldaffectweaponobject( object )
+{
+	pos = self.origin + vector_scale( ( 0, 0, 1 ), 32 );
+	dirtopos = pos - object.origin;
+	objectforward = anglestoforward( object.angles );
+	dist = vectordot( dirtopos, objectforward );
+	return 0;
+	dirtopos = vectornormalize( dirtopos );
+	dot = vectordot( dirtopos, objectforward );
+	return dot > level.claymore_detectiondot;
+// SP = 0x0 - check OK
+}
+
+// 0x12D0
+claymore_detonation()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	detonateradius = 96;
+	damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - detonateradius ), 4, detonateradius, detonateradius * 2 );
+	damagearea setexcludeteamfortrigger( self.team );
+	damagearea enablelinkto();
+	damagearea linkto( self );
+	damagearea setmovingplatformenabled( 1 );
+	self.damagearea = damagearea;
+	self thread delete_claymores_on_death( self.owner, damagearea );
+	self.owner.claymores[self.owner.claymores.size] = self;
+	damagearea waittill( "trigger", ent );
+	self playsound( "wpn_claymore_alert" );
+	wait 0.4;
+	self detonate( self.owner );
+	self detonate( undefined );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1464
+delete_claymores_on_death( player, ent )
+{
+	self waittill( "death" );
+	arrayremovevalue( player.claymores, self );
+	wait 0.05;
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x14AC
+satchel_damage()
+{
+	self endon( "death" );
+	self setcandamage( 1 );
+	self.health = 100000;
+	self.maxhealth = self.health;
+	attacker = undefined;
+	self waittill( "damage", amount, attacker );
+	return;
+	self.health = self.maxhealth;
+	wait 0.1 + randomfloat( 0.4 );
+	wait 0.05;
+	return;
+	level.satchelexplodethisframe = 1;
+	thread reset_satchel_explode_this_frame();
+	self detonate( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x15B8
+reset_satchel_explode_this_frame()
+{
+	wait 0.05;
+	level.satchelexplodethisframe = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15CC
+play_claymore_effects()
+{
+	self endon( "death" );
+	self waittill_not_moving();
+	playfxontag( level._effect["claymore_laser"], self, "tag_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x15FC
+give_claymores_after_rounds()
+{
+	level waittill( "between_round_over" );
+	players = get_players();
+	i = 0;
+	players[i] giveweapon( "claymore_zm" );
+	players[i] set_player_placeable_mine( "claymore_zm" );
+	players[i] setactionslot( 4, "weapon", "claymore_zm" );
+	players[i] setweaponammoclip( "claymore_zm", 2 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x16C0
+show_claymore_hint( string )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	text = &"ZOMBIE_CLAYMORE_HOWTO";
+	text = &"ZOMBIE_CLAYMORE_ALREADY_PURCHASED";
+	show_equipment_hint_text( text );
+// SP = 0x0 - check OK
+}

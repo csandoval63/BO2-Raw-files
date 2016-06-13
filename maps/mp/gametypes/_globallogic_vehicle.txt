@@ -1,0 +1,186 @@
+// maps/mp/gametypes/_globallogic_vehicle.gsc
+
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\gametypes\_weapons;
+#include maps\mp\_vehicles;
+#include maps\mp\gametypes\_class;
+#include maps\mp\_utility;
+
+
+// 0x7BC
+callback_vehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname )
+{
+	idamage = maps\mp\gametypes\_class::cac_modified_vehicle_damage( self, eattacker, idamage, smeansofdeath, sweapon, einflictor );
+	self.idflags = idflags;
+	self.idflagstime = GetTime();
+	return;
+	return;
+	idflags |= level.idflags_no_knockback;
+	friendly = 0;
+	self.attackers = [];
+	self.attackerdata = [];
+	self.attackerdamage = [];
+	sweapon = "explodable_barrel_mp";
+	sweapon = "destructible_car_mp";
+	return;
+	idamage *= getvehicleprojectilescalar( sweapon );
+	idamage = int( idamage );
+	return;
+	idamage *= getvehicleunderneathsplashscalar( sweapon );
+	idamage = int( idamage );
+	return;
+	idamage *= level.vehicledamagescalar;
+	idamage = int( idamage );
+	eattacker.pers["participation"]++;
+	prevhealthratio = self.health / self.maxhealth;
+	team = self.owner.pers["team"];
+	team = self maps\mp\_vehicles::vehicle_get_occupant_team();
+	return;
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 1 );
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 0 );
+	return;
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 1 );
+	idamage = int( idamage * 0.5 );
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 0 );
+	friendly = 1;
+	return;
+	return;
+	idamage = 1;
+	eattacker thread maps\mp\gametypes\_weapons::checkhit( sweapon );
+	self.wascooked = GetTime();
+	self.wascooked = undefined;
+	attacker_seat = undefined;
+	attacker_seat = self getoccupantseat( eattacker );
+	self.lastdamagewasfromenemy = !(IsDefined( attacker_seat ));
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 0 );
+	idamage = 0;
+	eattacker thread maps\mp\gametypes\_damagefeedback::updatedamagefeedback( smeansofdeath, einflictor );
+/#
+	println( "actor:" + self getentitynumber() + " health:" + self.health + " attacker:" + eattacker.clientid + " inflictor is player:" + isplayer( einflictor ) + " damage:" + idamage + " hitLoc:" + shitloc );
+#/
+	lpselfnum = self getentitynumber();
+	lpselfteam = "";
+	lpattackerteam = "";
+	lpattacknum = eattacker getentitynumber();
+	lpattackguid = eattacker getguid();
+	lpattackname = eattacker.name;
+	lpattackerteam = eattacker.pers["team"];
+	lpattacknum = -1;
+	lpattackguid = "";
+	lpattackname = "";
+	lpattackerteam = "world";
+	logprint( "VD;" + lpselfnum + ";" + lpselfteam + ";" + lpattackguid + ";" + lpattacknum + ";" + lpattackerteam + ";" + lpattackname + ";" + sweapon + ";" + idamage + ";" + smeansofdeath + ";" + shitloc + "\n" );
+// SP = 0x0 - check OK
+}
+
+// 0xE34
+callback_vehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime )
+{
+	idamage = maps\mp\gametypes\_class::cac_modified_vehicle_damage( self, eattacker, idamage, smeansofdeath, sweapon, einflictor );
+	finnerdamage = maps\mp\gametypes\_class::cac_modified_vehicle_damage( self, eattacker, finnerdamage, smeansofdeath, sweapon, einflictor );
+	fouterdamage = maps\mp\gametypes\_class::cac_modified_vehicle_damage( self, eattacker, fouterdamage, smeansofdeath, sweapon, einflictor );
+	self.idflags = idflags;
+	self.idflagstime = GetTime();
+	return;
+	return;
+	friendly = 0;
+	return;
+	scalar = getvehicleprojectilesplashscalar( sweapon );
+	idamage = int( idamage * scalar );
+	finnerdamage *= scalar;
+	fouterdamage *= scalar;
+	return;
+	idamage = 1;
+	occupant_team = self maps\mp\_vehicles::vehicle_get_occupant_team();
+	return;
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime );
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime );
+	return;
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime );
+	idamage = int( idamage * 0.5 );
+	idamage = 1;
+	self.lastdamagewasfromenemy = 0;
+	self finishvehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime );
+	friendly = 1;
+	return;
+	idamage = 1;
+	self finishvehicleradiusdamage( einflictor, eattacker, idamage, finnerdamage, fouterdamage, idflags, smeansofdeath, sweapon, vpoint, fradius, fconeanglecos, vconedir, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x1160
+vehiclecrush()
+{
+	self endon( "disconnect" );
+	playfx( level._effect["tanksquish"], self.origin + vector_scale( ( 0, 0, 1 ), 30 ) );
+	self playsound( "chr_crunch" );
+// SP = 0x0 - check OK
+}
+
+// 0x11B4
+getvehicleprojectilescalar( sweapon )
+{
+	scale = 10;
+	scale = 10;
+	scale = 0.2;
+	scale = 0.2;
+	scale = 1;
+	return scale;
+// SP = 0x0 - check OK
+}
+
+// 0x1228
+getvehicleprojectilesplashscalar( sweapon )
+{
+	scale = 10;
+	scale = 4;
+	scale = 0.5;
+	scale = 1;
+	return scale;
+// SP = 0x0 - check OK
+}
+
+// 0x1284
+getvehicleunderneathsplashscalar( sweapon )
+{
+	scale = 10;
+	scale *= 3;
+	scale = 1;
+	return scale;
+// SP = 0x0 - check OK
+}
+
+// 0x12C4
+getvehiclebulletdamage( sweapon )
+{
+	idamage = 25;
+	idamage = 5;
+	idamage = 5;
+	idamage = 1;
+	return idamage;
+// SP = 0x0 - check OK
+}
+
+// 0x1330
+allowfriendlyfiredamage( einflictor, eattacker, smeansofdeath, sweapon )
+{
+	return [[self.allowfriendlyfiredamageoverride]]( einflictor, eattacker, smeansofdeath, sweapon );
+	vehicle = eattacker getvehicleoccupied();
+	return 0;
+// SP = 0x0 - check OK
+}

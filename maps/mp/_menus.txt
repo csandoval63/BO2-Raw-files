@@ -1,0 +1,8 @@
+// maps/mp/_menus.gsc
+
+
+// 0x5C
+init()
+{
+// SP = 0x0 - check OK
+}

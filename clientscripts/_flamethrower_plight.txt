@@ -1,0 +1,28 @@
+// clientscripts/_flamethrower_plight.csc
+
+
+// 0x1C4
+init()
+{
+	level._effect["ft_pilot_light"] = loadfx( "weapon/muzzleflashes/fx_pilot_light" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E0
+play_pilot_light_fx( localclientnum )
+{
+	self notify( "new_pilot_light" );
+	self endon( "new_pilot_light" );
+	self endon( "entityshutdown" );
+	level._ft_pilot_on[localclientnum] = 0;
+	new_weapon = getcurrentweapon( localclientnum );
+/#
+	assert( IsDefined( level._effect["ft_pilot_light"] ), "Need to call 'clientscripts_flamethrower_plight::init();' in you client script." );
+#/
+	level._ft_pilot_light = playviewmodelfx( localclientnum, level._effect["ft_pilot_light"], "tag_flamer_pilot_light" );
+	level._ft_pilot_on[localclientnum] = 1;
+	deletefx( localclientnum, level._ft_pilot_light );
+	level._ft_pilot_on[localclientnum] = 0;
+	wait 0.5;
+// SP = 0x0 - check OK
+}

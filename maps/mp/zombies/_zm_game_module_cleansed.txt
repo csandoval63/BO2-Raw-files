@@ -1,0 +1,26 @@
+// maps/mp/zombies/_zm_game_module_cleansed.gsc
+
+#include maps\mp\zombies\_zm_turned;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0x148
+register_game_module()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x150
+onstartgametype( name )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x15C
+onstartcleansedgametype()
+{
+// SP = 0x0 - check OK
+}

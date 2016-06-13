@@ -1,0 +1,69 @@
+// clientscripts/mp/_satchel_charge.csc
+
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x284
+init( localclientnum )
+{
+	level._effect["satchel_charge_enemy_light"] = loadfx( "weapon/c4/fx_c4_light_red" );
+	level._effect["satchel_charge_friendly_light"] = loadfx( "weapon/c4/fx_c4_light_green" );
+// SP = 0x0 - check OK
+}
+
+// 0x2B8
+spawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	return;
+	self thread satchel_charge_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x2E4
+satchel_charge_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	waittillsnapprocessed( localclientnum );
+	fx_handle = self playflarefx( localclientnum );
+	self notify( "teamBased_fx_reinitialized" );
+	self thread checkforplayerswitch( localclientnum, fx_handle );
+	level thread watchforplayerrespawnforteambasedfx( localclientnum, self, ::satchel_charge_fx, fx_handle );
+// SP = 0x0 - check OK
+}
+
+// 0x34C
+playflarefx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	level endon( "player_switch" );
+	fx_handle = playfxontag( localclientnum, level._effect["satchel_charge_friendly_light"], self, "tag_origin" );
+	fx_handle = playfxontag( localclientnum, level._effect["satchel_charge_enemy_light"], self, "tag_origin" );
+	self thread watchsatchelchargeshutdown( localclientnum, fx_handle );
+	return fx_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x3B8
+watchsatchelchargeshutdown( localclientnum, fxhandle )
+{
+	msg = self waittill_any_return( "entityshutdown", "team_changed", "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	self thread satchel_charge_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x400
+checkforplayerswitch( localclientnum, fxhandle )
+{
+	self endon( "entityshutdown" );
+	self endon( "teamBased_fx_reinitialized" );
+	level waittill( "player_switch" );
+	self notify( "player_switch" );
+	stopfx( localclientnum, fxhandle );
+	waittillframeend;
+	self thread satchel_charge_fx( localclientnum );
+// SP = 0x0 - check OK
+}

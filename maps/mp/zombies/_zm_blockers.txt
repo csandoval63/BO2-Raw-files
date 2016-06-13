@@ -1,0 +1,1350 @@
+// maps/mp/zombies/_zm_blockers.gsc
+
+#include maps\mp\zombies\_zm_unitrigger;
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_zonemgr;
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\_demo;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_pers_upgrades_functions;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\zombies\_zm_net;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x2190
+init()
+{
+	init_blockers();
+	[[level.quantum_bomb_register_result_func]]( "open_nearest_door", ::quantum_bomb_open_nearest_door_result, 35, ::quantum_bomb_open_nearest_door_validation );
+// SP = 0x0 - check OK
+}
+
+// 0x21C0
+init_blockers()
+{
+	level.exterior_goals = getstructarray( "exterior_goal", "targetname" );
+	array_thread( level.exterior_goals, ::blocker_init );
+	zombie_doors = getentarray( "zombie_door", "targetname" );
+	flag_init( "door_can_close" );
+	array_thread( zombie_doors, ::door_init );
+	zombie_debris = getentarray( "zombie_debris", "targetname" );
+	array_thread( zombie_debris, ::debris_init );
+	flag_blockers = getentarray( "flag_blocker", "targetname" );
+	array_thread( flag_blockers, ::flag_blocker );
+// SP = 0x0 - check OK
+}
+
+// 0x2274
+door_init()
+{
+	self.type = undefined;
+	self.purchaser = undefined;
+	self._door_open = 0;
+	targets = getentarray( self.target, "targetname" );
+	tokens = strtok( self.script_flag, "," );
+	i = 0;
+	flag_init( self.script_flag );
+	i++;
+	self.script_noteworthy = "default";
+	self.doors = [];
+	i = 0;
+	targets[i] door_classify( self );
+	targets[i].og_origin = targets[i].origin;
+	targets[i].og_angles = targets[i].angles;
+	i++;
+	cost = 1000;
+	cost = self.zombie_cost;
+	self setcursorhint( "HINT_NOICON" );
+	self thread door_think();
+	self setinvisibletoall();
+	return;
+	self sethintstring( &"ZOMBIE_NEED_POWER" );
+	self thread [[level.door_dialog_function]]();
+	return;
+	self setinvisibletoall();
+	return;
+	self sethintstring( &"ZOMBIE_NEED_LOCAL_POWER" );
+	self thread [[level.door_dialog_function]]();
+	return;
+	self sethintstring( &"ZOMBIE_DOOR_ACTIVATE_COUNTER", cost );
+	return;
+	self set_hint_string( self, "default_buy_door", cost );
+// SP = 0x0 - check OK
+}
+
+// 0x2474
+door_classify( parent_trig )
+{
+	parent_trig.clip = self;
+	parent_trig.script_string = "clip";
+	self.script_string = "rotate";
+	self.script_string = "move";
+	self.script_string = "";
+	switch ( self.script_string )
+	{
+		case "anim":
+/#
+			assert( IsDefined( self.script_animname ), "Blocker_init: You must specify a script_animname for " + self.targetname );
+#/
+/#
+			assert( IsDefined( level.scr_anim[self.script_animname] ), "Blocker_init: You must define a level.scr_anim for script_anim -> " + self.script_animname );
+#/
+/#
+			assert( IsDefined( level.blocker_anim_func ), "Blocker_init: You must define a level.blocker_anim_func" );
+#/
+			break;
+		case "counter_100s":
+			parent_trig.counter_1s = self;
+		case "counter_10s":
+			parent_trig.counter_10s = self;
+		case "counter_1s":
+			parent_trig.counter_100s = self;
+		case "explosives":
+			parent_trig.explosives = [];
+			parent_trig.explosives[parent_trig.explosives.size] = self;
+	}
+	self disconnectpaths();
+	parent_trig.doors[parent_trig.doors.size] = self;
+// SP = 0x0 - check OK
+}
+
+// 0x25E0
+door_buy()
+{
+	self waittill( "trigger", who, force );
+	return 0;
+	return 1;
+	return 0;
+	return 0;
+	players = get_players();
+	cost = self.zombie_cost;
+	cost = who maps\mp\zombies\_zm_pers_upgrades_functions::pers_upgrade_double_points_cost( cost );
+	self.purchaser = undefined;
+	who maps\mp\zombies\_zm_score::minus_to_player_score( cost, 1 );
+	maps\mp\_demo::bookmark( "zm_player_door", GetTime(), who );
+	who maps\mp\zombies\_zm_stats::increment_client_stat( "doors_purchased" );
+	who maps\mp\zombies\_zm_stats::increment_player_stat( "doors_purchased" );
+	self.purchaser = who;
+	play_sound_at_pos( "no_purchase", self.doors[0].origin );
+	who thread [[level.custom_generic_deny_vo_func]]( 1 );
+	who maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "door_deny" );
+	return 0;
+	who thread [[level._door_open_rumble_func]]();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2754
+door_delay()
+{
+	i = 0;
+	self.explosives[i] show();
+	i++;
+	self.script_int = 5;
+	all_trigs = getentarray( self.target, "target" );
+	i = 0;
+	all_trigs[i] trigger_off();
+	i++;
+	wait self.script_int;
+	i = 0;
+/#
+	iprintln( self.script_int - i );
+#/
+	wait 1;
+	i++;
+	i = 0;
+	playfx( level._effect["def_explosion"], self.explosives[i].origin, anglestoforward( self.explosives[i].angles ) );
+	self.explosives[i] hide();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2868
+door_activate( time, open, quick, use_blocker_clip_for_pathing )
+{
+	open = 1;
+	time = 1;
+	time = self.script_transition_time;
+	return;
+	return;
+	self.door_moving = 1;
+	self notsolid();
+	self connectpaths();
+	self delay_thread( time, ::self_disconnectpaths );
+	wait 0.1;
+	self solid();
+	return;
+	playsoundatposition( self.script_sound, self.origin );
+	playsoundatposition( self.script_sound + "_close", self.origin );
+	play_sound_at_pos( "door_slide_open", self.origin );
+	scale = 1;
+	scale = -1;
+	switch ( self.script_string )
+	{
+		case "anim":
+			rot_angle = self.script_angles;
+			rot_angle = self.og_angles;
+			self rotateto( rot_angle, time, 0, 0 );
+			self thread door_solid_thread();
+			self thread disconnect_paths_when_done();
+			wait randomfloat( 0.15 );
+			break;
+		case "move":
+		case "physics":
+			vector = vector_scale( self.script_vector, scale );
+			self moveto( self.origin + vector, time, time * 0.25, time * 0.25 );
+			self moveto( self.origin + vector, time );
+			self thread door_solid_thread();
+			self thread disconnect_paths_when_done();
+			wait randomfloat( 0.15 );
+			break;
+		case "rotate":
+			self [[level.blocker_anim_func]]( self.script_animname );
+			self thread door_solid_thread_anim();
+			wait randomfloat( 0.15 );
+			break;
+		case "slide_apart":
+			self thread physics_launch_door( self );
+			wait 0.1;
+			break;
+	}
+	playfx( level._effect[self.script_firefx], self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x2B70
+kill_trapped_zombies( trigger )
+{
+	zombies = getaiarray( level.zombie_team );
+	return;
+	i = 0;
+	zombies[i].marked_for_recycle = 1;
+	zombies[i] dodamage( zombies[i].health + 666, trigger.origin, self );
+	wait randomfloat( 0.15 );
+	zombies[i] thread [[level.custom_trapped_zombies]]();
+	wait randomfloat( 0.15 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2C34
+any_player_touching( trigger )
+{
+	foreach ( player in get_players() )
+	{
+		return 1;
+		wait 0.01;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2C8C
+any_player_touching_any( trigger, more_triggers )
+{
+	foreach ( player in get_players() )
+	{
+		return 1;
+		foreach ( trig in more_triggers )
+		{
+			return 1;
+		}
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2D4C
+any_zombie_touching_any( trigger, more_triggers )
+{
+	zombies = getaiarray( level.zombie_team );
+	foreach ( zombie in zombies )
+	{
+		return 1;
+		foreach ( trig in more_triggers )
+		{
+			return 1;
+		}
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2E04
+wait_trigger_clear( trigger, more_triggers, end_on )
+{
+	self endon( end_on );
+	wait 1;
+/#
+	println( "ZM BLOCKER local door trigger clear\n" );
+#/
+	self notify( "trigger_clear" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E54
+waittill_door_trigger_clear_local_power_off( trigger, all_trigs )
+{
+	self endon( "trigger_clear" );
+	self waittill( "local_power_off" );
+/#
+	println( "ZM BLOCKER local door power off\n" );
+#/
+	self wait_trigger_clear( trigger, all_trigs, "local_power_on" );
+// SP = 0x0 - check OK
+}
+
+// 0x2EAC
+waittill_door_trigger_clear_global_power_off( trigger, all_trigs )
+{
+	self endon( "trigger_clear" );
+	self waittill( "power_off" );
+/#
+	println( "ZM BLOCKER global door power off\n" );
+#/
+	self wait_trigger_clear( trigger, all_trigs, "power_on" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F04
+waittill_door_can_close()
+{
+	trigger = undefined;
+	trigger = getent( self.door_hold_trigger, "targetname" );
+	all_trigs = getentarray( self.target, "target" );
+	switch ( self.script_noteworthy )
+	{
+		case "electric_door":
+			self waittill_door_trigger_clear_local_power_off( trigger, all_trigs );
+			self thread kill_trapped_zombies( trigger );
+			self waittill( "local_power_off" );
+		case "local_electric_door":
+			self waittill_door_trigger_clear_global_power_off( trigger, all_trigs );
+			self thread kill_trapped_zombies( trigger );
+			self waittill( "power_off" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2FF0
+door_think()
+{
+	self endon( "kill_door_think" );
+	cost = 1000;
+	cost = self.zombie_cost;
+	self sethintlowpriority( 1 );
+	switch ( self.script_noteworthy )
+	{
+		case "delay_door":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "electric_buyable_door":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "electric_door":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "local_electric_door":
+			// OP_jump that jumps outside the case's boundaries detected
+		default:
+			self [[level._default_door_custom_logic]]();
+			break;
+	}
+	self door_opened( cost );
+// SP = 0x0 - check OK
+}
+
+// 0x32D0
+self_and_flag_wait( msg )
+{
+	self endon( msg );
+	level waittill( "forever" );
+	flag_wait( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x3304
+door_block()
+{
+	i = 0;
+	self.doors[i] solid();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3388
+door_opened( cost, quick_close )
+{
+	return;
+	self.has_been_opened = 1;
+	all_trigs = getentarray( self.target, "target" );
+	self.door_is_moving = 1;
+	foreach ( trig in all_trigs )
+	{
+		trig.door_is_moving = 1;
+		trig trigger_off();
+		trig.has_been_opened = 1;
+		trig._door_open = 1;
+		trig notify( "door_opened" );
+		level thread maps\mp\zombies\_zm_audio::sndmusicstingerevent( "door_open" );
+		trig._door_open = 0;
+		tokens = strtok( trig.script_flag, "," );
+		i = 0;
+		flag_set( tokens[i] );
+		i++;
+		tokens = strtok( trig.script_flag, "," );
+		i = 0;
+		flag_clear( tokens[i] );
+		i++;
+		trig set_hint_string( trig, "" );
+		trig set_hint_string( trig, "default_buy_door_close" );
+		trig set_hint_string( trig, "default_buy_door", cost );
+	}
+	level notify( "door_opened" );
+	is_script_model_door = 0;
+	have_moving_clip_for_door = 0;
+	use_blocker_clip_for_pathing = 0;
+	foreach ( door in self.doors )
+	{
+		is_script_model_door = 1;
+		have_moving_clip_for_door = 1;
+	}
+	use_blocker_clip_for_pathing = !(have_moving_clip_for_door);
+	i = 0;
+	self.doors[i] thread door_activate( self.doors[i].script_transition_time, self._door_open, quick_close, use_blocker_clip_for_pathing );
+	i++;
+	play_sound_at_pos( "purchase", self.doors[0].origin );
+	level.active_zone_names = maps\mp\zombies\_zm_zonemgr::get_active_zone_names();
+	wait 1;
+	self.door_is_moving = 0;
+	foreach ( trig in all_trigs )
+	{
+		trig.door_is_moving = 0;
+	}
+	i = 0;
+	all_trigs[i] trigger_on();
+	i++;
+	return;
+	wait 2;
+	i = 0;
+	all_trigs[i] trigger_on();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3744
+physics_launch_door( door_trig )
+{
+	vec = vector_scale( vectornormalize( self.script_vector ), 10 );
+	self rotateroll( 5, 0.05 );
+	wait 0.05;
+	self moveto( self.origin + vec, 0.1 );
+	self waittill( "movedone" );
+	self physicslaunch( self.origin, self.script_vector * 300 );
+	wait 60;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x37C4
+door_solid_thread()
+{
+	self waittill_either( "rotatedone", "movedone" );
+	self.door_moving = undefined;
+	players = get_players();
+	player_touching = 0;
+	i = 0;
+	player_touching = 1;
+	i++;
+	self solid();
+	return;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3844
+door_solid_thread_anim()
+{
+	self waittillmatch( "door_anim" );
+	return "end";
+	self.door_moving = undefined;
+	players = get_players();
+	player_touching = 0;
+	i = 0;
+	player_touching = 1;
+	i++;
+	self solid();
+	return;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x38C0
+disconnect_paths_when_done()
+{
+	self waittill_either( "rotatedone", "movedone" );
+	self disconnectpaths();
+// SP = 0x0 - check OK
+}
+
+// 0x38E8
+self_disconnectpaths()
+{
+	self disconnectpaths();
+// SP = 0x0 - check OK
+}
+
+// 0x38FC
+debris_init()
+{
+	cost = 1000;
+	cost = self.zombie_cost;
+	self set_hint_string( self, "default_buy_debris", cost );
+	self setcursorhint( "HINT_NOICON" );
+	flag_init( self.script_flag );
+	self thread debris_think();
+// SP = 0x0 - check OK
+}
+
+// 0x3970
+debris_think()
+{
+	self [[level.custom_debris_function]]();
+	self waittill( "trigger", who, force );
+	players = get_players();
+	who maps\mp\zombies\_zm_score::minus_to_player_score( self.zombie_cost );
+	maps\mp\_demo::bookmark( "zm_player_door", GetTime(), who );
+	who maps\mp\zombies\_zm_stats::increment_client_stat( "doors_purchased" );
+	who maps\mp\zombies\_zm_stats::increment_player_stat( "doors_purchased" );
+	play_sound_at_pos( "no_purchase", self.origin );
+	who maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "door_deny" );
+	bbprint( "zombie_uses", "playername %s playerscore %d round %d cost %d name %s x %f y %f z %f type %s", who.name, who.score, level.round_number, self.zombie_cost, self.script_flag, self.origin, "door" );
+	junk = getentarray( self.target, "targetname" );
+	tokens = strtok( self.script_flag, "," );
+	i = 0;
+	flag_set( tokens[i] );
+	i++;
+	play_sound_at_pos( "purchase", self.origin );
+	level notify( "junk purchased" );
+	move_ent = undefined;
+	clip = undefined;
+	i = 0;
+	junk[i] connectpaths();
+	clip = junk[i];
+	struct = undefined;
+	struct = getstruct( junk[i].script_linkto, "script_linkname" );
+	move_ent = junk[i];
+	junk[i] thread debris_move( struct );
+	junk[i] delete();
+	junk[i] delete();
+	i++;
+	all_trigs = getentarray( self.target, "target" );
+	i = 0;
+	all_trigs[i] delete();
+	i++;
+	move_ent waittill( "movedone" );
+	clip delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3C48
+debris_move( struct )
+{
+	self script_delay();
+	self notsolid();
+	self play_sound_on_ent( "debris_move" );
+	playsoundatposition( "zmb_lightning_l", self.origin );
+	playfx( level._effect[self.script_firefx], self.origin );
+	num = randomintrange( 3, 5 );
+	og_angles = self.angles;
+	i = 0;
+	angles = og_angles + ( -5 + randomfloat( 10 ), -5 + randomfloat( 10 ), -5 + randomfloat( 10 ) );
+	time = randomfloatrange( 0.1, 0.4 );
+	self rotateto( angles, time );
+	wait time - 0.05;
+	i++;
+	time = 0.5;
+	time = self.script_transition_time;
+	self moveto( struct.origin, time, time * 0.5 );
+	self rotateto( struct.angles, time * 0.75 );
+	self waittill( "movedone" );
+	playfx( level._effect[self.script_fxid], self.origin );
+	playsoundatposition( "zmb_zombie_spawn", self.origin );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3DEC
+blocker_disconnect_paths( start_node, end_node, two_way )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3DFC
+blocker_connect_paths( start_node, end_node, two_way )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3E0C
+blocker_init()
+{
+	return;
+	targets = getentarray( self.target, "targetname" );
+	self.barrier_chunks = [];
+	j = 0;
+	self thread [[level.zbarrier_override]]( targets[j] );
+	self.zbarrier = targets[j];
+	m_collision = "p6_anim_zm_barricade_board_collision";
+	m_collision = "p6_anim_zm_barricade_board_collision";
+	precachemodel( m_collision );
+	self.zbarrier setzbarriercolmodel( m_collision );
+	self.zbarrier.chunk_health = [];
+	i = 0;
+	self.zbarrier.chunk_health[i] = 0;
+	i++;
+	targets[j].material = "rock";
+	targets[j] hide();
+/#
+	iprintlnbold( " Hide " );
+#/
+	targets[j].unbroken_section = getent( targets[j].target, "targetname" );
+	targets[j].unbroken_section linkto( targets[j] );
+	targets[j] hide();
+	targets[j] notsolid();
+	targets[j].unbroken = 1;
+	targets[j].material = "glass";
+	targets[j] thread destructible_glass_barricade( targets[j].unbroken_section, self );
+	targets[j].material = "metal";
+	targets[j].material = "metal_vent";
+	targets[j] update_states( "repaired" );
+	targets[j].destroyed = 0;
+	targets[j] show();
+	targets[j].claimed = 0;
+	targets[j].anim_grate_index = 0;
+	targets[j].og_origin = targets[j].origin;
+	targets[j].og_angles = targets[j].angles;
+	self.barrier_chunks[self.barrier_chunks.size] = targets[j];
+	j++;
+	target_nodes = getnodearray( self.target, "targetname" );
+	j = 0;
+	self.neg_start = target_nodes[j];
+	self.neg_end = getnode( self.neg_start.target, "targetname" );
+	blocker_disconnect_paths( self.neg_start, self.neg_end );
+	j++;
+	i = 0;
+	self.barrier_chunks[i] delete();
+	i++;
+	self.barrier_chunks = [];
+	self.zbarrier delete();
+	self.zbarrier = undefined;
+	return;
+	self blocker_attack_spots();
+	self.trigger_location = getstruct( self.target, "targetname" );
+	self thread blocker_think();
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x42C8
+should_delete_zbarriers()
+{
+	gametype = GetDvar( #"0x41651E" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4304
+destructible_glass_barricade( unbroken_section, node )
+{
+	unbroken_section setcandamage( 1 );
+	unbroken_section.health = 99999;
+	unbroken_section waittill( "damage", amount, who );
+	self thread maps\mp\zombies\_zm_spawner::zombie_boardtear_offset_fx_horizontle( self, node );
+	level thread remove_chunk( self, node, 1 );
+	self update_states( "destroyed" );
+	self notify( "destroyed" );
+	self.unbroken = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4394
+blocker_attack_spots()
+{
+	spots = [];
+	numslots = self.zbarrier getzbarriernumattackslots();
+	numslots = int( max( numslots, 1 ) );
+	spots[spots.size] = groundpos_ignore_water_new( self.zbarrier.origin + vector_scale( ( 0, 0, 1 ), 60 ) );
+	reps = floor( numslots / 2 );
+	slot = 1;
+	i = 0;
+	offset = self.zbarrier getzbarrierattackslothorzoffset() * ( i + 1 );
+	spots[spots.size] = groundpos_ignore_water_new( spots[0] + anglestoright( self.angles ) * offset + vector_scale( ( 0, 0, 1 ), 60 ) );
+	slot++;
+	spots[spots.size] = groundpos_ignore_water_new( spots[0] + anglestoright( self.angles ) * ( offset * -1 ) + vector_scale( ( 0, 0, 1 ), 60 ) );
+	slot++;
+	i++;
+	taken = [];
+	i = 0;
+	taken[i] = 0;
+	i++;
+	self.attack_spots_taken = taken;
+	self.attack_spots = spots;
+/#
+	self thread debug_attack_spots_taken();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x44E4
+blocker_choke()
+{
+	level._blocker_choke = 0;
+	level endon( "stop_blocker_think" );
+	wait 0.05;
+	level._blocker_choke = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x450C
+blocker_think()
+{
+	level endon( "stop_blocker_think" );
+	level thread blocker_choke();
+	use_choke = 0;
+	use_choke = 1;
+	wait 0.5;
+	wait 0.05;
+	level._blocker_choke++;
+	self blocker_trigger_think();
+// SP = 0x0 - check OK
+}
+
+// 0x45B0
+player_fails_blocker_repair_trigger_preamble( player, players, trigger, hold_required )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4640
+has_blocker_affecting_perk()
+{
+	has_perk = undefined;
+	has_perk = "specialty_fastreload";
+	return has_perk;
+// SP = 0x0 - check OK
+}
+
+// 0x4668
+do_post_chunk_repair_delay( has_perk )
+{
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4680
+handle_post_board_repair_rewards( cost, zbarrier )
+{
+	self maps\mp\zombies\_zm_stats::increment_client_stat( "boards" );
+	self maps\mp\zombies\_zm_stats::increment_player_stat( "boards" );
+	self thread do_player_general_vox( "general", "reboard", 90 );
+	self maps\mp\zombies\_zm_pers_upgrades_functions::pers_boards_updated( zbarrier );
+	self.rebuild_barrier_reward += cost;
+	self maps\mp\zombies\_zm_score::player_add_points( "rebuild_board", cost );
+	self play_sound_on_ent( "purchase" );
+	self.board_repair += 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4740
+blocker_unitrigger_think()
+{
+	self endon( "kill_trigger" );
+	self waittill( "trigger", player );
+	self.stub.trigger_target notify( "trigger", player );
+// SP = 0x0 - check OK
+}
+
+// 0x4774
+blocker_trigger_think()
+{
+	self endon( "blocker_hacked" );
+	return;
+/#
+	println( "ZM >> TRIGGER blocker_trigger_think " );
+#/
+	level endon( "stop_blocker_think" );
+	cost = 10;
+	cost = self.zombie_cost;
+	original_cost = cost;
+	radius = 94.21;
+	height = 94.21;
+	trigger_location = self.trigger_location;
+	trigger_location = self;
+	radius = trigger_location.radius;
+	height = trigger_location.height;
+	trigger_pos = groundpos( trigger_location.origin ) + vector_scale( ( 0, 0, 1 ), 4 );
+	self.unitrigger_stub = spawnstruct();
+	self.unitrigger_stub.origin = trigger_pos;
+	self.unitrigger_stub.radius = radius;
+	self.unitrigger_stub.height = height;
+	self.unitrigger_stub.script_unitrigger_type = "unitrigger_radius";
+	self.unitrigger_stub.hint_string = get_hint_string( self, "default_reward_barrier_piece" );
+	self.unitrigger_stub.cursor_hint = "HINT_NOICON";
+	self.unitrigger_stub.trigger_target = self;
+	maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( self.unitrigger_stub, ::blocker_unitrigger_think );
+	maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( self.unitrigger_stub );
+	trigger_location.angles = ( 0, 0, 0 );
+	self.unitrigger_stub.origin = ( groundpos( trigger_location.origin ) + vector_scale( ( 0, 0, 1 ), 4 ) ) + anglestoforward( trigger_location.angles ) * -11;
+	self thread trigger_delete_on_repair();
+	thread maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( self.unitrigger_stub, ::blocker_unitrigger_think );
+/#
+	thread debug_blocker( trigger_pos, radius, height );
+#/
+	self waittill( "trigger", player );
+	has_perk = player has_blocker_affecting_perk();
+	self notify( "all_boards_repaired" );
+	return;
+	self notify( "no valid boards" );
+	return;
+	return;
+	players = get_players();
+	chunk = get_random_destroyed_chunk( self, self.barrier_chunks );
+	self thread replace_chunk( self, chunk, has_perk, player.pers_upgrades_awarded["board"] );
+	chunk = get_random_destroyed_chunk( self, self.barrier_chunks );
+	chunk show();
+	chunk solid();
+	chunk.unbroken_section self_delete();
+	chunk show();
+	chunk play_sound_on_ent( "rebuild_barrier_piece" );
+	playsoundatposition( "zmb_cha_ching", ( 0, 0, 0 ) );
+	chunk play_sound_on_ent( "rebuild_barrier_piece" );
+	playsoundatposition( "zmb_cha_ching", ( 0, 0, 0 ) );
+	chunk hide();
+	chunk hide();
+	self thread replace_chunk( self, chunk, has_perk, player.pers_upgrades_awarded["board"] );
+	self.clip enable_trigger();
+	self.clip disconnectpaths();
+	blocker_disconnect_paths( self.neg_start, self.neg_end );
+	bbprint( "zombie_uses", "playername %s playerscore %d round %d cost %d name %s x %f y %f z %f type %s", player.name, player.score, level.round_number, original_cost, self.target, self.origin, "repair" );
+	self do_post_chunk_repair_delay( has_perk );
+	player handle_post_board_repair_rewards( cost, self );
+	self notify( "all_boards_repaired" );
+	return;
+	self notify( "no valid boards" );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x4CB8
+random_destroyed_chunk_show()
+{
+	wait 0.5;
+	self show();
+// SP = 0x0 - check OK
+}
+
+// 0x4CD4
+door_repaired_rumble_n_sound()
+{
+	players = get_players();
+	i = 0;
+	players[i] thread board_completion();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4D40
+board_completion()
+{
+	self endon( "disconnect" );
+// SP = 0x0 - check OK
+}
+
+// 0x4D4C
+trigger_delete_on_repair()
+{
+	self waittill_either( "all_boards_repaired", "no valid boards" );
+	maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( self.unitrigger_stub );
+// SP = 0x0 - check OK
+}
+
+// 0x4D80
+rebuild_barrier_reward_reset()
+{
+	self.rebuild_barrier_reward = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4D8C
+remove_chunk( chunk, node, destroy_immediately, zomb )
+{
+	chunk update_states( "mid_tear" );
+	chunk thread zombie_boardtear_audio_offset( chunk );
+	chunk thread zombie_bartear_audio_offset( chunk );
+	chunk notsolid();
+	fx = "wood_chunk_destory";
+	fx = self.script_fxid;
+	chunk hide();
+	ent = spawn( "script_origin", chunk.origin );
+	ent.angles = node.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	dist = 100;
+	dist_max = chunk.script_move_dist - 100;
+	dist = 100 + randomint( dist_max );
+	dist = 100 + randomint( 100 );
+	dest = ent.origin + anglestoforward( ent.angles ) * dist;
+	trace = bullettrace( dest + vector_scale( ( 0, 0, 1 ), 16 ), dest + vector_scale( ( 0, 0, -1 ), 200 ), 0, undefined );
+	dest += vector_scale( ( 0, 0, -1 ), 200 );
+	dest = trace["position"];
+	chunk linkto( ent );
+	time = ent fake_physicslaunch( dest, 300 + randomint( 100 ) );
+	ent rotatepitch( 180, time * 0.5 );
+	ent rotatepitch( 90, time, time * 0.5 );
+	wait time;
+	chunk hide();
+	wait 0.1;
+	ent delete();
+	ent = spawn( "script_origin", chunk.origin );
+	ent.angles = node.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	dist = 100;
+	dist_max = chunk.script_move_dist - 100;
+	dist = 100 + randomint( dist_max );
+	dist = 100 + randomint( 100 );
+	dest = ent.origin + anglestoforward( ent.angles ) * dist;
+	trace = bullettrace( dest + vector_scale( ( 0, 0, 1 ), 16 ), dest + vector_scale( ( 0, 0, -1 ), 200 ), 0, undefined );
+	dest += vector_scale( ( 0, 0, -1 ), 200 );
+	dest = trace["position"];
+	chunk linkto( ent );
+	time = ent fake_physicslaunch( dest, 260 + randomint( 100 ) );
+	ent rotatepitch( 180, time * 0.5 );
+	ent rotatepitch( 90, time, time * 0.5 );
+	wait time;
+	chunk hide();
+	wait 0.1;
+	ent delete();
+	chunk update_states( "destroyed" );
+	chunk notify( "destroyed" );
+	ent = spawn( "script_origin", chunk.origin );
+	ent.angles = node.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	dist = 100;
+	dist_max = chunk.script_move_dist - 100;
+	dist = 100 + randomint( dist_max );
+	dist = 100 + randomint( 100 );
+	dest = ent.origin + anglestoforward( ent.angles ) * dist;
+	trace = bullettrace( dest + vector_scale( ( 0, 0, 1 ), 16 ), dest + vector_scale( ( 0, 0, -1 ), 200 ), 0, undefined );
+	dest += vector_scale( ( 0, 0, -1 ), 200 );
+	dest = trace["position"];
+	chunk linkto( ent );
+	time = ent fake_physicslaunch( dest, 200 + randomint( 100 ) );
+	chunk.unbroken_section self_delete();
+	ent rotatepitch( 180, time * 0.5 );
+	ent rotatepitch( 90, time, time * 0.5 );
+	wait time;
+	chunk.unbroken_section self_delete();
+	chunk hide();
+	wait 0.1;
+	ent delete();
+	chunk update_states( "destroyed" );
+	chunk notify( "destroyed" );
+	ent = spawn( "script_origin", chunk.origin );
+	ent.angles = node.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	dist = 100 + randomint( 100 );
+	dest = ent.origin + anglestoforward( ent.angles ) * dist;
+	trace = bullettrace( dest + vector_scale( ( 0, 0, 1 ), 16 ), dest + vector_scale( ( 0, 0, -1 ), 200 ), 0, undefined );
+	dest += vector_scale( ( 0, 0, -1 ), 200 );
+	dest = trace["position"];
+	chunk linkto( ent );
+	time = ent fake_physicslaunch( dest, 200 + randomint( 100 ) );
+	ent rotatepitch( 180, time * 0.5 );
+	ent rotatepitch( 90, time, time * 0.5 );
+	wait time;
+	chunk hide();
+	ent delete();
+	chunk update_states( "destroyed" );
+	chunk notify( "destroyed" );
+	chunk hide();
+	chunk update_states( "destroyed" );
+	chunk notify( "destroyed" );
+// SP = 0x0 - check OK
+}
+
+// 0x5530
+remove_chunk_rotate_grate( chunk )
+{
+	chunk vibrate( vector_scale( ( 0, 1, 0 ), 270 ), 0.2, 0.4, 0.4 );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x5580
+zombie_boardtear_audio_offset( chunk )
+{
+	chunk.already_broken = 0;
+	chunk playsound( "zmb_break_glass_barrier" );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk playsound( "zmb_break_glass_barrier" );
+	chunk.already_broken = 1;
+	chunk playsound( "grab_metal_bar" );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk playsound( "break_metal_bar" );
+	chunk.already_broken = 1;
+	chunk playsound( "zmb_break_rock_barrier" );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk playsound( "zmb_break_rock_barrier" );
+	chunk.already_broken = 1;
+	chunk playsound( "evt_vent_slat_remove" );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	chunk.already_broken = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x576C
+zombie_bartear_audio_offset( chunk )
+{
+	chunk play_sound_on_ent( "grab_metal_bar" );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_metal_bar" );
+	wait randomfloatrange( 1, 1.3 );
+	chunk play_sound_on_ent( "drop_metal_bar" );
+// SP = 0x0 - check OK
+}
+
+// 0x57D4
+ensure_chunk_is_back_to_origin( chunk )
+{
+	chunk notsolid();
+	chunk waittill( "movedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x5804
+replace_chunk( barrier, chunk, perk, upgrade, via_powerup )
+{
+	chunk update_states( "mid_repair" );
+/#
+	assert( IsDefined( chunk.og_origin ) );
+#/
+/#
+	assert( IsDefined( chunk.og_angles ) );
+#/
+	sound = "rebuild_barrier_hover";
+	sound = chunk.script_presound;
+	has_perk = 0;
+	has_perk = 1;
+	play_sound_at_pos( sound, chunk.origin );
+	barrier.zbarrier zbarrierpieceuseupgradedmodel( chunk );
+	barrier.zbarrier.chunk_health[chunk] = barrier.zbarrier getupgradedpiecenumlives( chunk );
+	barrier.zbarrier zbarrierpieceusedefaultmodel( chunk );
+	barrier.zbarrier.chunk_health[chunk] = 0;
+	scalar = 1;
+	scalar = 0.31;
+	scalar = 0.2112;
+	barrier.zbarrier showzbarrierpiece( chunk );
+	barrier.zbarrier setzbarrierpiecestate( chunk, "closing", scalar );
+	waitduration = barrier.zbarrier getzbarrierpieceanimlengthforstate( chunk, "closing", scalar );
+	wait waitduration;
+// SP = 0x0 - check OK
+}
+
+// 0x5984
+open_all_zbarriers()
+{
+	foreach ( barrier in level.exterior_goals )
+	{
+		x = 0;
+		barrier.zbarrier setzbarrierpiecestate( x, "opening" );
+		x++;
+		barrier.clip disable_trigger();
+		barrier.clip connectpaths();
+		blocker_connect_paths( barrier.neg_start, barrier.neg_end );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x5A3C
+zombie_boardtear_audio_plus_fx_offset_repair_horizontal( chunk )
+{
+	chunk clearclientflag( level._zombie_scriptmover_flag_rock_fx );
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 0, 0, 1 ), 30 ) );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 0, 0, -1 ), 30 ) );
+	chunk clearclientflag( level._zombie_scriptmover_flag_board_horizontal_fx );
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 0, 0, 1 ), 30 ) );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 0, 0, -1 ), 30 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x5C0C
+zombie_boardtear_audio_plus_fx_offset_repair_verticle( chunk )
+{
+	chunk clearclientflag( level._zombie_scriptmover_flag_rock_fx );
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 1, 0, 0 ), 30 ) );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+	chunk clearclientflag( level._zombie_scriptmover_flag_board_vertical_fx );
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( 1, 0, 0 ), 30 ) );
+	wait randomfloatrange( 0.3, 0.6 );
+	chunk play_sound_on_ent( "break_barrier_piece" );
+	playfx( level._effect["wood_chunk_destory"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x5DDC
+zombie_gratetear_audio_plus_fx_offset_repair_horizontal( chunk )
+{
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	chunk play_sound_on_ent( "bar_rebuild_slam" );
+	switch ( randomint( 9 ) )
+	{
+		case 0:
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			wait randomfloatrange( 0, 0.3 );
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 1:
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			wait randomfloatrange( 0, 0.3 );
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 2:
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			wait randomfloatrange( 0, 0.3 );
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 3:
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			wait randomfloatrange( 0, 0.3 );
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 4:
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			wait randomfloatrange( 0, 0.3 );
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 5:
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 6:
+			playfx( level._effect["fx_zombie_bar_break_lite"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 7:
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+		case 8:
+			playfx( level._effect["fx_zombie_bar_break"], chunk.origin + vector_scale( ( -1, 0, 0 ), 30 ) );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6130
+zombie_bartear_audio_plus_fx_offset_repair_horizontal( chunk )
+{
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	chunk play_sound_on_ent( "bar_rebuild_slam" );
+	switch ( randomint( 9 ) )
+	{
+		case 0:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_left" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_right" );
+			break;
+		case 1:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_left" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_right" );
+			break;
+		case 2:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_left" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_right" );
+			break;
+		case 3:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_left" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_right" );
+			break;
+		case 4:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_left" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_right" );
+			break;
+		case 5:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_left" );
+			break;
+		case 6:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_right" );
+			break;
+		case 7:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_left" );
+			break;
+		case 8:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_right" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x63DC
+zombie_bartear_audio_plus_fx_offset_repair_verticle( chunk )
+{
+	earthquake( randomfloatrange( 0.3, 0.4 ), randomfloatrange( 0.2, 0.4 ), chunk.origin, 150 );
+	chunk play_sound_on_ent( "bar_rebuild_slam" );
+	switch ( randomint( 9 ) )
+	{
+		case 0:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_top" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_bottom" );
+			break;
+		case 1:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_top" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_bottom" );
+			break;
+		case 2:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_top" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_bottom" );
+			break;
+		case 3:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_top" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_bottom" );
+			break;
+		case 4:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_top" );
+			wait randomfloatrange( 0, 0.3 );
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_bottom" );
+			break;
+		case 5:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_top" );
+			break;
+		case 6:
+			playfxontag( level._effect["fx_zombie_bar_break_lite"], chunk, "Tag_fx_bottom" );
+			break;
+		case 7:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_top" );
+			break;
+		case 8:
+			playfxontag( level._effect["fx_zombie_bar_break"], chunk, "Tag_fx_bottom" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6688
+add_new_zombie_spawners()
+{
+	self.possible_spawners = getentarray( self.target, "targetname" );
+	spawners = getentarray( self.script_string, "targetname" );
+	self.possible_spawners = arraycombine( self.possible_spawners, spawners, 1, 0 );
+	return;
+	zombies_to_add = self.possible_spawners;
+	i = 0;
+	self.possible_spawners[i].is_enabled = 1;
+	add_spawner( self.possible_spawners[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x6730
+flag_blocker()
+{
+/#
+	assertmsg( "Flag Blocker at " + self.origin + " does not have a script_flag_wait key value pair" );
+#/
+	return;
+	flag_init( self.script_flag_wait );
+	type = "connectpaths";
+	type = self.script_noteworthy;
+	flag_wait( self.script_flag_wait );
+	self script_delay();
+	self connectpaths();
+	self disable_trigger();
+	return;
+	self disconnectpaths();
+	self disable_trigger();
+	return;
+/#
+	assertmsg( "flag blocker at " + self.origin + ", the type \"" + type + "\" is not recognized" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x680C
+update_states( states )
+{
+/#
+	assert( IsDefined( states ) );
+#/
+	self.state = states;
+// SP = 0x0 - check OK
+}
+
+// 0x6830
+quantum_bomb_open_nearest_door_validation( position )
+{
+	range_squared = 32400;
+	zombie_doors = getentarray( "zombie_door", "targetname" );
+	i = 0;
+	return 1;
+	i++;
+	zombie_airlock_doors = getentarray( "zombie_airlock_buy", "targetname" );
+	i = 0;
+	return 1;
+	i++;
+	zombie_debris = getentarray( "zombie_debris", "targetname" );
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6918
+quantum_bomb_open_nearest_door_result( position )
+{
+	range_squared = 32400;
+	zombie_doors = getentarray( "zombie_door", "targetname" );
+	i = 0;
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "quant_good" );
+	zombie_doors[i] notify( "trigger", self, 1 );
+	[[level.quantum_bomb_play_area_effect_func]]( position );
+	return;
+	i++;
+	zombie_airlock_doors = getentarray( "zombie_airlock_buy", "targetname" );
+	i = 0;
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "quant_good" );
+	zombie_airlock_doors[i] notify( "trigger", self, 1 );
+	[[level.quantum_bomb_play_area_effect_func]]( position );
+	return;
+	i++;
+	zombie_debris = getentarray( "zombie_debris", "targetname" );
+	i = 0;
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "quant_good" );
+	zombie_debris[i] notify( "trigger", self, 1 );
+	[[level.quantum_bomb_play_area_effect_func]]( position );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}

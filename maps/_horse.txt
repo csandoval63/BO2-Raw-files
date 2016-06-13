@@ -1,0 +1,1591 @@
+// maps/_horse.gsc
+
+#include animscripts\shared;
+#include maps\_anim;
+#include maps\_vehicle;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "horse" );
+#using_animtree ( "€GSC
+" );
+#using_animtree ( "€GSC
+" );
+
+
+// 0x416C
+main()
+{
+	self useanimtree( -1 );
+	self build_horse_anims();
+	self.dismount_enabled = 1;
+	self.disable_make_useable = 0;
+	self.disable_weapon_changes = 0;
+	build_aianims( ::setanims );
+	build_unload_groups( ::unload_groups );
+	level.vehicle_death_thread[self.vehicletype] = ::horse_death;
+	loadfx( "vehicle/treadfx/fx_afgh_treadfx_horse_hoof_impact" );
+	level._effect["player_dust_riding_trot"] = loadfx( "maps/afghanistan/fx_afgh_dust_riding_trot" );
+	level._effect["player_dust_riding_gallup"] = loadfx( "maps/afghanistan/fx_afgh_dust_riding_gallup" );
+	level._effect["horse_hits_ground"] = loadfx( "env/dirt/fx_afgh_sand_horse_impact" );
+	self setmodel( self.script_string );
+	idx = randomint( level.horse_model_variants["low"].size );
+	self setmodel( level.horse_model_variants["low"][idx] );
+	idx = randomint( level.horse_model_variants["high"].size );
+	self setmodel( level.horse_model_variants["high"][idx] );
+	self choose_sprint_anim();
+	self ent_flag_init( "mounting_horse" );
+	self ent_flag_init( "dismounting_horse" );
+	self ent_flag_init( "pause_animation" );
+	self ent_flag_init( "playing_scripted_anim" );
+	self thread watch_mounting();
+	self thread horse_animating();
+	self.overridevehicledamage = ::horsecallback_vehicledamage;
+// SP = 0x0 - check OK
+}
+
+// 0x4328
+choose_sprint_anim()
+{
+	self.sprint_anim = level.horse_sprint_anims[level.horse_sprint_idx];
+	level.horse_sprint_idx++;
+	level.horse_sprint_idx = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4358
+precache_models()
+{
+	level.player_viewmodel_noleft = "c_usa_mason_afgan_noleft_viewhands";
+	precachemodel( "anim_horse1_black_fb" );
+	precachemodel( "anim_horse1_brown_black_fb" );
+	precachemodel( "anim_horse1_brown_spots_fb" );
+	precachemodel( "anim_horse1_grey_fb" );
+	precachemodel( "anim_horse1_light_brown_fb" );
+	precachemodel( "anim_horse1_white_fb" );
+	precachemodel( "anim_horse1_white02_fb" );
+	precachemodel( "anim_horse1_black_fb_low" );
+	precachemodel( "anim_horse1_brown_black_fb_low" );
+	precachemodel( "anim_horse1_brown_spots_fb_low" );
+	precachemodel( "anim_horse1_grey_fb_low" );
+	precachemodel( "anim_horse1_light_brown_fb_low" );
+	precachemodel( "anim_horse1_white_fb_low" );
+	precachemodel( "anim_horse1_white02_fb_low" );
+	precachemodel( "viewmodel_horse1_fb" );
+	precachemodel( "viewmodel_horse1_black_fb" );
+	precachemodel( "viewmodel_horse1_brown_black_fb" );
+	precachemodel( "viewmodel_horse1_brown_spots_fb" );
+	precachemodel( "viewmodel_horse1_grey_fb" );
+	precachemodel( "viewmodel_horse1_light_brown_fb" );
+	precachemodel( "viewmodel_horse1_white_fb" );
+	precachemodel( "viewmodel_horse1_white02_fb" );
+	precachemodel( level.player_viewmodel_noleft );
+// SP = 0x0 - check OK
+}
+
+// 0x447C
+debug_horse()
+{
+/#
+	self endon( "death" );
+	recordent( self );
+	org = self gettagorigin( "tag_driver" );
+	angles = self gettagangles( "tag_driver" );
+	self.bone_fxaxis = spawn( "script_model", org );
+	self.bone_fxaxis setmodel( "fx_axis_createfx" );
+	recordent( self.bone_fxaxis );
+	self.bone_fxaxis.origin = org;
+	self.bone_fxaxis.angles = angles;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4524
+build_horse_anims()
+{
+	level.reverse = 1;
+	level.idle = 2;
+	level.walk = 3;
+	level.trot = 4;
+	level.run = 5;
+	level.sprint = 6;
+	level.jump = 7;
+	level.mount = 8;
+	level.dismount = 9;
+	level.rearback = 13;
+	level.turn_180 = 14;
+	self.idle_state = 0;
+	self.idle_anim_finished_state = 0;
+	self.current_anim_speed = level.idle;
+	self.is_horse = 1;
+	return;
+	level.horse_anims_inited = 1;
+	level.horse_speeds = [];
+	level.horse_speeds[level.reverse - 1] = -5000;
+	level.horse_speeds[level.reverse] = -2.5;
+	level.horse_speeds[level.idle] = 0;
+	level.horse_speeds[level.walk] = 3;
+	level.horse_speeds[level.trot] = 8;
+	level.horse_speeds[level.run] = 16;
+	level.horse_speeds[level.sprint] = 20;
+	level.horse_speeds[level.sprint + 1] = 5000;
+	level.horse_turn_speeds[level.walk] = 1;
+	level.horse_turn_speeds[level.trot] = 1;
+	level.horse_turn_speeds[level.run] = 1;
+	level.horse_turn_speeds[level.sprint] = 1;
+	level.horse_anims = [];
+	level.horse_ai_anims = [];
+	level.horse_player_anims = [];
+	level.horse_idles = [];
+	level.horse_idles[0] = spawnstruct();
+	level.horse_idles[0].animations = [];
+	level.horse_idles[0].ai_animations = [];
+	level.horse_idles[0].player_animations = [];
+	level.horse_idles[0].transitions = [];
+	level.horse_idles[0].animations[0] = %a_horse_stand_idle;
+	level.horse_idles[0].animations[1] = %a_horse_stand_idle_twitch_a;
+	level.horse_idles[0].animations[2] = %a_horse_stand_idle_to_right_idle;
+	level.horse_idles[0].ai_animations[0] = %ai_horse_rider_stand_idle;
+	level.horse_idles[0].ai_animations[1] = %ai_horse_rider_stand_idle_twitch_a;
+	level.horse_idles[0].ai_animations[2] = %ai_horse_rider_stand_idle_to_right_idle;
+	level.horse_idles[0].player_animations[0] = %int_horse_player_stand_idle;
+	level.horse_idles[0].player_animations[1] = %int_horse_player_stand_idle_twitch_a;
+	level.horse_idles[0].player_animations[2] = %int_horse_player_stand_idle_to_right_idle;
+	level.horse_idles[0].transitions[2] = 1;
+	level.horse_idles[0].animations[3] = %a_horse_stand_idle_to_forward_idle;
+	level.horse_idles[0].ai_animations[3] = %ai_horse_rider_stand_idle_to_forward_idle;
+	level.horse_idles[0].player_animations[3] = %int_horse_player_stand_idle_to_forward_idle;
+	level.horse_idles[0].transitions[3] = 2;
+	level.horse_idles[0].animations[4] = %a_horse_stand_idle_to_wide_idle;
+	level.horse_idles[0].ai_animations[4] = %ai_horse_rider_stand_idle_to_wide_idle;
+	level.horse_idles[0].player_animations[4] = %int_horse_player_stand_idle_to_wide_idle;
+	level.horse_idles[0].transitions[4] = 3;
+	level.horse_idles[0].animations[5] = %a_horse_stand_idle_to_eat_idle;
+	level.horse_idles[0].ai_animations[5] = %ai_horse_rider_stand_idle_to_eat_idle;
+	level.horse_idles[0].player_animations[5] = %int_horse_player_stand_idle_to_eat_idle;
+	level.horse_idles[0].transitions[5] = 5;
+/#
+	level.horse_idles[0].ai_animnames = [];
+	level.horse_idles[0].ai_animnames[0] = "ai_horse_rider_stand_idle";
+	level.horse_idles[0].ai_animnames[1] = "ai_horse_rider_stand_idle_twitch_a";
+	level.horse_idles[0].ai_animnames[2] = "ai_horse_rider_stand_idle_to_right_idle";
+	level.horse_idles[0].ai_animnames[3] = "ai_horse_rider_stand_idle_to_forward_idle";
+	level.horse_idles[0].ai_animnames[4] = "ai_horse_rider_stand_idle_to_wide_idle";
+	level.horse_idles[0].ai_animnames[5] = "ai_horse_rider_stand_idle_to_eat_idle";
+#/
+	level.horse_idles[1] = spawnstruct();
+	level.horse_idles[1].animations = [];
+	level.horse_idles[1].ai_animations = [];
+	level.horse_idles[1].player_animations = [];
+	level.horse_idles[1].transitions = [];
+	level.horse_idles[1].animations[0] = %a_horse_right_idle;
+	level.horse_idles[1].animations[1] = %a_horse_right_idle_to_stand_idle;
+	level.horse_idles[1].ai_animations[0] = %ai_horse_rider_right_idle;
+	level.horse_idles[1].ai_animations[1] = %ai_horse_rider_right_idle_to_stand_idle;
+	level.horse_idles[1].player_animations[0] = %int_horse_player_right_idle;
+	level.horse_idles[1].player_animations[1] = %int_horse_player_right_idle_to_stand_idle;
+	level.horse_idles[1].transitions[1] = 0;
+	level.horse_idles[1].animations[2] = %a_horse_right_idle_to_forward_idle;
+	level.horse_idles[1].ai_animations[2] = %ai_horse_rider_right_idle_to_forward_idle;
+	level.horse_idles[1].player_animations[2] = %int_horse_player_right_idle_to_forward_idle;
+	level.horse_idles[1].transitions[2] = 2;
+/#
+	level.horse_idles[1].ai_animnames = [];
+	level.horse_idles[1].ai_animnames[0] = "ai_horse_rider_right_idle";
+	level.horse_idles[1].ai_animnames[1] = "ai_horse_rider_right_idle_to_stand_idle";
+	level.horse_idles[1].ai_animnames[2] = "ai_horse_rider_right_idle_to_forward_idle";
+#/
+	level.horse_idles[2] = spawnstruct();
+	level.horse_idles[2].animations = [];
+	level.horse_idles[2].ai_animations = [];
+	level.horse_idles[2].player_animations = [];
+	level.horse_idles[2].transitions = [];
+	level.horse_idles[2].animations[0] = %a_horse_forward_idle;
+	level.horse_idles[2].animations[1] = %a_horse_forward_idle_to_right_idle;
+	level.horse_idles[2].ai_animations[0] = %ai_horse_rider_forward_idle;
+	level.horse_idles[2].ai_animations[1] = %ai_horse_rider_forward_idle_to_right_idle;
+	level.horse_idles[2].player_animations[0] = %int_horse_player_forward_idle;
+	level.horse_idles[2].player_animations[1] = %int_horse_player_forward_idle_to_right_idle;
+	level.horse_idles[2].transitions[1] = 1;
+	level.horse_idles[2].animations[2] = %a_horse_forward_idle_to_stand_idle;
+	level.horse_idles[2].ai_animations[2] = %ai_horse_rider_forward_idle_to_stand_idle;
+	level.horse_idles[2].player_animations[2] = %int_horse_player_forward_idle_to_stand_idle;
+	level.horse_idles[2].transitions[2] = 0;
+	level.horse_idles[2].animations[3] = %a_horse_forward_idle_to_eat_idle;
+	level.horse_idles[2].ai_animations[3] = %ai_horse_rider_forward_idle_to_eat_idle;
+	level.horse_idles[2].player_animations[3] = %int_horse_player_forward_idle_to_eat_idle;
+	level.horse_idles[2].transitions[3] = 5;
+/#
+	level.horse_idles[2].ai_animnames = [];
+	level.horse_idles[2].ai_animnames[0] = "ai_horse_rider_forward_idle";
+	level.horse_idles[2].ai_animnames[1] = "ai_horse_rider_forward_idle_to_right_idle";
+	level.horse_idles[2].ai_animnames[2] = "ai_horse_rider_forward_idle_to_stand_idle";
+	level.horse_idles[2].ai_animnames[3] = "ai_horse_rider_forward_idle_to_eat_idle";
+#/
+	level.horse_idles[3] = spawnstruct();
+	level.horse_idles[3].animations = [];
+	level.horse_idles[3].ai_animations = [];
+	level.horse_idles[3].player_animations = [];
+	level.horse_idles[3].transitions = [];
+	level.horse_idles[3].animations[0] = %a_horse_wide_idle;
+	level.horse_idles[3].animations[1] = %a_horse_wide_idle_twitch_a;
+	level.horse_idles[3].animations[2] = %a_horse_wide_idle_to_forward_idle;
+	level.horse_idles[3].ai_animations[0] = %ai_horse_rider_wide_idle;
+	level.horse_idles[3].ai_animations[1] = %ai_horse_rider_wide_idle_twitch_a;
+	level.horse_idles[3].ai_animations[2] = %ai_horse_rider_wide_idle_to_forward_idle;
+	level.horse_idles[3].player_animations[0] = %int_horse_player_wide_idle;
+	level.horse_idles[3].player_animations[1] = %int_horse_player_wide_idle_twitch_a;
+	level.horse_idles[3].player_animations[2] = %int_horse_player_wide_idle_to_forward_idle;
+	level.horse_idles[3].transitions[2] = 2;
+	level.horse_idles[3].animations[3] = %a_horse_wide_idle_to_frisky_idle;
+	level.horse_idles[3].ai_animations[3] = %ai_horse_rider_wide_idle_to_frisky_idle;
+	level.horse_idles[3].player_animations[3] = %int_horse_player_wide_idle_to_frisky_idle;
+	level.horse_idles[3].transitions[3] = 4;
+	level.horse_idles[3].animations[4] = %a_horse_wide_idle_to_right_idle;
+	level.horse_idles[3].ai_animations[4] = %ai_horse_rider_wide_idle_to_right_idle;
+	level.horse_idles[3].player_animations[4] = %int_horse_player_wide_idle_to_right_idle;
+	level.horse_idles[3].transitions[4] = 1;
+/#
+	level.horse_idles[3].ai_animnames = [];
+	level.horse_idles[3].ai_animnames[0] = "ai_horse_rider_wide_idle";
+	level.horse_idles[3].ai_animnames[1] = "ai_horse_rider_wide_idle_twitch_a";
+	level.horse_idles[3].ai_animnames[2] = "ai_horse_rider_wide_idle_to_forward_idle";
+	level.horse_idles[3].ai_animnames[3] = "ai_horse_rider_wide_idle_to_frisky_idle";
+	level.horse_idles[3].ai_animnames[4] = "ai_horse_rider_wide_idle_to_right_idle";
+#/
+	level.horse_idles[4] = spawnstruct();
+	level.horse_idles[4].animations = [];
+	level.horse_idles[4].ai_animations = [];
+	level.horse_idles[4].player_animations = [];
+	level.horse_idles[4].transitions = [];
+	level.horse_idles[4].animations[0] = %a_horse_frisky_idle;
+	level.horse_idles[4].animations[1] = %a_horse_frisky_idle_twitch_a;
+	level.horse_idles[4].animations[2] = %a_horse_frisky_idle_twitch_b;
+	level.horse_idles[4].animations[3] = %a_horse_frisky_idle_twitch_c;
+	level.horse_idles[4].animations[4] = %a_horse_frisky_idle_to_wide_idle;
+	level.horse_idles[4].ai_animations[0] = %ai_horse_rider_frisky_idle;
+	level.horse_idles[4].ai_animations[1] = %ai_horse_rider_frisky_idle_twitch_a;
+	level.horse_idles[4].ai_animations[2] = %ai_horse_rider_frisky_idle_twitch_b;
+	level.horse_idles[4].ai_animations[3] = %ai_horse_rider_frisky_idle_twitch_c;
+	level.horse_idles[4].ai_animations[4] = %ai_horse_rider_frisky_idle_to_wide_idle;
+	level.horse_idles[4].player_animations[0] = %int_horse_player_frisky_idle;
+	level.horse_idles[4].player_animations[1] = %int_horse_player_frisky_idle_twitch_a;
+	level.horse_idles[4].player_animations[2] = %int_horse_player_frisky_idle_twitch_b;
+	level.horse_idles[4].player_animations[3] = %int_horse_player_frisky_idle_twitch_c;
+	level.horse_idles[4].player_animations[4] = %int_horse_player_frisky_idle_to_wide_idle;
+	level.horse_idles[4].transitions[4] = 3;
+/#
+	level.horse_idles[4].ai_animnames = [];
+	level.horse_idles[4].ai_animnames[0] = "ai_horse_rider_frisky_idle";
+	level.horse_idles[4].ai_animnames[1] = "ai_horse_rider_frisky_idle_twitch_a";
+	level.horse_idles[4].ai_animnames[2] = "ai_horse_rider_frisky_idle_twitch_b";
+	level.horse_idles[4].ai_animnames[3] = "ai_horse_rider_frisky_idle_twitch_c";
+	level.horse_idles[4].ai_animnames[4] = "ai_horse_rider_frisky_idle_to_wide_idle";
+#/
+	level.horse_idles[5] = spawnstruct();
+	level.horse_idles[5].animations = [];
+	level.horse_idles[5].ai_animations = [];
+	level.horse_idles[5].player_animations = [];
+	level.horse_idles[5].transitions = [];
+	level.horse_idles[5].animations[0] = %a_horse_eat_idle;
+	level.horse_idles[5].animations[1] = %a_horse_eat_idle_twitch_a;
+	level.horse_idles[5].animations[2] = %a_horse_eat_idle_twitch_b;
+	level.horse_idles[5].animations[3] = %a_horse_eat_idle_to_eat_idle_b;
+	level.horse_idles[5].ai_animations[0] = %ai_horse_rider_eat_idle;
+	level.horse_idles[5].ai_animations[1] = %ai_horse_rider_eat_idle_twitch_a;
+	level.horse_idles[5].ai_animations[2] = %ai_horse_rider_eat_idle_twitch_b;
+	level.horse_idles[5].ai_animations[3] = %ai_horse_rider_eat_idle_to_eat_idle_b;
+	level.horse_idles[5].player_animations[0] = %int_horse_player_eat_idle;
+	level.horse_idles[5].player_animations[1] = %int_horse_player_eat_idle_twitch_a;
+	level.horse_idles[5].player_animations[2] = %int_horse_player_eat_idle_twitch_b;
+	level.horse_idles[5].player_animations[3] = %int_horse_player_eat_idle_to_eat_idle_b;
+	level.horse_idles[5].transitions[3] = 6;
+	level.horse_idles[5].animations[4] = %a_horse_eat_idle_to_stand_idle;
+	level.horse_idles[5].ai_animations[4] = %ai_horse_rider_eat_idle_to_stand_idle;
+	level.horse_idles[5].player_animations[4] = %int_horse_player_eat_idle_to_stand_idle;
+	level.horse_idles[5].transitions[4] = 0;
+	level.horse_idles[5].animations[5] = %a_horse_eat_idle_to_wide_idle;
+	level.horse_idles[5].ai_animations[5] = %ai_horse_rider_eat_idle_to_wide_idle;
+	level.horse_idles[5].player_animations[5] = %int_horse_player_eat_idle_to_wide_idle;
+	level.horse_idles[5].transitions[5] = 3;
+/#
+	level.horse_idles[5].ai_animnames = [];
+	level.horse_idles[5].ai_animnames[0] = "ai_horse_rider_eat_idle";
+	level.horse_idles[5].ai_animnames[1] = "ai_horse_rider_eat_idle_twitch_a";
+	level.horse_idles[5].ai_animnames[2] = "ai_horse_rider_eat_idle_twitch_b";
+	level.horse_idles[5].ai_animnames[3] = "ai_horse_rider_eat_idle_to_eat_idle_b";
+	level.horse_idles[5].ai_animnames[4] = "ai_horse_rider_eat_idle_to_stand_idle";
+	level.horse_idles[5].ai_animnames[5] = "ai_horse_rider_eat_idle_to_wide_idle";
+#/
+	level.horse_idles[6] = spawnstruct();
+	level.horse_idles[6].animations = [];
+	level.horse_idles[6].ai_animations = [];
+	level.horse_idles[6].player_animations = [];
+	level.horse_idles[6].transitions = [];
+	level.horse_idles[6].animations[0] = %a_horse_eat_idle_b;
+	level.horse_idles[6].animations[1] = %a_horse_eat_idle_b_twitch_a;
+	level.horse_idles[6].animations[2] = %a_horse_eat_idle_b_twitch_b;
+	level.horse_idles[6].animations[3] = %a_horse_eat_idle_b_twitch_c;
+	level.horse_idles[6].animations[4] = %a_horse_eat_idle_b_to_eat_idle;
+	level.horse_idles[6].ai_animations[0] = %ai_horse_rider_eat_idle_b;
+	level.horse_idles[6].ai_animations[1] = %ai_horse_rider_eat_idle_b_twitch_a;
+	level.horse_idles[6].ai_animations[2] = %ai_horse_rider_eat_idle_b_twitch_b;
+	level.horse_idles[6].ai_animations[3] = %ai_horse_rider_eat_idle_b_twitch_c;
+	level.horse_idles[6].ai_animations[4] = %ai_horse_rider_eat_idle_b_to_eat_idle;
+	level.horse_idles[6].player_animations[0] = %int_horse_player_eat_idle_b;
+	level.horse_idles[6].player_animations[1] = %int_horse_player_eat_idle_b_twitch_a;
+	level.horse_idles[6].player_animations[2] = %int_horse_player_eat_idle_b_twitch_b;
+	level.horse_idles[6].player_animations[3] = %int_horse_player_eat_idle_b_twitch_c;
+	level.horse_idles[6].player_animations[4] = %int_horse_player_eat_idle_b_to_eat_idle;
+	level.horse_idles[6].transitions[4] = 5;
+	level.horse_idles[6].animations[5] = %a_horse_eat_idle_b_to_stand_idle;
+	level.horse_idles[6].ai_animations[5] = %ai_horse_rider_eat_idle_b_to_stand_idle;
+	level.horse_idles[6].player_animations[5] = %int_horse_player_eat_idle_b_to_stand_idle;
+	level.horse_idles[6].transitions[5] = 0;
+/#
+	level.horse_idles[6].ai_animnames = [];
+	level.horse_idles[6].ai_animnames[0] = "ai_horse_rider_eat_idle_b";
+	level.horse_idles[6].ai_animnames[1] = "ai_horse_rider_eat_idle_b_twitch_a";
+	level.horse_idles[6].ai_animnames[2] = "ai_horse_rider_eat_idle_b_twitch_b";
+	level.horse_idles[6].ai_animnames[3] = "ai_horse_rider_eat_idle_b_twitch_c";
+	level.horse_idles[6].ai_animnames[4] = "ai_horse_rider_eat_idle_b_to_eat_idle";
+	level.horse_idles[6].ai_animnames[5] = "ai_horse_rider_eat_idle_b_to_stand_idle";
+#/
+	level.horse_anims[level.reverse] = %a_horse_walk_b;
+	level.horse_anims[level.idle] = [];
+	level.horse_anims[level.idle][0] = %a_horse_stand_idle;
+	level.horse_anims[level.idle][1] = %a_horse_idle_turn_l;
+	level.horse_anims[level.idle][2] = %a_horse_idle_turn_r;
+	level.horse_anims[level.walk] = [];
+	level.horse_anims[level.walk][0] = %a_horse_walk_f;
+	level.horse_anims[level.trot] = [];
+	level.horse_anims[level.trot][0] = %a_horse_trot_f;
+	level.horse_anims[level.run] = [];
+	level.horse_anims[level.run][0] = %a_horse_canter_f;
+	level.horse_anims[level.sprint] = [];
+	level.horse_anims[level.sprint][0] = %a_horse_sprint_f;
+	level.horse_anims[level.jump][0] = %a_horse_jump_init;
+	level.horse_anims[level.jump][1] = %a_horse_jump_midair;
+	level.horse_anims[level.jump][2] = %a_horse_jump_land_from_above;
+	level.horse_anims[level.mount][0] = %a_horse_get_on_leftside;
+	level.horse_anims[level.mount][1] = %a_horse_get_on_rightside;
+	level.horse_anims[level.dismount][0] = %a_horse_get_off_leftside;
+	level.horse_anims[level.dismount][1] = %a_horse_get_off_rightside;
+	level.horse_anims[10][0] = %a_horse_get_on_combat_leftside;
+	level.horse_anims[10][1] = %a_horse_get_on_combat_rightside;
+	level.horse_anims[11][0] = %a_horse_get_off_combat_leftside;
+	level.horse_anims[11][1] = %a_horse_get_off_combat_rightside;
+	level.horse_anims[12] = %a_horse_hitwall;
+	level.horse_anims[level.rearback] = %a_horse_rearback_nofall;
+	level.horse_anims[level.turn_180] = %a_horse_turn180_r;
+	level.horse_sprint_anims = [];
+	level.horse_sprint_anims[0] = %a_horse_sprint_f;
+	level.horse_sprint_anims[1] = %a_horse_sprint_f_alt_a;
+	level.horse_sprint_anims[2] = %a_horse_sprint_f_alt_b;
+	level.horse_sprint_anims[3] = %a_horse_sprint_f_alt_c;
+	level.horse_sprint_anims = array_randomize( level.horse_sprint_anims );
+	level.horse_sprint_idx = 0;
+	level.horse_ai_anims[level.reverse] = %ai_horse_rider_walk_b;
+	level.horse_ai_anims[level.idle] = [];
+	level.horse_ai_anims[level.idle][0] = %ai_horse_rider_stand_idle;
+	level.horse_ai_anims[level.idle][1] = %ai_horse_rider_idle_turn_l;
+	level.horse_ai_anims[level.idle][2] = %ai_horse_rider_idle_turn_r;
+	level.horse_ai_anims[level.walk] = [];
+	level.horse_ai_anims[level.walk][0] = %ai_horse_rider_walk_f;
+	level.horse_ai_anims[level.trot] = [];
+	level.horse_ai_anims[level.trot][0] = %ai_horse_rider_trot_f;
+	level.horse_ai_anims[level.run] = [];
+	level.horse_ai_anims[level.run][0] = %ai_horse_rider_canter_f;
+	level.horse_ai_anims[level.sprint] = [];
+	level.horse_ai_anims[level.sprint][0] = %ai_horse_rider_sprint_f;
+	level.horse_ai_anims[level.jump][0] = %ai_horse_rider_jump_init;
+	level.horse_ai_anims[level.jump][1] = %ai_horse_rider_jump_midair;
+	level.horse_ai_anims[level.jump][2] = %ai_horse_rider_jump_land_from_above;
+	level.horse_ai_anims[level.mount][0] = %ai_horse_rider_get_on_leftside;
+	level.horse_ai_anims[level.mount][1] = %ai_horse_rider_get_on_rightside;
+	level.horse_ai_anims[level.dismount][0] = %ai_horse_rider_get_off_leftside;
+	level.horse_ai_anims[level.dismount][1] = %ai_horse_rider_get_off_rightside;
+	level.horse_ai_anims[10][0] = %ai_horse_rider_get_on_combat_leftside;
+	level.horse_ai_anims[10][1] = %ai_horse_rider_get_on_combat_rightside;
+	level.horse_ai_anims[11][0] = %ai_horse_rider_get_off_combat_leftside;
+	level.horse_ai_anims[11][1] = %ai_horse_rider_get_off_combat_rightside;
+	level.horse_ai_anims[12] = %ai_horse_rider_hitwall;
+	level.horse_ai_anims[level.rearback] = %ai_horse_rider_rearback_nofall;
+	level.aim_f = 0;
+	level.aim_l = 1;
+	level.aim_r = 2;
+	level.fire = 0;
+	level.horse_ai_aim_anims[level.idle] = [];
+	level.horse_ai_aim_anims[level.idle][level.aim_f] = [];
+	level.horse_ai_aim_anims[level.idle][level.aim_f][2] = %ai_horse_rider_aim_f_2;
+	level.horse_ai_aim_anims[level.idle][level.aim_f][4] = %ai_horse_rider_aim_f_4;
+	level.horse_ai_aim_anims[level.idle][level.aim_f][5] = %ai_horse_rider_aim_f_5;
+	level.horse_ai_aim_anims[level.idle][level.aim_f][6] = %ai_horse_rider_aim_f_6;
+	level.horse_ai_aim_anims[level.idle][level.aim_f][8] = %ai_horse_rider_aim_f_8;
+	level.horse_ai_aim_anims[level.idle][level.aim_f][level.fire] = %ai_horse_rider_aim_f_fire;
+	level.horse_ai_aim_anims[level.idle][level.aim_l] = [];
+	level.horse_ai_aim_anims[level.idle][level.aim_l][2] = %ai_horse_rider_aim_l_2;
+	level.horse_ai_aim_anims[level.idle][level.aim_l][4] = %ai_horse_rider_aim_l_4;
+	level.horse_ai_aim_anims[level.idle][level.aim_l][5] = %ai_horse_rider_aim_l_5;
+	level.horse_ai_aim_anims[level.idle][level.aim_l][6] = %ai_horse_rider_aim_l_6;
+	level.horse_ai_aim_anims[level.idle][level.aim_l][8] = %ai_horse_rider_aim_l_8;
+	level.horse_ai_aim_anims[level.idle][level.aim_l][level.fire] = %ai_horse_rider_aim_l_fire;
+	level.horse_ai_aim_anims[level.idle][level.aim_r] = [];
+	level.horse_ai_aim_anims[level.idle][level.aim_r][2] = %ai_horse_rider_aim_r_2;
+	level.horse_ai_aim_anims[level.idle][level.aim_r][4] = %ai_horse_rider_aim_r_4;
+	level.horse_ai_aim_anims[level.idle][level.aim_r][5] = %ai_horse_rider_aim_r_5;
+	level.horse_ai_aim_anims[level.idle][level.aim_r][6] = %ai_horse_rider_aim_r_6;
+	level.horse_ai_aim_anims[level.idle][level.aim_r][8] = %ai_horse_rider_aim_r_8;
+	level.horse_ai_aim_anims[level.idle][level.aim_r][level.fire] = %ai_horse_rider_aim_r_fire;
+	level.horse_ai_aim_anims[level.walk] = [];
+	level.horse_ai_aim_anims[level.walk][level.aim_f] = [];
+	level.horse_ai_aim_anims[level.walk][level.aim_f][2] = %ai_horse_rider_walk_aim_f_2;
+	level.horse_ai_aim_anims[level.walk][level.aim_f][4] = %ai_horse_rider_walk_aim_f_4;
+	level.horse_ai_aim_anims[level.walk][level.aim_f][5] = %ai_horse_rider_walk_aim_f_5;
+	level.horse_ai_aim_anims[level.walk][level.aim_f][6] = %ai_horse_rider_walk_aim_f_6;
+	level.horse_ai_aim_anims[level.walk][level.aim_f][8] = %ai_horse_rider_walk_aim_f_8;
+	level.horse_ai_aim_anims[level.walk][level.aim_f][level.fire] = %ai_horse_rider_walk_aim_f_fire;
+	level.horse_ai_aim_anims[level.walk][level.aim_l] = [];
+	level.horse_ai_aim_anims[level.walk][level.aim_l][2] = %ai_horse_rider_walk_aim_l_2;
+	level.horse_ai_aim_anims[level.walk][level.aim_l][4] = %ai_horse_rider_walk_aim_l_4;
+	level.horse_ai_aim_anims[level.walk][level.aim_l][5] = %ai_horse_rider_walk_aim_l_5;
+	level.horse_ai_aim_anims[level.walk][level.aim_l][6] = %ai_horse_rider_walk_aim_l_6;
+	level.horse_ai_aim_anims[level.walk][level.aim_l][8] = %ai_horse_rider_walk_aim_l_8;
+	level.horse_ai_aim_anims[level.walk][level.aim_l][level.fire] = %ai_horse_rider_walk_aim_l_fire;
+	level.horse_ai_aim_anims[level.walk][level.aim_r] = [];
+	level.horse_ai_aim_anims[level.walk][level.aim_r][2] = %ai_horse_rider_walk_aim_r_2;
+	level.horse_ai_aim_anims[level.walk][level.aim_r][4] = %ai_horse_rider_walk_aim_r_4;
+	level.horse_ai_aim_anims[level.walk][level.aim_r][5] = %ai_horse_rider_walk_aim_r_5;
+	level.horse_ai_aim_anims[level.walk][level.aim_r][6] = %ai_horse_rider_walk_aim_r_6;
+	level.horse_ai_aim_anims[level.walk][level.aim_r][8] = %ai_horse_rider_walk_aim_r_8;
+	level.horse_ai_aim_anims[level.walk][level.aim_r][level.fire] = %ai_horse_rider_walk_aim_r_fire;
+	level.horse_ai_aim_anims[level.trot] = [];
+	level.horse_ai_aim_anims[level.trot][level.aim_f] = [];
+	level.horse_ai_aim_anims[level.trot][level.aim_f][2] = %ai_horse_rider_trot_aim_f_2;
+	level.horse_ai_aim_anims[level.trot][level.aim_f][4] = %ai_horse_rider_trot_aim_f_4;
+	level.horse_ai_aim_anims[level.trot][level.aim_f][5] = %ai_horse_rider_trot_aim_f_5;
+	level.horse_ai_aim_anims[level.trot][level.aim_f][6] = %ai_horse_rider_trot_aim_f_6;
+	level.horse_ai_aim_anims[level.trot][level.aim_f][8] = %ai_horse_rider_trot_aim_f_8;
+	level.horse_ai_aim_anims[level.trot][level.aim_f][level.fire] = %ai_horse_rider_trot_aim_f_fire;
+	level.horse_ai_aim_anims[level.trot][level.aim_l] = [];
+	level.horse_ai_aim_anims[level.trot][level.aim_l][2] = %ai_horse_rider_trot_aim_l_2;
+	level.horse_ai_aim_anims[level.trot][level.aim_l][4] = %ai_horse_rider_trot_aim_l_4;
+	level.horse_ai_aim_anims[level.trot][level.aim_l][5] = %ai_horse_rider_trot_aim_l_5;
+	level.horse_ai_aim_anims[level.trot][level.aim_l][6] = %ai_horse_rider_trot_aim_l_6;
+	level.horse_ai_aim_anims[level.trot][level.aim_l][8] = %ai_horse_rider_trot_aim_l_8;
+	level.horse_ai_aim_anims[level.trot][level.aim_l][level.fire] = %ai_horse_rider_trot_aim_l_fire;
+	level.horse_ai_aim_anims[level.trot][level.aim_r] = [];
+	level.horse_ai_aim_anims[level.trot][level.aim_r][2] = %ai_horse_rider_trot_aim_r_2;
+	level.horse_ai_aim_anims[level.trot][level.aim_r][4] = %ai_horse_rider_trot_aim_r_4;
+	level.horse_ai_aim_anims[level.trot][level.aim_r][5] = %ai_horse_rider_trot_aim_r_5;
+	level.horse_ai_aim_anims[level.trot][level.aim_r][6] = %ai_horse_rider_trot_aim_r_6;
+	level.horse_ai_aim_anims[level.trot][level.aim_r][8] = %ai_horse_rider_trot_aim_r_8;
+	level.horse_ai_aim_anims[level.trot][level.aim_r][level.fire] = %ai_horse_rider_trot_aim_r_fire;
+	level.horse_ai_aim_anims[level.run] = [];
+	level.horse_ai_aim_anims[level.run][level.aim_f] = [];
+	level.horse_ai_aim_anims[level.run][level.aim_f][2] = %ai_horse_rider_canter_aim_f_2;
+	level.horse_ai_aim_anims[level.run][level.aim_f][4] = %ai_horse_rider_canter_aim_f_4;
+	level.horse_ai_aim_anims[level.run][level.aim_f][5] = %ai_horse_rider_canter_aim_f_5;
+	level.horse_ai_aim_anims[level.run][level.aim_f][6] = %ai_horse_rider_canter_aim_f_6;
+	level.horse_ai_aim_anims[level.run][level.aim_f][8] = %ai_horse_rider_canter_aim_f_8;
+	level.horse_ai_aim_anims[level.run][level.aim_f][level.fire] = %ai_horse_rider_canter_aim_f_fire;
+	level.horse_ai_aim_anims[level.run][level.aim_l] = [];
+	level.horse_ai_aim_anims[level.run][level.aim_l][2] = %ai_horse_rider_canter_aim_l_2;
+	level.horse_ai_aim_anims[level.run][level.aim_l][4] = %ai_horse_rider_canter_aim_l_4;
+	level.horse_ai_aim_anims[level.run][level.aim_l][5] = %ai_horse_rider_canter_aim_l_5;
+	level.horse_ai_aim_anims[level.run][level.aim_l][6] = %ai_horse_rider_canter_aim_l_6;
+	level.horse_ai_aim_anims[level.run][level.aim_l][8] = %ai_horse_rider_canter_aim_l_8;
+	level.horse_ai_aim_anims[level.run][level.aim_l][level.fire] = %ai_horse_rider_canter_aim_l_fire;
+	level.horse_ai_aim_anims[level.run][level.aim_r] = [];
+	level.horse_ai_aim_anims[level.run][level.aim_r][2] = %ai_horse_rider_canter_aim_r_2;
+	level.horse_ai_aim_anims[level.run][level.aim_r][4] = %ai_horse_rider_canter_aim_r_4;
+	level.horse_ai_aim_anims[level.run][level.aim_r][5] = %ai_horse_rider_canter_aim_r_5;
+	level.horse_ai_aim_anims[level.run][level.aim_r][6] = %ai_horse_rider_canter_aim_r_6;
+	level.horse_ai_aim_anims[level.run][level.aim_r][8] = %ai_horse_rider_canter_aim_r_8;
+	level.horse_ai_aim_anims[level.run][level.aim_r][level.fire] = %ai_horse_rider_canter_aim_r_fire;
+	level.horse_ai_aim_anims[level.sprint] = [];
+	level.horse_ai_aim_anims[level.sprint][level.aim_f] = [];
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][2] = %ai_horse_rider_sprint_aim_f_2;
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][4] = %ai_horse_rider_sprint_aim_f_4;
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][5] = %ai_horse_rider_sprint_aim_f_5;
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][6] = %ai_horse_rider_sprint_aim_f_6;
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][8] = %ai_horse_rider_sprint_aim_f_8;
+	level.horse_ai_aim_anims[level.sprint][level.aim_f][level.fire] = %ai_horse_rider_sprint_aim_f_fire;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l] = [];
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][2] = %ai_horse_rider_sprint_aim_l_2;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][4] = %ai_horse_rider_sprint_aim_l_4;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][5] = %ai_horse_rider_sprint_aim_l_5;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][6] = %ai_horse_rider_sprint_aim_l_6;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][8] = %ai_horse_rider_sprint_aim_l_8;
+	level.horse_ai_aim_anims[level.sprint][level.aim_l][level.fire] = %ai_horse_rider_sprint_aim_l_fire;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r] = [];
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][2] = %ai_horse_rider_sprint_aim_r_2;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][4] = %ai_horse_rider_sprint_aim_r_4;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][5] = %ai_horse_rider_sprint_aim_r_5;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][6] = %ai_horse_rider_sprint_aim_r_6;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][8] = %ai_horse_rider_sprint_aim_r_8;
+	level.horse_ai_aim_anims[level.sprint][level.aim_r][level.fire] = %ai_horse_rider_sprint_aim_r_fire;
+	level.horse_player_anims[level.reverse] = %int_horse_player_walk_b;
+	level.horse_player_anims[level.idle] = [];
+	level.horse_player_anims[level.idle][0] = %int_horse_player_stand_idle;
+	level.horse_player_anims[level.idle][1] = %int_horse_player_idle_turn_l;
+	level.horse_player_anims[level.idle][2] = %int_horse_player_idle_turn_r;
+	level.horse_player_anims[level.walk] = [];
+	level.horse_player_anims[level.walk][0] = %int_horse_player_walk_f;
+	level.horse_player_anims[level.trot] = [];
+	level.horse_player_anims[level.trot][0] = %int_horse_player_trot_f;
+	level.horse_player_anims[level.run] = [];
+	level.horse_player_anims[level.run][0] = %int_horse_player_canter_f;
+	level.horse_player_anims[level.sprint] = [];
+	level.horse_player_anims[level.sprint][0] = %int_horse_player_sprint_f;
+	level.horse_player_anims[level.sprint][3] = %int_horse_player_sprint_boost;
+	level.horse_player_anims[level.jump][0] = %int_horse_player_jump_init;
+	level.horse_player_anims[level.jump][1] = %int_horse_player_jump_midair;
+	level.horse_player_anims[level.jump][2] = %int_horse_player_jump_land_from_above;
+	level.horse_player_anims[level.mount][0] = %int_horse_player_get_on_leftside;
+	level.horse_player_anims[level.mount][1] = %int_horse_player_get_on_rightside;
+	level.horse_player_anims[level.dismount][0] = %int_horse_player_get_off_leftside;
+	level.horse_player_anims[level.dismount][1] = %int_horse_player_get_off_rightside;
+	level.horse_player_anims[10][0] = %int_horse_player_get_on_combat_leftside;
+	level.horse_player_anims[10][1] = %int_horse_player_get_on_combat_rightside;
+	level.horse_player_anims[11][0] = %int_horse_player_get_off_combat_leftside;
+	level.horse_player_anims[11][1] = %int_horse_player_get_off_combat_rightside;
+	level.horse_player_anims[12] = %int_horse_rider_hitwall;
+	level.horse_player_anims[level.rearback] = %int_horse_player_rearback_nofall;
+	level.horse_player_anims[level.turn_180] = %int_horse_player_turn180_r;
+	level.horse_deaths = [];
+	level.horse_deaths[0] = spawnstruct();
+	level.horse_deaths[0].animation = %a_horse_death_galloping;
+	level.horse_deaths[0].ai_animation = %ai_horse_rider_death_galloping;
+	level.horse_deaths[0].player_animation = %int_horse_player_death_galloping;
+	level.horse_deaths[1] = spawnstruct();
+	level.horse_deaths[1].animation = %a_horse_death_galloping_faceplant;
+	level.horse_deaths[1].ai_animation = %ai_horse_rider_death_galloping_faceplant;
+	level.horse_deaths[1].player_animation = %int_horse_player_death_galloping_faceplant;
+	level.horse_deaths[2] = spawnstruct();
+	level.horse_deaths[2].animation = %a_horse_death_standing_slow;
+	level.horse_deaths[2].ai_animation = %ai_horse_rider_death_standing_slow;
+	level.horse_deaths[2].player_animation = %int_horse_player_death_standing_slow;
+	level.horse_deaths[3] = spawnstruct();
+	level.horse_deaths[3].animation = %a_horse_death_standing_fast;
+	level.horse_deaths[3].ai_animation = %ai_horse_rider_death_standing_fast;
+	level.horse_deaths[3].player_animation = %int_horse_player_death_standing_fast;
+	level.horse_deaths_explosive = [];
+	level.horse_deaths_explosive[0] = spawnstruct();
+	level.horse_deaths_explosive[0].animation = %a_horse_sprint_explosive_death_fly_forward_a;
+	level.horse_deaths_explosive[0].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_a;
+	level.horse_deaths_explosive[1] = spawnstruct();
+	level.horse_deaths_explosive[1].animation = %a_horse_sprint_explosive_death_fly_forward_b;
+	level.horse_deaths_explosive[1].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_b;
+	level.horse_deaths_explosive[2] = spawnstruct();
+	level.horse_deaths_explosive[2].animation = %a_horse_sprint_explosive_death_fly_forward_c;
+	level.horse_deaths_explosive[2].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_c;
+	level.horse_deaths_explosive[3] = spawnstruct();
+	level.horse_deaths_explosive[3].animation = %a_horse_sprint_explosive_death_fly_forward_d;
+	level.horse_deaths_explosive[3].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_d;
+	level.horse_deaths_explosive[4] = spawnstruct();
+	level.horse_deaths_explosive[4].animation = %a_horse_sprint_explosive_death_fly_forward_e;
+	level.horse_deaths_explosive[4].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_e;
+	level.horse_deaths_explosive[5] = spawnstruct();
+	level.horse_deaths_explosive[5].animation = %a_horse_sprint_explosive_death_fly_forward_f;
+	level.horse_deaths_explosive[5].ai_animation = %ai_horse_rider_sprint_explosive_death_fly_forward_f;
+	level.horse_model_variants = [];
+	level.horse_model_variants["high"] = [];
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_black_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_brown_black_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_brown_spots_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_grey_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_light_brown_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_white_fb";
+	level.horse_model_variants["high"][level.horse_model_variants["high"].size] = "anim_horse1_white02_fb";
+	level.horse_model_variants["low"] = [];
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_black_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_brown_black_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_brown_spots_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_grey_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_light_brown_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_white_fb_low";
+	level.horse_model_variants["low"][level.horse_model_variants["low"].size] = "anim_horse1_white02_fb_low";
+	level.horse_viewmodel_variants = [];
+	level.horse_viewmodel_variants["anim_horse1_fb"] = "viewmodel_horse1_fb";
+	level.horse_viewmodel_variants["anim_horse1_black_fb"] = "viewmodel_horse1_black_fb";
+	level.horse_viewmodel_variants["anim_horse1_brown_black_fb"] = "viewmodel_horse1_brown_black_fb";
+	level.horse_viewmodel_variants["anim_horse1_brown_spots_fb"] = "viewmodel_horse1_brown_spots_fb";
+	level.horse_viewmodel_variants["anim_horse1_grey_fb"] = "viewmodel_horse1_grey_fb";
+	level.horse_viewmodel_variants["anim_horse1_light_brown_fb"] = "viewmodel_horse1_light_brown_fb";
+	level.horse_viewmodel_variants["anim_horse1_white_fb"] = "viewmodel_horse1_white_fb";
+	level.horse_viewmodel_variants["anim_horse1_white02_fb"] = "viewmodel_horse1_white02_fb";
+// SP = 0x0 - check OK
+}
+
+// 0x6B14
+get_explosive_death_horse()
+{
+	level.horse_deaths_explosive = array_randomize( level.horse_deaths_explosive );
+	level.explosive_death_index = 0;
+	level.explosive_death_index++;
+	level.horse_deaths_explosive = array_randomize( level.horse_deaths_explosive );
+	level.explosive_death_index = 0;
+	death_anim = level.horse_deaths_explosive[level.explosive_death_index].animation;
+	return death_anim;
+// SP = 0x0 - check OK
+}
+
+// 0x6B80
+get_explosive_death_ai()
+{
+	death_anim = level.horse_deaths_explosive[level.explosive_death_index].ai_animation;
+	return death_anim;
+// SP = 0x0 - check OK
+}
+
+// 0x6BA8
+unload_groups()
+{
+	unload_groups = [];
+	unload_groups["all"] = [];
+	unload_groups["driver"] = [];
+	group = "all";
+	unload_groups[group][unload_groups[group].size] = 0;
+	group = "driver";
+	unload_groups[group][unload_groups[group].size] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6BF0
+precache_fx()
+{
+	level._effect["player_wind"] = loadfx( "bio/animals/fx_horse_riding_wind" );
+// SP = 0x0 - check OK
+}
+
+// 0x6C0C
+set_wind_effect( fx_name )
+{
+/#
+	assert( IsDefined( fx_name ), "Please specify an fx name." );
+#/
+	level._effect["player_wind"] = loadfx( fx_name );
+// SP = 0x0 - check OK
+}
+
+// 0x6C40
+set_visionset_idle( visionset_name, visionset_fade )
+{
+/#
+	assert( IsDefined( visionset_name ), "Please specify a vision set name." );
+#/
+/#
+	assert( IsDefined( visionset_fade ), "Please specify a vision set fade time." );
+#/
+	self.visionset_idle = visionset_name;
+	self.visionset_idle_fade = visionset_fade;
+// SP = 0x0 - check OK
+}
+
+// 0x6C84
+set_visionset_run( visionset_name, visionset_fade )
+{
+/#
+	assert( IsDefined( visionset_name ), "Please specify a vision set name." );
+#/
+/#
+	assert( IsDefined( visionset_fade ), "Please specify a vision set fade time." );
+#/
+	self.visionset_run = visionset_name;
+	self.visionset_run_fade = visionset_fade;
+// SP = 0x0 - check OK
+}
+
+// 0x6CC8
+scale_wait( x1, x2, y1, y2, z )
+{
+	z = x1;
+	z = x2;
+	dx = x2 - x1;
+	n = ( z - x1 ) / dx;
+	dy = y2 - y1;
+	w = n * dy + y1;
+	return w;
+// SP = 0x0 - check OK
+}
+
+// 0x6D24
+get_wait()
+{
+	speed = self getspeedmph();
+	abs_speed = abs( int( speed ) );
+	wait_time = scale_wait( 1, 50, 0.2, 0.088, abs_speed );
+	return wait_time;
+// SP = 0x0 - check OK
+}
+
+// 0x6D74
+gallop_driving()
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	wait 0.01;
+	self playsound( "fly_horse_hoofhit_t_plr_01" );
+	wait self get_wait() * 1.3;
+	self playsound( "fly_horse_hoofhit_t_plr_02" );
+	wait self get_wait() * 1.3;
+	self playsound( "fly_horse_hoofhit_t_plr_03" );
+	wait self get_wait() * 1.3;
+	self playsound( "fly_horse_hoofhit_g_plr_01" );
+	wait self get_wait();
+	self playsound( "fly_horse_hoofhit_g_plr_02" );
+	wait self get_wait();
+	self playsound( "fly_gear_run_plr" );
+	self playsound( "fly_horse_hoofhit_g_plr_03" );
+	wait self get_wait() * 2;
+// SP = 0x0 - check OK
+}
+
+// 0x6EF4
+wind_driving()
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	player_offset = vector_scale( ( 0, 0, 1 ), 56 );
+	playfx( level._effect["player_wind"], self.driver.origin + player_offset );
+	wait 0.3;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x6F64
+horse_breathing()
+{
+	self endon( "death" );
+	speed = self getspeedmph();
+	speed = 1;
+	wait_time = 1.5 / speed;
+	wait wait_time;
+	self veh_toggle_exhaust_fx( 1 );
+	self.soundsnout playsound( "chr_horse_breath_i_mono" );
+	self.soundsnout playsound( "chr_horse_breath_t_mono" );
+	wait 1;
+	self veh_toggle_exhaust_fx( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x7004
+update_idle_anim()
+{
+	self.idle_state = 0;
+	self.idle_state = self.idle_anim_finished_state;
+	idle_struct = level.horse_idles[self.idle_state];
+	anim_index = randomint( idle_struct.animations.size );
+	driver = self get_driver();
+	idle_struct = level.horse_idles[0];
+	idle_struct = level.horse_idles[3];
+	anim_index = 0;
+	idle_struct = level.horse_idles[4];
+	anim_index = randomint( idle_struct.animations.size );
+	idle_anim = idle_struct.animations[anim_index];
+	idle_ai_anim = idle_struct.ai_animations[anim_index];
+	idle_player_anim = idle_struct.player_animations[anim_index];
+	self.idle_anim_finished_state = idle_struct.transitions[anim_index];
+	self.idle_anim_finished_state = self.idle_state;
+	self.idle_end_time = GetTime() + getanimlength( idle_anim ) * 1000;
+	self.current_anim = idle_anim;
+	self.rider_nextanimation = idle_ai_anim;
+	self setanimknoballrestart( idle_anim, %root, 1, 0.2, 1 );
+	driver [[driver.update_idle_anim]]( idle_struct, anim_index );
+	self.current_anim_speed = level.idle;
+// SP = 0x0 - check OK
+}
+
+// 0x71B8
+horse_rearback()
+{
+	self endon( "death" );
+	self ent_flag_set( "pause_animation" );
+	driver = self get_driver();
+	driver thread [[driver.update_rearback_anim]]( self );
+	self setanimknoballrestart( level.horse_anims[level.rearback], %root, 1, 0.2, 1 );
+	len = getanimlength( level.horse_anims[level.rearback] );
+	wait len;
+	self.idle_end_time = GetTime();
+	self ent_flag_clear( "pause_animation" );
+// SP = 0x0 - check OK
+}
+
+// 0x7258
+play_horse_anim( animname )
+{
+	self endon( "death" );
+	self setanimknoball( animname, %root, 1, 0.2, 1 );
+	wait getanimlength( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x7294
+horse_panic()
+{
+	self.is_panic = 1;
+	self notify( "panic" );
+// SP = 0x0 - check OK
+}
+
+// 0x72AC
+horse_stop()
+{
+	self endon( "death" );
+	self ent_flag_set( "pause_animation" );
+	driver = self get_driver();
+	driver thread [[driver.update_stop_anim]]();
+	stop_in = %a_horse_short_stop_init;
+	stop_out = %a_horse_short_stop_finish;
+	self play_horse_anim( stop_in );
+	self play_horse_anim( stop_out );
+	self.idle_end_time = GetTime();
+	self ent_flag_clear( "pause_animation" );
+// SP = 0x0 - check OK
+}
+
+// 0x733C
+horse_animating()
+{
+	self endon( "death" );
+	wait 0.5;
+	self.idle_end_time = 0;
+	level.loco_idle = 0;
+	level.loco_trans = 1;
+	level.loco_motion = 2;
+	self.state_loco = level.loco_idle;
+	setdvarint( "scr_horse_speed", 0 );
+	speed = self getspeedmph();
+	angular_velocity = self getangularvelocity();
+	turning_speed = abs( angular_velocity[2] );
+	speed = GetDvarInt( #"0x92A3625D" );
+/#
+	self thread [[self.horse_animating_override]]();
+#/
+	self.current_time = self getanimtime( self.current_anim );
+	self.current_time = 0;
+	self.current_anim_speed = level.reverse;
+	anim_rate = speed / level.horse_speeds[self.current_anim_speed];
+	anim_rate = clamp( anim_rate, 0.5, 1.5 );
+	self.current_anim = level.horse_anims[level.reverse];
+	self setanimknoball( level.horse_anims[level.reverse], %root, 1, 0.2, anim_rate );
+	driver = self get_driver();
+	driver [[driver.update_reverse_anim]]( anim_rate );
+	anim_rate = turning_speed;
+	anim_index = 1;
+	anim_index = 2;
+	self.current_anim = level.horse_anims[level.idle][anim_index];
+	self setanimknoball( level.horse_anims[level.idle][anim_index], %root, 1, 0.2, anim_rate );
+	driver = self get_driver();
+	driver [[driver.update_turn_anim]]( anim_rate, anim_index );
+	self.current_anim_speed = level.idle;
+	self.idle_end_time = 0;
+	self.state_loco = level.loco_idle;
+	update_idle_anim();
+	self.state_loco = level.loco_motion;
+	self update_run_anim( speed );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x75E4
+update_run_anim( speed )
+{
+	next_anim_delta = level.horse_speeds[self.current_anim_speed + 1] - level.horse_speeds[self.current_anim_speed];
+	next_anim_speed = level.horse_speeds[self.current_anim_speed] + next_anim_delta * 0.6;
+	prev_anim_delta = level.horse_speeds[self.current_anim_speed] - level.horse_speeds[self.current_anim_speed - 1];
+	prev_anim_speed = level.horse_speeds[self.current_anim_speed] - prev_anim_delta * 0.6;
+	self.current_anim_speed++;
+	self.current_anim_speed--;
+	self.current_anim_speed = level.walk;
+	anim_rate = speed / level.horse_speeds[self.current_anim_speed];
+	anim_rate = clamp( anim_rate, 0.5, 1.35 );
+	self.current_anim = level.horse_anims[self.current_anim_speed][0];
+	self.current_anim = self.sprint_anim;
+	self setanimknoball( self.current_anim, get_horse_root(), 1, 0.2, anim_rate );
+	driver = self get_driver();
+	driver [[driver.update_run_anim]]( anim_rate, self );
+// SP = 0x0 - check OK
+}
+
+// 0x773C
+update_horse_fx( speed )
+{
+	self.current_fx_speed = speed;
+	return;
+	self.current_fx_speed = speed;
+	player = get_players()[0];
+	player thread horse_fx( "player_dust_riding_trot" );
+	player thread horse_fx( "player_dust_riding_gallup" );
+	player thread horse_fx();
+// SP = 0x0 - check OK
+}
+
+// 0x77CC
+horse_fx( fx_name )
+{
+	self.current_fx unlink();
+	self.current_fx delete();
+	self.current_fx = spawn( "script_model", self.origin );
+	self.current_fx.angles = self.angles;
+	self.current_fx linkto( self );
+	self.current_fx setmodel( "tag_origin" );
+	playfxontag( level._effect[fx_name], self.current_fx, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x7858
+horse_death()
+{
+	self.script_crashtypeoverride = "horse";
+	self.ignore_death_jolt = 1;
+	self notsolid();
+	self setvehicleavoidance( 0 );
+	return;
+	self.dontfreeme = 1;
+	death_anim = undefined;
+	death_ai_anim = undefined;
+	death_anim = level.horse_deaths[2].animation;
+	death_ai_anim = level.horse_deaths[2].ai_animation;
+	death_anim = level.horse_deaths[3].animation;
+	death_ai_anim = level.horse_deaths[3].ai_animation;
+	death_anim = get_explosive_death_horse();
+	death_ai_anim = get_explosive_death_ai();
+	death_anim = get_explosive_death_horse();
+	death_ai_anim = get_explosive_death_ai();
+/#
+	death_anim = self.death_anim;
+#/
+	self setflaggedanimknoball( "horse_death", death_anim, %root, 1, 0.2, 1 );
+	driver = self get_driver();
+	driver.explosion_death_override = death_ai_anim;
+	self animscripts\shared::donotetracks( "horse_death", ::handle_horse_death_fx );
+	self waittillmatch( "horse_death" );
+	return "stop";
+	self vehicle_setspeed( 0, 25, "Dead" );
+	self.dontfreeme = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x7A04
+handle_horse_death_fx( str_notetrack )
+{
+	playfx( level._effect["horse_hits_ground"], self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x7A30
+weapon_needs_left_hand_on_horse( weapon )
+{
+	return 1;
+	weapon = strtok( weapon, "+" )[0];
+	switch ( weapon )
+	{
+		case "870mcs_sp":
+		case "ballista_sp":
+		case "barretm82_sp":
+		case "dsr50_sp":
+		case "hatchet_80s_sp":
+		case "hatchet_sp":
+		case "judge_sp":
+		case "knife_ballistic_80s_sp":
+		case "knife_ballistic_sp":
+		case "ksg_sp":
+		case "minigun_80s_sp":
+		case "minigun_sp":
+		case "riotshield_sp":
+		case "satchel_charge_80s_sp":
+		case "satchel_charge_sp":
+		case "spas_sp":
+			return 1;
+		default:
+			return 0;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7B10
+watch_for_weapon_switch_left_hand( driver )
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	driver.body endon( "stop_player_ride" );
+	driver waittill( "weapon_change", new_weapon, old_weapon );
+	needs_left = weapon_needs_left_hand_on_horse( new_weapon );
+	driver update_view_hands( !(needs_left) );
+	self.driver.body hide();
+	self.driver.body show();
+// SP = 0x0 - check OK
+}
+
+// 0x7B94
+sprint_start( driver )
+{
+	self.is_boosting = 1;
+	driver disableweapons();
+	self.needs_sprint_release = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x7BB8
+sprint_end( driver )
+{
+	self.is_boosting = 0;
+	self.needs_sprint_release = 1;
+	driver enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x7BDC
+horse_turn180()
+{
+	self endon( "death" );
+	self setbrake( 1 );
+	self horse_waittill_no_roll();
+	self ent_flag_set( "pause_animation" );
+	driver = self get_driver();
+	driver thread [[driver.update_turn180_anim]]( self );
+	self animscripted( "horse_180turn", self.origin, self.angles, level.horse_anims[level.turn_180] );
+	len = getanimlength( level.horse_anims[level.turn_180] );
+	wait len;
+	self.idle_end_time = GetTime();
+	self ent_flag_clear( "pause_animation" );
+	self setbrake( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x7CA0
+waitch_for_180turn( driver )
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	self horse_turn180();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x7CE4
+watch_for_rolled_over( driver )
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	driver dodamage( 50, self.origin );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x7D2C
+watch_for_sprint( driver )
+{
+	self endon( "death" );
+	self endon( "no_driver" );
+	self.max_speed = self getmaxspeed() / 17.6;
+	self.max_sprint_speed = self.max_speed * 1.5;
+	self.min_sprint_speed = self.max_speed * 0.65;
+	self.min_sprint_start_speed = self.max_speed * 0.8;
+	self.sprint_meter = 100;
+	self.sprint_meter_max = 100;
+	self.sprint_meter_min = self.sprint_meter_max * 0.25;
+	self.sprint_time = 20;
+	self.sprint_recover_time = 10;
+	self.is_boosting = 0;
+	self.needs_sprint_release = 0;
+	bpressingsprint = 0;
+	bmeterempty = 0;
+	sprint_drain_rate = self.sprint_meter_max / self.sprint_time;
+	sprint_recover_rate = self.sprint_meter_max / self.sprint_recover_time;
+	speed = self getspeedmph();
+	forward = anglestoforward( self.angles );
+	stick = driver getnormalizedmovement();
+	bcanstartsprint = stick[0] > 0.85;
+	bpressingsprint = self.driver sprintbuttonpressed();
+	self.needs_sprint_release = 0;
+	self sprint_start( driver );
+	self.sprint_meter -= sprint_drain_rate * 0.05;
+	throttle = self getthrottle();
+	self.sprint_meter = 0;
+	bmeterempty = 1;
+	self sprint_end( driver );
+	wait 0.1;
+	self sprint_end( driver );
+	self setvehmaxspeed( self.max_sprint_speed );
+	self launchvehicle( forward * 160 * 0.05 );
+	self.sprint_meter += sprint_recover_rate * 0.05;
+	bmeterempty = 0;
+	self.sprint_meter = self.sprint_meter_max;
+	self setvehmaxspeed( level.horse_override_max_speed );
+	self launchvehicle( forward * -80 * 0.05 );
+	max_speed = self.max_speed;
+	self setvehmaxspeed( max_speed );
+	max_speed *= 0.65;
+	self setvehmaxspeed( self.max_speed * 0.8 );
+	self launchvehicle( forward * -80 * 0.05 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x80FC
+is_sprint_allowed()
+{
+	return level.horse_allow_sprint;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x8118
+allow_horse_sprint( b_allow_sprint )
+{
+/#
+	assert( IsDefined( b_allow_sprint ), "Must pass in a value for allow_horse_sprint()" );
+#/
+	level.horse_allow_sprint = b_allow_sprint;
+// SP = 0x0 - check OK
+}
+
+// 0x8140
+override_player_horse_speed( n_speed )
+{
+	level.horse_override_max_speed = n_speed;
+// SP = 0x0 - check OK
+}
+
+// 0x8150
+use_horse( user )
+{
+	self.disable_grenade_dismount_check = 1;
+	self notify( "trigger", user );
+// SP = 0x0 - check OK
+}
+
+// 0x816C
+delay_body()
+{
+	self endon( "death" );
+	wait 0.1;
+	self.driver.body show();
+// SP = 0x0 - check OK
+}
+
+// 0x8190
+horse_waittill_no_roll()
+{
+	max_time = 1;
+	wait 0.05;
+	max_time -= 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x81D0
+horse_is_exit_position_ok()
+{
+	right = anglestoright( self.angles );
+	start = ( self.origin + vector_scale( ( 0, 0, 1 ), 15 ) ) + right * -10;
+	end = start + right * -15;
+	results = physicstraceex( start, end, vector_scale( ( -1, -1, 0 ), 14 ), ( 14, 14, 60 ), self, 1 );
+	return 1;
+	start = ( self.origin + vector_scale( ( 0, 0, 1 ), 15 ) ) + right * 10;
+	end = start + right * 15;
+	results = physicstraceex( start, end, vector_scale( ( -1, -1, 0 ), 14 ), ( 14, 14, 60 ), self, 1 );
+	self.dismount_right = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x829C
+cant_dismount_hint()
+{
+	screen_message_create( &"SCRIPT_HINT_CANT_DISMOUNT_HERE" );
+	wait 3;
+	screen_message_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x82BC
+watch_mounting()
+{
+	self endon( "death" );
+	flag_wait( "all_players_connected" );
+	self makevehicleusable();
+	self setvehicleavoidance( 1, undefined, 1 );
+	self.ignore_death_jolt = 1;
+	self waittill( "trigger", useent );
+	self setvehicleavoidance( 1, undefined, 2 );
+	wait 0.05;
+	self.driver = useent;
+	self.driver set_mount_direction( self, self.driver.origin );
+	self.driver allowjump( 0 );
+	self notsolid();
+	self clearvehgoalpos();
+	self cancelaimove();
+	need_left_hand = weapon_needs_left_hand_on_horse( self.driver getcurrentweapon() );
+	self.driver update_view_hands( !(need_left_hand) );
+/#
+	println( "horse mounting anim disabled" );
+#/
+	self.driver disableweapons();
+	self.driver.body unlink();
+	self.driver enableweapons();
+	mount_anim = level.horse_player_anims[10][self.driver.side];
+	org = getstartorigin( self.origin, self.angles, mount_anim );
+	angles = self.angles;
+	delta = getcycleoriginoffset( angles, mount_anim );
+	self.driver.body.origin = org + delta;
+	self.driver.body.angles = angles;
+	self.driver.body linkto( self, "tag_origin" );
+	self thread horse_update_reigns( 1 );
+	self.driver.is_on_horse = 0;
+	self.driver mount( self );
+	self.driver.body hide();
+	self.driver.body show();
+	self makevehicleusable();
+	self useby( self.driver );
+	wait 0.1;
+	self.driver setplayerviewratescale( 120 );
+	self solid();
+	self thread watch_for_sprint( self.driver );
+	self thread watch_for_rolled_over( self.driver );
+	self thread watch_for_weapon_switch_left_hand( self.driver );
+	self.idle_end_time = 0;
+	self thread horse_fx();
+	self thread delay_body();
+	self makevehicleusable();
+	self waittill( "trigger", useent );
+	self setbrake( 1 );
+	self horse_waittill_no_roll();
+	self.dismount_right = undefined;
+	level thread cant_dismount_hint();
+	wait 0.05;
+	self notify( "cant_dismount_here" );
+	self setbrake( 0 );
+	self.being_dismounted = 1;
+	self sprint_end( self.driver );
+	wait_network_frame();
+	self.disable_grenade_dismount_check = undefined;
+	self.driver.body.rearback = 0;
+	self.driver.body notify( "stop_player_ride" );
+	self.driver disableweapons();
+	self.driver waittill( "weapon_change" );
+	self useby( self.driver );
+	self.driver allowjump( 1 );
+	self.driver resetplayerviewratescale();
+	self.driver.body show();
+	self.driver update_view_hands( 0 );
+/#
+	println( "horse mounting anim disabled" );
+#/
+	self.driver disableweapons();
+	self.driver unlink();
+	self.driver.body unlink();
+	self.driver.body hide();
+	self.driver.body.origin = self.driver.origin;
+	self.driver.body.anlges = self.driver.angles;
+	self.driver.body linkto( self.driver );
+	wait_network_frame();
+	self.driver enableweapons();
+	self horse_update_reigns( 0 );
+	self.driver dismount( self );
+	self makevehicleusable();
+	self setbrake( 0 );
+	self notify( "no_driver" );
+	self.driver.body.pause_animation = 0;
+	self.driver = undefined;
+	self.being_dismounted = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8850
+set_mount_direction( horse, mount_org )
+{
+	horse_facing = vectornormalize( anglestoright( horse.angles ) );
+	horse_player = mount_org - horse.origin;
+	horse_player = ( horse_player[0], horse_player[1], 0 );
+	horse_player = vectornormalize( horse_player );
+	side = 0;
+	dot = vectordot( horse_facing, horse_player );
+	side = 1;
+	self.side = side;
+// SP = 0x0 - check OK
+}
+
+// 0x88C8
+update_view_hands( no_left )
+{
+	self setviewmodel( level.player_viewmodel_noleft );
+	self setviewmodel( level.player_viewmodel );
+// SP = 0x0 - check OK
+}
+
+// 0x88FC
+ready_horse()
+{
+	self setflaggedanimknoballrestart( "mount_horse", level.horse_anims[10][0], %root, 1, 0.2, 0 );
+	self setflaggedanimknoballrestart( "mount_horse", level.horse_anims[10][0], %root, 1, 0.2, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x8968
+horse_update_reigns( hide )
+{
+	self.old_model = self.model;
+	self setmodel( level.horse_viewmodel_variants[self.model] );
+	self setmodel( self.old_model );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x89BC
+horse_wait_for_reigns( notifyname, hide )
+{
+	self endon( "death" );
+	self waittillmatch( notifyname );
+	return "horse_switch";
+	self horse_update_reigns( hide );
+// SP = 0x0 - check OK
+}
+
+// 0x89E4
+mount( horse )
+{
+	horse ent_flag_set( "mounting_horse" );
+	self disableweapons();
+	self freezecontrols( 1 );
+	self setstance( "stand" );
+	wait 0.05;
+	horse thread ready_horse();
+	self.body unlink();
+	wait 0.05;
+	self.body.origin = self.origin;
+	self.body.angles = self.angles;
+	mount_anim = level.horse_player_anims[level.mount][self.side];
+	mount_anim = level.horse_player_anims[10][self.side];
+	self startcameratween( 0.3 );
+	self.body setanim( mount_anim, 1, 0, 0 );
+	self playerlinktoabsolute( self.body, "tag_player" );
+	wait 0.05;
+	horse_mount_anim = level.horse_anims[level.mount][self.side];
+	horse_mount_anim = level.horse_anims[10][self.side];
+	horse setflaggedanimknoballrestart( "mount_horse", horse_mount_anim, %root, 1, 0, 1 );
+	horse thread horse_wait_for_reigns( "mount_horse", 1 );
+	self.body animscripted( "mount", horse.origin, horse.angles, mount_anim, "normal", %root, 1, 0, 0.65 );
+	self.body show();
+	self.body waittillmatch( "mount" );
+	return "end";
+	self.body stopanimscripted();
+	self unlink();
+	self enableweapons();
+	self.body linkto( horse, "tag_origin" );
+	self freezecontrols( 0 );
+	self.is_on_horse = 1;
+	self.my_horse = horse;
+	self thread set_horseback_melee_values();
+	horse ent_flag_clear( "mounting_horse" );
+// SP = 0x0 - check OK
+}
+
+// 0x8C40
+dismount( horse )
+{
+	horse ent_flag_set( "dismounting_horse" );
+	return;
+	self disableweapons();
+	self startcameratween( 0.1 );
+	self playerlinktoabsolute( self.body, "tag_player" );
+	horse_dismount_anim = level.horse_anims[11][1];
+	horse_dismount_anim = level.horse_anims[11][0];
+	horse_dismount_anim = level.horse_anims[level.dismount][1];
+	horse_dismount_anim = level.horse_anims[level.dismount][0];
+	horse setflaggedanimknoball( "horse_dismount", horse_dismount_anim, %root, 1, 0.2, 1 );
+	horse thread horse_wait_for_reigns( "horse_dismount", 0 );
+	player_dismount_anim = level.horse_player_anims[11][1];
+	player_dismount_anim = level.horse_player_anims[11][0];
+	player_dismount_anim = level.horse_player_anims[level.dismount][1];
+	player_dismount_anim = level.horse_player_anims[level.dismount][0];
+	level.dismount_time = GetTime();
+	self.body animscripted( "dismount", horse.origin, horse.angles, player_dismount_anim, "normal", %root, 1, 0.2 );
+	self.body waittillmatch( "dismount" );
+	return "unlink";
+	self.body unlink();
+	self.body waittillmatch( "dismount" );
+	return "end";
+	self.body stopanimscripted();
+	horse notsolid();
+	self unlink();
+	self showviewmodel();
+	self enableweapons();
+	self.body unlink();
+	self.body hide();
+	self.body.origin = self.origin;
+	self.body.angles = self.angles;
+	self.body linkto( self );
+	self.body clearanim( %root, 0 );
+	horse solid();
+	horse makevehicleusable();
+	self.is_on_horse = 0;
+	self thread reset_player_melee_values();
+	self.my_horse = undefined;
+	horse ent_flag_clear( "dismounting_horse" );
+// SP = 0x0 - check OK
+}
+
+// 0x8EDC
+get_driver()
+{
+	return self.driver.body;
+	return self.riders[0];
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x8F34
+is_on_horseback()
+{
+	return 0;
+	return self.is_on_horse;
+// SP = 0x0 - check OK
+}
+
+// 0x8F4C
+watch_for_horse_melee( horse )
+{
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x8F7C
+set_horseback_melee_values()
+{
+	setsaveddvar( "player_meleerange", 110 );
+	setsaveddvar( "player_meleeheight", 100 );
+	setsaveddvar( "player_meleewidth", 100 );
+// SP = 0x0 - check OK
+}
+
+// 0x8FB4
+reset_player_melee_values()
+{
+	setsaveddvar( "player_meleerange", 64 );
+	setsaveddvar( "player_meleeheight", 10 );
+	setsaveddvar( "player_meleewidth", 10 );
+// SP = 0x0 - check OK
+}
+
+// 0x8FEC
+get_generic_human_root()
+{
+	return %root;
+// SP = 0x0 - check OK
+}
+
+// 0x8FFC
+get_horse_root()
+{
+	return %root;
+// SP = 0x0 - check OK
+}
+
+// 0x900C
+setanims()
+{
+	positions = [];
+	i = 0;
+	positions[i] = spawnstruct();
+	i++;
+	positions[0].sittag = "tag_driver";
+	positions[0].getin = %ai_horse_rider_get_on_leftside;
+	positions[0].vehicle_getinanim = %a_horse_get_on_leftside;
+	positions[0].getout = %ai_horse_rider_get_off_leftside;
+	positions[0].vehicle_getoutanim = %a_horse_get_on_rightside;
+	positions[0].explosion_death = %ai_horse_rider_sprint_explosive_death_fly_forward_a;
+	return positions;
+// SP = 0x0 - check OK
+}
+
+// 0x909C
+set_horse_in_combat( is_combat )
+{
+	level.horse_in_combat = is_combat;
+	wait 0.5;
+	level.vehicle_aianims["horse"][0].getin = %ai_horse_rider_get_on_combat_leftside;
+	level.vehicle_aianims["horse"][0].getout = %ai_horse_rider_get_off_combat_leftside;
+	level.vehicle_aianims["horse_player"][0].getin = %ai_horse_rider_get_on_combat_leftside;
+	level.vehicle_aianims["horse_player"][0].getout = %ai_horse_rider_get_off_combat_leftside;
+	level.vehicle_aianims["horse_low"][0].getin = %ai_horse_rider_get_on_combat_leftside;
+	level.vehicle_aianims["horse_low"][0].getout = %ai_horse_rider_get_off_combat_leftside;
+	level.vehicle_aianims["horse_player_low"][0].getin = %ai_horse_rider_get_on_combat_leftside;
+	level.vehicle_aianims["horse_player_low"][0].getout = %ai_horse_rider_get_off_combat_leftside;
+	level.vehicle_aianims["horse"][0].vehicle_getinanim = %a_horse_get_on_combat_leftside;
+	level.vehicle_aianims["horse"][0].vehicle_getoutanim = %a_horse_get_off_combat_leftside;
+	level.vehicle_aianims["horse_player"][0].vehicle_getinanim = %a_horse_get_on_combat_leftside;
+	level.vehicle_aianims["horse_player"][0].vehicle_getoutanim = %a_horse_get_off_combat_leftside;
+	level.vehicle_aianims["horse_low"][0].vehicle_getinanim = %a_horse_get_on_combat_leftside;
+	level.vehicle_aianims["horse_low"][0].vehicle_getoutanim = %a_horse_get_off_combat_leftside;
+	level.vehicle_aianims["horse_player_low"][0].vehicle_getinanim = %a_horse_get_on_combat_leftside;
+	level.vehicle_aianims["horse_player_low"][0].vehicle_getoutanim = %a_horse_get_off_combat_leftside;
+	level.vehicle_aianims["horse"][0].getin = %ai_horse_rider_get_on_leftside;
+	level.vehicle_aianims["horse"][0].getout = %ai_horse_rider_get_off_leftside;
+	level.vehicle_aianims["horse_player"][0].getin = %ai_horse_rider_get_on_leftside;
+	level.vehicle_aianims["horse_player"][0].getout = %ai_horse_rider_get_off_leftside;
+	level.vehicle_aianims["horse_low"][0].getin = %ai_horse_rider_get_on_leftside;
+	level.vehicle_aianims["horse_low"][0].getout = %ai_horse_rider_get_off_leftside;
+	level.vehicle_aianims["horse_player_low"][0].getin = %ai_horse_rider_get_on_leftside;
+	level.vehicle_aianims["horse_player_low"][0].getout = %ai_horse_rider_get_off_leftside;
+// SP = 0x0 - check OK
+}
+
+// 0x929C
+horse_actor_damage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime, bonename )
+{
+	bones = [];
+	bones[0] = "J_SpineUpper";
+	bones[1] = "J_Ankle_LE";
+	bones[2] = "J_Knee_LE";
+	bones[3] = "J_Head";
+	bones = array_randomize( bones );
+	speed = einflictor getspeedmph() * 5;
+	up = randomfloatrange( 0.15, 0.35 );
+	velocity = ( vdir[0], vdir[1], up );
+	velocity *= speed;
+	self startragdoll();
+	self launchragdoll( velocity, bones[0] );
+	player = getplayers()[0];
+	player playrumbleonentity( "damage_heavy" );
+	eattacker playsound( "evt_horse_trample_ai" );
+	self.killed_by_horse = 1;
+	level notify( "player_trampled_ai_with_horse" );
+	earthquake( 0.5, 0.3, player.origin, 150 );
+	return self.health;
+	return idamage;
+// SP = 0x0 - check OK
+}
+
+// 0x9448
+horse_damage_panic()
+{
+	self endon( "death" );
+	self endon( "panic" );
+	return;
+	self.is_panic = 1;
+	wait 12;
+	self.is_panic = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x947C
+horsecallback_vehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname )
+{
+	self horse_damage_panic();
+	driver = self getseatoccupant( 0 );
+	damage = idamage;
+	damage = 30;
+	driver dodamage( damage, eattacker.origin, eattacker );
+	damage = idamage;
+	driver dodamage( damage, eattacker.origin, eattacker );
+	return idamage;
+// SP = 0x0 - check OK
+}

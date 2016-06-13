@@ -1,0 +1,11 @@
+// maps/mp/_development_dvars.gsc
+
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x98
+init()
+{
+// SP = 0x0 - check OK
+}

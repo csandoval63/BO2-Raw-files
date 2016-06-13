@@ -1,0 +1,183 @@
+// maps/mp/zm_buried_achievement.gsc
+
+#include maps\mp\gametypes_zm\_globallogic_score;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x6EC
+init()
+{
+	return;
+	level thread achievement_buried_sidequest();
+	level thread achievement_im_your_huckleberry();
+	level.achievement_sound_func = ::achievement_sound_func;
+	onplayerconnect_callback( ::onplayerconnect );
+// SP = 0x0 - check OK
+}
+
+// 0x738
+achievement_sound_func( achievement_name_lower )
+{
+	return;
+	self thread do_player_general_vox( "general", "achievement" );
+// SP = 0x0 - check OK
+}
+
+// 0x764
+init_player_achievement_stats()
+{
+	return;
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_buried_sidequest", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_ectoplasmic_residue", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_im_your_huckleberry", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_death_from_below", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_candygram", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_awaken_the_gazebo", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_revisionist_historian", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_mazed_and_confused", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_fsirt_against_the_wall", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc3_when_the_revolution_comes", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x81C
+onplayerconnect()
+{
+	self thread achievement_ectoplasmic_residue();
+	self thread achievement_death_from_below();
+	self thread achievement_candygram();
+	self thread achievement_awaken_the_gazebo();
+	self thread achievement_revisionist_historian();
+	self thread achievement_mazed_and_confused();
+	self thread achievement_fsirt_against_the_wall();
+	self thread achievement_when_the_revolution_comes();
+// SP = 0x0 - check OK
+}
+
+// 0x884
+achievement_buried_sidequest()
+{
+	level endon( "end_game" );
+	level waittill_any( "sq_richtofen_complete", "sq_maxis_complete" );
+/#
+#/
+	level giveachievement_wrapper( "ZM_DLC3_BURIED_SIDEQUEST", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x8B8
+achievement_im_your_huckleberry()
+{
+	level endon( "end_game" );
+	num_barriers_broken = 0;
+	level waittill( "sloth_breaks_barrier" );
+	num_barriers_broken++;
+/#
+#/
+	level giveachievement_wrapper( "ZM_DLC3_IM_YOUR_HUCKLEBERRY", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x900
+achievement_ectoplasmic_residue()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_received_ghost_round_free_perk" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_ECTOPLASMIC_RESIDUE" );
+// SP = 0x0 - check OK
+}
+
+// 0x92C
+achievement_death_from_below()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	num_subwoofer_deaths = 0;
+	self waittill( "zombie_subwoofer_kill" );
+	num_subwoofer_deaths++;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_DEATH_FROM_BELOW" );
+// SP = 0x0 - check OK
+}
+
+// 0x978
+achievement_candygram()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_gives_sloth_candy" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_CANDYGRAM" );
+// SP = 0x0 - check OK
+}
+
+// 0x9A4
+achievement_awaken_the_gazebo()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	level endon( "bank_withdrawal" );
+	level endon( "bank_teller_used" );
+	level endon( "weapon_locker_grab" );
+	self waittill( "pap_taken" );
+	return;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_AWAKEN_THE_GAZEBO" );
+// SP = 0x0 - check OK
+}
+
+// 0x9EC
+achievement_revisionist_historian()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_activates_timebomb" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_REVISIONIST_HISTORIAN" );
+// SP = 0x0 - check OK
+}
+
+// 0xA18
+achievement_mazed_and_confused()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_stayed_in_maze_for_entire_high_level_round" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_MAZED_AND_CONFUSED" );
+// SP = 0x0 - check OK
+}
+
+// 0xA44
+achievement_fsirt_against_the_wall()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_upgraded_lsat_from_wall" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_FSIRT_AGAINST_THE_WALL" );
+// SP = 0x0 - check OK
+}
+
+// 0xA70
+achievement_when_the_revolution_comes()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "player_used_fountain_teleporter" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC3_WHEN_THE_REVOLUTION_COMES" );
+// SP = 0x0 - check OK
+}

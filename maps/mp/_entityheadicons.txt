@@ -1,0 +1,110 @@
+// maps/mp/_entityheadicons.gsc
+
+#include common_scripts\utility;
+
+
+// 0x380
+init()
+{
+	return;
+	return;
+	level.initedentityheadicons = 1;
+/#
+	assert( IsDefined( game["entity_headicon_allies"] ), "Allied head icons are not defined.  Check the team set for the level." );
+#/
+/#
+	assert( IsDefined( game["entity_headicon_axis"] ), "Axis head icons are not defined.  Check the team set for the level." );
+#/
+	precacheshader( game["entity_headicon_allies"] );
+	precacheshader( game["entity_headicon_axis"] );
+	return;
+	level.entitieswithheadicons = [];
+// SP = 0x0 - check OK
+}
+
+// 0x404
+setentityheadicon( team, owner, offset, icon, constant_size )
+{
+	return;
+	constant_size = 0;
+	self.entityheadiconteam = "none";
+	self.entityheadicons = [];
+	return;
+	self.entityheadiconteam = team;
+	self.entityheadiconoffset = offset;
+	self.entityheadiconoffset = ( 0, 0, 0 );
+	i = 0;
+	self.entityheadicons[i] destroy();
+	i++;
+	self.entityheadicons = [];
+	self notify( "kill_entity_headicon_thread" );
+	icon = game["entity_headicon_" + team];
+/#
+	assert( IsDefined( owner.owner ), "entity has to have an owner if it's not a player" );
+#/
+	owner = owner.owner;
+	owner updateentityheadclienticon( self, icon, constant_size );
+	owner updateentityheadteamicon( self, team, icon, constant_size );
+	self thread destroyheadiconsondeath();
+// SP = 0x0 - check OK
+}
+
+// 0x568
+updateentityheadteamicon( entity, team, icon, constant_size )
+{
+	headicon = newteamhudelem( team );
+	headicon.archived = 1;
+	headicon.x = entity.entityheadiconoffset[0];
+	headicon.y = entity.entityheadiconoffset[1];
+	headicon.z = entity.entityheadiconoffset[2];
+	headicon.alpha = 0.8;
+	headicon setshader( icon, 6, 6 );
+	headicon setwaypoint( constant_size );
+	headicon settargetent( entity );
+	entity.entityheadicons[entity.entityheadicons.size] = headicon;
+// SP = 0x0 - check OK
+}
+
+// 0x614
+updateentityheadclienticon( entity, icon, constant_size )
+{
+	headicon = newclienthudelem( self );
+	headicon.archived = 1;
+	headicon.x = entity.entityheadiconoffset[0];
+	headicon.y = entity.entityheadiconoffset[1];
+	headicon.z = entity.entityheadiconoffset[2];
+	headicon.alpha = 0.8;
+	headicon setshader( icon, 6, 6 );
+	headicon setwaypoint( constant_size );
+	headicon settargetent( entity );
+	entity.entityheadicons[entity.entityheadicons.size] = headicon;
+// SP = 0x0 - check OK
+}
+
+// 0x6BC
+destroyheadiconsondeath()
+{
+	self waittill_any( "death", "hacked" );
+	i = 0;
+	self.entityheadicons[i] destroy();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x710
+destroyentityheadicons()
+{
+	i = 0;
+	self.entityheadicons[i] destroy();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x758
+updateentityheadiconpos( headicon )
+{
+	headicon.x = self.origin[0] + self.entityheadiconoffset[0];
+	headicon.y = self.origin[1] + self.entityheadiconoffset[1];
+	headicon.z = self.origin[2] + self.entityheadiconoffset[2];
+// SP = 0x0 - check OK
+}

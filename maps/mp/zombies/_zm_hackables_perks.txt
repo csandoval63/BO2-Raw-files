@@ -1,0 +1,60 @@
+// maps/mp/zombies/_zm_hackables_perks.gsc
+
+#include maps\mp\zombies\_zm_equip_hacker;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x2E4
+hack_perks()
+{
+	vending_triggers = getentarray( "zombie_vending", "targetname" );
+	i = 0;
+	struct = spawnstruct();
+	machine[0] = vending_triggers[i].machine;
+	machine = getentarray( vending_triggers[i].target, "targetname" );
+	struct.origin = machine[0].origin + anglestoright( machine[0].angles ) * 18 + vector_scale( ( 0, 0, 1 ), 48 );
+	struct.radius = 48;
+	struct.height = 64;
+	struct.script_float = 5;
+	wait 0.05;
+	struct.script_int = int( vending_triggers[i].cost * -1 );
+	struct.perk = vending_triggers[i];
+	struct = struct [[level._hack_perks_override]]();
+	vending_triggers[i].hackable = struct;
+	maps\mp\zombies\_zm_equip_hacker::register_pooled_hackable_struct( struct, ::perk_hack, ::perk_hack_qualifier );
+	i++;
+	level._solo_revive_machine_expire_func = ::solo_revive_expire_func;
+// SP = 0x0 - check OK
+}
+
+// 0x428
+solo_revive_expire_func()
+{
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( self.hackable );
+	self.hackable = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x44C
+perk_hack_qualifier( player )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x494
+perk_hack( hacker )
+{
+	hacker.lives--;
+	hacker notify( self.perk.script_noteworthy + "_stop" );
+	hacker playsoundtoplayer( "evt_perk_throwup", hacker );
+	keys = getarraykeys( hacker.perk_hud );
+	i = 0;
+	hacker.perk_hud[keys[i]].x = i * 30;
+	i++;
+// SP = 0x0 - check OK
+}

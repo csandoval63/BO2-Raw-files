@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_jump_up_sewing.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x104
+main()
+{
+	dosimpletraverse( "jump_up_sewing", undefined, "zm_traverse_dierise" );
+// SP = 0x0 - check OK
+}

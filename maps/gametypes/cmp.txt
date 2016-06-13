@@ -1,0 +1,8 @@
+// maps/gametypes/cmp.gsc
+
+
+// 0x60
+init()
+{
+// SP = 0x0 - check OK
+}

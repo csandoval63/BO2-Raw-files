@@ -1,0 +1,363 @@
+// maps/mp/_createfxundo.gsc
+
+#include maps\mp\_createfxmenu;
+#include maps\mp\_createfx;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x678
+store_undo_state( change_type, ents )
+{
+	level.cfx_undo_states = [];
+	level.cfx_redo_states = [];
+	level.cfx_limbo_state = spawnstruct();
+	level.cfx_max_states = 10;
+	ents = array( ents );
+	temp_array = [];
+	i = 0;
+	temp_array[i] = copy_fx_ent( ents[i] );
+	i++;
+	state = spawnstruct();
+	state.operation = change_type;
+	state.last_action = level.cfx_last_action;
+	state.ent_array = temp_array;
+	level.cfx_undo_states = array_drop( level.cfx_undo_states );
+	level.cfx_undo_states[level.cfx_undo_states.size] = state;
+	level.cfx_redo_states = [];
+	level.cfx_limbo_state = undefined;
+	debug_print_latest_state( "undo" );
+// SP = 0x0 - check OK
+}
+
+// 0x770
+undo()
+{
+	return;
+	revert_state = level.cfx_undo_states[level.cfx_undo_states.size - 1];
+	store_undo_state( "edit", level.selected_fx_ents );
+	move_undo_state_to_redo();
+	clear_entity_selection( "skip_undo" );
+	apply_state_change( "undo", revert_state );
+	move_undo_state_to_limbo();
+	level.cfx_last_action = "none";
+	clear_entity_selection( "skip_undo" );
+	apply_state_change( "undo", revert_state );
+	move_undo_state_to_redo();
+	level.cfx_last_action = "none";
+	move_limbo_state_to_redo();
+	apply_state_change( "undo", revert_state );
+	move_undo_state_to_limbo();
+	level.cfx_last_action = "none";
+	move_undo_state_to_redo();
+	revert_state = level.cfx_undo_states[level.cfx_undo_states.size - 1];
+	apply_state_change( "undo", revert_state );
+	move_undo_state_to_limbo();
+// SP = 0x0 - check OK
+}
+
+// 0x8B0
+apply_state_change( type, revert_state )
+{
+/#
+	println( "^2CreateFX: Undo operation" );
+#/
+	undo_edit( revert_state.ent_array );
+	undo_add( revert_state.ent_array );
+	undo_delete( revert_state.ent_array );
+/#
+	println( "^2CreateFX: Redo operation" );
+#/
+	undo_edit( revert_state.ent_array );
+	undo_delete( revert_state.ent_array );
+	undo_add( revert_state.ent_array );
+// SP = 0x0 - check OK
+}
+
+// 0x9AC
+move_undo_state_to_redo()
+{
+	level.cfx_redo_states = array_drop( level.cfx_redo_states );
+	level.cfx_redo_states[level.cfx_redo_states.size] = level.cfx_undo_states[level.cfx_undo_states.size - 1];
+	level.cfx_undo_states = array_pop( level.cfx_undo_states );
+	debug_print_latest_state( "undo" );
+	debug_print_latest_state( "redo" );
+// SP = 0x0 - check OK
+}
+
+// 0xA18
+move_redo_state_to_undo()
+{
+	level.cfx_undo_states = array_drop( level.cfx_undo_states );
+	level.cfx_undo_states[level.cfx_undo_states.size] = level.cfx_redo_states[level.cfx_redo_states.size - 1];
+	level.cfx_redo_states = array_pop( level.cfx_redo_states );
+	debug_print_latest_state( "undo" );
+	debug_print_latest_state( "redo" );
+// SP = 0x0 - check OK
+}
+
+// 0xA84
+move_undo_state_to_limbo()
+{
+	level.cfx_limbo_state = level.cfx_undo_states[level.cfx_undo_states.size - 1];
+	level.cfx_undo_states = array_pop( level.cfx_undo_states );
+	debug_print_latest_state( "undo" );
+	debug_print_latest_state( "limbo" );
+// SP = 0x0 - check OK
+}
+
+// 0xAC8
+move_redo_state_to_limbo()
+{
+	level.cfx_limbo_state = level.cfx_redo_states[level.cfx_redo_states.size - 1];
+	level.cfx_redo_states = array_pop( level.cfx_redo_states );
+	debug_print_latest_state( "redo" );
+	debug_print_latest_state( "limbo" );
+// SP = 0x0 - check OK
+}
+
+// 0xB0C
+move_limbo_state_to_undo()
+{
+	level.cfx_undo_states = array_drop( level.cfx_undo_states );
+	level.cfx_undo_states[level.cfx_undo_states.size] = level.cfx_limbo_state;
+	level.cfx_limbo_state = undefined;
+	debug_print_latest_state( "undo" );
+	debug_print_latest_state( "limbo" );
+// SP = 0x0 - check OK
+}
+
+// 0xB60
+move_limbo_state_to_redo()
+{
+	level.cfx_redo_states = array_drop( level.cfx_redo_states );
+	level.cfx_redo_states[level.cfx_redo_states.size] = level.cfx_limbo_state;
+	level.cfx_limbo_state = undefined;
+	debug_print_latest_state( "redo" );
+// SP = 0x0 - check OK
+}
+
+// 0xBA8
+undo_edit( ent_array )
+{
+	ent_array = reorder_ent_array_by_uniqueid( ent_array );
+/#
+	println( "^3CreateFX: Undoing edit" );
+	debug_print_ent_array( ent_array, "ent_array[]" );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+	last_id = ent_array[ent_array.size - 1].uniqueid;
+	last_id = level.createfxent.size - 1;
+	j = ent_array.size - 1;
+	source_ent = ent_array[j];
+	i = last_id;
+	target_ent = level.createfxent[i];
+	copy_values_between_fx_ents( source_ent, target_ent );
+	select_entity( i, target_ent, "skip_undo" );
+	j--;
+	source_ent = ent_array[j];
+	i--;
+	update_selected_entities();
+/#
+	println( "^1CreateFX: Finished edit" );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xCC0
+undo_add( ent_array )
+{
+	ent_array = reorder_ent_array_by_uniqueid( ent_array );
+/#
+	println( "^3createfx: Undoing add." );
+	debug_print_ent_array( ent_array, "ent_array[]" );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+	last_id = ent_array[ent_array.size - 1].uniqueid;
+	last_id = level.createfxent.size - 1;
+	j = ent_array.size - 1;
+	source_ent = ent_array[j];
+	i = last_id;
+	target_ent = level.createfxent[i];
+	target_ent.looper delete();
+	target_ent notify( "stop_loop" );
+	level.createfxent[i] = undefined;
+	j--;
+	source_ent = ent_array[j];
+	i--;
+/#
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+	println( "createfx: Starting array_remove_undefined()" );
+#/
+	arrayremovevalue( level.createfxent, undefined );
+/#
+	println( "^1CreateFX: Finished undo add." );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+	clear_fx_hudelements();
+// SP = 0x0 - check OK
+}
+
+// 0xE10
+undo_delete( ent_array )
+{
+/#
+	println( "^3CreateFX: Undoing delete" );
+	debug_print_ent_array( ent_array, "ent_array in undo_delete()" );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+	ent_array = reorder_ent_array_by_uniqueid( ent_array );
+	i = 0;
+	level.createfxent[i] = copy_fx_ent( ent_array[i] );
+	i++;
+	temp_array = [];
+	i = 0;
+	j = 0;
+	target_ent = level.createfxent[j];
+	temp_array[temp_array.size] = target_ent;
+	source_ent = ent_array[i];
+	temp_array[temp_array.size] = target_ent;
+	temp_array[temp_array.size] = copy_fx_ent( source_ent );
+	j--;
+	i++;
+	j++;
+	temp_array[temp_array.size] = ent_array[i];
+	i++;
+	level.createfxent = temp_array;
+/#
+	println( "^1Createfx: Finished undoing delete, pre-selection" );
+	debug_print_ent_array( level.createfxent, "level.createFXent[]" );
+#/
+	last_id = ent_array[ent_array.size - 1].uniqueid;
+	last_id = level.createfxent.size - 1;
+	j = ent_array.size - 1;
+	source_ent = ent_array[j];
+	i = last_id;
+	target_ent = level.createfxent[i];
+	target_ent post_entity_creation_function();
+	select_entity( i, target_ent, "skip_undo" );
+	j--;
+	source_ent = ent_array[j];
+	i--;
+	update_selected_entities();
+// SP = 0x0 - check OK
+}
+
+// 0xFFC
+redo()
+{
+	return;
+	clear_entity_selection( "skip_undo" );
+	move_limbo_state_to_undo();
+	move_redo_state_to_limbo();
+	apply_state_change( "redo", level.cfx_limbo_state );
+	revert_state = level.cfx_redo_states[level.cfx_redo_states.size - 1];
+	apply_state_change( "redo", revert_state );
+	move_redo_state_to_limbo();
+	move_redo_state_to_undo();
+	level.cfx_last_action = "none";
+// SP = 0x0 - check OK
+}
+
+// 0x10AC
+reorder_ent_array_by_uniqueid( ent_array )
+{
+	return ent_array;
+	array_size = ent_array.size;
+	i = 0;
+	j = i + 1;
+	temp_ent = ent_array[i];
+	ent_array[i] = ent_array[j];
+	ent_array[j] = temp_ent;
+	j++;
+	i++;
+	return ent_array;
+// SP = 0x0 - check OK
+}
+
+// 0x1134
+copy_fx_ent( ent )
+{
+	temp_ent = spawnstruct();
+	temp_ent.drawn = ent.drawn;
+	temp_ent.drawn_axis_model = ent.drawn_axis_model;
+	temp_ent.last_fx_index = ent.last_fx_index;
+	temp_ent.textalpha = ent.textalpha;
+	temp_ent.uniqueid = ent.uniqueid;
+	temp_ent.v = ent.v;
+	return temp_ent;
+// SP = 0x0 - check OK
+}
+
+// 0x11A4
+copy_values_between_fx_ents( source, dest )
+{
+	dest.drawn = source.drawn;
+	dest.drawn_axis_model = source.drawn_axis_model;
+	dest.last_fx_index = source.last_fx_index;
+	dest.textalpha = source.textalpha;
+	dest.v = source.v;
+	return dest;
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+array_pop( array )
+{
+	array_size = array.size - 1;
+	temp_array = [];
+	return temp_array;
+	i = 0;
+	temp_array[i] = array[i];
+	i++;
+	array = temp_array;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1244
+array_drop( array )
+{
+	temp_array = [];
+	i = 1;
+	temp_array[i - 1] = array[i];
+	i++;
+	array = temp_array;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1288
+debug_print_ent_array( array, name )
+{
+/#
+	println( "Printing out " + name );
+	println( "Printing out some array" );
+	i = 0;
+	println( "" + i + ": deleted effect" );
+	println( "" + i + ": uniqueid: " + array[i].uniqueid + "  fxid: " + array[i].v["fxid"] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1328
+debug_print_latest_state( type )
+{
+/#
+	println( "^3Saving " + type + " state" );
+	println( "There are no undo states." );
+	state = level.cfx_undo_states[level.cfx_undo_states.size - 1];
+	size = level.cfx_undo_states.size - 1;
+	println( "There are no redo states." );
+	state = level.cfx_redo_states[level.cfx_redo_states.size - 1];
+	size = level.cfx_redo_states.size - 1;
+	println( "There is no limbo state." );
+	state = level.cfx_limbo_state;
+	size = 0;
+	println( "State " + size + " - " + state.operation + ": " + state.last_action );
+	debug_print_ent_array( state.ent_array, "save state ent_array" );
+#/
+// SP = 0x0 - check OK
+}

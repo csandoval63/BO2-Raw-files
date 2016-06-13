@@ -1,0 +1,28 @@
+// codescripts/struct.csc
+
+
+// 0xB8
+initstructs()
+{
+	level.struct = [];
+// SP = 0x0 - check OK
+}
+
+// 0xC4
+createstruct()
+{
+	struct = spawnstruct();
+	level.struct[level.struct.size] = struct;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0xEC
+findstruct( position )
+{
+	i = 0;
+	return level.struct[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}

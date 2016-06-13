@@ -1,0 +1,1158 @@
+// animscripts/setposemovement.gsc
+
+#include animscripts\shared;
+#include animscripts\cover_prone;
+#include animscripts\move;
+#include animscripts\cqb;
+#include animscripts\run;
+#include animscripts\debug;
+#include common_scripts\utility;
+#include maps\_utility;
+#include animscripts\anims;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x10A4
+setposemovement( desiredpose, desiredmovement )
+{
+/#
+	self animscripts\debug::debugpushstate( "SetPoseMovement: " + desiredpose + " - " + desiredmovement );
+#/
+	desiredpose = "crouch";
+	desiredpose = self.a.pose;
+	desiredmovement = self.a.movement;
+	[[anim.setposemovementfnarray[desiredpose][desiredmovement]]]();
+/#
+	self animscripts\debug::debugpopstate( "SetPoseMovement: " + desiredpose + " - " + desiredmovement );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1154
+initposemovementfunctions()
+{
+	anim.setposemovementfnarray["stand"]["stop"] = ::beginstandstop;
+	anim.setposemovementfnarray["stand"]["walk"] = ::beginstandwalk;
+	anim.setposemovementfnarray["stand"]["run"] = ::beginstandrun;
+	anim.setposemovementfnarray["crouch"]["stop"] = ::begincrouchstop;
+	anim.setposemovementfnarray["crouch"]["walk"] = ::begincrouchwalk;
+	anim.setposemovementfnarray["crouch"]["run"] = ::begincrouchrun;
+	anim.setposemovementfnarray["prone"]["stop"] = ::beginpronestop;
+	anim.setposemovementfnarray["prone"]["walk"] = ::beginpronewalk;
+	anim.setposemovementfnarray["prone"]["run"] = ::beginpronerun;
+// SP = 0x0 - check OK
+}
+
+// 0x1210
+beginstandstop()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginStandStop: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+/#
+					self animscripts\debug::debugpopstate( "BeginStandStop: " + self.a.pose + " - " + self.a.movement );
+#/
+					return 0;
+				case "walk":
+					standwalktostand();
+					break;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					standruntostand();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtostand();
+					break;
+				case "walk":
+					crouchwalktostand();
+					break;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					crouchruntostand();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			switch ( self.a.movement )
+			{
+				case "stop":
+					pronetostand();
+					break;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					pronetostand();
+					break;
+			}
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginStandStop: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x142C
+beginstandwalk()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginStandWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					blendintostandwalk();
+					break;
+				case "walk":
+/#
+					self animscripts\debug::debugpopstate( "BeginStandWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+					return 0;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					blendintostandwalk();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtostandwalk();
+					break;
+				case "walk":
+					blendintostandwalk();
+					break;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					blendintostandwalk();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			pronetostandwalk();
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginStandWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x15E0
+beginstandrun()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginStandRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+				case "walk":
+					blendintostandrun();
+					break;
+				default:
+/#
+					self animscripts\debug::debugpopstate( "BeginStandRun: " + self.a.pose + " - " + self.a.movement );
+#/
+/#
+					assert( self.a.movement == "run" );
+#/
+					return 0;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtostandrun();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					blendintostandrun();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			pronetostandrun();
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginStandRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1784
+begincrouchstop()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginCrouchStop: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "run":
+					standtocrouch();
+					break;
+				case "stop":
+					standwalktocrouch();
+					break;
+				case "walk":
+					standruntocrouch();
+					break;
+				default:
+/#
+					assert( 0, "SetPoseMovement::BeginCrouchStop " + self.a.pose + " " + self.a.movement );
+#/
+			}
+			break;
+		case "prone":
+			switch ( self.a.movement )
+			{
+				case "run":
+				case "stop":
+					crouchwalktocrouch();
+					break;
+				case "walk":
+					crouchruntocrouch();
+					break;
+				default:
+/#
+					assert( 0, "SetPoseMovement::BeginCrouchStop " + self.a.pose + " " + self.a.movement );
+#/
+			}
+			break;
+		case "stand":
+			pronetocrouch();
+			break;
+		default:
+/#
+			assert( 0, "SetPoseMovement::BeginCrouchStop " + self.a.pose + " " + self.a.movement );
+#/
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginCrouchStop: " + self.a.pose + " - " + self.a.movement );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1950
+begincrouchwalk()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginCrouchWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					blendintostandwalk();
+					blendintocrouchwalk();
+					break;
+				case "walk":
+					blendintocrouchwalk();
+					break;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					blendintocrouchwalk();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtocrouchwalk();
+					break;
+				case "walk":
+/#
+					self animscripts\debug::debugpopstate( "BeginCrouchWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+					return 0;
+				default:
+/#
+					assert( self.a.movement == "run" );
+#/
+					blendintocrouchwalk();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			pronetocrouchwalk();
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginCrouchWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1B0C
+begincrouchrun()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginCrouchRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					blendintostandrun();
+					blendintocrouchrun();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					blendintocrouchrun();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtocrouchrun();
+					break;
+				case "walk":
+					blendintocrouchrun();
+					break;
+				default:
+/#
+					self animscripts\debug::debugpopstate( "BeginCrouchRun: " + self.a.pose + " - " + self.a.movement );
+#/
+/#
+					assert( self.a.movement == "run" );
+#/
+					return 0;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			pronetocrouchrun();
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginCrouchRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1CC4
+beginpronestop()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginProneStop: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "run":
+					standtoprone();
+					break;
+				case "stop":
+					standtoprone();
+					break;
+				case "walk":
+					crouchruntoprone();
+					break;
+				default:
+/#
+					assert( 0, "SetPoseMovement::BeginCrouchRun " + self.a.pose + " " + self.a.movement );
+#/
+			}
+			break;
+		case "prone":
+			switch ( self.a.movement )
+			{
+				case "run":
+					crouchtoprone();
+					break;
+				case "stop":
+					crouchtoprone();
+					break;
+				case "walk":
+					crouchruntoprone();
+					break;
+				default:
+/#
+					assert( 0, "SetPoseMovement::BeginCrouchRun " + self.a.pose + " " + self.a.movement );
+#/
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "run":
+				case "stop":
+				case "walk":
+					pronecrawltoprone();
+					break;
+				default:
+/#
+					assert( 0, "SetPoseMovement::BeginCrouchRun " + self.a.pose + " " + self.a.movement );
+#/
+			}
+			break;
+		default:
+/#
+			assert( 0, "SetPoseMovement::BeginCrouchRun " + self.a.pose + " " + self.a.movement );
+#/
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginProneStop: " + self.a.pose + " - " + self.a.movement );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F00
+beginpronewalk()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginProneWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					standtopronewalk();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					crouchruntopronewalk();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtopronewalk();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					crouchruntopronewalk();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			switch ( self.a.movement )
+			{
+				case "stop":
+					pronetopronerun();
+					break;
+				default:
+/#
+					self animscripts\debug::debugpopstate( "BeginProneWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+/#
+					assert( self.a.movement == "walk" );
+#/
+					self.a.movement = "walk";
+					return 0;
+			}
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginProneWalk: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x211C
+beginpronerun()
+{
+/#
+	self animscripts\debug::debugpushstate( "BeginProneRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	switch ( self.a.pose )
+	{
+		case "crouch":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					standtopronerun();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					crouchruntopronerun();
+					break;
+			}
+			break;
+		case "stand":
+			switch ( self.a.movement )
+			{
+				case "stop":
+					crouchtopronerun();
+					break;
+				default:
+/#
+					assert( self.a.movement == "walk" );
+#/
+					crouchruntopronerun();
+					break;
+			}
+			break;
+		default:
+/#
+			assert( self.a.pose == "prone" );
+#/
+			switch ( self.a.movement )
+			{
+				case "stop":
+/#
+					assert( self.a.movement == "stop" );
+#/
+					pronetopronerun();
+					break;
+				default:
+/#
+					self animscripts\debug::debugpopstate( "BeginProneRun: " + self.a.pose + " - " + self.a.movement );
+#/
+/#
+					assert( self.a.movement == "walk" );
+#/
+					self.a.movement = "run";
+					return 0;
+			}
+	}
+/#
+	self animscripts\debug::debugpopstate( "BeginProneRun: " + self.a.pose + " - " + self.a.movement );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2354
+playblendtransition( transanim, crossblendtime, endpose, endmovement, endaiming )
+{
+/#
+	self animscripts\debug::debugpushstate( "PlayBlendTransition: " + endpose + " - " + endmovement );
+#/
+	endtime = GetTime() + crossblendtime * 1000;
+	self setanimknoball( transanim, %body, 1, crossblendtime, 1 );
+	wait crossblendtime / 2;
+	self.a.pose = endpose;
+	self.a.movement = endmovement;
+	waittime = ( endtime - GetTime() ) / 1000;
+	waittime = 0.05;
+	wait waittime;
+/#
+	self animscripts\debug::debugpopstate( "PlayBlendTransition: " + endpose + " - " + endmovement );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2410
+playtransitionstandwalk( transanim, finalanim )
+{
+	playtransitionanimation( transanim, "stand", "walk", 1, finalanim );
+// SP = 0x0 - check OK
+}
+
+// 0x2434
+standwalktostand()
+{
+/#
+	assert( self.a.pose == "stand", "SetPoseMovement::StandWalkToStand " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "walk", "SetPoseMovement::StandWalkToStand " + self.a.movement );
+#/
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x2498
+standwalktocrouch()
+{
+	standwalktostand();
+	standtocrouch();
+// SP = 0x0 - check OK
+}
+
+// 0x24B0
+standruntostand()
+{
+/#
+	assert( self.a.pose == "stand", "SetPoseMovement::StandRunToStand " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "run", "SetPoseMovement::StandRunToStand " + self.a.movement );
+#/
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x2514
+standruntocrouch()
+{
+	self.a.movement = "stop";
+	self.a.pose = "crouch";
+// SP = 0x0 - check OK
+}
+
+// 0x2534
+playblendtransitionstandrun( animname )
+{
+	transtime = 0.3;
+	self endon( "movemode" );
+	transtime = 0.1;
+	playblendtransition( animname, transtime, "stand", "run", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2580
+blendintostandrun()
+{
+	shouldtacticalwalk = animscripts\run::shouldtacticalwalk();
+	self.a.movement = "run";
+	transitiontotacticalwalk( "stand" );
+	return 0;
+	playblendtransitionstandrun( animarray( "start_cqb_run_f", "move" ) );
+	playblendtransitionstandrun( self.run_combatanim );
+	playblendtransitionstandrun( self.run_noncombatanim );
+	shouldshootwhilemoving = 0;
+	runanimname = "start_stand_run_f";
+	transitionanimparent = %combatrun;
+	forwardrunanim = %combatrun_forward;
+	runanimtranstime = 0;
+	runanimtranstime = 0.5;
+	shouldshootwhilemoving = 1;
+	runanimname = "run_n_gun_f";
+	self clearanim( %walk_and_run_loops, 0.2 );
+	self setanimknob( %combatrun, 1, 0.5, self.moveplaybackrate );
+	self setanimknoblimited( animarray( runanimname ), 1, runanimtranstime, 1 );
+	self thread animscripts\run::updaterunweights( "BlendIntoStandRun", forwardrunanim, animarray( "run_n_gun_b" ) );
+	self thread animscripts\run::updaterunweights( "BlendIntoStandRun", forwardrunanim, animarray( "combat_run_b" ), animarray( "combat_run_l" ), animarray( "combat_run_r" ) );
+	playblendtransitionstandrun( transitionanimparent );
+	self notify( "BlendIntoStandRun" );
+// SP = 0x0 - check OK
+}
+
+// 0x27A4
+playblendtransitionstandwalk( animname )
+{
+	self endon( "movemode" );
+	playblendtransition( animname, 0.6, "stand", "walk", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x27E0
+blendintostandwalk()
+{
+	self endon( "movemode" );
+	self.a.pose = "stand";
+	self.a.movement = "walk";
+// SP = 0x0 - check OK
+}
+
+// 0x2818
+crouchtostand()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchToStand " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "stop", "SetPoseMovement::CrouchToStand " + self.a.movement );
+#/
+	standspeed = 0.5;
+	standspeed = 1.8;
+	self.faststand = undefined;
+	playtransitionanimation( animarray( "crouch_2_stand" ), "stand", "stop", standspeed );
+	self randomizeidleset();
+	playtransitionanimation( animarray( "crouch_2_stand" ), "stand", "stop", standspeed );
+	self clearanim( %shoot, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2910
+crouchtocrouchwalk()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchToCrouchWalk " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "stop", "SetPoseMovement::CrouchToCrouchWalk " + self.a.movement );
+#/
+	blendintocrouchwalk();
+// SP = 0x0 - check OK
+}
+
+// 0x2970
+crouchtostandwalk()
+{
+	crouchtocrouchwalk();
+	blendintostandwalk();
+// SP = 0x0 - check OK
+}
+
+// 0x2988
+crouchwalktocrouch()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchWalkToCrouch " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "walk", "SetPoseMovement::CrouchWalkToCrouch " + self.a.movement );
+#/
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x29EC
+crouchwalktostand()
+{
+	crouchwalktocrouch();
+	crouchtostand();
+// SP = 0x0 - check OK
+}
+
+// 0x2A04
+crouchruntocrouch()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchRunToCrouch " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "run", "SetPoseMovement::CrouchRunToCrouch " + self.a.movement );
+#/
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x2A68
+crouchruntostand()
+{
+	crouchruntocrouch();
+	crouchtostand();
+// SP = 0x0 - check OK
+}
+
+// 0x2A80
+crouchtocrouchrun()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchToCrouchRun " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "stop", "SetPoseMovement::CrouchToCrouchRun " + self.a.movement );
+#/
+	blendintocrouchrun();
+// SP = 0x0 - check OK
+}
+
+// 0x2AE0
+crouchtostandrun()
+{
+	blendintostandrun();
+// SP = 0x0 - check OK
+}
+
+// 0x2AF0
+blendintocrouchrun()
+{
+	self setanimknoball( self.crouchrun_combatanim, %body, 1, 0.4 );
+	playblendtransition( self.crouchrun_combatanim, 0.6, "crouch", "run", 0 );
+	self notify( "BlendIntoCrouchRun" );
+	self setanimknob( animscripts\run::getcrouchrunanim(), 1, 0.4 );
+	self thread animscripts\run::updaterunweights( "BlendIntoCrouchRun", %combatrun_forward, animarray( "combat_run_b" ), animarray( "combat_run_l" ), animarray( "combat_run_r" ) );
+	playblendtransition( %combatrun, 0.6, "crouch", "run", 0 );
+	self notify( "BlendIntoCrouchRun" );
+// SP = 0x0 - check OK
+}
+
+// 0x2BC0
+pronetocrouchrun()
+{
+/#
+	assert( self.a.pose == "prone", "SetPoseMovement::ProneToCrouchRun " + self.a.pose );
+#/
+	self orientmode( "face current" );
+	self exitpronewrapper( 1 );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	playtransitionanimation( animarray( "prone_2_crouch_run" ), "crouch", "run", 0, animarray( "crouch_run_f" ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2C48
+pronetostandrun()
+{
+	pronetocrouchrun();
+	blendintostandrun();
+// SP = 0x0 - check OK
+}
+
+// 0x2C60
+pronetocrouchwalk()
+{
+	pronetocrouchrun();
+	blendintocrouchwalk();
+// SP = 0x0 - check OK
+}
+
+// 0x2C78
+blendintocrouchwalk()
+{
+	self setanimknoball( self.crouchrun_combatanim, %body, 1, 0.4 );
+	playblendtransition( self.crouchrun_combatanim, 0.6, "crouch", "walk", 0 );
+	self notify( "BlendIntoCrouchWalk" );
+	playblendtransition( animarray( "crouch_run_f" ), 0.8, "crouch", "walk", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2CF0
+standtocrouch()
+{
+/#
+	assert( self.a.pose == "stand", "SetPoseMovement::StandToCrouch " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "stop", "SetPoseMovement::StandToCrouch " + self.a.movement );
+#/
+	self randomizeidleset();
+	crouchspeed = 0.5;
+	crouchspeed = 1.8;
+	self.fastcrouch = undefined;
+	playtransitionanimation( animarray( "stand_2_crouch" ), "crouch", "stop", 1, undefined, crouchspeed );
+	self clearanim( %shoot, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2DAC
+pronetocrouch()
+{
+/#
+	assert( self.a.pose == "prone", "SetPoseMovement::StandToCrouch " + self.a.pose );
+#/
+	self randomizeidleset();
+	self orientmode( "face current" );
+	self exitpronewrapper( 1 );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	playtransitionanimation( animarray( "prone_2_crouch" ), "crouch", "stop", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2E38
+pronetostand()
+{
+/#
+	assert( self.a.pose == "prone", self.a.pose );
+#/
+	self orientmode( "face current" );
+	self exitpronewrapper( 1 );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	playtransitionanimation( animarray( "prone_2_stand" ), "stand", "stop", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2EB4
+pronetostandwalk()
+{
+	pronetocrouch();
+	crouchtocrouchwalk();
+	blendintostandwalk();
+// SP = 0x0 - check OK
+}
+
+// 0x2ED4
+pronetopronemove( movement )
+{
+/#
+	assert( self.a.pose == "prone", "SetPoseMovement::ProneToProneMove " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "stop", "SetPoseMovement::ProneToProneMove " + self.a.movement );
+#/
+/#
+	assert( movement == "run", "SetPoseMovement::ProneToProneMove got bad parameter " + movement );
+#/
+	playtransitionanimation( animarray( "aim_2_crawl" ), "prone", movement, 0, animarray( "combat_run_f" ) );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F88
+pronetopronerun()
+{
+	pronetopronemove( "run" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F9C
+pronecrawltoprone()
+{
+/#
+	assert( self.a.pose == "prone", "SetPoseMovement::ProneCrawlToProne " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "run", "SetPoseMovement::ProneCrawlToProne " + self.a.movement );
+#/
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	playtransitionanimation( animarray( "crawl_2_aim" ), "prone", "stop", 1 );
+	self clearanim( %exposed_modern, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x304C
+crouchtoprone()
+{
+/#
+	assert( self.a.pose == "crouch", "SetPoseMovement::CrouchToProne " + self.a.pose );
+#/
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 1 );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	playtransitionanimation( animarray( "crouch_2_prone" ), "prone", "stop", 1 );
+	self clearanim( %exposed_modern, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x30F8
+crouchtopronewalk()
+{
+	crouchtoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x3110
+crouchtopronerun()
+{
+	crouchtoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x3128
+standtoprone()
+{
+/#
+	assert( self.a.pose == "stand", "SetPoseMovement::StandToProne " + self.a.pose );
+#/
+	transanim = animarray( "stand_2_prone" );
+	thread playtransitionanimationthread_withoutwaitsetstates( transanim, "prone", "stop", 0.5 );
+	self waittillmatch( "transAnimDone2" );
+	return "anim_pose = \"prone\"";
+	waittillframeend;
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 0.5 );
+	self.a.movement = "stop";
+	self waittillmatch( "transAnimDone2" );
+	return "end";
+	self clearanim( %exposed_modern, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x31F4
+standtopronewalk()
+{
+	standtoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x320C
+standtopronerun()
+{
+	standtoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x3224
+crouchruntoprone()
+{
+/#
+	assert( self.a.pose == "stand", "SetPoseMovement::CrouchRunToProne " + self.a.pose );
+#/
+/#
+	assert( self.a.movement == "walk", "SetPoseMovement::CrouchRunToProne " + self.a.movement );
+#/
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 0.5 );
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	rundirection = animscripts\utility::getquadrant( self getmotionangle() );
+	diveanim = animarray( "run_2_prone_dive", "move" );
+	localdeltavector = getmovedelta( diveanim, 0, 1 );
+	endpoint = self localtoworldcoords( localdeltavector );
+	playtransitionanimation( diveanim, "prone", "stop", 0.5 );
+	playtransitionanimation( animarray( "run_2_prone_gunsupport", "move" ), "prone", "stop", 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x338C
+crouchruntopronewalk()
+{
+	crouchruntoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x33A4
+crouchruntopronerun()
+{
+	crouchruntoprone();
+	pronetopronerun();
+// SP = 0x0 - check OK
+}
+
+// 0x33BC
+playtransitionanimationthread_withoutwaitsetstates( transanim, endpose, endmovement, endaiming, finalanim, rate )
+{
+	self endon( "killanimscript" );
+	self endon( "entered_pose" + endpose );
+	playtransitionanimationfunc( transanim, endpose, endmovement, endaiming, finalanim, rate, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x33F8
+playtransitionanimation( transanim, endpose, endmovement, endaiming, finalanim, rate )
+{
+	playtransitionanimationfunc( transanim, endpose, endmovement, endaiming, finalanim, rate, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3424
+playtransitionanimationfunc( transanim, endpose, endmovement, endaiming, finalanim, rate, waitsetstatesenabled )
+{
+	rate = 1;
+/#
+	println( "Animation ", transanim, " lacks an endpose notetrack of ", endpose );
+/#
+	assert( 0, "A transition animation is missing a pose notetrack (see the line above)" );
+#/
+	println( "Animation ", transanim, " lacks an endmovement notetrack of ", endmovement );
+/#
+	assert( 0, "A transition animation is missing a movement notetrack (see the line above)" );
+#/
+#/
+	self thread waitsetstates( getanimlength( transanim ) / 2, "killtimerscript", endpose );
+	self setflaggedanimknoballrestart( "transAnimDone2", transanim, %body, 1, 0.2, rate );
+	self.pose = "undefined";
+	self.movement = "undefined";
+	debugidentifier = "";
+/#
+	debugidentifier = self.a.script + ", " + self.a.pose + " to " + endpose + ", " + self.a.movement + " to " + endmovement;
+#/
+	self animscripts\shared::donotetracks( "transAnimDone2", undefined, debugidentifier );
+	self notify( "killtimerscript" );
+	self.a.pose = endpose;
+	self notify( "entered_pose" + endpose );
+	self.a.movement = endmovement;
+	self setanimknoball( finalanim, %body, 1, 0.3, rate );
+// SP = 0x0 - check OK
+}
+
+// 0x360C
+waitsetstates( timetowait, killmestring, endpose )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( killmestring );
+	oldpose = self.a.pose;
+	wait timetowait;
+	self animscripts\cover_prone::updatepronewrapper( 0.1 );
+	self enterpronewrapper( 1 );
+	self exitpronewrapper( 1 );
+	self orientmode( "face default" );
+// SP = 0x0 - check OK
+}
+
+// 0x36A8
+transitiontotacticalwalk( newpose )
+{
+	return;
+/#
+	self animscripts\debug::debugpushstate( "transitionTo: " + newpose );
+#/
+	transanim = animarray( self.a.pose + "_2_" + newpose, "combat" );
+	rate = 2;
+	rate = 1;
+	self orientmode( "face enemy" );
+/#
+	println( "error: ^2 missing notetrack to set pose!", transanim );
+#/
+	self setflaggedanimknoballrestart( "trans", transanim, %body, 1, 0.3, rate );
+	transtime = getanimlength( transanim ) / rate;
+	playtime = transtime - 0.2;
+	playtime = 0.2;
+	self animscripts\shared::donotetracksfortime( playtime, "trans" );
+	self orientmode( "face default" );
+	self clearanim( %exposed_modern, 0.2 );
+	self.a.pose = newpose;
+/#
+	self animscripts\debug::debugpopstate( "transitionTo: " + newpose );
+#/
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,275 @@
+// maps/mp/zombies/_zm_hackables_box.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_equip_hacker;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x844
+box_hacks()
+{
+	boxes = getstructarray( "treasure_chest_use", "targetname" );
+	i = 0;
+	box = boxes[i];
+	box.box_hacks["respin"] = ::init_box_respin;
+	box.box_hacks["respin_respin"] = ::init_box_respin_respin;
+	box.box_hacks["summon_box"] = ::init_summon_box;
+	box.last_hacked_round = 0;
+	i++;
+	level._zombiemode_chest_joker_chance_override_func = ::check_for_free_locations;
+	level._zombiemode_custom_box_move_logic = ::custom_box_move_logic;
+	level._zombiemode_check_firesale_loc_valid_func = ::custom_check_firesale_loc_valid_func;
+	init_summon_hacks();
+// SP = 0x0 - check OK
+}
+
+// 0x8F4
+custom_check_firesale_loc_valid_func()
+{
+	box = self.unitrigger_stub.trigger_target;
+	box = self.stub.trigger_target;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x93C
+custom_box_move_logic()
+{
+	num_hacked_locs = 0;
+	i = 0;
+	num_hacked_locs++;
+	i++;
+	maps\mp\zombies\_zm_magicbox::default_box_move_logic();
+	return;
+	found_loc = 0;
+	original_spot = level.chest_index;
+	level.chest_index++;
+	level.chest_index++;
+	level.chest_index %= level.chests.size;
+	found_loc = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x9E4
+check_for_free_locations( chance )
+{
+	boxes = level.chests;
+	stored_chance = chance;
+	chance = -1;
+	i = 0;
+	chance = stored_chance;
+	i++;
+	return chance;
+// SP = 0x0 - check OK
+}
+
+// 0xA44
+init_box_respin( chest, player )
+{
+	self thread box_respin_think( chest, player );
+// SP = 0x0 - check OK
+}
+
+// 0xA60
+box_respin_think( chest, player )
+{
+	respin_hack = spawnstruct();
+	respin_hack.origin = self.origin + vector_scale( ( 0, 0, 1 ), 24 );
+	respin_hack.radius = 48;
+	respin_hack.height = 72;
+	respin_hack.script_int = 600;
+	respin_hack.script_float = 1.5;
+	respin_hack.player = player;
+	respin_hack.no_bullet_trace = 1;
+	respin_hack.chest = chest;
+	maps\mp\zombies\_zm_equip_hacker::register_pooled_hackable_struct( respin_hack, ::respin_box, ::hack_box_qualifier );
+	self.weapon_model waittill_either( "death", "kill_respin_think_thread" );
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( respin_hack );
+// SP = 0x0 - check OK
+}
+
+// 0xB14
+respin_box_thread( hacker )
+{
+	self.chest.zbarrier.weapon_model notify( "kill_respin_think_thread" );
+	self.chest.no_fly_away = 1;
+	self.chest.zbarrier notify( "box_hacked_respin" );
+	self.chest disable_trigger();
+	play_sound_at_pos( "open_chest", self.chest.zbarrier.origin );
+	play_sound_at_pos( "music_chest", self.chest.zbarrier.origin );
+	maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( self.chest.zbarrier.weapon_string );
+	self.chest.zbarrier thread maps\mp\zombies\_zm_magicbox::treasure_chest_weapon_spawn( self.chest, hacker, 1 );
+	self.chest.zbarrier waittill( "randomization_done" );
+	self.chest.no_fly_away = undefined;
+	self.chest enable_trigger();
+	self.chest thread maps\mp\zombies\_zm_magicbox::treasure_chest_timeout();
+// SP = 0x0 - check OK
+}
+
+// 0xC00
+respin_box( hacker )
+{
+	self thread respin_box_thread( hacker );
+// SP = 0x0 - check OK
+}
+
+// 0xC18
+hack_box_qualifier( player )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC40
+init_box_respin_respin( chest, player )
+{
+	self thread box_respin_respin_think( chest, player );
+// SP = 0x0 - check OK
+}
+
+// 0xC5C
+box_respin_respin_think( chest, player )
+{
+	respin_hack = spawnstruct();
+	respin_hack.origin = self.origin + vector_scale( ( 0, 0, 1 ), 24 );
+	respin_hack.radius = 48;
+	respin_hack.height = 72;
+	respin_hack.script_int = -950;
+	respin_hack.script_float = 1.5;
+	respin_hack.player = player;
+	respin_hack.no_bullet_trace = 1;
+	respin_hack.chest = chest;
+	maps\mp\zombies\_zm_equip_hacker::register_pooled_hackable_struct( respin_hack, ::respin_respin_box, ::hack_box_qualifier );
+	self.weapon_model waittill_either( "death", "kill_respin_respin_think_thread" );
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( respin_hack );
+// SP = 0x0 - check OK
+}
+
+// 0xD10
+respin_respin_box( hacker )
+{
+	org = self.chest.zbarrier.origin;
+	self.chest.zbarrier.weapon_model notify( "kill_respin_respin_think_thread" );
+	self.chest.zbarrier.weapon_model notify( "kill_weapon_movement" );
+	self.chest.zbarrier.weapon_model moveto( org + vector_scale( ( 0, 0, 1 ), 40 ), 0.5 );
+	self.chest.zbarrier.weapon_model_dw notify( "kill_weapon_movement" );
+	self.chest.zbarrier.weapon_model_dw moveto( org + vector_scale( ( 0, 0, 1 ), 40 ) - vector_scale( ( 1, 1, 1 ), 3 ), 0.5 );
+	self.chest.zbarrier notify( "box_hacked_rerespin" );
+	self.chest.box_rerespun = 1;
+	self thread fake_weapon_powerup_thread( self.chest.zbarrier.weapon_model, self.chest.zbarrier.weapon_model_dw );
+// SP = 0x0 - check OK
+}
+
+// 0xE1C
+fake_weapon_powerup_thread( weapon1, weapon2 )
+{
+	weapon1 endon( "death" );
+	playfxontag( level._effect["powerup_on_solo"], weapon1, "tag_origin" );
+	playsoundatposition( "zmb_spawn_powerup", weapon1.origin );
+	weapon1 playloopsound( "zmb_spawn_powerup_loop" );
+	self thread fake_weapon_powerup_timeout( weapon1, weapon2 );
+	waittime = randomfloatrange( 2.5, 5 );
+	yaw = randomint( 360 );
+	yaw = 300;
+	yaw = 60;
+	yaw = weapon1.angles[1] + yaw;
+	weapon1 rotateto( ( -60 + randomint( 120 ), yaw, -45 + randomint( 90 ) ), waittime, waittime * 0.5, waittime * 0.5 );
+	weapon2 rotateto( ( -60 + randomint( 120 ), yaw, -45 + randomint( 90 ) ), waittime, waittime * 0.5, waittime * 0.5 );
+	wait randomfloat( waittime - 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0xF74
+fake_weapon_powerup_timeout( weapon1, weapon2 )
+{
+	weapon1 endon( "death" );
+	wait 15;
+	i = 0;
+	weapon1 hide();
+	weapon2 hide();
+	weapon1 show();
+	weapon2 hide();
+	wait 0.5;
+	wait 0.25;
+	wait 0.1;
+	i++;
+	self.chest notify( "trigger", level );
+	weapon1 delete();
+	weapon2 delete();
+// SP = 0x0 - check OK
+}
+
+// 0x104C
+init_summon_hacks()
+{
+	chests = getstructarray( "treasure_chest_use", "targetname" );
+	i = 0;
+	chest = chests[i];
+	chest init_summon_box( chest.hidden );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x109C
+init_summon_box( create )
+{
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( self._summon_hack_struct );
+	self._summon_hack_struct = undefined;
+	struct = spawnstruct();
+	struct.origin = self.chest_box.origin + vector_scale( ( 0, 0, 1 ), 24 );
+	struct.radius = 48;
+	struct.height = 72;
+	struct.script_int = 1200;
+	struct.script_float = 5;
+	struct.no_bullet_trace = 1;
+	struct.chest = self;
+	self._summon_hack_struct = struct;
+	maps\mp\zombies\_zm_equip_hacker::register_pooled_hackable_struct( struct, ::summon_box, ::summon_box_qualifier );
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( self._summon_hack_struct );
+	self._summon_hack_struct = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1168
+summon_box_thread( hacker )
+{
+	self.chest.last_hacked_round = level.round_number + randomintrange( 2, 5 );
+	maps\mp\zombies\_zm_equip_hacker::deregister_hackable_struct( self );
+	self.chest thread maps\mp\zombies\_zm_magicbox::show_chest();
+	self.chest notify( "kill_chest_think" );
+	self.chest.auto_open = 1;
+	self.chest.no_charge = 1;
+	self.chest.no_fly_away = 1;
+	self.chest.forced_user = hacker;
+	self.chest thread maps\mp\zombies\_zm_magicbox::treasure_chest_think();
+	self.chest.zbarrier waittill( "closed" );
+	self.chest.forced_user = undefined;
+	self.chest.auto_open = undefined;
+	self.chest.no_charge = undefined;
+	self.chest.no_fly_away = undefined;
+	self.chest thread maps\mp\zombies\_zm_magicbox::hide_chest();
+// SP = 0x0 - check OK
+}
+
+// 0x1228
+summon_box( hacker )
+{
+	self thread summon_box_thread( hacker );
+	hacker thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "hack_box" );
+// SP = 0x0 - check OK
+}
+
+// 0x1258
+summon_box_qualifier( player )
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,225 @@
+// clientscripts/mp/_ai_tank.csc
+
+#include clientscripts\mp\_utility;
+#include clientscripts\mp\_vehicle;
+
+#using_animtree ( "mp_vehicles" );
+
+
+// 0x58C
+main()
+{
+	level._ai_tank_fx = [];
+	level._ai_tank_fx["dirt"] = loadfx( "vehicle/treadfx/fx_treadfx_talon_dirt" );
+	level._ai_tank_fx["concrete"] = loadfx( "vehicle/treadfx/fx_treadfx_talon_concrete" );
+	level._ai_tank_fx["light_green"] = loadfx( "light/fx_vlight_talon_eye_grn" );
+	level._ai_tank_fx["light_red"] = loadfx( "light/fx_vlight_talon_eye_red" );
+	level._ai_tank_fx["stun"] = loadfx( "weapon/talon/fx_talon_emp_stun" );
+	registerclientfield( "vehicle", "ai_tank_death", 1, 1, "int", ::death, 0 );
+	registerclientfield( "vehicle", "ai_tank_missile_fire", 1, 3, "int", ::missile_fire, 0 );
+	registerclientfield( "vehicle", "ai_tank_hack_spawned", 1, 1, "int", ::spawned, 0 );
+	registerclientfield( "vehicle", "ai_tank_hack_rebooting", 1, 1, "int", ::rebooting, 0 );
+	level._client_flag_callbacks["vehicle"][3] = ::tank_stun;
+// SP = 0x0 - check OK
+}
+
+// 0x698
+spawned( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self thread play_light_fx( localclientnum );
+	self thread play_driving_fx( localclientnum );
+	self thread play_driving_rumble( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x6D4
+missile_fire( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self useanimtree( -1 );
+	self setanimrestart( %o_drone_tank_missile1_fire, 1, 0, 0.5 );
+	self setanimrestart( %o_drone_tank_missile2_fire, 1, 0, 0.5 );
+	self setanimrestart( %o_drone_tank_missile3_fire, 1, 0, 0.5 );
+	self setanimrestart( %o_drone_tank_missile_full_reload, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x7C8
+play_light_fx( localclientnum )
+{
+	self notify( "light_disable" );
+	self endon( "entityshutdown" );
+	self endon( "light_disable" );
+	self endon( "death" );
+	self notify( "reboot_disable" );
+	self waittill_dobj( localclientnum );
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+	level waittill_any( "snap_processed", "demo_jump", "demo_player_switch" );
+	self stop_light_fx( localclientnum );
+	return;
+	player = getlocalplayer( localclientnum );
+	self stop_light_fx( localclientnum );
+	self stop_light_fx( localclientnum );
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x910
+tank_stun( localclientnum, set )
+{
+	self endon( "entityshutdown" );
+	self endon( "death" );
+	self notify( "light_disable" );
+	self stop_light_fx( localclientnum );
+	self stop_stun_fx( localclientnum );
+	self start_stun_fx( localclientnum );
+	self thread play_light_fx( localclientnum );
+	self stop_stun_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x974
+death( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	self stop_light_fx( localclientnum );
+	self stop_stun_fx( localclientnum );
+	self notify( "light_disable" );
+// SP = 0x0 - check OK
+}
+
+// 0x9D8
+start_light_fx( localclientnum )
+{
+	friend = self friendnotfoe( localclientnum );
+	player = getlocalplayer( localclientnum );
+	return;
+	self.fx = playfxontag( localclientnum, level._ai_tank_fx["light_green"], self, "tag_scanner" );
+	self.friend = 1;
+	self.fx = playfxontag( localclientnum, level._ai_tank_fx["light_red"], self, "tag_scanner" );
+	self.friend = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xA60
+stop_light_fx( localclientnum )
+{
+	stopfx( localclientnum, self.fx );
+	self.fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xA88
+start_stun_fx( localclientnum )
+{
+	self.stun_fx = playfxontag( localclientnum, level._ai_tank_fx["stun"], self, "tag_origin" );
+	playsound( localclientnum, "veh_talon_shutdown", self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xAC4
+stop_stun_fx( localclientnum )
+{
+	stopfx( localclientnum, self.stun_fx );
+	self.stun_fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xAEC
+play_driving_fx( localclientnum )
+{
+	self notify( "driving_fx" );
+	self endon( "entityshutdown" );
+	self endon( "driving_fx" );
+	forward = anglestoforward( self.angles );
+	up = anglestoup( self.angles );
+	fx = self get_surface_fx();
+	playfx( localclientnum, fx, self.origin, forward, up );
+	wait 0.5;
+	serverwait( localclientnum, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB70
+play_driving_rumble( localclientnum )
+{
+	self notify( "driving_rumble" );
+	self endon( "entityshutdown" );
+	self endon( "death" );
+	self endon( "driving_rumble" );
+	speed = self getspeed();
+	player = getlocalplayer( localclientnum );
+	player earthquake( 0.1, 0.1, self.origin, 200 );
+	serverwait( localclientnum, 0.05 );
+// SP = 0x0 - check OK
+}
+
+// 0xC0C
+rebooting( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	self thread start_reboot_fx( localclientnum );
+	self notify( "reboot_disable" );
+	self stop_light_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0xC70
+start_reboot_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "reboot_disable" );
+	self endon( "death" );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.3 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.3 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.2 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.2 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.2 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.2 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self stop_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self start_light_fx( localclientnum );
+	serverwait( localclientnum, 0.1 );
+	self stop_light_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0xE04
+get_surface_fx()
+{
+	surface_type = self getwheelsurface( "front_right" );
+	switch ( surface_type )
+	{
+		case "dirt":
+		case "foliage":
+		case "grass":
+		case "gravel":
+		case "mud":
+		case "sand":
+		case "water":
+			return level._ai_tank_fx["dirt"];
+	}
+	return level._ai_tank_fx["concrete"];
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,32 @@
+// maps/_t72.gsc
+
+#include maps\_vehicle;
+
+#using_animtree ( "vehicles" );
+#using_animtree ( "generic_human" );
+
+
+// 0xC4
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xCC
+set_vehicle_anims( positions )
+{
+	return positions;
+// SP = 0x0 - check OK
+}
+
+// 0xD8
+setanims()
+{
+	positions = [];
+	i = 0;
+	positions[i] = spawnstruct();
+	i++;
+	positions[0].getout_delete = 1;
+	return positions;
+// SP = 0x0 - check OK
+}

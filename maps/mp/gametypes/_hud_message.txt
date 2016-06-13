@@ -1,0 +1,964 @@
+// maps/mp/gametypes/_hud_message.gsc
+
+#include maps\mp\_utility;
+#include maps\mp\gametypes\_globallogic_audio;
+#include maps\mp\_music;
+#include maps\mp\gametypes\_hud_message;
+#include maps\mp\gametypes\_hud_util;
+
+
+// 0xF64
+init()
+{
+	precachestring( &"MENU_POINTS" );
+	precachestring( &"MP_FIRSTPLACE_NAME" );
+	precachestring( &"MP_SECONDPLACE_NAME" );
+	precachestring( &"MP_THIRDPLACE_NAME" );
+	precachestring( &"MP_WAGER_PLACE_NAME" );
+	precachestring( &"MP_MATCH_BONUS_IS" );
+	precachestring( &"MP_CODPOINTS_MATCH_BONUS_IS" );
+	precachestring( &"MP_WAGER_WINNINGS_ARE" );
+	precachestring( &"MP_WAGER_SIDEBET_WINNINGS_ARE" );
+	precachestring( &"MP_WAGER_IN_THE_MONEY" );
+	precachestring( &"faction_popup" );
+	game["strings"]["draw"] = &"MP_DRAW_CAPS";
+	game["strings"]["round_draw"] = &"MP_ROUND_DRAW_CAPS";
+	game["strings"]["round_win"] = &"MP_ROUND_WIN_CAPS";
+	game["strings"]["round_loss"] = &"MP_ROUND_LOSS_CAPS";
+	game["strings"]["victory"] = &"MP_VICTORY_CAPS";
+	game["strings"]["defeat"] = &"MP_DEFEAT_CAPS";
+	game["strings"]["game_over"] = &"MP_GAME_OVER_CAPS";
+	game["strings"]["halftime"] = &"MP_HALFTIME_CAPS";
+	game["strings"]["overtime"] = &"MP_OVERTIME_CAPS";
+	game["strings"]["roundend"] = &"MP_ROUNDEND_CAPS";
+	game["strings"]["intermission"] = &"MP_INTERMISSION_CAPS";
+	game["strings"]["side_switch"] = &"MP_SWITCHING_SIDES_CAPS";
+	game["strings"]["match_bonus"] = &"MP_MATCH_BONUS_IS";
+	game["strings"]["codpoints_match_bonus"] = &"MP_CODPOINTS_MATCH_BONUS_IS";
+	game["strings"]["wager_winnings"] = &"MP_WAGER_WINNINGS_ARE";
+	game["strings"]["wager_sidebet_winnings"] = &"MP_WAGER_SIDEBET_WINNINGS_ARE";
+	game["strings"]["wager_inthemoney"] = &"MP_WAGER_IN_THE_MONEY_CAPS";
+	game["strings"]["wager_loss"] = &"MP_WAGER_LOSS_CAPS";
+	game["strings"]["wager_topwinners"] = &"MP_WAGER_TOPWINNERS";
+	game["menu_endgameupdate"] = "endgameupdate";
+	precachemenu( game["menu_endgameupdate"] );
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x1144
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread hintmessagedeaththink();
+	player thread lowermessagethink();
+	player thread initnotifymessage();
+	player thread initcustomgametypeheader();
+// SP = 0x0 - check OK
+}
+
+// 0x118C
+initcustomgametypeheader()
+{
+	font = "default";
+	titlesize = 2.5;
+	self.customgametypeheader = createfontstring( font, titlesize );
+	self.customgametypeheader setpoint( "TOP", undefined, 0, 30 );
+	self.customgametypeheader.glowalpha = 1;
+	self.customgametypeheader.hidewheninmenu = 1;
+	self.customgametypeheader.archived = 0;
+	self.customgametypeheader.color = ( 1, 1, 0.6 );
+	self.customgametypeheader.alpha = 1;
+	titlesize = 2;
+	self.customgametypesubheader = createfontstring( font, titlesize );
+	self.customgametypesubheader setparent( self.customgametypeheader );
+	self.customgametypesubheader setpoint( "TOP", "BOTTOM", 0, 0 );
+	self.customgametypesubheader.glowalpha = 1;
+	self.customgametypesubheader.hidewheninmenu = 1;
+	self.customgametypesubheader.archived = 0;
+	self.customgametypesubheader.color = ( 1, 1, 0.6 );
+	self.customgametypesubheader.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1294
+hintmessage( hinttext, duration )
+{
+	notifydata = spawnstruct();
+	notifydata.notifytext = hinttext;
+	notifydata.duration = duration;
+	notifymessage( notifydata );
+// SP = 0x0 - check OK
+}
+
+// 0x12CC
+hintmessageplayers( players, hinttext, duration )
+{
+	notifydata = spawnstruct();
+	notifydata.notifytext = hinttext;
+	notifydata.duration = duration;
+	i = 0;
+	players[i] notifymessage( notifydata );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1324
+showinitialfactionpopup( team )
+{
+	self luinotifyevent( &"faction_popup", 1, game["strings"][team + "_name"] );
+	maps\mp\gametypes\_hud_message::oldnotifymessage( undefined, undefined, undefined, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x1358
+initnotifymessage()
+{
+	titlesize = 2;
+	textsize = 1.4;
+	iconsize = 24;
+	font = "big";
+	point = "TOP";
+	relativepoint = "BOTTOM";
+	yoffset = 30;
+	xoffset = 30;
+	titlesize = 2.5;
+	textsize = 1.75;
+	iconsize = 30;
+	font = "big";
+	point = "TOP";
+	relativepoint = "BOTTOM";
+	yoffset = 0;
+	xoffset = 0;
+	titlesize = 2;
+	textsize = 1.4;
+	iconsize = 24;
+	font = "big";
+	point = "TOP";
+	relativepoint = "BOTTOM";
+	yoffset = 30;
+	xoffset = 30;
+	titlesize = 2.5;
+	textsize = 1.75;
+	iconsize = 30;
+	font = "big";
+	point = "BOTTOM LEFT";
+	relativepoint = "TOP";
+	yoffset = 0;
+	xoffset = 0;
+	self.notifytitle = createfontstring( font, titlesize );
+	self.notifytitle setpoint( point, undefined, xoffset, yoffset );
+	self.notifytitle.glowalpha = 1;
+	self.notifytitle.hidewheninmenu = 1;
+	self.notifytitle.archived = 0;
+	self.notifytitle.alpha = 0;
+	self.notifytext = createfontstring( font, textsize );
+	self.notifytext setparent( self.notifytitle );
+	self.notifytext setpoint( point, relativepoint, 0, 0 );
+	self.notifytext.glowalpha = 1;
+	self.notifytext.hidewheninmenu = 1;
+	self.notifytext.archived = 0;
+	self.notifytext.alpha = 0;
+	self.notifytext2 = createfontstring( font, textsize );
+	self.notifytext2 setparent( self.notifytitle );
+	self.notifytext2 setpoint( point, relativepoint, 0, 0 );
+	self.notifytext2.glowalpha = 1;
+	self.notifytext2.hidewheninmenu = 1;
+	self.notifytext2.archived = 0;
+	self.notifytext2.alpha = 0;
+	self.notifyicon = createicon( "white", iconsize, iconsize );
+	self.notifyicon setparent( self.notifytext2 );
+	self.notifyicon setpoint( point, relativepoint, 0, 0 );
+	self.notifyicon.hidewheninmenu = 1;
+	self.notifyicon.archived = 0;
+	self.notifyicon.alpha = 0;
+	self.doingnotify = 0;
+	self.notifyqueue = [];
+// SP = 0x0 - check OK
+}
+
+// 0x15E8
+oldnotifymessage( titletext, notifytext, iconname, glowcolor, sound, duration )
+{
+	return;
+	notifydata = spawnstruct();
+	notifydata.titletext = titletext;
+	notifydata.notifytext = notifytext;
+	notifydata.iconname = iconname;
+	notifydata.sound = sound;
+	notifydata.duration = duration;
+	self.startmessagenotifyqueue[self.startmessagenotifyqueue.size] = notifydata;
+	self notify( "received award" );
+// SP = 0x0 - check OK
+}
+
+// 0x1660
+notifymessage( notifydata )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self.messagenotifyqueue[self.messagenotifyqueue.size] = notifydata;
+	self notify( "received award" );
+// SP = 0x0 - check OK
+}
+
+// 0x168C
+playnotifyloop( duration )
+{
+	playnotifyloop = spawn( "script_origin", ( 0, 0, 0 ) );
+	playnotifyloop playloopsound( "uin_notify_data_loop" );
+	duration -= 4;
+	duration = 1;
+	wait duration;
+	playnotifyloop delete();
+// SP = 0x0 - check OK
+}
+
+// 0x16DC
+shownotifymessage( notifydata, duration )
+{
+	self endon( "disconnect" );
+	self.doingnotify = 1;
+	waitrequirevisibility( 0 );
+	self notify( "notifyMessageBegin", duration );
+	self thread resetoncancel();
+	self playlocalsound( notifydata.sound );
+	self maps\mp\_music::setmusicstate( notifydata.music );
+	self maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( notifydata.leadersound );
+	glowcolor = notifydata.glowcolor;
+	glowcolor = ( 0, 0, 0 );
+	color = notifydata.color;
+	color = ( 1, 1, 1 );
+	anchorelem = self.notifytitle;
+	self.notifytitle.label = notifydata.titlelabel;
+	self.notifytitle.label = &"";
+	self.notifytitle setvalue( notifydata.titletext );
+	self.notifytitle settext( notifydata.titletext );
+	self.notifytitle setcod7decodefx( 200, int( duration * 1000 ), 600 );
+	self.notifytitle.glowcolor = glowcolor;
+	self.notifytitle.color = color;
+	self.notifytitle.alpha = 1;
+	self.notifytext.label = notifydata.textlabel;
+	self.notifytext.label = &"";
+	self.notifytext setvalue( notifydata.notifytext );
+	self.notifytext settext( notifydata.notifytext );
+	self.notifytext setcod7decodefx( 100, int( duration * 1000 ), 600 );
+	self.notifytext.glowcolor = glowcolor;
+	self.notifytext.color = color;
+	self.notifytext.alpha = 1;
+	anchorelem = self.notifytext;
+	self iprintlnbold( notifydata.text2label, notifydata.notifytext2 );
+	self iprintlnbold( notifydata.notifytext2 );
+	self.notifytext2 setparent( anchorelem );
+	self.notifytext2.label = notifydata.text2label;
+	self.notifytext2.label = &"";
+	self.notifytext2 settext( notifydata.notifytext2 );
+	self.notifytext2 setpulsefx( 100, int( duration * 1000 ), 1000 );
+	self.notifytext2.glowcolor = glowcolor;
+	self.notifytext2.color = color;
+	self.notifytext2.alpha = 1;
+	anchorelem = self.notifytext2;
+	iconwidth = 60;
+	iconheight = 60;
+	iconwidth = notifydata.iconwidth;
+	iconheight = notifydata.iconheight;
+	self.notifyicon setparent( anchorelem );
+	self.notifyicon setshader( notifydata.iconname, iconwidth, iconheight );
+	self.notifyicon.alpha = 0;
+	self.notifyicon fadeovertime( 1 );
+	self.notifyicon.alpha = 1;
+	waitrequirevisibility( duration );
+	self.notifyicon fadeovertime( 0.75 );
+	self.notifyicon.alpha = 0;
+	waitrequirevisibility( duration );
+	self notify( "notifyMessageDone" );
+	self.doingnotify = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1AF0
+waitrequirevisibility( waittime )
+{
+	interval = 0.05;
+	wait interval;
+	wait interval;
+	waittime -= interval;
+// SP = 0x0 - check OK
+}
+
+// 0x1B40
+canreadtext()
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1B5C
+resetondeath()
+{
+	self endon( "notifyMessageDone" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "death" );
+	resetnotify();
+// SP = 0x0 - check OK
+}
+
+// 0x1B84
+resetoncancel()
+{
+	self notify( "resetOnCancel" );
+	self endon( "resetOnCancel" );
+	self endon( "notifyMessageDone" );
+	self endon( "disconnect" );
+	level waittill( "cancel_notify" );
+	resetnotify();
+// SP = 0x0 - check OK
+}
+
+// 0x1BB4
+resetnotify()
+{
+	self.notifytitle.alpha = 0;
+	self.notifytext.alpha = 0;
+	self.notifyicon.alpha = 0;
+	self.doingnotify = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+hintmessagedeaththink()
+{
+	self endon( "disconnect" );
+	self waittill( "death" );
+	self.hintmessage destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0x1C10
+lowermessagethink()
+{
+	self endon( "disconnect" );
+	messagetexty = level.lowertexty;
+	messagetexty = level.lowertexty - 50;
+	self.lowermessage = createfontstring( "default", level.lowertextfontsize );
+	self.lowermessage setpoint( "CENTER", level.lowertextyalign, 0, messagetexty );
+	self.lowermessage settext( "" );
+	self.lowermessage.archived = 0;
+	timerfontsize = 1.5;
+	timerfontsize = 1.4;
+	self.lowertimer = createfontstring( "default", timerfontsize );
+	self.lowertimer setparent( self.lowermessage );
+	self.lowertimer setpoint( "TOP", "BOTTOM", 0, 0 );
+	self.lowertimer settext( "" );
+	self.lowertimer.archived = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1CFC
+setmatchscorehudelemforteam( team )
+{
+	self setvalue( getteamscore( team ) );
+	self setvalue( getroundswon( team ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1D3C
+teamoutcomenotify( winner, isround, endreasontext )
+{
+	self endon( "disconnect" );
+	self notify( "reset_outcome" );
+	team = self.pers["team"];
+	i = 0;
+	team = level.players[i].pers["team"];
+	i++;
+	team = "allies";
+	wait 0.05;
+	self endon( "reset_outcome" );
+	headerfont = "extrabig";
+	font = "default";
+	titlesize = 2;
+	textsize = 1.5;
+	iconsize = 30;
+	spacing = 10;
+	titlesize = 3;
+	textsize = 2;
+	iconsize = 70;
+	spacing = 25;
+	duration = 60000;
+	outcometitle = createfontstring( headerfont, titlesize );
+	outcometitle setpoint( "TOP", undefined, 0, 30 );
+	outcometitle.glowalpha = 1;
+	outcometitle.hidewheninmenu = 0;
+	outcometitle.archived = 0;
+	outcometitle.immunetodemogamehudsettings = 1;
+	outcometitle.immunetodemofreecamera = 1;
+	outcometext = createfontstring( font, 2 );
+	outcometext setparent( outcometitle );
+	outcometext setpoint( "TOP", "BOTTOM", 0, 0 );
+	outcometext.glowalpha = 1;
+	outcometext.hidewheninmenu = 0;
+	outcometext.archived = 0;
+	outcometext.immunetodemogamehudsettings = 1;
+	outcometext.immunetodemofreecamera = 1;
+	outcometitle settext( game["strings"]["halftime"] );
+	outcometitle.color = ( 1, 1, 1 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["intermission"] );
+	outcometitle.color = ( 1, 1, 1 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["roundend"] );
+	outcometitle.color = ( 1, 1, 1 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["overtime"] );
+	outcometitle.color = ( 1, 1, 1 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["round_draw"] );
+	outcometitle settext( game["strings"]["draw"] );
+	outcometitle.color = ( 0.29, 0.61, 0.7 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["round_win"] );
+	outcometitle settext( game["strings"]["victory"] );
+	outcometitle.color = ( 0.42, 0.68, 0.46 );
+	endreasontext = level.endvictoryreasontext;
+	outcometitle settext( game["strings"]["round_loss"] );
+	outcometitle settext( game["strings"]["defeat"] );
+	outcometitle.color = ( 0.73, 0.29, 0.19 );
+	endreasontext = level.enddefeatreasontext;
+	outcometext settext( endreasontext );
+	outcometitle setcod7decodefx( 200, duration, 600 );
+	outcometext setpulsefx( 100, duration, 1000 );
+	iconspacing = 100;
+	currentx = ( level.teamcount - 1 ) * -1 * iconspacing / 2;
+	teamicons = [];
+	teamicons[team] = createicon( game["icons"][team], iconsize, iconsize );
+	teamicons[team] setparent( outcometext );
+	teamicons[team] setpoint( "TOP", "BOTTOM", currentx, spacing );
+	teamicons[team].hidewheninmenu = 0;
+	teamicons[team].archived = 0;
+	teamicons[team].immunetodemogamehudsettings = 1;
+	teamicons[team].immunetodemofreecamera = 1;
+	teamicons[team].alpha = 0;
+	teamicons[team] fadeovertime( 0.5 );
+	teamicons[team].alpha = 1;
+	currentx += iconspacing;
+	foreach ( enemyteam in level.teams )
+	{
+		teamicons[enemyteam] = createicon( game["icons"][enemyteam], iconsize, iconsize );
+		teamicons[enemyteam] setparent( outcometext );
+		teamicons[enemyteam] setpoint( "TOP", "BOTTOM", currentx, spacing );
+		teamicons[enemyteam].hidewheninmenu = 0;
+		teamicons[enemyteam].archived = 0;
+		teamicons[enemyteam].immunetodemogamehudsettings = 1;
+		teamicons[enemyteam].immunetodemofreecamera = 1;
+		teamicons[enemyteam].alpha = 0;
+		teamicons[enemyteam] fadeovertime( 0.5 );
+		teamicons[enemyteam].alpha = 1;
+		currentx += iconspacing;
+	}
+	teamscores = [];
+	teamscores[team] = createfontstring( font, titlesize );
+	teamscores[team] setparent( teamicons[team] );
+	teamscores[team] setpoint( "TOP", "BOTTOM", 0, spacing );
+	teamscores[team].glowalpha = 1;
+	teamscores[team] setvalue( getteamscore( team ) );
+	teamscores[team] [[level.setmatchscorehudelemforteam]]( team );
+	teamscores[team].hidewheninmenu = 0;
+	teamscores[team].archived = 0;
+	teamscores[team].immunetodemogamehudsettings = 1;
+	teamscores[team].immunetodemofreecamera = 1;
+	teamscores[team] setpulsefx( 100, duration, 1000 );
+	foreach ( enemyteam in level.teams )
+	{
+		teamscores[enemyteam] = createfontstring( headerfont, titlesize );
+		teamscores[enemyteam] setparent( teamicons[enemyteam] );
+		teamscores[enemyteam] setpoint( "TOP", "BOTTOM", 0, spacing );
+		teamscores[enemyteam].glowalpha = 1;
+		teamscores[enemyteam] setvalue( getteamscore( enemyteam ) );
+		teamscores[enemyteam] [[level.setmatchscorehudelemforteam]]( enemyteam );
+		teamscores[enemyteam].hidewheninmenu = 0;
+		teamscores[enemyteam].archived = 0;
+		teamscores[enemyteam].immunetodemogamehudsettings = 1;
+		teamscores[enemyteam].immunetodemofreecamera = 1;
+		teamscores[enemyteam] setpulsefx( 100, duration, 1000 );
+	}
+	font = "objective";
+	matchbonus = undefined;
+	bonus = ceil( self.matchbonus * level.xpscale );
+	matchbonus = createfontstring( font, 2 );
+	matchbonus setparent( outcometext );
+	matchbonus setpoint( "TOP", "BOTTOM", 0, iconsize + spacing * 3 + teamscores[team].height );
+	matchbonus.glowalpha = 1;
+	matchbonus.hidewheninmenu = 0;
+	matchbonus.archived = 0;
+	matchbonus.immunetodemogamehudsettings = 1;
+	matchbonus.immunetodemofreecamera = 1;
+	matchbonus.label = game["strings"]["match_bonus"];
+	matchbonus setvalue( bonus );
+	self thread resetoutcomenotify( teamicons, teamscores, outcometitle, outcometext );
+// SP = 0x0 - check OK
+}
+
+// 0x25A8
+teamoutcomenotifyzombie( winner, isround, endreasontext )
+{
+	self endon( "disconnect" );
+	self notify( "reset_outcome" );
+	team = self.pers["team"];
+	i = 0;
+	team = level.players[i].pers["team"];
+	i++;
+	team = "allies";
+	wait 0.05;
+	self endon( "reset_outcome" );
+	titlesize = 2;
+	spacing = 10;
+	font = "default";
+	titlesize = 3;
+	spacing = 50;
+	font = "objective";
+	outcometitle = createfontstring( font, titlesize );
+	outcometitle setpoint( "TOP", undefined, 0, spacing );
+	outcometitle.glowalpha = 1;
+	outcometitle.hidewheninmenu = 0;
+	outcometitle.archived = 0;
+	outcometitle.immunetodemogamehudsettings = 1;
+	outcometitle.immunetodemofreecamera = 1;
+	outcometitle settext( endreasontext );
+	outcometitle setpulsefx( 100, 60000, 1000 );
+	self thread resetoutcomenotify( undefined, undefined, outcometitle );
+// SP = 0x0 - check OK
+}
+
+// 0x2720
+isintop( players, topn )
+{
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2758
+outcomenotify( winner, isroundend, endreasontext )
+{
+	self endon( "disconnect" );
+	self notify( "reset_outcome" );
+	wait 0.05;
+	self endon( "reset_outcome" );
+	headerfont = "extrabig";
+	font = "default";
+	titlesize = 2;
+	winnersize = 1.5;
+	othersize = 1.5;
+	iconsize = 30;
+	spacing = 10;
+	titlesize = 3;
+	winnersize = 2;
+	othersize = 1.5;
+	iconsize = 30;
+	spacing = 20;
+	duration = 60000;
+	players = level.placement["all"];
+	outcometitle = createfontstring( headerfont, titlesize );
+	outcometitle setpoint( "TOP", undefined, 0, spacing );
+	outcometitle settext( game["strings"]["game_over"] );
+	outcometitle settext( game["strings"]["tie"] );
+	outcometitle settext( game["strings"]["victory"] );
+	outcometitle.color = ( 0.42, 0.68, 0.46 );
+	outcometitle settext( game["strings"]["defeat"] );
+	outcometitle.color = ( 0.73, 0.29, 0.19 );
+	outcometitle.glowalpha = 1;
+	outcometitle.hidewheninmenu = 0;
+	outcometitle.archived = 0;
+	outcometitle.immunetodemogamehudsettings = 1;
+	outcometitle.immunetodemofreecamera = 1;
+	outcometitle setcod7decodefx( 200, duration, 600 );
+	outcometext = createfontstring( font, 2 );
+	outcometext setparent( outcometitle );
+	outcometext setpoint( "TOP", "BOTTOM", 0, 0 );
+	outcometext.glowalpha = 1;
+	outcometext.hidewheninmenu = 0;
+	outcometext.archived = 0;
+	outcometext.immunetodemogamehudsettings = 1;
+	outcometext.immunetodemofreecamera = 1;
+	outcometext settext( endreasontext );
+	firsttitle = createfontstring( font, winnersize );
+	firsttitle setparent( outcometext );
+	firsttitle setpoint( "TOP", "BOTTOM", 0, spacing );
+	firsttitle.glowalpha = 1;
+	firsttitle.hidewheninmenu = 0;
+	firsttitle.archived = 0;
+	firsttitle.immunetodemogamehudsettings = 1;
+	firsttitle.immunetodemofreecamera = 1;
+	firsttitle.label = &"MP_FIRSTPLACE_NAME";
+	firsttitle setplayernamestring( players[0] );
+	firsttitle setcod7decodefx( 175, duration, 600 );
+	secondtitle = createfontstring( font, othersize );
+	secondtitle setparent( firsttitle );
+	secondtitle setpoint( "TOP", "BOTTOM", 0, spacing );
+	secondtitle.glowalpha = 1;
+	secondtitle.hidewheninmenu = 0;
+	secondtitle.archived = 0;
+	secondtitle.immunetodemogamehudsettings = 1;
+	secondtitle.immunetodemofreecamera = 1;
+	secondtitle.label = &"MP_SECONDPLACE_NAME";
+	secondtitle setplayernamestring( players[1] );
+	secondtitle setcod7decodefx( 175, duration, 600 );
+	thirdtitle = createfontstring( font, othersize );
+	thirdtitle setparent( secondtitle );
+	thirdtitle setpoint( "TOP", "BOTTOM", 0, spacing );
+	thirdtitle setparent( secondtitle );
+	thirdtitle.glowalpha = 1;
+	thirdtitle.hidewheninmenu = 0;
+	thirdtitle.archived = 0;
+	thirdtitle.immunetodemogamehudsettings = 1;
+	thirdtitle.immunetodemofreecamera = 1;
+	thirdtitle.label = &"MP_THIRDPLACE_NAME";
+	thirdtitle setplayernamestring( players[2] );
+	thirdtitle setcod7decodefx( 175, duration, 600 );
+	matchbonus = createfontstring( font, 2 );
+	matchbonus setparent( thirdtitle );
+	matchbonus setpoint( "TOP", "BOTTOM", 0, spacing );
+	matchbonus.glowalpha = 1;
+	matchbonus.hidewheninmenu = 0;
+	matchbonus.archived = 0;
+	matchbonus.immunetodemogamehudsettings = 1;
+	matchbonus.immunetodemofreecamera = 1;
+	bonus = ceil( self.matchbonus * level.xpscale );
+	matchbonus.label = game["strings"]["match_bonus"];
+	matchbonus setvalue( bonus );
+	self thread updateoutcome( firsttitle, secondtitle, thirdtitle );
+	self thread resetoutcomenotify( undefined, undefined, outcometitle, outcometext, firsttitle, secondtitle, thirdtitle, matchbonus );
+// SP = 0x0 - check OK
+}
+
+// 0x2C6C
+wageroutcomenotify( winner, endreasontext )
+{
+	self endon( "disconnect" );
+	self notify( "reset_outcome" );
+	wait 0.05;
+	setmatchflag( "enable_popups", 0 );
+	self endon( "reset_outcome" );
+	headerfont = "extrabig";
+	font = "objective";
+	titlesize = 2;
+	winnersize = 1.5;
+	othersize = 1.5;
+	iconsize = 30;
+	spacing = 2;
+	titlesize = 3;
+	winnersize = 2;
+	othersize = 1.5;
+	iconsize = 30;
+	spacing = 20;
+	halftime = 0;
+	halftime = 1;
+	duration = 60000;
+	players = level.placement["all"];
+	outcometitle = createfontstring( headerfont, titlesize );
+	outcometitle setpoint( "TOP", undefined, 0, spacing );
+	outcometitle settext( game["strings"]["intermission"] );
+	outcometitle.color = ( 1, 1, 0 );
+	outcometitle.glowcolor = ( 1, 0, 0 );
+	outcometitle settext( game["strings"]["wager_topwinners"] );
+	outcometitle.color = ( 0.42, 0.68, 0.46 );
+	outcometitle settext( game["strings"]["wager_inthemoney"] );
+	outcometitle.color = ( 0.42, 0.68, 0.46 );
+	outcometitle settext( game["strings"]["wager_loss"] );
+	outcometitle.color = ( 0.73, 0.29, 0.19 );
+	outcometitle.glowalpha = 1;
+	outcometitle.hidewheninmenu = 0;
+	outcometitle.archived = 0;
+	outcometitle.immunetodemogamehudsettings = 1;
+	outcometitle.immunetodemofreecamera = 1;
+	outcometitle setcod7decodefx( 200, duration, 600 );
+	outcometext = createfontstring( font, 2 );
+	outcometext setparent( outcometitle );
+	outcometext setpoint( "TOP", "BOTTOM", 0, 0 );
+	outcometext.glowalpha = 1;
+	outcometext.hidewheninmenu = 0;
+	outcometext.archived = 0;
+	outcometext.immunetodemogamehudsettings = 1;
+	outcometext.immunetodemofreecamera = 1;
+	outcometext settext( endreasontext );
+	playernamehudelems = [];
+	playercphudelems = [];
+	numplayers = players.size;
+	i = 0;
+	secondtitle = createfontstring( font, othersize );
+	secondtitle setparent( outcometext );
+	secondtitle setpoint( "TOP_LEFT", "BOTTOM", -175, spacing * 3 );
+	secondtitle setparent( playernamehudelems[playernamehudelems.size - 1] );
+	secondtitle setpoint( "TOP_LEFT", "BOTTOM_LEFT", 0, spacing );
+	secondtitle.glowalpha = 1;
+	secondtitle.hidewheninmenu = 0;
+	secondtitle.archived = 0;
+	secondtitle.immunetodemogamehudsettings = 1;
+	secondtitle.immunetodemofreecamera = 1;
+	secondtitle.label = &"MP_WAGER_PLACE_NAME";
+	secondtitle.playernum = i;
+	secondtitle setplayernamestring( players[i] );
+	playernamehudelems[playernamehudelems.size] = secondtitle;
+	secondcp = createfontstring( font, othersize );
+	secondcp setparent( secondtitle );
+	secondcp setpoint( "TOP_RIGHT", "TOP_LEFT", 350, 0 );
+	secondcp.glowalpha = 1;
+	secondcp.hidewheninmenu = 0;
+	secondcp.archived = 0;
+	secondcp.immunetodemogamehudsettings = 1;
+	secondcp.immunetodemofreecamera = 1;
+	secondcp.label = &"MENU_POINTS";
+	secondcp.currentvalue = 0;
+	secondcp.targetvalue = players[i].wagerwinnings;
+	secondcp.targetvalue = 0;
+	secondcp.color = ( 0.42, 0.68, 0.46 );
+	secondcp setvalue( 0 );
+	playercphudelems[playercphudelems.size] = secondcp;
+	i++;
+	self thread updatewageroutcome( playernamehudelems, playercphudelems );
+	self thread resetwageroutcomenotify( playernamehudelems, playercphudelems, outcometitle, outcometext );
+	return;
+	stillupdating = 1;
+	countupduration = 2;
+	cpincrement = 9999;
+	cpincrement = int( playercphudelems[0].targetvalue / ( countupduration / 0.05 ) );
+	cpincrement = 1;
+	stillupdating = 0;
+	i = 0;
+	playercphudelems[i].currentvalue += cpincrement;
+	playercphudelems[i].currentvalue = playercphudelems[i].targetvalue;
+	playercphudelems[i] setvalue( playercphudelems[i].currentvalue );
+	stillupdating = 1;
+	i++;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x3230
+teamwageroutcomenotify( winner, isroundend, endreasontext )
+{
+	self endon( "disconnect" );
+	self notify( "reset_outcome" );
+	team = self.pers["team"];
+	team = "allies";
+	wait 0.05;
+	wait 0.05;
+	self endon( "reset_outcome" );
+	headerfont = "extrabig";
+	font = "objective";
+	titlesize = 2;
+	textsize = 1.5;
+	iconsize = 30;
+	spacing = 10;
+	titlesize = 3;
+	textsize = 2;
+	iconsize = 70;
+	spacing = 15;
+	halftime = 0;
+	halftime = 1;
+	duration = 60000;
+	outcometitle = createfontstring( headerfont, titlesize );
+	outcometitle setpoint( "TOP", undefined, 0, spacing );
+	outcometitle.glowalpha = 1;
+	outcometitle.hidewheninmenu = 0;
+	outcometitle.archived = 0;
+	outcometitle.immunetodemogamehudsettings = 1;
+	outcometitle.immunetodemofreecamera = 1;
+	outcometext = createfontstring( font, 2 );
+	outcometext setparent( outcometitle );
+	outcometext setpoint( "TOP", "BOTTOM", 0, 0 );
+	outcometext.glowalpha = 1;
+	outcometext.hidewheninmenu = 0;
+	outcometext.archived = 0;
+	outcometext.immunetodemogamehudsettings = 1;
+	outcometext.immunetodemofreecamera = 1;
+	outcometitle settext( game["strings"]["round_draw"] );
+	outcometitle settext( game["strings"]["draw"] );
+	outcometitle.color = ( 1, 1, 1 );
+	winner = "allies";
+	outcometitle settext( game["strings"]["overtime"] );
+	outcometitle.color = ( 1, 1, 1 );
+	outcometitle settext( game["strings"]["round_win"] );
+	outcometitle settext( game["strings"]["victory"] );
+	outcometitle.color = ( 0.42, 0.68, 0.46 );
+	outcometitle settext( game["strings"]["round_loss"] );
+	outcometitle settext( game["strings"]["defeat"] );
+	outcometitle.color = ( 0.73, 0.29, 0.19 );
+	outcometext settext( endreasontext );
+	outcometitle setpulsefx( 100, duration, 1000 );
+	outcometext setpulsefx( 100, duration, 1000 );
+	teamicons = [];
+	teamicons[team] = createicon( game["icons"][team], iconsize, iconsize );
+	teamicons[team] setparent( outcometext );
+	teamicons[team] setpoint( "TOP", "BOTTOM", -60, spacing );
+	teamicons[team].hidewheninmenu = 0;
+	teamicons[team].archived = 0;
+	teamicons[team].alpha = 0;
+	teamicons[team] fadeovertime( 0.5 );
+	teamicons[team].alpha = 1;
+	teamicons[team].immunetodemogamehudsettings = 1;
+	teamicons[team].immunetodemofreecamera = 1;
+	foreach ( enemyteam in level.teams )
+	{
+		teamicons[enemyteam] = createicon( game["icons"][enemyteam], iconsize, iconsize );
+		teamicons[enemyteam] setparent( outcometext );
+		teamicons[enemyteam] setpoint( "TOP", "BOTTOM", 60, spacing );
+		teamicons[enemyteam].hidewheninmenu = 0;
+		teamicons[enemyteam].archived = 0;
+		teamicons[enemyteam].alpha = 0;
+		teamicons[enemyteam] fadeovertime( 0.5 );
+		teamicons[enemyteam].alpha = 1;
+		teamicons[enemyteam].immunetodemogamehudsettings = 1;
+		teamicons[enemyteam].immunetodemofreecamera = 1;
+	}
+	teamscores = [];
+	teamscores[team] = createfontstring( font, titlesize );
+	teamscores[team] setparent( teamicons[team] );
+	teamscores[team] setpoint( "TOP", "BOTTOM", 0, spacing );
+	teamscores[team].glowalpha = 1;
+	teamscores[team] setvalue( getteamscore( team ) );
+	teamscores[team].hidewheninmenu = 0;
+	teamscores[team].archived = 0;
+	teamscores[team].immunetodemogamehudsettings = 1;
+	teamscores[team].immunetodemofreecamera = 1;
+	teamscores[team] setpulsefx( 100, duration, 1000 );
+	foreach ( enemyteam in level.teams )
+	{
+		teamscores[enemyteam] = createfontstring( font, titlesize );
+		teamscores[enemyteam] setparent( teamicons[enemyteam] );
+		teamscores[enemyteam] setpoint( "TOP", "BOTTOM", 0, spacing );
+		teamscores[enemyteam].glowalpha = 1;
+		teamscores[enemyteam] setvalue( getteamscore( enemyteam ) );
+		teamscores[enemyteam].hidewheninmenu = 0;
+		teamscores[enemyteam].archived = 0;
+		teamscores[enemyteam].immunetodemogamehudsettings = 1;
+		teamscores[enemyteam].immunetodemofreecamera = 1;
+		teamscores[enemyteam] setpulsefx( 100, duration, 1000 );
+	}
+	matchbonus = undefined;
+	sidebetwinnings = undefined;
+	matchbonus = createfontstring( font, 2 );
+	matchbonus setparent( outcometext );
+	matchbonus setpoint( "TOP", "BOTTOM", 0, iconsize + spacing * 3 + teamscores[team].height );
+	matchbonus.glowalpha = 1;
+	matchbonus.hidewheninmenu = 0;
+	matchbonus.archived = 0;
+	matchbonus.immunetodemogamehudsettings = 1;
+	matchbonus.immunetodemofreecamera = 1;
+	matchbonus.label = game["strings"]["wager_winnings"];
+	matchbonus setvalue( self.wagerwinnings );
+	sidebetwinnings = createfontstring( font, 2 );
+	sidebetwinnings setparent( matchbonus );
+	sidebetwinnings setpoint( "TOP", "BOTTOM", 0, spacing );
+	sidebetwinnings.glowalpha = 1;
+	sidebetwinnings.hidewheninmenu = 0;
+	sidebetwinnings.archived = 0;
+	sidebetwinnings.immunetodemogamehudsettings = 1;
+	sidebetwinnings.immunetodemofreecamera = 1;
+	sidebetwinnings.label = game["strings"]["wager_sidebet_winnings"];
+	sidebetwinnings setvalue( self.pers["wager_sideBetWinnings"] );
+	self thread resetoutcomenotify( teamicons, teamscores, outcometitle, outcometext, matchbonus, sidebetwinnings );
+// SP = 0x0 - check OK
+}
+
+// 0x39E4
+destroyhudelem( hudelem )
+{
+	hudelem destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0x3A00
+resetoutcomenotify( hudelemlist1, hudelemlist2, hudelem3, hudelem4, hudelem5, hudelem6, hudelem7, hudelem8, hudelem9, hudelem10 )
+{
+	self endon( "disconnect" );
+	self waittill( "reset_outcome" );
+	destroyhudelem( hudelem3 );
+	destroyhudelem( hudelem4 );
+	destroyhudelem( hudelem5 );
+	destroyhudelem( hudelem6 );
+	destroyhudelem( hudelem7 );
+	destroyhudelem( hudelem8 );
+	destroyhudelem( hudelem9 );
+	destroyhudelem( hudelem10 );
+	foreach ( elem in hudelemlist1 )
+	{
+		destroyhudelem( elem );
+	}
+	foreach ( elem in hudelemlist2 )
+	{
+		destroyhudelem( elem );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3B04
+resetwageroutcomenotify( playernamehudelems, playercphudelems, outcometitle, outcometext )
+{
+	self endon( "disconnect" );
+	self waittill( "reset_outcome" );
+	i = playernamehudelems.size - 1;
+	playernamehudelems[i] destroy();
+	i--;
+	i = playercphudelems.size - 1;
+	playercphudelems[i] destroy();
+	i--;
+	outcometext destroy();
+	outcometitle destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x3BA8
+updateoutcome( firsttitle, secondtitle, thirdtitle )
+{
+	self endon( "disconnect" );
+	self endon( "reset_outcome" );
+	self waittill( "update_outcome" );
+	players = level.placement["all"];
+	firsttitle setplayernamestring( players[0] );
+	firsttitle.alpha = 0;
+	secondtitle setplayernamestring( players[1] );
+	secondtitle.alpha = 0;
+	thirdtitle setplayernamestring( players[2] );
+	thirdtitle.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3C78
+updatewageroutcome( playernamehudelems, playercphudelems )
+{
+	self endon( "disconnect" );
+	self endon( "reset_outcome" );
+	self waittill( "update_outcome" );
+	players = level.placement["all"];
+	i = 0;
+	playernamehudelems[i] setplayernamestring( players[playernamehudelems[i].playernum] );
+	playernamehudelems[i].alpha = 0;
+	playercphudelems[i].alpha = 0;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3D28
+setshoutcasterwaitingmessage()
+{
+	self.waitingforplayerstext = createfontstring( "objective", 2.5 );
+	self.waitingforplayerstext setpoint( "CENTER", "CENTER", 0, -80 );
+	self.waitingforplayerstext.sort = 1001;
+	self.waitingforplayerstext settext( &"MP_WAITING_FOR_PLAYERS_SHOUTCASTER" );
+	self.waitingforplayerstext.foreground = 0;
+	self.waitingforplayerstext.hidewheninmenu = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3D98
+clearshoutcasterwaitingmessage()
+{
+	destroyhudelem( self.waitingforplayerstext );
+	self.waitingforplayerstext = undefined;
+// SP = 0x0 - check OK
+}

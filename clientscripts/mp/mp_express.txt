@@ -1,0 +1,104 @@
+// clientscripts/mp/mp_express.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\mp_express_amb;
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\mp_express_fx;
+#include clientscripts\mp\_load;
+#include clientscripts\mp\_utility;
+
+
+// 0x4C8
+main()
+{
+	level.worldmapx = -75;
+	level.worldmapy = 87;
+	level.worldlat = 34.0554;
+	level.worldlong = -118.235;
+	clientscripts\mp\_load::main();
+	clientscripts\mp\mp_express_fx::main();
+	thread clientscripts\mp\_audio::audio_init( 0 );
+	thread clientscripts\mp\mp_express_amb::main();
+	registerclientfield( "vehicle", "train_moving", 1, 1, "int", ::train_move, 0 );
+	registerclientfield( "scriptmover", "train_moving", 1, 1, "int", ::train_move, 0 );
+	setsaveddvar( "compassmaxrange", "2100" );
+	setsaveddvar( "sm_sunsamplesizenear", 0.39 );
+	setsaveddvar( "sm_sunshadowsmall", 1 );
+	waitforclient( 0 );
+/#
+	println( "*** Client : mp_express running..." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5AC
+train_move( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "death" );
+	self endon( "entityshutdown" );
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	return;
+	self notify( "train_stop" );
+	self endon( "train_stop" );
+	self thread train_move_think( localclientnum );
+	clientobjid = getnextobjid( localclientnum );
+	objective_add( localclientnum, clientobjid, "invisible", self.origin, "free" );
+	objective_onentity( localclientnum, clientobjid, self, 1, 1, 0 );
+	expresssize = getdvarintdefault( "scr_express_size", 45 );
+	objective_seticonsize( localclientnum, clientobjid, expresssize );
+	objective_setstencil( localclientnum, clientobjid, 1 );
+	self thread train_end_think( localclientnum, clientobjid );
+	wait 0.1;
+	objective_state( localclientnum, clientobjid, "active" );
+	objective_seticon( localclientnum, clientobjid, "compass_train_engine" );
+	self thread train_fx_think( 1001, 1011 );
+	self thread train_fx_think( 2001, 2011 );
+	objective_state( localclientnum, clientobjid, "active" );
+	objective_seticon( localclientnum, clientobjid, "compass_train_carriage" );
+	self notify( "train_stop" );
+// SP = 0x0 - check OK
+}
+
+// 0x734
+train_end_think( localclientnum, clientobjid )
+{
+	self waittill_any( "train_stop", "death", "entityshutdown" );
+	objective_delete( localclientnum, clientobjid );
+	releaseobjid( localclientnum, clientobjid );
+// SP = 0x0 - check OK
+}
+
+// 0x770
+train_move_think( localclientnum )
+{
+	self endon( "train_stop" );
+	self endon( "death" );
+	self endon( "entityshutdown" );
+	player = getlocalplayer( localclientnum );
+	serverwait( localclientnum, 0.05 );
+	serverwait( localclientnum, 0.05 );
+	playrumbleonposition( localclientnum, "grenade_rumble", self.origin );
+	player earthquake( 0.2, 0.25, self.origin, 512 );
+	wait 0.05;
+	serverwait( localclientnum, 0.05 );
+// SP = 0x0 - check OK
+}
+
+// 0x854
+train_fx_think( id, id_end )
+{
+	self endon( "train_stop" );
+	self endon( "death" );
+	self endon( "entityshutdown" );
+	return;
+	origin = level.createfxexploders[id][0].v["origin"];
+	dir = vectornormalize( origin - self.origin );
+	forward = anglestoforward( self.angles );
+	dot = vectordot( forward, dir );
+	clientscripts\mp\_fx::exploder( id );
+	id++;
+	wait 0.01;
+// SP = 0x0 - check OK
+}

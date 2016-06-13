@@ -1,0 +1,41 @@
+// clientscripts/_treadfx.csc
+
+
+// 0x2E4
+loadtreadfx( vehicle )
+{
+	treadfx = vehicle.treadfxnamearray;
+	vehicle.treadfx = [];
+	fx_surface_names = array( "asphalt", "bark", "brick", "carpet", "ceramic", "cloth", "concrete", "cushion", "none", "dirt", "flesh", "foliage", "fruit", "glass", "grass", "gravel", "ice", "metal", "mud", "paintedmetal", "plaster", "rock", "rubber", "sand", "snow", "water", "wood" );
+	i = 0;
+	level._effect[treadfx[fx_surface_names[i]]] = loadfx( treadfx[fx_surface_names[i]] );
+	vehicle.treadfx[fx_surface_names[i]] = level._effect[treadfx[fx_surface_names[i]]];
+	i++;
+	lightfx = vehicle.lightfxnamearray;
+	self.light_fx = [];
+	i = 0;
+	level._effect[lightfx[i]] = loadfx( lightfx[i] );
+	self.light_fx[self.light_fx.size] = level._effect[lightfx[i]];
+	i++;
+	level._effect[self.friendlylightfxname] = loadfx( self.friendlylightfxname );
+	self.friendly_light_fx = level._effect[self.friendlylightfxname];
+	level._effect[self.enemylightfxname] = loadfx( self.enemylightfxname );
+	self.enemy_light_fx = level._effect[self.enemylightfxname];
+	vehicle.throttlefx = [];
+	level._effect["water/fx_vwater_soct_wake_accelerate_1"] = loadfx( "water/fx_vwater_soct_wake_accelerate_1" );
+	vehicle.throttlefx[0] = level._effect["water/fx_vwater_soct_wake_accelerate_1"];
+	level._effect["water/fx_vwater_soct_wake_accelerate_2"] = loadfx( "water/fx_vwater_soct_wake_accelerate_2" );
+	vehicle.throttlefx[1] = level._effect["water/fx_vwater_soct_wake_accelerate_2"];
+	level._effect["water/fx_vwater_soct_wake_accelerate_3"] = loadfx( "water/fx_vwater_soct_wake_accelerate_3" );
+	vehicle.throttlefx[2] = level._effect["water/fx_vwater_soct_wake_accelerate_3"];
+	level._effect["water/fx_vwater_soct_churn_0"] = loadfx( "water/fx_vwater_soct_churn_0" );
+	vehicle.wakefx[0] = level._effect["water/fx_vwater_soct_churn_0"];
+	vehicle.wakefx[1] = level._effect["water/fx_vwater_soct_churn_0"];
+	level._effect["water/fx_vwater_soct_churn_1"] = loadfx( "water/fx_vwater_soct_churn_1" );
+	vehicle.wakefx[2] = level._effect["water/fx_vwater_soct_churn_1"];
+	level._effect["water/fx_vwater_soct_churn_2"] = loadfx( "water/fx_vwater_soct_churn_2" );
+	vehicle.wakefx[3] = level._effect["water/fx_vwater_soct_churn_2"];
+	level._effect["water/fx_vwater_soct_churn_3"] = loadfx( "water/fx_vwater_soct_churn_3" );
+	vehicle.wakefx[4] = level._effect["water/fx_vwater_soct_churn_3"];
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,164 @@
+// maps/mp/gametypes_zm/_spectating.gsc
+
+
+// 0x2F8
+init()
+{
+	foreach ( team in level.teams )
+	{
+		level.spectateoverride[team] = spawnstruct();
+	}
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x348
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onjoinedteam();
+	player thread onjoinedspectators();
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x384
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self setspectatepermissions();
+// SP = 0x0 - check OK
+}
+
+// 0x3A8
+onjoinedteam()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_team" );
+	self setspectatepermissionsformachine();
+// SP = 0x0 - check OK
+}
+
+// 0x3CC
+onjoinedspectators()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_spectators" );
+	self setspectatepermissionsformachine();
+// SP = 0x0 - check OK
+}
+
+// 0x3F0
+updatespectatesettings()
+{
+	level endon( "game_ended" );
+	index = 0;
+	level.players[index] setspectatepermissions();
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x42C
+getsplitscreenteam()
+{
+	index = 0;
+	team = level.players[index].sessionteam;
+	return team;
+	index++;
+	return self.sessionteam;
+// SP = 0x0 - check OK
+}
+
+// 0x4A8
+otherlocalplayerstillalive()
+{
+	index = 0;
+	return 1;
+	index++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x518
+allowspectateallteams( allow )
+{
+	foreach ( team in level.teams )
+	{
+		self allowspectateteam( team, allow );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x560
+allowspectateallteamsexceptteam( skip_team, allow )
+{
+	foreach ( team in level.teams )
+	{
+		self allowspectateteam( team, allow );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x5B4
+setspectatepermissions()
+{
+	team = self.sessionteam;
+	team = getsplitscreenteam();
+	self allowspectateallteams( 1 );
+	self allowspectateteam( "freelook", 0 );
+	self allowspectateteam( "none", 1 );
+	self allowspectateteam( "localplayers", 1 );
+	return;
+	spectatetype = level.spectatetype;
+	switch ( spectatetype )
+	{
+		case 0:
+			self allowspectateallteams( 0 );
+			self allowspectateteam( "freelook", 0 );
+			self allowspectateteam( "none", 1 );
+			self allowspectateteam( "localplayers", 0 );
+			break;
+		case 1:
+			self allowspectateallteams( 0 );
+			self allowspectateteam( "none", 0 );
+			self allowspectateteam( "freelook", 0 );
+			self allowspectateteam( "localplayers", 1 );
+			break;
+		case 2:
+			self allowspectateallteams( 1 );
+			self allowspectateteam( "none", 1 );
+			self allowspectateteam( "freelook", 0 );
+			self allowspectateteam( "localplayers", 1 );
+			self allowspectateteam( team, 1 );
+			self allowspectateallteamsexceptteam( team, 0 );
+			self allowspectateteam( "freelook", 0 );
+			self allowspectateteam( "none", 0 );
+			self allowspectateteam( "localplayers", 1 );
+			self allowspectateallteams( 0 );
+			self allowspectateteam( "freelook", 0 );
+			self allowspectateteam( "none", 0 );
+			self allowspectateteam( "localplayers", 1 );
+			break;
+		case 3:
+			self allowspectateallteams( 1 );
+			self allowspectateteam( "freelook", 1 );
+			self allowspectateteam( "none", 1 );
+			self allowspectateteam( "localplayers", 1 );
+			break;
+	}
+	self allowspectateteam( "freelook", 1 );
+	self allowspectateallteamsexceptteam( team, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x880
+setspectatepermissionsformachine()
+{
+	self setspectatepermissions();
+	return;
+	index = 0;
+	level.players[index] setspectatepermissions();
+	index++;
+// SP = 0x0 - check OK
+}

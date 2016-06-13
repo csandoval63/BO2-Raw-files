@@ -1,0 +1,12 @@
+// maps/_rcbomb.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0xC8
+main()
+{
+	level._effect["rcbombexplosion"] = loadfx( "maps/mp_maps/fx_mp_exp_rc_bomb" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,275 @@
+// clientscripts/mp/_dogs.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x62C
+init()
+{
+/#
+	thread dog_dvar_updater();
+#/
+	level.movementstatesound = [];
+	level.maxstatesounddistance = 99999999;
+	level.movementstatesound["normal"] = spawnstruct();
+	level.movementstatesound["normal"].sound = "aml_dog_bark";
+	level.movementstatesound["normal"].waitmax = 4;
+	level.movementstatesound["normal"].waitmin = 1;
+	level.movementstatesound["normal"].enemyrange = level.maxstatesounddistance;
+	level.movementstatesound["normal"].localenemyonly = 0;
+	level.movementstatesound["attack_mid_everyone"] = spawnstruct();
+	level.movementstatesound["attack_mid_everyone"].sound = "aml_dog_bark_mid";
+	level.movementstatesound["attack_mid_everyone"].waitmax = 2;
+	level.movementstatesound["attack_mid_everyone"].waitmin = 0.5;
+	level.movementstatesound["attack_mid_everyone"].enemyrange = 1500;
+	level.movementstatesound["attack_mid_everyone"].localenemyonly = 0;
+	level.movementstatesound["attack_mid_enemy"] = spawnstruct();
+	level.movementstatesound["attack_mid_enemy"].sound = "aml_dog_bark_mid";
+	level.movementstatesound["attack_mid_enemy"].waitmax = 0.5;
+	level.movementstatesound["attack_mid_enemy"].waitmin = 0.01;
+	level.movementstatesound["attack_mid_enemy"].enemyrange = 1500;
+	level.movementstatesound["attack_mid_enemy"].localenemyonly = 1;
+	level.movementstatesound["attack_close_enemy"] = spawnstruct();
+	level.movementstatesound["attack_close_enemy"].sound = "aml_dog_bark_close";
+	level.movementstatesound["attack_close_enemy"].waitmax = 0.1;
+	level.movementstatesound["attack_close_enemy"].waitmin = 0.01;
+	level.movementstatesound["attack_close_enemy"].enemyrange = 1000;
+	level.movementstatesound["attack_close_enemy"].localenemyonly = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x804
+dog_dvar_updater()
+{
+/#
+	level.dog_debug_sound = dog_get_dvar_int( "debug_dog_sound", "0" );
+	level.dog_debug = dog_get_dvar_int( "debug_dogs", "0" );
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x844
+spawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread animcategorywatcher( localclientnum );
+	self thread enemywatcher( localclientnum );
+/#
+	self thread shutdownwatcher( localclientnum );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x87C
+shutdownwatcher( localclientnum )
+{
+/#
+	number = self getentnum();
+	println( "_+_+_+_+_+_+_+_+_+_+_  NEWLY SPAWNED DOG" + number );
+	self waittill( "entityshutdown" );
+	println( "_+_+_+_+_+_+_+_+_+_+_  DOG SHUTDOWN" + number );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8D8
+animcategorychanged( localclientnum, animcategory )
+{
+	self.animcategory = animcategory;
+	self notify( "killanimscripts" );
+	dog_print( "anim category changed " + animcategory );
+	switch ( animcategory )
+	{
+		case "death":
+			self thread playmovementsounds( localclientnum );
+			break;
+		case "move":
+			self thread playpainsounds( localclientnum );
+			break;
+		case "pain":
+			self thread playdeathsounds( localclientnum );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+animcategorywatcher( localclientnum )
+{
+	self endon( "entityshutdown" );
+	animcategorychanged( localclientnum, self getanimstatecategory() );
+	animcategory = self getanimstatecategory();
+	animcategorychanged( localclientnum, animcategory );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x9D4
+enemywatcher( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill( "enemy" );
+/#
+	dog_print( "NEW ENEMY " + self.enemy getentnum() );
+	self thread playlockonsounds( localclientnum );
+	dog_print( "NEW ENEMY CLEARED" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA48
+getotherteam( team )
+{
+	return "axis";
+	return "allies";
+	return "free";
+/#
+	assertmsg( "getOtherTeam: invalid team " + team );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA98
+islocalplayerenemy( enemy )
+{
+	return 0;
+	players = level.localplayers;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAE0
+hasenemychanged( last_enemy )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xB20
+getmovementsoundstate()
+{
+	localplayer = islocalplayerenemy( self.enemy );
+	closest_dist = level.maxstatesounddistance * level.maxstatesounddistance;
+	closest_key = "normal";
+	has_enemy = IsDefined( self.enemy );
+	enemy_distance = distancesquared( self.origin, self.enemy.origin );
+	return "normal";
+	statearray = getarraykeys( level.movementstatesound );
+	i = 0;
+	state_dist = level.movementstatesound[statearray[i]].enemyrange;
+	state_dist *= state_dist;
+	closest_dist = state_dist;
+	closest_key = statearray[i];
+	i++;
+	return closest_key;
+// SP = 0x0 - check OK
+}
+
+// 0xC10
+playmovementsounds( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "killanimscripts" );
+	last_state = "normal";
+	last_time = 0;
+	wait_time = 0;
+	state = getmovementsoundstate();
+	next_sound = 0;
+	dog_sound_print( "New State forcing next sound" );
+	next_sound = 1;
+	dog_sound_print( "enemy distance: " + distance( self.origin, self.enemy.origin ) );
+	soundid = self play_dog_sound( localclientnum, level.movementstatesound[state].sound );
+	last_state = state;
+	wait 0.05;
+	last_time = getrealtime();
+	wait_time = 1000 * randomfloatrange( level.movementstatesound[state].waitmin, level.movementstatesound[state].waitmax );
+	dog_sound_print( "wait_time: " + wait_time );
+	wait 0.5;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xD60
+playpainsounds( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "killanimscripts" );
+	soundid = self play_dog_sound( localclientnum, "aml_dog_pain" );
+// SP = 0x0 - check OK
+}
+
+// 0xD88
+playdeathsounds( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "killanimscripts" );
+	soundid = self play_dog_sound( localclientnum, "aml_dog_death" );
+// SP = 0x0 - check OK
+}
+
+// 0xDB0
+playlockonsounds( localclientnum )
+{
+	self endon( "entityshutdown" );
+	soundid = self play_dog_sound( localclientnum, "aml_dog_lock" );
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+soundnotify( client_num, entity, note )
+{
+	entity playsound( client_num, "fly_dog_step_run_default" );
+	return 1;
+	alias = "aml" + getsubstr( note, 5 );
+	entity play_dog_sound( client_num, alias );
+// SP = 0x0 - check OK
+}
+
+// 0xE28
+dog_get_dvar_int( dvar, def )
+{
+	return int( dog_get_dvar( dvar, def ) );
+// SP = 0x0 - check OK
+}
+
+// 0xE4C
+dog_get_dvar( dvar, def )
+{
+	return GetDvarFloat( dvar );
+	return def;
+// SP = 0x0 - check OK
+}
+
+// 0xE6C
+dog_sound_print( message )
+{
+/#
+	println( "CLIENT DOG SOUND(" + self getentnum() + "," + getrealtime() + "): " + message );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEB8
+dog_print( message )
+{
+/#
+	println( "CLIENT DOG DEBUG(" + self getentnum() + "): " + message );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEF8
+play_dog_sound( localclientnum, sound, position )
+{
+	dog_sound_print( "SOUND " + sound );
+	return self playsound( localclientnum, sound, position );
+	return self playsound( localclientnum, sound );
+// SP = 0x0 - check OK
+}

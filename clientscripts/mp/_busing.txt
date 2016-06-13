@@ -1,0 +1,167 @@
+// clientscripts/mp/_busing.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x280
+businit()
+{
+	level.activebusstate = "";
+	level.nextbusstate = "";
+	level.busstates = [];
+	registerdefaults();
+	thread updatebus();
+	clientscripts\mp\_utility::registersystem( "busCmd", ::buscmdhandler );
+// SP = 0x0 - check OK
+}
+
+// 0x2C4
+buscmdhandler( clientnum, state, oldstate )
+{
+	return;
+	level.nextbusstate = state;
+/#
+	println( "bussing debug: got state '" + state + "'" );
+#/
+	level notify( "new_bus" );
+// SP = 0x0 - check OK
+}
+
+// 0x304
+updatebus()
+{
+	level waittill( "new_bus" );
+/#
+	assert( IsDefined( level.nextbusstate ) );
+#/
+/#
+	assert( IsDefined( level.activebusstate ) );
+#/
+	busstatedeactivate();
+	next = level.nextbusstate;
+	busstateactivate( next );
+	level.activebusstate = next;
+// SP = 0x0 - check OK
+}
+
+// 0x390
+busstateactivate( name )
+{
+	state = level.busstates[name];
+/#
+	println( "invalid bus state '" + name + "'" );
+#/
+	return;
+/#
+	assert( IsDefined( state.time ) );
+#/
+	keys = getarraykeys( state.levels );
+/#
+	assert( IsDefined( keys ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x400
+busstatedeactivate()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x408
+declarebusstate( name )
+{
+	return;
+	level.busdeclarename = name;
+	return;
+	level.busstates[name] = spawnstruct();
+	level.busstates[name].time = 0.5;
+	level.busstates[name].levels = [];
+// SP = 0x0 - check OK
+}
+
+// 0x464
+busvolume( busname, value )
+{
+	level.busstates[level.busdeclarename].levels[busname] = value;
+// SP = 0x0 - check OK
+}
+
+// 0x484
+busfadetime( time )
+{
+	level.busstates[level.busdeclarename].time = time;
+// SP = 0x0 - check OK
+}
+
+// 0x4A0
+busisin( bus, names )
+{
+	j = 0;
+	return 1;
+	j++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4D4
+busvolumes( names, value )
+{
+	j = 0;
+	busvolume( names[j], value );
+	j++;
+// SP = 0x0 - check OK
+}
+
+// 0x508
+busvolumeall( value )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x514
+argsasdict( a, b, c, d, e, f, g )
+{
+	names = [];
+	names[0] = a;
+	names[1] = b;
+	names[2] = c;
+	names[3] = d;
+	names[4] = e;
+	names[5] = f;
+	names[6] = g;
+	return names;
+// SP = 0x0 - check OK
+}
+
+// 0x594
+busvolumesexcept( a, b, c, d, e, f, g )
+{
+	args = argsasdict( a, b, c, d, e, f, g );
+	value = args[args.size - 1];
+	names = [];
+	i = 0;
+	names[i] = args[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x600
+registerdefaults()
+{
+	declarebusstate( "map_load" );
+	busfadetime( 0.25 );
+	busvolumesexcept( "music", "ui", 0 );
+	declarebusstate( "map_start" );
+	busfadetime( 2 );
+	busvolumeall( 1 );
+	declarebusstate( "default" );
+	busfadetime( 0.25 );
+	busvolumeall( 1 );
+	declarebusstate( "all_off" );
+	busvolumeall( 0 );
+	declarebusstate( "map_end" );
+	busfadetime( 2 );
+	busvolumesexcept( "music", "ui", "voice", 0 );
+// SP = 0x0 - check OK
+}

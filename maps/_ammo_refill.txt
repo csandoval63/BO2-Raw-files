@@ -1,0 +1,319 @@
+// maps/_ammo_refill.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xA90
+main()
+{
+	a_ammo_crates = getentarray( "trigger_ammo_refill", "targetname" );
+	array_thread( a_ammo_crates, ::_ammo_refill_think_old );
+	thread place_player_loadout_old();
+	a_ammo_crates = getentarray( "sys_ammo_cache", "targetname" );
+	array_thread( a_ammo_crates, ::_setup_ammo_cache );
+	a_weapon_crates = getentarray( "sys_weapon_cache", "targetname" );
+	array_thread( a_weapon_crates, ::_setup_weapon_cache );
+// SP = 0x0 - check OK
+}
+
+// 0xB10
+_ammo_refill_think_old()
+{
+	self sethintstring( &"SCRIPT_AMMO_REFILL" );
+	self setcursorhint( "HINT_NOICON" );
+	self waittill( "trigger", e_player );
+	e_player disableweapons();
+	e_player playsound( "fly_ammo_crate_refill" );
+	wait 2;
+	a_str_weapons = e_player getweaponslist();
+	foreach ( str_weapon in a_str_weapons )
+	{
+		e_player givemaxammo( str_weapon );
+		e_player setweaponammoclip( str_weapon, weaponclipsize( str_weapon ) );
+	}
+	e_player enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0xBE4
+place_player_loadout_old()
+{
+	str_primary_weapon = getloadoutweapon( "primary" );
+	str_secondary_weapon = getloadoutweapon( "secondary" );
+	primary_weapon_pos_array = getentarray( "ammo_refill_primary_weapon", "targetname" );
+	foreach ( primary_pos in primary_weapon_pos_array )
+	{
+		m_weapon_script_model = spawn( "weapon_" + str_primary_weapon, primary_pos.origin );
+		m_weapon_script_model.angles = primary_pos.angles;
+		level thread place_player_loadout_old_camo( m_weapon_script_model, "primarycamo" );
+	}
+	secondary_weapon_pos_array = getentarray( "ammo_refill_secondary_weapon", "targetname" );
+	foreach ( secondary_pos in secondary_weapon_pos_array )
+	{
+		m_weapon_script_model = spawn( "weapon_" + str_secondary_weapon, secondary_pos.origin );
+		m_weapon_script_model.angles = secondary_pos.angles;
+		level thread place_player_loadout_old_camo( m_weapon_script_model, "secondarycamo" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xD24
+place_player_loadout_old_camo( m_weapon_script_model, camo_type )
+{
+	wait_for_first_player();
+	primarycamoindex = getloadoutitemindex( "primarycamo" );
+	primaryweaponoptions = get_players()[0] calcweaponoptions( primarycamoindex );
+	m_weapon_script_model itemweaponsetoptions( primaryweaponoptions );
+	secondarycamoindex = getloadoutitemindex( "secondarycamo" );
+	secondaryweaponoptions = get_players()[0] calcweaponoptions( secondarycamoindex );
+	m_weapon_script_model itemweaponsetoptions( secondaryweaponoptions );
+// SP = 0x0 - check OK
+}
+
+// 0xDC0
+_setup_ammo_cache()
+{
+	waittill_asset_loaded( "xmodel", self.model );
+	self ignorecheapentityflag( 1 );
+	self thread _ammo_refill_think();
+	self thread _place_player_loadout();
+	self thread _check_extra_slots();
+	self thread [[level._ammo_refill_think_alt]]();
+// SP = 0x0 - check OK
+}
+
+// 0xE30
+_setup_weapon_cache()
+{
+	waittill_asset_loaded( "xmodel", self.model );
+	self ignorecheapentityflag( 1 );
+	self thread _place_player_loadout();
+	self thread _check_extra_slots();
+// SP = 0x0 - check OK
+}
+
+// 0xE6C
+_ammo_refill_think()
+{
+	self endon( "disable_ammo_cache" );
+	t_ammo_cache = self _get_closest_ammo_trigger();
+	t_ammo_cache sethintstring( &"SCRIPT_AMMO_REFILL" );
+	t_ammo_cache setcursorhint( "HINT_NOICON" );
+	t_ammo_cache waittill( "trigger", e_player );
+	e_player disableweapons();
+	e_player playsound( "fly_ammo_crate_refill" );
+	wait 2;
+	a_str_weapons = e_player getweaponslist();
+	foreach ( str_weapon in a_str_weapons )
+	{
+		e_player givemaxammo( str_weapon );
+		e_player setweaponammoclip( str_weapon, weaponclipsize( str_weapon ) );
+	}
+	e_player enableweapons();
+	e_player notify( "ammo_refilled" );
+// SP = 0x0 - check OK
+}
+
+// 0xF60
+_get_closest_ammo_trigger()
+{
+	a_ammo_cache = getentarray( "trigger_ammo_cache", "targetname" );
+	t_ammo_cache = getclosest( self.origin, a_ammo_cache );
+	return t_ammo_cache;
+// SP = 0x0 - check OK
+}
+
+// 0xF90
+_place_player_loadout()
+{
+	str_primary_weapon = getloadoutweapon( "primary" );
+	str_secondary_weapon = getloadoutweapon( "secondary" );
+	v_basic_offset = ( -5, 0, 15 );
+	v_full_offset = ( -10, 0, 15 );
+	v_model_offset = vector_scale( ( 0, 0, 1 ), 15 );
+	n_offset_multiplier = 0;
+	switch ( self.model )
+	{
+		case "p6_weapon_resupply_80s_01":
+		case "p6_weapon_resupply_80s_02":
+			n_offset_multiplier = -4;
+			break;
+	}
+	str_primary_weapon_base = str_primary_weapon;
+	str_primary_weapon_base = strtok( str_primary_weapon, "+" )[0];
+	primary_weapon_pos = self gettagorigin( "loadOut_B" );
+	tmp_offset = anglestoright( self gettagangles( "loadOut_B" ) ) * n_offset_multiplier;
+	m_weapon_script_model = spawn( "weapon_" + str_primary_weapon, primary_weapon_pos + ( tmp_offset + v_model_offset ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "loadOut_B" ) + vector_scale( ( 0, -1, 0 ), 90 );
+	level thread place_player_loadout_camo( m_weapon_script_model, "primarycamo" );
+	switch ( self.model )
+	{
+		case "p6_weapon_resupply_80s_01":
+		case "p6_weapon_resupply_80s_02":
+			n_offset_multiplier = -7;
+			break;
+		case "p6_weapon_resupply_future_01":
+		case "p6_weapon_resupply_future_02":
+			n_offset_multiplier = -3;
+			break;
+		default:
+			n_offset_multiplier = -4;
+			break;
+	}
+	str_secondary_weapon_base = str_secondary_weapon;
+	str_secondary_weapon_base = strtok( str_secondary_weapon, "+" )[0];
+	secondary_weapon_pos = self gettagorigin( "loadOut_A" );
+	tmp_offset = anglestoright( self gettagangles( "loadOut_A" ) ) * n_offset_multiplier;
+	m_weapon_script_model = spawn( "weapon_" + str_secondary_weapon, secondary_weapon_pos + ( tmp_offset + v_model_offset ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "loadOut_A" ) + vector_scale( ( 0, -1, 0 ), 90 );
+	level thread place_player_loadout_camo( m_weapon_script_model, "secondarycamo" );
+// SP = 0x0 - check OK
+}
+
+// 0x11E8
+place_player_loadout_camo( m_weapon_script_model, camo_type )
+{
+	wait_for_first_player();
+	primarycamoindex = getloadoutitemindex( "primarycamo" );
+	primaryweaponoptions = get_players()[0] calcweaponoptions( primarycamoindex );
+	m_weapon_script_model itemweaponsetoptions( primaryweaponoptions );
+	secondarycamoindex = getloadoutitemindex( "secondarycamo" );
+	secondaryweaponoptions = get_players()[0] calcweaponoptions( secondarycamoindex );
+	m_weapon_script_model itemweaponsetoptions( secondaryweaponoptions );
+// SP = 0x0 - check OK
+}
+
+// 0x1284
+_check_extra_slots()
+{
+	auxilary_weapon_pos = self gettagorigin( "auxilary_A" );
+/#
+	assert( IsDefined( auxilary_weapon_pos ), "Please use the ammo_refill_crate_future_full prefab to use this slot" );
+#/
+	switch ( self.model )
+	{
+		default:
+			tmp_offset = anglestoright( self gettagangles( "auxilary_A" ) ) * 5;
+			break;
+	}
+	m_weapon_script_model = spawn( "weapon_" + self.ac_slot1, auxilary_weapon_pos + ( tmp_offset + vector_scale( ( 0, 0, 1 ), 10 ) ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "auxilary_A" ) + vector_scale( ( 0, -1, 0 ), 90 );
+	m_weapon_script_model itemweaponsetammo( 9999, 9999 );
+	auxilary_weapon_pos = self gettagorigin( "secondary_A" );
+/#
+	assert( IsDefined( auxilary_weapon_pos ), "Please use the ammo_refill_crate_future_full prefab to use this slot" );
+#/
+	tmp_offset = anglestoforward( self gettagangles( "secondary_A" ) ) * 10;
+	m_weapon_script_model = spawn( "weapon_" + self.ac_slot2, auxilary_weapon_pos + ( tmp_offset + vector_scale( ( 0, 0, 1 ), 10 ) ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "secondary_A" );
+	m_weapon_script_model itemweaponsetammo( 9999, 9999 );
+// SP = 0x0 - check OK
+}
+
+// 0x13CC
+_is_banned_refill_weapon( str_weapon )
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x13D8
+_debug_tags()
+{
+/#
+	tag_array = [];
+	tag_array[tag_array.size] = "ammo_A";
+	tag_array[tag_array.size] = "ammo_B";
+	tag_array[tag_array.size] = "auxilary_A";
+	tag_array[tag_array.size] = "auxilary_B";
+	tag_array[tag_array.size] = "grenade";
+	tag_array[tag_array.size] = "loadOut_A";
+	tag_array[tag_array.size] = "loadOut_B";
+	tag_array[tag_array.size] = "secondary_A";
+	foreach ( tag in tag_array )
+	{
+		self thread _loop_text( tag );
+	}
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1474
+_loop_text( tag )
+{
+/#
+	print3d( self gettagorigin( tag ), tag, ( 1, 1, 1 ), 1, 0.15 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x14C4
+disable_ammo_cache( str_ammo_cache_id )
+{
+	a_ammo_cache = getentarray( str_ammo_cache_id, "script_noteworthy" );
+/#
+	assert( IsDefined( a_ammo_cache ), "There is no ammo cache with the script_noteworthy '" + str_ammo_cache_id + "'. Please double check the names used" );
+#/
+/#
+	assertmsg( "There is more than one ammo cache with the script_noteworthy '" + str_ammo_cache_id + "'. Please give each a unique name" );
+#/
+	a_ammo_cache[0] notify( "disable_ammo_cache" );
+	t_ammo_cache = a_ammo_cache[0] _get_closest_ammo_trigger();
+	t_ammo_cache trigger_off();
+// SP = 0x0 - check OK
+}
+
+// 0x1540
+activate_extra_slot( n_slot_number, str_weapon )
+{
+/#
+	assertmsg( "Only values of 1 or 2 are valid slot positions" );
+#/
+/#
+	assert( IsDefined( str_weapon ), "Weapon is not defined" );
+#/
+	auxilary_weapon_pos = self gettagorigin( "auxilary_A" );
+/#
+	assert( IsDefined( auxilary_weapon_pos ), "Please use the ammo_refill_crate_future_full prefab to use this slot" );
+#/
+	tmp_offset = anglestoright( self gettagangles( "auxilary_A" ) ) * 5;
+	m_weapon_script_model = spawn( "weapon_" + str_weapon, auxilary_weapon_pos + ( tmp_offset + vector_scale( ( 0, 0, 1 ), 10 ) ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "auxilary_A" ) + vector_scale( ( 0, -1, 0 ), 90 );
+	m_weapon_script_model itemweaponsetammo( 9999, 9999 );
+	auxilary_weapon_pos = self gettagorigin( "secondary_A" );
+/#
+	assert( IsDefined( auxilary_weapon_pos ), "Please use the ammo_refill_crate_*_full prefab to use this slot" );
+#/
+	tmp_offset = anglestoforward( self gettagangles( "secondary_A" ) ) * 7;
+	m_weapon_script_model = spawn( "weapon_" + str_weapon, auxilary_weapon_pos + ( tmp_offset + vector_scale( ( 0, 0, 1 ), 10 ) ), 8 );
+	m_weapon_script_model.angles = self gettagangles( "secondary_A" );
+	m_weapon_script_model itemweaponsetammo( 9999, 9999 );
+// SP = 0x0 - check OK
+}
+
+// 0x16AC
+cleanup_cache()
+{
+	a_weapons_list = [];
+	a_item_list = getitemarray();
+	foreach ( item in a_item_list )
+	{
+		a_weapons_list[a_weapons_list.size] = item;
+	}
+	n_weapon_counter = 2;
+	n_weapon_counter++;
+	n_weapon_counter++;
+	x = 0;
+	e_closest_weapon = getclosest( self.origin, a_weapons_list, 50 );
+	e_closest_weapon delete();
+	a_weapons_list = remove_undefined_from_array( a_weapons_list );
+	x++;
+	self delete();
+	self notify( "disable_ammo_cache" );
+	t_ammo_trigger = _get_closest_ammo_trigger();
+	t_ammo_trigger delete();
+	self delete();
+// SP = 0x0 - check OK
+}

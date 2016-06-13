@@ -1,0 +1,29 @@
+// animscripts/dog_death.gsc
+
+#include animscripts\shared;
+
+#using_animtree ( "dog" );
+
+
+// 0x150
+main()
+{
+	self endon( "killanimscript" );
+/#
+	assert( self.a.nodeath, "Nodeath needs to be set to true or undefined." );
+#/
+	wait 3;
+	return;
+	self unlink();
+	self.enemy.syncedmeleetarget = undefined;
+	self clearanim( %root, 0.2 );
+	self setflaggedanimrestart( "dog_anim", %german_shepherd_death_front, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "dog_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x204
+end_script()
+{
+// SP = 0x0 - check OK
+}

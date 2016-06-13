@@ -1,0 +1,333 @@
+// clientscripts/mp/_music.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x82C
+music_init()
+{
+	level.activemusicstate = "";
+	level.nextmusicstate = "";
+	level.musicstates = [];
+	level.musicent = spawnfakeent( 0 );
+	level.stingerent = spawnfakeent( 0 );
+	thread updatemusic();
+	thread demofixup();
+	clientscripts\mp\_utility::registersystem( "musicCmd", ::musiccmdhandler );
+	declaremusicstate( "SILENT" );
+	musicaliasloop( "null", 0, 1 );
+	declaremusicstate( "SPAWN_WAGER" );
+	musicalias( "mus_spawn_wager", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_ST6" );
+	musicalias( "mus_spawn_st6", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_ST6" );
+	musicalias( "mus_spawn_short_st6", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_ST6" );
+	musicalias( "mus_victory_st6", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_FBI" );
+	musicalias( "mus_spawn_fbi", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_FBI" );
+	musicalias( "mus_spawn_short_fbi", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_FBI" );
+	musicalias( "mus_victory_fbi", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_CIA" );
+	musicalias( "mus_spawn_cia", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_CIA" );
+	musicalias( "mus_spawn_short_cia", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_CIA" );
+	musicalias( "mus_victory_cia", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_PMC" );
+	musicalias( "mus_spawn_pmc", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_PMC" );
+	musicalias( "mus_spawn_short_pmc", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_PMC" );
+	musicalias( "mus_victory_pmc", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_PLA" );
+	musicalias( "mus_spawn_pla", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_PLA" );
+	musicalias( "mus_spawn_short_pla", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_PLA" );
+	musicalias( "mus_victory_pla", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_TER" );
+	musicalias( "mus_spawn_ter", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT_TER" );
+	musicalias( "mus_spawn_short_ter", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "VICTORY_TER" );
+	musicalias( "mus_victory_ter", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN" );
+	musicalias( "mus_spawn", 0.5 );
+	musicwaittilldone();
+	declaremusicstate( "SPAWN_SHORT" );
+	musicalias( "mus_spawn_short", 0.5 );
+	declaremusicstate( "UNDERSCORE" );
+	musicalias( "mus_underscore", 1 );
+	declaremusicstate( "ACTION" );
+	musicaliasloop( "mus_action", 1, 1 );
+	declaremusicstate( "TIME_OUT" );
+	musicalias( "mus_time_running_out", 1 );
+	declaremusicstate( "VICTORY" );
+	musicalias( "mus_victory", 0.5 );
+	declaremusicstate( "LOSE" );
+	musicalias( "mus_loss", 0.5 );
+	declaremusicstate( "DRAW" );
+	musicalias( "mus_draw", 0.5 );
+	declaremusicstate( "ROUND_END" );
+	musicalias( "mus_halftime", 0.5 );
+	declaremusicstate( "ROUND_SWITCH" );
+	musicalias( "mus_halftime", 0.5 );
+	declaremusicstate( "MP_LAST_STAND" );
+	musicalias( "mus_last_stand", 0.5 );
+	musicaliasloop( "null", 0, 1 );
+	declaremusicstate( "MP_LAST_STAND_DIE" );
+	musicalias( "mus_spawn_short", 0.5 );
+	musicaliasloop( "null", 0, 1 );
+	declaremusicstate( "MP_LAST_STAND_REVIVE" );
+	musicalias( "mus_spawn_short", 0.5 );
+	musicaliasloop( "null", 0, 1 );
+	declaremusicstate( "CTF_WE_SCORE" );
+	musicstinger( "mus_ctf_we_score", 0 );
+	declaremusicstate( "CTF_WE_TAKE" );
+	musicstinger( "mus_ctf_we_take", 0.5 );
+	declaremusicstate( "CTF_THEY_TAKE" );
+	musicstinger( "mus_ctf_they_take", 0.5 );
+	declaremusicstate( "SUSPENSE" );
+	musicaliasloop( "mus_suspense", 1, 1 );
+	declaremusicstate( "CTF_THEY_SCORE" );
+	musicstinger( "mus_ctf_they_score", 0.5 );
+	declaremusicstate( "CTF_THEY_SCORE" );
+	musicstinger( "mus_ctf_they_score", 0.5 );
+	declaremusicstate( "MATCH_END" );
+	musicalias( "mus_time_running_out", 0.5 );
+	musicaliasloop( "mus_underscore", 0, 1 );
+	declaremusicstate( "DEM_WE_PLANT" );
+	musicalias( "mus_ctf_we_take", 0.5 );
+	declaremusicstate( "DEM_THEY_PLANT" );
+	musicalias( "mus_ctf_they_take", 0.5 );
+	declaremusicstate( "DEM_WE_DEFUSE" );
+	musicalias( "mus_ctf_we_score", 0.5 );
+	declaremusicstate( "DEM_THEY_DEFUSE" );
+	musicalias( "mus_ctf_they_score", 0.5 );
+	declaremusicstate( "DEM_WE_SCORE" );
+	musicalias( "mus_ctf_we_score", 0.5 );
+	declaremusicstate( "DEM_THEY_SCORE" );
+	musicalias( "mus_ctf_they_score", 0.5 );
+	declaremusicstate( "DEM_ONE_LEFT_UNDERSCORE" );
+	musicaliasloop( "mus_underscore", 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xF38
+musiccmdhandler( clientnum, state, oldstate )
+{
+	return;
+	level.nextmusicstate = state;
+	level notify( "new_music" );
+// SP = 0x0 - check OK
+}
+
+// 0xF60
+demofixup()
+{
+	level waittill( "demo_jump" );
+	level.nextmusicstate = "SILENT";
+	level notify( "new_music" );
+// SP = 0x0 - check OK
+}
+
+// 0xF80
+updatemusic()
+{
+	level waittill( "new_music" );
+	active = level.activemusicstate;
+	next = level.nextmusicstate;
+/#
+	assertmsg( "unknown music state '" + next + "'" );
+#/
+	level.nextmusicstate = level.activemusicstate;
+	transitionout( active, next );
+	transitionin( active, next );
+	level.activemusicstate = next;
+// SP = 0x0 - check OK
+}
+
+// 0x103C
+fadeoutandstopsound( id, time )
+{
+	rate = 0;
+	rate = 1 / time;
+	setsoundvolumerate( id, rate );
+	setsoundvolume( id, 0 );
+	wait time;
+	stopsound( id );
+// SP = 0x0 - check OK
+}
+
+// 0x1094
+transitionout( previous, next )
+{
+	return;
+/#
+	assertmsg( "unknown music state '" + previous + "'" );
+#/
+	return;
+	ent = level.musicstates[previous].aliasent;
+	loopalias = level.musicstates[previous].loopalias;
+	oneshotalias = level.musicstates[previous].oneshotalias;
+	fadeout = level.musicstates[previous].fadeout;
+	waittilldone = level.musicstates[previous].waittilldone;
+	waittillstingerdone = level.musicstates[previous].waittillstingerdone;
+	stinger = level.musicstates[previous].stinger;
+	id = level.musicstates[previous].id;
+	startdelay = level.musicstates[previous].startdelay;
+	forcestinger = level.musicstates[previous].forcestinger;
+	nextloopalias = "";
+	nextoneshotalias = "";
+	nextloopalias = level.musicstates[next].loopalias;
+	nextoneshotalias = level.musicstates[next].oneshotalias;
+	stingerid = -1;
+	loopmatches = loopalias == nextloopalias;
+	haveoneshot = nextoneshotalias != "";
+	stingerid = playsound( 0, stinger, ( 0, 0, 0 ) );
+	stoploopsound( 0, ent, fadeout );
+	wait fadeout;
+	wait 0.1;
+	thread fadeoutandstopsound( id, fadeout );
+	wait 0.01;
+	wait 0.1;
+	level.musicstates[previous].id = -1;
+// SP = 0x0 - check OK
+}
+
+// 0x12E4
+transitionin( previous, next )
+{
+	ent = level.musicstates[next].aliasent;
+	loopalias = level.musicstates[next].loopalias;
+	oneshotalias = level.musicstates[next].oneshotalias;
+	fadein = level.musicstates[next].fadein;
+	loop = level.musicstates[next].loop;
+	oldloopalias = "";
+	oldoneshotalias = "";
+	oldid = -1;
+	oldstartdelay = 0;
+	startdelay = 0;
+	oldloopalias = level.musicstates[previous].loopalias;
+	oldoneshotalias = level.musicstates[previous].oneshotalias;
+	oldid = level.musicstates[previous].id;
+	level.musicstates[next].id = playsound( 0, oneshotalias, ( 0, 0, 0 ) );
+	thread fadeoutandstopsound( level.musicstates[next].id, level.musicstates[next].fadeout );
+	return;
+	wait 0.1;
+	level.musicstates[next].id = level.musicstates[previous].id;
+	level.musicstates[previous].id = -1;
+	oldent = level.musicstates[previous].aliasent;
+	level.musicstates[previous].aliasent = level.musicstates[next].aliasent;
+	level.musicstates[next].aliasent = oldent;
+	level.musicstates[next].id = playloopsound( 0, ent, loopalias, fadein );
+// SP = 0x0 - check OK
+}
+
+// 0x14D0
+declaremusicstate( name )
+{
+	return;
+	level.musicdeclarename = name;
+	level.musicstates[name] = spawnstruct();
+	level.musicstates[name].aliasent = spawnfakeent( 0 );
+	level.musicstates[name].loopalias = "";
+	level.musicstates[name].oneshotalias = "";
+	level.musicstates[name].fadein = 0;
+	level.musicstates[name].fadeout = 0;
+	level.musicstates[name].id = -1;
+	level.musicstates[name].waittilldone = 0;
+	level.musicstates[name].stinger = "";
+	level.musicstates[name].waittillstingerdone = 0;
+	level.musicstates[name].startdelay = 0;
+	level.musicstates[name].forcestinger = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x15A8
+musicwaittilldone()
+{
+/#
+	assert( IsDefined( level.musicdeclarename ) );
+#/
+	name = level.musicdeclarename;
+	level.musicstates[name].waittilldone = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x15E0
+musicwaittillstingerdone()
+{
+/#
+	assert( IsDefined( level.musicdeclarename ) );
+#/
+	name = level.musicdeclarename;
+	level.musicstates[name].waittillstingerdone = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1618
+musicstinger( stinger, delay, force )
+{
+/#
+	assert( IsDefined( level.musicdeclarename ) );
+#/
+	delay = 0;
+	name = level.musicdeclarename;
+	level.musicstates[name].stinger = stinger;
+	level.musicstates[name].startdelay = delay;
+	level.musicstates[name].forcestinger = force;
+// SP = 0x0 - check OK
+}
+
+// 0x1684
+_musicalias( alias, fadein, fadeout, loop )
+{
+/#
+	assert( IsDefined( level.musicdeclarename ) );
+#/
+	name = level.musicdeclarename;
+	level.musicstates[name].loopalias = alias;
+	level.musicstates[name].oneshotalias = alias;
+	fadeout = 0;
+	fadein = 0;
+	level.musicstates[name].fadein = fadein;
+	level.musicstates[name].fadeout = fadeout;
+// SP = 0x0 - check OK
+}
+
+// 0x1718
+musicaliasloop( alias, fadein, fadeout )
+{
+	_musicalias( alias, fadein, fadeout, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1738
+musicalias( alias, fadeout )
+{
+	_musicalias( alias, 0, fadeout, 0 );
+// SP = 0x0 - check OK
+}

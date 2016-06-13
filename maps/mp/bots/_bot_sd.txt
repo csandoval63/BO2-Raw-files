@@ -1,0 +1,241 @@
+// maps/mp/bots/_bot_sd.gsc
+
+#include maps\mp\gametypes\_globallogic_utils;
+#include maps\mp\bots\_bot_combat;
+#include maps\mp\bots\_bot;
+#include maps\mp\gametypes\_gameobjects;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x654
+bot_sd_think()
+{
+	foreach ( zone in level.bombzones )
+	{
+		nodes = getnodesinradiussorted( zone.trigger.origin, 256, 0 );
+/#
+		assert( nodes.size );
+#/
+		zone.nearest_node = nodes[0];
+	}
+	zone = sd_get_planted_zone();
+	self bot_sd_defender( zone, 1 );
+	self.isbombcarrier = 1;
+	self bot_sd_attacker();
+	zone = random( level.bombzones );
+	self bot_sd_defender( zone );
+// SP = 0x0 - check OK
+}
+
+// 0x738
+bot_sd_attacker()
+{
+	level endon( "game_ended" );
+	self cancelgoal( "sd_protect_carrier" );
+	self addgoal( level.sdbomb.curorigin, 16, 4, "sd_pickup" );
+	return;
+	self addgoal( level.sdbomb.curorigin, 16, 4, "sd_pickup" );
+	return;
+	self cancelgoal( "sd_pickup" );
+	goal = self getgoal( "sd_plant" );
+	self setstance( "prone" );
+	wait 0.5;
+	self pressusebutton( level.planttime + 1 );
+	wait 0.5;
+	wait level.planttime + 1;
+	self pressusebutton( 0 );
+	self setstance( "crouch" );
+	wait 0.25;
+	self cancelgoal( "sd_plant" );
+	self setstance( "stand" );
+	return;
+	frac = sd_get_time_frac();
+	zone = sd_get_closest_bomb();
+	goal = sd_get_bomb_goal( zone.visuals[0] );
+	self addgoal( goal, 24, 4, "sd_plant" );
+	self addgoal( goal, 24, 3, "sd_plant" );
+	self.bot["patrol_update"] = GetTime() + randomintrange( 2500, 5000 );
+	self.protectcarrier = 1;
+	self.protectcarrier = 0;
+	goal = level.sdbomb.carrier getgoal( "sd_plant" );
+	nodes = getnodesinradiussorted( goal, 256, 0 );
+	self addgoal( nodes[randomint( nodes.size )], 24, 3, "sd_protect_carrier" );
+// SP = 0x0 - check OK
+}
+
+// 0xA3C
+bot_sd_defender( zone, isplanted )
+{
+	bot_sd_grenade();
+	goal = self getgoal( "sd_defend" );
+	planted = sd_get_planted_zone();
+	foreach ( zone in level.bombzones )
+	{
+		self cancelgoal( "sd_defend" );
+	}
+	bot_sd_defender_think( zone );
+	return;
+	goal = self getgoal( "enemy_patrol" );
+	closezone = sd_get_closest_bomb();
+	self clearlookat();
+	self cancelgoal( "sd_defend" );
+	return;
+	self.bot["patrol_update"] = GetTime() + randomintrange( 2500, 5000 );
+	return;
+	return;
+	nodes = getvisiblenodes( zone.nearest_node );
+	best = undefined;
+	highest = -100;
+	foreach ( node in nodes )
+	{
+		height = node.origin[2] - zone.nearest_node.origin[2];
+		dist = distance2d( node.origin, zone.nearest_node.origin );
+		score = 10000 - dist + height;
+		score = height;
+		highest = score;
+		best = node;
+	}
+	return;
+	self addgoal( best, 24, 3, "sd_defend" );
+// SP = 0x0 - check OK
+}
+
+// 0xD30
+bot_get_look_at()
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( self.origin, 1 );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	enemies = self maps\mp\bots\_bot::bot_get_enemies( 0 );
+	enemy = random( enemies );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	zone = sd_get_closest_bomb();
+	node = getvisiblenode( self.origin, zone.nearest_node.origin );
+	return node.origin;
+	forward = anglestoforward( self getplayerangles() );
+	origin = self geteye() + forward * 1024;
+	return origin;
+// SP = 0x0 - check OK
+}
+
+// 0xE70
+bot_sd_defender_think( zone )
+{
+	return;
+	self clearlookat();
+	goal = self getgoal( "sd_defuse" );
+	self setstance( "prone" );
+	wait 0.5;
+	self pressusebutton( level.defusetime + 1 );
+	wait 0.5;
+	wait level.defusetime + 1;
+	self pressusebutton( 0 );
+	self setstance( "crouch" );
+	wait 0.25;
+	self cancelgoal( "sd_defuse" );
+	self setstance( "stand" );
+	return;
+	self addgoal( level.sdbombmodel.origin, 24, 4, "sd_defuse" );
+	return;
+	self clearlookat();
+	self cancelgoal( "sd_defend" );
+	return;
+	self.bot["patrol_update"] = GetTime() + randomintrange( 2500, 5000 );
+	goal = self getgoal( "enemy_patrol" );
+	zone = sd_get_closest_bomb();
+	self clearlookat();
+	self cancelgoal( "sd_defend" );
+	return;
+	origin = self bot_get_look_at();
+	z = 20;
+	z = randomintrange( 16, 60 );
+	self lookat( origin + ( 0, 0, z ) );
+	self.bot["lookat_update"] = GetTime() + randomintrange( 1500, 3000 );
+	dir = vectornormalize( self.origin - origin );
+	dir = vector_scale( dir, 256 );
+	origin += dir;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( origin );
+// SP = 0x0 - check OK
+}
+
+// 0x112C
+bot_need_to_defuse()
+{
+	return self.team == game["defenders"];
+// SP = 0x0 - check OK
+}
+
+// 0x1148
+sd_get_bomb_goal( ent )
+{
+	goals = [];
+	dir = anglestoforward( ent.angles );
+	dir = vector_scale( dir, 32 );
+	goals[0] = ent.origin + dir;
+	goals[1] = ent.origin - dir;
+	dir = anglestoright( ent.angles );
+	dir = vector_scale( dir, 48 );
+	goals[2] = ent.origin + dir;
+	goals[3] = ent.origin - dir;
+	goals = array_randomize( goals );
+	foreach ( goal in goals )
+	{
+		return goal;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1208
+sd_get_time_frac()
+{
+	remaining = maps\mp\gametypes\_globallogic_utils::gettimeremaining();
+	end = level.timelimit * 60 * 1000;
+	end = self.spawntime + 120000;
+	remaining = end - GetTime();
+	return 1 - remaining / end;
+// SP = 0x0 - check OK
+}
+
+// 0x1254
+sd_get_closest_bomb()
+{
+	best = undefined;
+	distsq = 9999999;
+	foreach ( zone in level.bombzones )
+	{
+		d = distancesquared( self.origin, zone.curorigin );
+		best = zone;
+		distsq = d;
+		best = zone;
+		distsq = d;
+	}
+	return best;
+// SP = 0x0 - check OK
+}
+
+// 0x12E0
+sd_get_planted_zone()
+{
+	foreach ( zone in level.bombzones )
+	{
+		return zone;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1330
+bot_sd_grenade()
+{
+	enemies = bot_get_enemies();
+	return;
+	zone = sd_get_closest_bomb();
+	foreach ( enemy in enemies )
+	{
+		self maps\mp\bots\_bot_combat::bot_combat_throw_tactical( enemy.origin );
+	}
+// SP = 0x0 - check OK
+}

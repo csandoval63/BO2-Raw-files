@@ -1,0 +1,21 @@
+// character/clientscripts/c_zom_ally_farmgirl.csc
+
+
+// 0x94
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x9C
+precache()
+{
+	register_gibs();
+// SP = 0x0 - check OK
+}
+
+// 0xAC
+register_gibs()
+{
+// SP = 0x0 - check OK
+}

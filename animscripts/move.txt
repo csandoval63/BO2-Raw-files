@@ -1,0 +1,520 @@
+// animscripts/move.gsc
+
+#include animscripts\melee;
+#include animscripts\walk;
+#include animscripts\turn;
+#include animscripts\face;
+#include animscripts\rush;
+#include animscripts\cover_prone;
+#include animscripts\run;
+#include animscripts\cover_arrival;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\debug;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1028
+main()
+{
+	self endon( "killanimscript" );
+	[[self.exception["move"]]]();
+	self trackscriptstate( "Move Main", "code" );
+	self flamethrower_stop_shoot();
+	getupifpronebeforemoving();
+	animscripts\utility::initialize( "move" );
+	wasincover = IsDefined( self.prevnode );
+	self.shufflemove = 1;
+	self.shufflenode = self.node;
+	movecovertocover();
+	movecovertocoverfinish();
+	self.blockingpain = 1;
+	self animscripts\cover_arrival::startmovetransition();
+	self thread animscripts\cover_arrival::setupapproachnode( 1 );
+	self.blockingpain = 0;
+	moveinit();
+	movemainloop();
+// SP = 0x0 - check OK
+}
+
+// 0x1184
+moveinit()
+{
+	self.tacticalwalkrate = 1.5;
+	self.tacticalwalkrate = 1.2 + randomfloat( 0.3 );
+	self.tacticalwalkrate = 0.9 + randomfloat( 0.4 );
+	self.tacticalwalkrate *= self.moveplaybackrate;
+	self.runngunrate = 0.8 + randomfloat( 0.2 );
+	self.runngunrate *= self.moveplaybackrate;
+	self.arrivalstartdist = undefined;
+	self.shoot_while_moving_thread = undefined;
+	animscripts\run::stopupdaterunanimweights();
+// SP = 0x0 - check OK
+}
+
+// 0x127C
+moveglobalsinit()
+{
+	anim.moveglobals = spawnstruct();
+	anim.moveglobals.max_distance_to_shoot_sq = 2250000;
+	anim.moveglobals.motion_angle_offset = 60;
+	anim.moveglobals.aim_yaw_threshold = 45;
+	anim.moveglobals.try_face_enemy_distsq = 250000;
+	anim.moveglobals.code_face_enemy_dist = 500;
+	anim.moveglobals.runbackwards_distsq = anim.moveglobals.try_face_enemy_distsq;
+	anim.moveglobals.runbackwards_cqb_distsq = 262144;
+	anim.moveglobals.min_reload_distsq = 65536;
+	anim.moveglobals.relativediranimmap = array( "f", "f", "l", "r", "b" );
+	anim.moveglobals.max_run_n_gun_angle = 145;
+	anim.moveglobals.min_distsq_120 = 5625;
+	anim.moveglobals.serverfps = 20;
+	anim.moveglobals.serverspf = 0.05;
+	anim.moveglobals.shuffle_door_max_distsq = 8100;
+	anim.moveglobals.shuffle_cover_min_distsq = 1024;
+	moveturnglobalsinit();
+// SP = 0x0 - check OK
+}
+
+// 0x137C
+getupifpronebeforemoving()
+{
+	newpose = self animscripts\utility::choosepose( "stand" );
+	self animmode( "zonly_physics", 0 );
+	rate = 1;
+	rate = 2;
+	self animscripts\cover_prone::proneto( newpose, rate );
+	self animmode( "none", 0 );
+	self orientmode( "face default" );
+// SP = 0x0 - check OK
+}
+
+// 0x1404
+movemainloop()
+{
+	startedaiming = 0;
+	self animscripts\rush::sidestepinit();
+	self thread meleeattackwhilemoving();
+	self animscripts\face::setidlefacedelayed( anim.alertface );
+	startaiming();
+	startedaiming = 1;
+	shouldturn = self animscripts\turn::shouldturn();
+	self animscripts\turn::doturn();
+	startedaiming = 0;
+	istacticalwalking = !(self shouldfacemotion());
+	self animscripts\run::moverun();
+	self animscripts\walk::movewalk();
+	animscripts\rush::trysidestep();
+// SP = 0x0 - check OK
+}
+
+// 0x14F0
+mayshootwhilemoving()
+{
+	return 0;
+	weapclass = self.weaponclass;
+	return 0;
+	return 0;
+	return 0;
+/#
+	assert( self.dontshootwhilemoving );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x15C8
+shootwhilemoving()
+{
+	self endon( "killanimscript" );
+	self endon( "stopShooting" );
+	self notify( "doing_shootWhileMoving" );
+	self endon( "doing_shootWhileMoving" );
+/#
+	self animscripts\debug::debugpushstate( "shootWhileMoving" );
+#/
+	cheatammoifnecessary();
+	wait 0.5;
+	self shootuntilshootbehaviorchange();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x166C
+meleeattackwhilemoving()
+{
+	self endon( "killanimscript" );
+	animscripts\melee::melee_tryexecuting();
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x16AC
+startaiming()
+{
+	self.rightaimlimit = 50;
+	self.leftaimlimit = -50;
+	self.upaimlimit = 50;
+	self.downaimlimit = -50;
+	self animscripts\shared::setaiminganims( %run_aim_2, %run_aim_4, %run_aim_6, %run_aim_8 );
+	self animscripts\shared::trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x1708
+lookatpath()
+{
+	self endon( "killanimscript" );
+	self thread stoplookatpathonkillanimscript();
+	lookatpos = undefined;
+	lookatpos = undefined;
+	lookatpos = self.pathgoalpos;
+	lookatpos = self.origin + vector_scale( self.lookaheaddir, self.lookaheaddist ) + ( 0, 0, 0 );
+	currentlookahead = self calclookaheadpos( self.origin, 0 );
+	lookatpos = currentlookahead["node"] + ( 0, 0, 0 );
+/#
+	recordline( self.origin, lookatpos, ( 1, 1, 0 ), "Animscript", self );
+	record3dtext( "lookAt", lookatpos, ( 1, 1, 0 ), "Animscript" );
+#/
+	self lookatpos( lookatpos );
+	self lookatpos();
+	wait 1;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1824
+shouldlookatpath()
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1844
+stoplookatpathonkillanimscript()
+{
+	self waittill( "killanimscript" );
+	self lookatpos();
+// SP = 0x0 - check OK
+}
+
+// 0x1860
+waspreviouslyincover()
+{
+	switch ( self.a.prevscript )
+	{
+		case "concealment_crouch":
+		case "concealment_prone":
+		case "concealment_stand":
+		case "cover_crouch":
+		case "cover_left":
+		case "cover_pillar":
+		case "cover_prone":
+		case "cover_right":
+		case "cover_stand":
+		case "cover_wide_left":
+		case "cover_wide_right":
+		case "hide":
+		case "turret":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x18E8
+canshuffletonode( node )
+{
+	switch ( node.type )
+	{
+		case "Conceal Crouch":
+		case "Conceal Stand":
+		case "Cover Crouch":
+		case "Cover Left":
+		case "Cover Right":
+		case "Cover Stand":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1938
+isshuffledirectionvalid( startnode, endnode, shuffleleft )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x19A0
+get_shuffle_to_corner_start_anim( shuffleleft, startnode )
+{
+/#
+	assert( !(shuffleleft) );
+#/
+	return animarray( "cornerL_shuffle_start" );
+/#
+	assert( shuffleleft );
+#/
+	return animarray( "cornerR_shuffle_start" );
+	return animarray( "shuffleL_start" );
+	return animarray( "shuffleR_start" );
+// SP = 0x0 - check OK
+}
+
+// 0x1A28
+movecovertocover_getshufflestartanim( shuffleleft, startnode, endnode )
+{
+/#
+	assert( IsDefined( startnode ) );
+#/
+/#
+	assert( IsDefined( endnode ) );
+#/
+	shuffleanim = undefined;
+/#
+	assert( shuffleleft );
+#/
+	shuffleanim = get_shuffle_to_corner_start_anim( shuffleleft, startnode );
+/#
+	assert( !(shuffleleft) );
+#/
+	shuffleanim = get_shuffle_to_corner_start_anim( shuffleleft, startnode );
+	shuffleanim = animarray( "coverStand_shuffleL_start" );
+	shuffleanim = animarray( "coverStand_shuffleR_start" );
+	shuffleanim = get_shuffle_to_corner_start_anim( shuffleleft, startnode );
+	shuffleanim = get_shuffle_to_corner_start_anim( shuffleleft, startnode );
+	return shuffleanim;
+// SP = 0x0 - check OK
+}
+
+// 0x1B2C
+movecovertocover_getshuffleloopanim( shuffleleft, startnode, endnode )
+{
+/#
+	assert( IsDefined( startnode ) );
+#/
+/#
+	assert( IsDefined( endnode ) );
+#/
+	shuffleanim = undefined;
+/#
+	assert( shuffleleft );
+#/
+	shuffleanim = animarray( "shuffleL" );
+	shuffleanim = animarray( "shuffleR" );
+	shuffleanim = animarray( "coverStand_shuffleL" );
+	shuffleanim = animarray( "coverStand_shuffleR" );
+	shuffleanim = animarray( "shuffleL" );
+	shuffleanim = animarray( "shuffleR" );
+	return shuffleanim;
+// SP = 0x0 - check OK
+}
+
+// 0x1C1C
+movecovertocover_getshuffleendanim( shuffleleft, startnode, endnode )
+{
+/#
+	assert( IsDefined( startnode ) );
+#/
+/#
+	assert( IsDefined( endnode ) );
+#/
+	shuffleanim = undefined;
+/#
+	assert( shuffleleft );
+#/
+	shuffleanim = animarray( "cornerL_shuffle_end" );
+/#
+	assert( !(shuffleleft) );
+#/
+	shuffleanim = animarray( "cornerR_shuffle_end" );
+	shuffleanim = animarray( "coverStand_shuffleL_end" );
+	shuffleanim = animarray( "coverStand_shuffleR_end" );
+	shuffleanim = animarray( "shuffleL_end" );
+	shuffleanim = animarray( "shuffleR_end" );
+	return shuffleanim;
+// SP = 0x0 - check OK
+}
+
+// 0x1D1C
+movecovertocover_checkstartpose( startnode, endnode )
+{
+	self.a.pose = "crouch";
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1D64
+movecovertocover_checkendpose( endnode )
+{
+	self.a.pose = "stand";
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1D9C
+movecovertocover()
+{
+	self endon( "killanimscript" );
+	self endon( "goal_changed" );
+	shufflenode = self.shufflenode;
+	self.shufflemove = undefined;
+	self.shufflenode = undefined;
+	self.shufflemoveinterrupted = 1;
+	return;
+	return;
+	startnode = self.prevnode;
+	node = self.node;
+	return;
+	return;
+	movedir = node.origin - self.origin;
+	return;
+	movedir = vectornormalize( movedir );
+	forward = anglestoforward( node.angles );
+	shuffleleft = forward[0] * movedir[1] - forward[1] * movedir[0] > 0;
+	return;
+	return;
+	blendtime = 0.1;
+	blendtime = 0.4;
+	self animmode( "zonly_physics", 0 );
+	self clearanim( %body, blendtime );
+	startanim = movecovertocover_getshufflestartanim( shuffleleft, startnode, node );
+	shuffleanim = movecovertocover_getshuffleloopanim( shuffleleft, startnode, node );
+	endanim = movecovertocover_getshuffleendanim( shuffleleft, startnode, node );
+	startendtime = getnotetracktimes( startanim, "finish" )[0];
+	startendtime = 1;
+	startdist = length( getmovedelta( startanim, 0, startendtime ) );
+	shuffledist = length( getmovedelta( shuffleanim, 0, 1 ) );
+	enddist = length( getmovedelta( endanim, 0, 1 ) );
+	remainingdist = distance( self.origin, node.origin );
+	self orientmode( "face angle", getnodeforwardyaw( startnode ) );
+	self setflaggedanimrestart( "shuffle_start", startanim, 1, blendtime );
+	self animscripts\shared::donotetracks( "shuffle_start" );
+	self clearanim( startanim, 0.2 );
+	remainingdist -= startdist;
+	blendtime = 0.2;
+	self orientmode( "face angle", node.angles[1] );
+	playend = 0;
+	playend = 1;
+	remainingdist -= enddist;
+	looptime = getanimlength( shuffleanim );
+	playtime = looptime * ( remainingdist / shuffledist ) * 0.9;
+	playtime = floor( playtime * anim.moveglobals.serverfps ) * anim.moveglobals.serverspf;
+	self setflaggedanim( "shuffle", shuffleanim, 1, blendtime );
+	self donotetracksfortime( playtime, "shuffle" );
+	i = 0;
+	remainingdist = distance( self.origin, node.origin );
+	remainingdist -= enddist;
+	playtime = looptime * ( remainingdist / shuffledist ) * 0.9;
+	playtime = floor( playtime * anim.moveglobals.serverfps ) * anim.moveglobals.serverspf;
+	self donotetracksfortime( playtime, "shuffle" );
+	i++;
+	blendtime = 0.2;
+	blendtime = 0.4;
+	self clearanim( shuffleanim, blendtime );
+	self setflaggedanim( "shuffle_end", endanim, 1, blendtime );
+	self animscripts\shared::donotetracks( "shuffle_end" );
+	self teleport( node.origin );
+	self animmode( "normal" );
+	self.shufflemoveinterrupted = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2200
+movecovertocoverfinish()
+{
+	self clearanim( %cover_shuffle, 0.2 );
+	self.shufflemoveinterrupted = undefined;
+	self animmode( "none", 0 );
+	self orientmode( "face default" );
+	wait 0.2;
+	self clearanim( %cover_shuffle, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x2270
+movedoorsidetoside( shuffleleft, startnode, endnode )
+{
+	sidetosideanim = undefined;
+	sidetosideanim = animarray( "corner_door_R2L" );
+	sidetosideanim = animarray( "corner_door_L2R" );
+	return 0;
+	return 0;
+	self animmode( "zonly_physics", 0 );
+	self orientmode( "face current" );
+	self setflaggedanimrestart( "sideToSide", sidetosideanim, 1, 0.2 );
+/#
+	assert( animhasnotetrack( sidetosideanim, "slide_start" ) );
+#/
+/#
+	assert( animhasnotetrack( sidetosideanim, "slide_end" ) );
+#/
+	self animscripts\shared::donotetracks( "sideToSide", ::handlesidetosidenotetracks );
+	slidestarttime = self getanimtime( sidetosideanim );
+	slidedir = endnode.origin - startnode.origin;
+	slidedir = vectornormalize( ( slidedir[0], slidedir[1], 0 ) );
+	animdelta = getmovedelta( sidetosideanim, slidestarttime, 1 );
+	remainingvec = endnode.origin - self.origin;
+	remainingvec = ( remainingvec[0], remainingvec[1], 0 );
+	slidedist = vectordot( remainingvec, slidedir ) - abs( animdelta[1] );
+	slideendtime = getnotetracktimes( sidetosideanim, "slide_end" )[0];
+	slidetime = ( slideendtime - slidestarttime ) * getanimlength( sidetosideanim );
+/#
+	assert( slidetime > 0 );
+#/
+	slideframes = int( ceil( slidetime / 0.05 ) );
+	slideincrement = slidedir * slidedist / slideframes;
+	self thread slidefortime( slideincrement, slideframes );
+	self animscripts\shared::donotetracks( "sideToSide" );
+	self teleport( endnode.origin );
+	self animmode( "none" );
+	self orientmode( "face default" );
+	self.shufflemoveinterrupted = undefined;
+	wait 0.2;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x24E4
+handlesidetosidenotetracks( note )
+{
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x24FC
+slidefortime( slideincrement, slideframes )
+{
+	self endon( "killanimscript" );
+	self endon( "goal_changed" );
+	self teleport( self.origin + slideincrement );
+	slideframes--;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2540
+end_script()
+{
+	self.a.isturning = 0;
+	self.blockingpain = 0;
+	run_end_script();
+// SP = 0x0 - check OK
+}

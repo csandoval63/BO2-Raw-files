@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_traverse_garage_door.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xFC
+main()
+{
+	dosimpletraverse( "traverse_garage_door", 1 );
+// SP = 0x0 - check OK
+}

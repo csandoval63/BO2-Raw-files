@@ -1,0 +1,16 @@
+// clientscripts/mp/zm_buried_ffotd.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x9C
+main_start()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xA4
+main_end()
+{
+// SP = 0x0 - check OK
+}

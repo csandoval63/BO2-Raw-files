@@ -1,0 +1,85 @@
+// maps/mp/zm_buried_sq_ll.gsc
+
+#include maps\mp\zm_buried_sq;
+#include maps\mp\zombies\_zm_sidequests;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x3EC
+init()
+{
+	flag_init( "sq_ll_generator_on" );
+	declare_sidequest_stage( "sq", "ll", ::init_stage, ::stage_logic, ::exit_stage );
+// SP = 0x0 - check OK
+}
+
+// 0x428
+init_stage()
+{
+	level._cur_stage_name = "ll";
+	clientnotify( "ll" );
+// SP = 0x0 - check OK
+}
+
+// 0x444
+stage_logic()
+{
+/#
+	iprintlnbold( "LL Started" );
+#/
+	level.generator_power_states_color = 0;
+	sq_ll_show_code();
+	wait_network_frame();
+	stage_completed( "sq", level._cur_stage_name );
+// SP = 0x0 - check OK
+}
+
+// 0x48C
+sq_ll_show_code()
+{
+	a_spots = getstructarray( "sq_code_pos", "targetname" );
+	a_signs = getentarray( "sq_tunnel_sign", "targetname" );
+	a_codes = [];
+	foreach ( m_sign in a_signs )
+	{
+		a_codes[a_codes.size] = m_sign.model + "_code";
+		a_codes[a_codes.size] = m_sign.model + "_code";
+	}
+	i = 0;
+	a_codes[i] = "p6_zm_bu_sign_tunnel_consump_code";
+	i++;
+	i = 0;
+	m_code = spawn( "script_model", a_spots[i].origin );
+	m_code.angles = a_spots[i].angles;
+	m_code setmodel( a_codes[i] );
+	i++;
+	level thread sq_ll_show_code_vo_max();
+	level thread sq_ll_show_code_vo_ric();
+// SP = 0x0 - check OK
+}
+
+// 0x5DC
+exit_stage( success )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x5E8
+sq_ll_show_code_vo_max()
+{
+	a_signs = getentarray( "sq_tunnel_sign", "targetname" );
+	maxissay( "vox_maxi_sidequest_signs_0", a_signs[0] );
+	maxissay( "vox_maxi_sidequest_signs_1", a_signs[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x628
+sq_ll_show_code_vo_ric()
+{
+	richtofensay( "vox_zmba_sidequest_signs_0", 7 );
+	richtofensay( "vox_zmba_sidequest_signs_1", 10 );
+	richtofensay( "vox_zmba_sidequest_signs_2", 9 );
+// SP = 0x0 - check OK
+}

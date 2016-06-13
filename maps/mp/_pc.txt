@@ -1,0 +1,9 @@
+// maps/mp/_pc.gsc
+
+
+// 0x78
+pcserver()
+{
+	pcserverupdateplaylist();
+// SP = 0x0 - check OK
+}

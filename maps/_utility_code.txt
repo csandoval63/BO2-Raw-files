@@ -1,0 +1,649 @@
+// maps/_utility_code.gsc
+
+#include maps\_colors;
+#include maps\_hud_util;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xDE0
+structarray_swap( object1, object2 )
+{
+	index1 = object1.struct_array_index;
+	index2 = object2.struct_array_index;
+	self.array[index2] = object1;
+	self.array[index1] = object2;
+	self.array[index1].struct_array_index = index1;
+	self.array[index2].struct_array_index = index2;
+// SP = 0x0 - check OK
+}
+
+// 0xE38
+waitspread_insert( allotment )
+{
+	gapindex = -1;
+	gap = 0;
+	p = 0;
+	newgap = allotment[p + 1] - allotment[p];
+	gap = newgap;
+	gapindex = p;
+	p++;
+/#
+	assert( gap > 0 );
+#/
+	newallotment = [];
+	i = 0;
+	newallotment[newallotment.size] = randomfloatrange( allotment[gapindex], allotment[gapindex + 1] );
+	newallotment[newallotment.size] = allotment[i];
+	i++;
+	return newallotment;
+// SP = 0x0 - check OK
+}
+
+// 0xEF8
+waittill_objective_event_proc( requiretrigger )
+{
+	level waittill( "spawner_expired" + self.script_deathchain );
+	self waittill( "trigger" );
+	flag = self get_trigger_flag();
+	flag_set( flag );
+// SP = 0x0 - check OK
+}
+
+// 0xF48
+wait_until_done_speaking()
+{
+	self endon( "death" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xF68
+ent_waits_for_level_notify( msg )
+{
+	level waittill( msg );
+	self notify( "done" );
+// SP = 0x0 - check OK
+}
+
+// 0xF80
+ent_waits_for_trigger( trigger )
+{
+	trigger trigger_wait();
+	self notify( "done", trigger );
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+ent_times_out( timer )
+{
+	wait timer;
+	self notify( "done" );
+// SP = 0x0 - check OK
+}
+
+// 0xFB4
+update_debug_friendlycolor_on_death()
+{
+	self notify( "debug_color_update" );
+	self endon( "debug_color_update" );
+	num = self.ai_number;
+	self waittill( "death" );
+	level.debug_color_friendlies[num] = undefined;
+	level notify( "updated_color_friendlies" );
+// SP = 0x0 - check OK
+}
+
+// 0xFE8
+update_debug_friendlycolor( num )
+{
+	thread update_debug_friendlycolor_on_death();
+	level.debug_color_friendlies[num] = self.script_forcecolor;
+	level.debug_color_friendlies[num] = undefined;
+	level notify( "updated_color_friendlies" );
+// SP = 0x0 - check OK
+}
+
+// 0x1024
+insure_player_does_not_set_forcecolor_twice_in_one_frame()
+{
+/#
+/#
+	assert( !(IsDefined( self.setforcecolor )), "Tried to set forceColor on an ai twice in one frame. Don't spam set_force_color." );
+#/
+	self.setforcecolor = 1;
+	waittillframeend;
+	self.setforcecolor = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1060
+new_color_being_set( color )
+{
+	self notify( "new_color_being_set" );
+	self.new_force_color_being_set = 1;
+	maps\_colors::left_color_node();
+	self endon( "new_color_being_set" );
+	self endon( "death" );
+	waittillframeend;
+	waittillframeend;
+	self.currentcolorcode = level.currentcolorforced[self.team][self.script_forcecolor];
+	self thread maps\_colors::goto_current_colorindex();
+	self.new_force_color_being_set = undefined;
+	self notify( "done_setting_new_color" );
+/#
+	update_debug_friendlycolor( self.ai_number );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x10D0
+wait_for_flag_or_time_elapses( flagname, timer )
+{
+	level endon( flagname );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0x10E4
+ent_wait_for_flag_or_time_elapses( flagname, timer )
+{
+	self endon( flagname );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0x10F8
+waittill_either_function_internal( ent, func, parm )
+{
+	ent endon( "done" );
+	[[func]]( parm );
+	ent notify( "done" );
+// SP = 0x0 - check OK
+}
+
+// 0x111C
+hintprintwait( length, breakfunc )
+{
+	wait length;
+	return;
+	timer = length * 20;
+	i = 0;
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1168
+hintprint( string, breakfunc )
+{
+	flag_waitopen( "global_hint_in_use" );
+	flag_set( "global_hint_in_use" );
+	hint = createfontstring( "objective", 2 );
+	hint.alpha = 0.9;
+	hint.x = 0;
+	hint.y = -68;
+	hint.alignx = "center";
+	hint.aligny = "middle";
+	hint.horzalign = "center";
+	hint.vertalign = "middle";
+	hint.foreground = 0;
+	hint.hidewhendead = 1;
+	hint settext( string );
+	hint.alpha = 0;
+	hint fadeovertime( 1 );
+	hint.alpha = 0.95;
+	hintprintwait( 1 );
+	hint fadeovertime( 0.75 );
+	hint.alpha = 0.4;
+	hintprintwait( 0.75, breakfunc );
+	hint fadeovertime( 0.75 );
+	hint.alpha = 0.95;
+	hintprintwait( 0.75 );
+	i = 0;
+	hint fadeovertime( 0.75 );
+	hint.alpha = 0.4;
+	hintprintwait( 0.75 );
+	hint fadeovertime( 0.75 );
+	hint.alpha = 0.95;
+	hintprintwait( 0.75 );
+	i++;
+	hint destroy();
+	flag_clear( "global_hint_in_use" );
+// SP = 0x0 - check OK
+}
+
+// 0x135C
+lerp_player_view_to_tag_internal( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	wait 0.1;
+	origin = ent gettagorigin( tag );
+	angles = ent gettagangles( tag );
+	self lerp_player_view_to_position( origin, angles, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo );
+	return;
+	self playerlinkto( ent, tag, fraction, right_arc, left_arc, top_arc, bottom_arc );
+	self playerlinkto( ent, tag, fraction );
+	self playerlinkto( ent );
+// SP = 0x0 - check OK
+}
+
+// 0x1438
+lerp_player_view_to_tag_oldstyle_internal( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	wait 0.1;
+	origin = ent gettagorigin( tag );
+	angles = ent gettagangles( tag );
+	self lerp_player_view_to_position_oldstyle( origin, angles, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, 1 );
+	return;
+	self playerlinktodelta( ent, tag, fraction, right_arc, left_arc, top_arc, bottom_arc, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x14E4
+lerp_player_view_to_moving_tag_oldstyle_internal( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, hit_geo )
+{
+	self endon( "disconnect" );
+	wait 0.1;
+	self lerp_player_view_to_position_oldstyle( ent, tag, lerptime, fraction, right_arc, left_arc, top_arc, bottom_arc, 1 );
+	return;
+	self playerlinkto( ent, tag, fraction, right_arc, left_arc, top_arc, bottom_arc, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x156C
+function_stack_proc( caller, func, param1, param2, param3, param4 )
+{
+	caller.function_stack = [];
+	caller.function_stack[caller.function_stack.size] = self;
+	function_stack_caller_waits_for_turn( caller );
+	caller [[func]]( param1, param2, param3, param4 );
+	caller [[func]]( param1, param2, param3 );
+	caller [[func]]( param1, param2 );
+	caller [[func]]( param1 );
+	caller [[func]]();
+	arrayremovevalue( caller.function_stack, self );
+	caller notify( "level_function_stack_ready" );
+	self notify( "function_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x1644
+function_stack_caller_waits_for_turn( caller )
+{
+	caller endon( "death" );
+	self endon( "death" );
+	caller waittill( "level_function_stack_ready" );
+// SP = 0x0 - check OK
+}
+
+// 0x1674
+alphabet_compare( a, b )
+{
+	list = [];
+	val = 1;
+	list["0"] = val;
+	val++;
+	list["1"] = val;
+	val++;
+	list["2"] = val;
+	val++;
+	list["3"] = val;
+	val++;
+	list["4"] = val;
+	val++;
+	list["5"] = val;
+	val++;
+	list["6"] = val;
+	val++;
+	list["7"] = val;
+	val++;
+	list["8"] = val;
+	val++;
+	list["9"] = val;
+	val++;
+	list["_"] = val;
+	val++;
+	list["a"] = val;
+	val++;
+	list["b"] = val;
+	val++;
+	list["c"] = val;
+	val++;
+	list["d"] = val;
+	val++;
+	list["e"] = val;
+	val++;
+	list["f"] = val;
+	val++;
+	list["g"] = val;
+	val++;
+	list["h"] = val;
+	val++;
+	list["i"] = val;
+	val++;
+	list["j"] = val;
+	val++;
+	list["k"] = val;
+	val++;
+	list["l"] = val;
+	val++;
+	list["m"] = val;
+	val++;
+	list["n"] = val;
+	val++;
+	list["o"] = val;
+	val++;
+	list["p"] = val;
+	val++;
+	list["q"] = val;
+	val++;
+	list["r"] = val;
+	val++;
+	list["s"] = val;
+	val++;
+	list["t"] = val;
+	val++;
+	list["u"] = val;
+	val++;
+	list["v"] = val;
+	val++;
+	list["w"] = val;
+	val++;
+	list["x"] = val;
+	val++;
+	list["y"] = val;
+	val++;
+	list["z"] = val;
+	val++;
+	a = tolower( a );
+	b = tolower( b );
+	val1 = 0;
+	val1 = list[a];
+	val2 = 0;
+	val2 = list[b];
+	return "1st";
+	return "2nd";
+	return "same";
+// SP = 0x0 - check OK
+}
+
+// 0x18B0
+is_later_in_alphabet( string1, string2 )
+{
+	count = string1.size;
+	count = string2.size;
+	i = 0;
+	val = alphabet_compare( string1[i], string2[i] );
+	return 1;
+	return 0;
+	i++;
+	return string1.size > string2.size;
+// SP = 0x0 - check OK
+}
+
+// 0x191C
+alphabetize( array )
+{
+	return array;
+	count = 0;
+	changed = 0;
+	i = 0;
+	val = array[i];
+	array[i] = array[i + 1];
+	array[i + 1] = val;
+	changed = 1;
+	count++;
+	count = 0;
+	wait 0.05;
+	i++;
+	return array;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x19C0
+wait_for_sounddone_or_death( org )
+{
+	self endon( "death" );
+	org waittill( "sounddone" );
+// SP = 0x0 - check OK
+}
+
+// 0x19D8
+sound_effect()
+{
+	self effect_soundalias();
+// SP = 0x0 - check OK
+}
+
+// 0x19EC
+effect_soundalias()
+{
+	origin = self.v["origin"];
+	alias = self.v["soundalias"];
+	self exploder_delay();
+	play_sound_in_space( alias, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1A28
+cannon_effect()
+{
+	i = 0;
+	playfx( level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"], self.v["primlightfrac"], self.v["lightoriginoffs"] );
+	self exploder_delay();
+	i++;
+	return;
+	self exploder_delay();
+	self.looper delete();
+	self.looper = spawnfx( getfx( self.v["fxid"] ), self.v["origin"], self.v["forward"], self.v["up"], self.v["primlightfrac"], self.v["lightoriginoffs"] );
+	triggerfx( self.looper );
+	exploder_playsound();
+// SP = 0x0 - check OK
+}
+
+// 0x1B28
+exploder_delay()
+{
+	self.v["delay"] = 0;
+	min_delay = self.v["delay"];
+	max_delay = self.v["delay"] + 0.001;
+	min_delay = self.v["delay_min"];
+	max_delay = self.v["delay_max"];
+	wait randomfloatrange( min_delay, max_delay );
+// SP = 0x0 - check OK
+}
+
+// 0x1BB4
+exploder_earthquake()
+{
+	earthquake_name = self.v["earthquake"];
+/#
+	assert( IsDefined( level.earthquake[earthquake_name] ), "No earthquake '" + earthquake_name + "' defined for exploder - call add_earthquake() in your level script." );
+#/
+	self exploder_delay();
+	eq = level.earthquake[earthquake_name];
+	earthquake( eq["magnitude"], eq["duration"], self.v["origin"], eq["radius"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1C30
+exploder_rumble()
+{
+	self exploder_delay();
+	a_players = get_players();
+	n_rumble_threshold_squared = self.v["damage_radius"] * self.v["damage_radius"];
+/#
+	println( "exploder #" + self.v["exploder"] + " missing script_radius KVP, using default." );
+#/
+	n_rumble_threshold_squared = 16384;
+	i = 0;
+	n_player_dist_squared = distancesquared( a_players[i].origin, self.v["origin"] );
+	a_players[i] playrumbleonentity( self.v["rumble"] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1CF0
+exploder_playsound()
+{
+	return;
+	play_sound_in_space( self.v["soundalias"], self.v["origin"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1D30
+fire_effect()
+{
+	forward = self.v["forward"];
+	up = self.v["up"];
+	firefxsound = self.v["firefxsound"];
+	origin = self.v["origin"];
+	firefx = self.v["firefx"];
+	ender = self.v["ender"];
+	ender = "createfx_effectStopper";
+	timeout = self.v["firefxtimeout"];
+	firefxdelay = 0.5;
+	firefxdelay = self.v["firefxdelay"];
+	self exploder_delay();
+	level thread loop_fx_sound( firefxsound, origin, ender, timeout );
+	playfx( level._effect[firefx], self.v["origin"], forward, up, self.v["primlightfrac"], self.v["lightoriginoffs"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1E1C
+trail_effect()
+{
+	self exploder_delay();
+	self.v["trailfxtag"] = "tag_origin";
+	temp_ent = undefined;
+	playfxontag( level._effect[self.v["trailfx"]], self.model, self.v["trailfxtag"] );
+	temp_ent = spawn( "script_model", self.model.origin );
+	temp_ent setmodel( "tag_origin" );
+	temp_ent linkto( self.model, self.v["trailfxtag"] );
+	playfxontag( level._effect[self.v["trailfx"]], temp_ent, "tag_origin" );
+	self.model playloopsound( self.v["trailfxsound"] );
+	temp_ent playloopsound( self.v["trailfxsound"] );
+	level thread trail_effect_ender( temp_ent, self.v["ender"] );
+	return;
+	wait self.v["trailfxtimeout"];
+	temp_ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1F74
+trail_effect_ender( ent, ender )
+{
+	ent endon( "death" );
+	self waittill( ender );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1F98
+init_vision_set( visionset )
+{
+	level.lvl_visionset = visionset;
+	level.vision_cheat_enabled = 0;
+	return level.vision_cheat_enabled;
+// SP = 0x0 - check OK
+}
+
+// 0x1FC0
+exec_func( func, endons )
+{
+	i = 0;
+	endons[i].caller endon( endons[i].ender );
+	i++;
+	func.caller [[func.func]]();
+	func.caller [[func.func]]( func.parms[0] );
+	func.caller [[func.func]]( func.parms[0], func.parms[1] );
+	func.caller [[func.func]]( func.parms[0], func.parms[1], func.parms[2] );
+// SP = 0x0 - check OK
+}
+
+// 0x20B0
+waittill_func_ends( func, endons )
+{
+	self endon( "all_funcs_ended" );
+	exec_func( func, endons );
+	self.count--;
+	self notify( "func_ended" );
+// SP = 0x0 - check OK
+}
+
+// 0x20DC
+mergesort( current_list, less_than, param )
+{
+	param = undefined;
+	return current_list;
+	left = [];
+	right = [];
+	middle = current_list.size / 2;
+	x = 0;
+	left[left.size] = current_list[x];
+	x++;
+	right[right.size] = current_list[x];
+	x++;
+	left = mergesort( left, less_than, param );
+	right = mergesort( right, less_than, param );
+	result = merge( left, right, less_than, param );
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x2190
+merge( left, right, less_than, param )
+{
+	result = [];
+	li = 0;
+	ri = 0;
+	result[result.size] = left[li];
+	li++;
+	result[result.size] = right[ri];
+	ri++;
+	result[result.size] = left[li];
+	li++;
+	result[result.size] = right[ri];
+	ri++;
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x2238
+exchange_sort_by_handler( array, compare_func )
+{
+/#
+	assert( IsDefined( array ), "Array not defined." );
+#/
+/#
+	assert( IsDefined( compare_func ), "Compare function not defined." );
+#/
+	i = 0;
+	j = i + 1;
+	ref = array[j];
+	array[j] = array[i];
+	array[i] = ref;
+	j++;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x22D8
+isheaddamage( hitloc )
+{
+	return hitloc == "neck";
+// SP = 0x0 - check OK
+}
+
+// 0x22FC
+isprimarydamage( meansofdeath )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}

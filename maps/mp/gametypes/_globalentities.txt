@@ -1,0 +1,3 @@
+// maps/mp/gametypes/_globalentities.gsc
+
+

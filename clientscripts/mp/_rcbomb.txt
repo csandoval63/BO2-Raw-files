@@ -1,0 +1,459 @@
+// clientscripts/mp/_rcbomb.csc
+
+#include clientscripts\mp\_callbacks;
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+#include clientscripts\mp\_vehicle;
+
+
+// 0xC98
+main()
+{
+	type = "rc_car_medium_mp";
+	loadtreadfx( "dust" );
+	loadtreadfx( "concrete" );
+	level._effect["rcbomb_enemy_light"] = loadfx( "vehicle/light/fx_rcbomb_blinky_light" );
+	level._effect["rcbomb_friendly_light"] = loadfx( "vehicle/light/fx_rcbomb_solid_light" );
+	level._effect["rcbomb_enemy_light_blink"] = loadfx( "vehicle/light/fx_rcbomb_light_red_os" );
+	level._effect["rcbomb_friendly_light_blink"] = loadfx( "vehicle/light/fx_rcbomb_light_green_os" );
+	level._effect["rcbomb_stunned"] = loadfx( "weapon/grenade/fx_spark_disabled_rc_car" );
+	registerclientfield( "vehicle", "rcbomb_death", 1, 1, "int", ::death, 0 );
+	registerclientfield( "vehicle", "rcbomb_countdown", 1, 2, "int", ::countdown, 0 );
+	level._client_flag_callbacks["vehicle"][9] = clientscripts\mp\_callbacks::stunned_callback;
+	level.rcbombsurfacetypeforscreenfx = ::default_surface_type_for_screen_fx;
+	level.rcbombsurfacetypefortreadfx = ::default_surface_type_for_tread_fx;
+// SP = 0x0 - check OK
+}
+
+// 0xD98
+loadtreadfx( type )
+{
+	level._effect[type] = [];
+	level._effect[type]["rcbomb_driving_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_first_person" );
+	level._effect[type]["rcbomb_driving_slow_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_slow" );
+	level._effect[type]["rcbomb_driving_reverse_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_reverse" );
+	level._effect[type]["rcbomb_driving_trail_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_trail" );
+	level._effect[type]["rcbomb_sliding_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_drift" );
+	level._effect[type]["rcbomb_peeling_out_1st"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_peel" );
+	level._effect[type]["rcbomb_driving_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type );
+	level._effect[type]["rcbomb_driving_slow_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_slow" );
+	level._effect[type]["rcbomb_driving_reverse_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_reverse" );
+	level._effect[type]["rcbomb_driving_trail_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_trail" );
+	level._effect[type]["rcbomb_sliding_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_drift" );
+	level._effect[type]["rcbomb_peeling_out_3rd"] = loadfx( "vehicle/treadfx/fx_treadfx_rcbomb_" + type + "_peel" );
+// SP = 0x0 - check OK
+}
+
+// 0xF34
+spawned( localclientnum )
+{
+	self thread spawn_solid_fx( localclientnum );
+	self thread demo_think( localclientnum );
+	self thread play_driving_fx( localclientnum );
+	self thread collisionhandler( localclientnum );
+	self thread stunnedhandler( localclientnum );
+	self thread slidehandler( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0xF88
+spawn_solid_fx( localclientnum )
+{
+	return;
+	self notify( "light_disable" );
+	self endon( "entityshutdown" );
+	self endon( "light_disable" );
+	self waittill_dobj( localclientnum );
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+	level waittill( "snap_processed" );
+	player = getlocalplayer( localclientnum );
+	self stop_light_fx( localclientnum );
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1068
+death( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self stop_light_fx( localclientnum );
+	self notify( "light_disable" );
+// SP = 0x0 - check OK
+}
+
+// 0x1098
+start_light_fx( localclientnum, blink )
+{
+	blink = 0;
+	friend = self friendnotfoe( localclientnum );
+	player = getlocalplayer( localclientnum );
+	self.fx = playfxontag( localclientnum, level._effect["rcbomb_friendly_light_blink"], self, "tag_origin" );
+	self.fx = playfxontag( localclientnum, level._effect["rcbomb_friendly_light"], self, "tag_origin" );
+	self.friend = 1;
+	self.fx = playfxontag( localclientnum, level._effect["rcbomb_enemy_light_blink"], self, "tag_origin" );
+	self.fx = playfxontag( localclientnum, level._effect["rcbomb_enemy_light"], self, "tag_origin" );
+	self.friend = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1164
+stop_light_fx( localclientnum )
+{
+	stopfx( localclientnum, self.fx );
+	self.fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1194
+countdown( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+	self notify( "light_disable" );
+	self endon( "entityshutdown" );
+	self endon( "light_disable" );
+	interval = 1;
+	interval = 0.133;
+	self stop_light_fx( localclientnum );
+	self playsound( localclientnum, "wpn_crossbow_alert" );
+	self start_light_fx( localclientnum, 1 );
+	serverwait( localclientnum, interval );
+	interval = clamp( interval / 1.17, 0.1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1238
+demo_think( localclientnum )
+{
+	self endon( "entityshutdown" );
+	return;
+	level waittill_any( "demo_jump", "demo_player_switch" );
+	self stop_light_fx( localclientnum );
+	self thread spawn_solid_fx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1288
+play_screen_fx_dirt( localclientnum )
+{
+	pick_one = randomintrange( 0, 4 );
+	animateui( localclientnum, "fullscreen_dirt", "dirt", "in", 0 );
+	animateui( localclientnum, "fullscreen_dirt", "dirt_right_splash", "in", 0 );
+	animateui( localclientnum, "fullscreen_dirt", "dirt_left_splash", "in", 0 );
+	animateui( localclientnum, "fullscreen_dirt", "blurred_dirt_random", "in", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1324
+play_screen_fx_dust( localclientnum )
+{
+	pick_one = randomintrange( 0, 4 );
+	animateui( localclientnum, "fullscreen_dust", "dust", "in", 0 );
+	animateui( localclientnum, "fullscreen_dust", "dust_right_splash", "in", 0 );
+	animateui( localclientnum, "fullscreen_dust", "dust_left_splash", "in", 0 );
+	animateui( localclientnum, "fullscreen_dust", "blurred_dust_random", "in", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x13C0
+play_driving_fx_firstperson( localclientnum, speed, speed_fraction, surf_type )
+{
+	play_trail = 0;
+/#
+	println( "Surface type: " + surf_type + " is not defined for the rcxd road fx" );
+#/
+	return;
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_peeling_out_1st"], self, "tag_origin" );
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_sliding_1st"], self, "tag_origin" );
+	slow_speed = 5;
+	normal_speed_fraction = 0.25;
+	decelerating_speed_fraction = 0.4;
+	decelerating_throttle_fraction = 0.25;
+	throttle = self getthrottle();
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_reverse_1st"], self, "tag_origin" );
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_1st"], self, "tag_origin" );
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_slow_1st"], self, "tag_origin" );
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_trail_1st"], self, "tag_origin" );
+	viewangles = getlocalclientangles( localclientnum );
+	pitch = viewangles[0];
+	max_additional_time = 1000;
+	no_effects_pitch = 40;
+	full_effects_pitch = 20;
+	current_additional_time = 0;
+	current_additional_time = max_additional_time * pitch - full_effects_pitch / ( no_effects_pitch - full_effects_pitch );
+	screen_fx_type = self [[level.rcbombsurfacetypeforscreenfx]]();
+	play_screen_fx_dirt( localclientnum );
+	play_screen_fx_dust( localclientnum );
+	self.last_screen_dirt = getrealtime();
+	self.screen_dirt_delay = randomintrange( 250, 500 );
+// SP = 0x0 - check OK
+}
+
+// 0x1648
+play_driving_fx_thirdperson( localclientnum, speed, speed_fraction, surf_type )
+{
+	play_trail = 0;
+/#
+	println( "Surface type: " + surf_type + " is not defined for the rcxd road fx" );
+#/
+	return;
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_peeling_out_3rd"], self, "tag_origin" );
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_sliding_3rd"], self, "tag_origin" );
+	slow_speed = 5;
+	normal_speed_fraction = 0.25;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_reverse_3rd"], self, "tag_origin" );
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_3rd"], self, "tag_origin" );
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_slow_3rd"], self, "tag_origin" );
+	play_trail = 1;
+	playfxontag( localclientnum, level._effect[surf_type]["rcbomb_driving_trail_3rd"], self, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x17B0
+play_driving_screen_fx( localclientnum )
+{
+	speed_fraction = 0;
+	speed = self getspeed();
+	maxspeed = self getmaxspeed();
+	maxspeed = self getmaxreversespeed();
+	speed_fraction = abs( speed ) / maxspeed;
+	speed_fraction = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1844
+play_driving_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread play_boost_fx( localclientnum );
+	self.last_screen_dirt = 0;
+	self.screen_dirt_delay = 0;
+	speed_fraction = 0;
+	speed = self getspeed();
+	maxspeed = self getmaxspeed();
+	maxspeed = self getmaxreversespeed();
+	speed_fraction = abs( speed ) / maxspeed;
+	speed_fraction = 0;
+	surf_type = self [[level.rcbombsurfacetypefortreadfx]]();
+	play_driving_fx_firstperson( localclientnum, speed, speed_fraction, surf_type );
+	play_driving_fx_thirdperson( localclientnum, speed, speed_fraction, surf_type );
+	serverwait( localclientnum, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x193C
+play_boost_fx( localclientnum )
+{
+	self endon( "entityshutdown" );
+	speed = self getspeed();
+	self playsound( localclientnum, "mpl_veh_rc_boost" );
+	return;
+	serverwait( localclientnum, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1990
+collisionhandler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill( "veh_collision", hip, hitn, hit_intensity );
+	driver_local_client = self getlocalclientdriver();
+	player = getlocalplayer( driver_local_client );
+	player playrumbleonentity( driver_local_client, "damage_heavy" );
+	player playrumbleonentity( driver_local_client, "damage_light" );
+// SP = 0x0 - check OK
+}
+
+// 0x1A14
+stunnedhandler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread enginestutterhandler( localclientnum );
+	self waittill( "stunned" );
+	self setstunned( 1 );
+	self thread notstunnedhandler( localclientnum );
+	self thread play_stunned_fx_handler( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1A64
+notstunnedhandler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "stunned" );
+	self waittill( "not_stunned" );
+	self setstunned( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A8C
+play_stunned_fx_handler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "stunned" );
+	self endon( "not_stunned" );
+	playfxontag( localclientnum, level._effect["rcbomb_stunned"], self, "tag_origin" );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x1AD4
+enginestutterhandler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill( "veh_engine_stutter" );
+	player = getlocalplayer( localclientnum );
+	player playrumbleonentity( localclientnum, "rcbomb_engine_stutter" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B2C
+slidehandler( localclientnum )
+{
+	self endon( "entityshutdown" );
+	slide_start_time = 0;
+	player = getlocalplayer( localclientnum );
+	slide_start_time = getrealtime();
+	player playrumbleonentity( localclientnum, "rcbomb_slide" );
+	slide_start_time = 0;
+	serverwait( localclientnum, 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x1BF0
+default_dirt_surface_type( surface_type )
+{
+	switch ( surface_type )
+	{
+		case "dirt":
+		case "foliage":
+		case "grass":
+		case "gravel":
+		case "mud":
+		case "sand":
+		case "water":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1C44
+default_snow_surface_type( surface_type )
+{
+	switch ( surface_type )
+	{
+		case "ice":
+		case "snow":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1C70
+default_concrete_surface_type( surface_type )
+{
+	switch ( surface_type )
+	{
+		case "asphalt":
+		case "brick":
+		case "ceramic":
+		case "concrete":
+		case "glass":
+		case "metal":
+		case "none":
+		case "paintedmetal":
+		case "plaster":
+		case "rock":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1CDC
+snowy_level_snow_surface_type( surface_type )
+{
+	switch ( surface_type )
+	{
+		case "asphalt":
+		case "brick":
+		case "concrete":
+		case "dirt":
+		case "foliage":
+		case "grass":
+		case "gravel":
+		case "ice":
+		case "mud":
+		case "rock":
+		case "sand":
+		case "snow":
+		case "water":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1D60
+snowy_level_concrete_surface_type( surface_type )
+{
+	switch ( surface_type )
+	{
+		case "ceramic":
+		case "glass":
+		case "metal":
+		case "none":
+		case "paintedmetal":
+		case "plaster":
+		case "rock":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1DB4
+default_surface_type_for_screen_fx()
+{
+	right_rear = self getwheelsurface( "back_right" );
+	left_rear = self getwheelsurface( "back_left" );
+	return "dirt";
+	return "dirt";
+	return "snow";
+	return "snow";
+	return "dust";
+// SP = 0x0 - check OK
+}
+
+// 0x1E34
+default_surface_type_for_tread_fx()
+{
+	right_rear = self getwheelsurface( "back_right" );
+	left_rear = self getwheelsurface( "back_left" );
+	return "snow";
+	return "dust";
+	return "concrete";
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1ECC
+snowy_level_surface_type_for_screen_fx()
+{
+	return default_surface_type_for_screen_fx();
+// SP = 0x0 - check OK
+}
+
+// 0x1EDC
+snowy_level_surface_type_for_tread_fx()
+{
+	return default_surface_type_for_tread_fx();
+// SP = 0x0 - check OK
+}

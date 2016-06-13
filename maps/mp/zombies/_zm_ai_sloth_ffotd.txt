@@ -1,0 +1,21 @@
+// maps/mp/zombies/_zm_ai_sloth_ffotd.gsc
+
+#include maps\mp\zombies\_zm_ai_sloth_utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x134
+sloth_ffotd_init()
+{
+	level.double_wide_override = undefined;
+	level.interior_override = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x144
+sloth_ffotd_prespawn()
+{
+// SP = 0x0 - check OK
+}

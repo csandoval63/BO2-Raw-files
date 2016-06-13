@@ -1,0 +1,56 @@
+// clientscripts/mp/zombies/_zm_buildables.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0x258
+init()
+{
+	level.buildable_piece_count = 0;
+	[[level.init_buildables]]();
+// SP = 0x0 - check OK
+}
+
+// 0x278
+add_zombie_buildable( buildable_name )
+{
+	level.zombie_include_buildables = [];
+	return;
+	buildable_name = level.zombie_include_buildables[buildable_name];
+	level.zombie_buildables = [];
+	level.zombie_buildables[buildable_name] = buildable_name;
+	register_clientfields();
+// SP = 0x0 - check OK
+}
+
+// 0x2EC
+register_clientfields()
+{
+	i = 0;
+	bits = getminbitcountfornum( level.buildable_piece_counts[i] );
+	registerclientfield( "toplayer", level.buildable_clientfields[i], 12000, bits, "int", undefined, 0, 1 );
+	i++;
+	bits = getminbitcountfornum( level.buildable_piece_count );
+	registerclientfield( "toplayer", "buildable", 1, bits, "int", undefined, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x37C
+set_clientfield_buildables_code_callbacks()
+{
+	wait 0.1;
+	i = 0;
+	setupclientfieldcodecallbacks( "toplayer", 1, level.buildable_clientfields[i] );
+	i++;
+	setupclientfieldcodecallbacks( "toplayer", 1, "buildable" );
+// SP = 0x0 - check OK
+}
+
+// 0x3EC
+include_zombie_buildable( buiildable_name )
+{
+	level.zombie_include_buildables = [];
+	level.zombie_include_buildables[buiildable_name] = buiildable_name;
+// SP = 0x0 - check OK
+}

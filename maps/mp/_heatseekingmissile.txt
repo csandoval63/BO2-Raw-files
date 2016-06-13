@@ -1,0 +1,483 @@
+// maps/mp/_heatseekingmissile.gsc
+
+#include maps\mp\killstreaks\_airsupport;
+#include maps\mp\killstreaks\_helicopter;
+#include maps\mp\gametypes\_weapon_utils;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xB4C
+init()
+{
+	precacherumble( "stinger_lock_rumble" );
+	game["locking_on_sound"] = "uin_alert_lockon_start";
+	game["locked_on_sound"] = "uin_alert_lockon";
+	precachestring( &"MP_CANNOT_LOCKON_TO_TARGET" );
+	thread onplayerconnect();
+	level.fx_flare = loadfx( "vehicle/vexplosion/fx_heli_chaff" );
+/#
+	setdvar( "scr_freelock", "0" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xBAC
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0xBD0
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self clearirtarget();
+	thread stingertoggleloop();
+	self thread stingerfirednotify();
+// SP = 0x0 - check OK
+}
+
+// 0xC08
+clearirtarget()
+{
+	self notify( "stinger_irt_cleartarget" );
+	self notify( "stop_lockon_sound" );
+	self notify( "stop_locked_sound" );
+	self.stingerlocksound = undefined;
+	self stoprumble( "stinger_lock_rumble" );
+	self.stingerlockstarttime = 0;
+	self.stingerlockstarted = 0;
+	self.stingerlockfinalized = 0;
+	lockingon( self.stingertarget, 0 );
+	lockedon( self.stingertarget, 0 );
+	self.stingertarget = undefined;
+	self weaponlockfree();
+	self weaponlocktargettooclose( 0 );
+	self weaponlocknoclearance( 0 );
+	self stoplocalsound( game["locking_on_sound"] );
+	self stoplocalsound( game["locked_on_sound"] );
+	self destroylockoncanceledmessage();
+// SP = 0x0 - check OK
+}
+
+// 0xCC0
+stingerfirednotify()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "missile_fire", missile, weap );
+	self.stingertarget notify( "stinger_fired_at_me", missile, weap, self );
+	level notify( "missile_fired", self, missile, self.stingertarget, self.stingerlockfinalized );
+	self notify( "stinger_fired", missile, weap );
+// SP = 0x0 - check OK
+}
+
+// 0xD34
+stingertoggleloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "weapon_change", weapon );
+	abort = 0;
+	wait 0.05;
+	abort = 1;
+	self thread stingerirtloop();
+	wait 0.05;
+	self notify( "stinger_IRT_off" );
+	self clearirtarget();
+	weapon = self getcurrentweapon();
+// SP = 0x0 - check OK
+}
+
+// 0xDF4
+stingerirtloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "stinger_IRT_off" );
+	locklength = self getlockonspeed();
+	wait 0.05;
+	passed = softsighttest();
+	self clearirtarget();
+	self.stingertarget notify( "missile_lock", self );
+	lockingon( self.stingertarget, 0 );
+	lockedon( self.stingertarget, 1 );
+	thread looplocallocksound( game["locked_on_sound"], 0.75 );
+	self clearirtarget();
+	lockingon( self.stingertarget, 1 );
+	lockedon( self.stingertarget, 0 );
+	passed = softsighttest();
+	timepassed = GetTime() - self.stingerlockstarttime;
+/#
+	assert( IsDefined( self.stingertarget ) );
+#/
+	self notify( "stop_lockon_sound" );
+	self.stingerlockfinalized = 1;
+	self weaponlockfinalize( self.stingertarget );
+	besttarget = self getbeststingertarget();
+	self destroylockoncanceledmessage();
+	self destroylockoncanceledmessage();
+	self displaylockoncanceledmessage();
+	self destroylockoncanceledmessage();
+	initlockfield( besttarget );
+	self.stingertarget = besttarget;
+	self.stingerlockstarttime = GetTime();
+	self.stingerlockstarted = 1;
+	self.stingerlostsightlinetime = 0;
+	self thread looplocalseeksound( game["locking_on_sound"], 0.6 );
+// SP = 0x0 - check OK
+}
+
+// 0x1008
+destroylockoncanceledmessage()
+{
+	self.lockoncanceledmessage destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x1028
+displaylockoncanceledmessage()
+{
+	return;
+	self.lockoncanceledmessage = newclienthudelem( self );
+	self.lockoncanceledmessage.fontscale = 1.25;
+	self.lockoncanceledmessage.x = 0;
+	self.lockoncanceledmessage.y = 50;
+	self.lockoncanceledmessage.alignx = "center";
+	self.lockoncanceledmessage.aligny = "top";
+	self.lockoncanceledmessage.horzalign = "center";
+	self.lockoncanceledmessage.vertalign = "top";
+	self.lockoncanceledmessage.foreground = 1;
+	self.lockoncanceledmessage.hidewhendead = 0;
+	self.lockoncanceledmessage.hidewheninmenu = 1;
+	self.lockoncanceledmessage.archived = 0;
+	self.lockoncanceledmessage.alpha = 1;
+	self.lockoncanceledmessage settext( &"MP_CANNOT_LOCKON_TO_TARGET" );
+// SP = 0x0 - check OK
+}
+
+// 0x10E8
+getbeststingertarget()
+{
+	targetsall = target_getarray();
+	targetsvalid = [];
+	idx = 0;
+/#
+	targetsvalid[targetsvalid.size] = targetsall[idx];
+#/
+	targetsvalid[targetsvalid.size] = targetsall[idx];
+	targetsvalid[targetsvalid.size] = targetsall[idx];
+	idx++;
+	return undefined;
+	chosenent = targetsvalid[0];
+	return chosenent;
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+insidestingerreticlenolock( target )
+{
+	radius = self getlockonradius();
+	return target_isincircle( target, self, 65, radius );
+// SP = 0x0 - check OK
+}
+
+// 0x1224
+insidestingerreticlelocked( target )
+{
+	radius = self getlockonradius();
+	return target_isincircle( target, self, 65, radius );
+// SP = 0x0 - check OK
+}
+
+// 0x1250
+isstillvalidtarget( ent )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1288
+playerstingerads()
+{
+	return self playerads() == 1;
+// SP = 0x0 - check OK
+}
+
+// 0x12A4
+looplocalseeksound( alias, interval )
+{
+	self endon( "stop_lockon_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	self playlocalsound( alias );
+	self playrumbleonentity( "stinger_lock_rumble" );
+	wait interval / 2;
+// SP = 0x0 - check OK
+}
+
+// 0x12E8
+looplocallocksound( alias, interval )
+{
+	self endon( "stop_locked_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	return;
+	self.stingerlocksound = 1;
+	self playlocalsound( alias );
+	self playrumbleonentity( "stinger_lock_rumble" );
+	wait interval / 6;
+	self playlocalsound( alias );
+	self playrumbleonentity( "stinger_lock_rumble" );
+	wait interval / 6;
+	self playlocalsound( alias );
+	self playrumbleonentity( "stinger_lock_rumble" );
+	wait interval / 6;
+	self stoprumble( "stinger_lock_rumble" );
+	self.stingerlocksound = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1398
+locksighttest( target )
+{
+	eyepos = self geteye();
+	return 0;
+	passed = bullettracepassed( eyepos, target.origin, 0, target );
+	return 1;
+	front = target getpointinbounds( 1, 0, 0 );
+	passed = bullettracepassed( eyepos, front, 0, target );
+	return 1;
+	back = target getpointinbounds( -1, 0, 0 );
+	passed = bullettracepassed( eyepos, back, 0, target );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1438
+softsighttest()
+{
+	lost_sight_limit = 500;
+	self.stingerlostsightlinetime = 0;
+	return 1;
+	self.stingerlostsightlinetime = GetTime();
+	timepassed = GetTime() - self.stingerlostsightlinetime;
+	self clearirtarget();
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1498
+initlockfield( target )
+{
+	return;
+	target.locking_on = 0;
+	target.locked_on = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14BC
+lockingon( target, lock )
+{
+/#
+	assert( IsDefined( target.locking_on ) );
+#/
+	clientnum = self getentitynumber();
+	target notify( "locking on" );
+	target.locking_on |= 1 << clientnum;
+	self thread watchclearlockingon( target, clientnum );
+	self notify( "locking_on_cleared" );
+	target.locking_on &= 1 << clientnum;
+// SP = 0x0 - check OK
+}
+
+// 0x1538
+watchclearlockingon( target, clientnum )
+{
+	target endon( "death" );
+	self endon( "locking_on_cleared" );
+	self waittill_any( "death", "disconnect" );
+	target.locking_on &= 1 << clientnum;
+// SP = 0x0 - check OK
+}
+
+// 0x1578
+lockedon( target, lock )
+{
+/#
+	assert( IsDefined( target.locked_on ) );
+#/
+	clientnum = self getentitynumber();
+	target.locked_on |= 1 << clientnum;
+	self thread watchclearlockedon( target, clientnum );
+	self notify( "locked_on_cleared" );
+	target.locked_on &= 1 << clientnum;
+// SP = 0x0 - check OK
+}
+
+// 0x15EC
+watchclearlockedon( target, clientnum )
+{
+	self endon( "locked_on_cleared" );
+	self waittill_any( "death", "disconnect" );
+	target.locked_on &= 1 << clientnum;
+// SP = 0x0 - check OK
+}
+
+// 0x162C
+missiletarget_lockonmonitor( player, endon1, endon2 )
+{
+	self endon( "death" );
+	self endon( endon1 );
+	self endon( endon2 );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x1670
+_incomingmissile( missile )
+{
+	self.incoming_missile = 0;
+	self.incoming_missile++;
+	self thread _incomingmissiletracker( missile );
+// SP = 0x0 - check OK
+}
+
+// 0x169C
+_incomingmissiletracker( missile )
+{
+	self endon( "death" );
+	missile waittill( "death" );
+	self.incoming_missile--;
+/#
+	assert( self.incoming_missile >= 0 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x16CC
+missiletarget_ismissileincoming()
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x16EC
+missiletarget_handleincomingmissile( responsefunc, endon1, endon2 )
+{
+	level endon( "game_ended" );
+	self endon( "death" );
+	self endon( endon1 );
+	self endon( endon2 );
+	self waittill( "stinger_fired_at_me", missile, weap, attacker );
+	_incomingmissile( missile );
+	[[responsefunc]]( missile, attacker, weap, endon1, endon2 );
+// SP = 0x0 - check OK
+}
+
+// 0x1754
+missiletarget_proximitydetonateincomingmissile( endon1, endon2 )
+{
+	missiletarget_handleincomingmissile( ::missiletarget_proximitydetonate, endon1, endon2 );
+// SP = 0x0 - check OK
+}
+
+// 0x1774
+_missiledetonate( attacker, weapon )
+{
+	self endon( "death" );
+	radiusdamage( self.origin, 500, 600, 600, attacker, undefined, weapon );
+	wait 0.05;
+	self detonate();
+	wait 0.05;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x17CC
+missiletarget_proximitydetonate( missile, attacker, weapon, endon1, endon2 )
+{
+	level endon( "game_ended" );
+	missile endon( "death" );
+	self endon( endon1 );
+	self endon( endon2 );
+	mindist = distance( missile.origin, self.origin );
+	lastcenter = self.origin;
+	missile missile_settarget( self );
+	center = lastcenter;
+	center = self.origin;
+	lastcenter = center;
+	curdist = distance( missile.origin, center );
+	self.numflares--;
+	self thread missiletarget_playflarefx();
+	self maps\mp\killstreaks\_helicopter::trackassists( attacker, 0, 1 );
+	newtarget = self missiletarget_deployflares( missile.origin, missile.angles );
+	missile missile_settarget( newtarget );
+	missiletarget = newtarget;
+	return;
+	mindist = curdist;
+	return;
+	missile thread _missiledetonate( attacker, weapon );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x190C
+missiletarget_playflarefx()
+{
+	return;
+	flare_fx = level.fx_flare;
+	flare_fx = self.fx_flare;
+	playfxontag( flare_fx, self.flare_ent, "tag_origin" );
+	playfxontag( flare_fx, self, "tag_origin" );
+	self playsoundtoplayer( "veh_huey_chaff_drop_plr", self.owner );
+	self playsound( "veh_huey_chaff_explo_npc" );
+// SP = 0x0 - check OK
+}
+
+// 0x1990
+missiletarget_deployflares( origin, angles )
+{
+	vec_toforward = anglestoforward( self.angles );
+	vec_toright = anglestoright( self.angles );
+	vec_tomissileforward = anglestoforward( angles );
+	delta = self.origin - origin;
+	dot = vectordot( vec_tomissileforward, vec_toright );
+	sign = 1;
+	sign = -1;
+	flare_dir = vectornormalize( vector_scale( vec_toforward, -0.5 ) + vector_scale( vec_toright, sign ) );
+	velocity = vector_scale( flare_dir, randomintrange( 200, 400 ) );
+	velocity = ( velocity[0], velocity[1], velocity[2] - randomintrange( 10, 100 ) );
+	flareorigin = self.origin;
+	flareorigin += vector_scale( flare_dir, randomintrange( 500, 700 ) );
+	flareorigin += vector_scale( ( 0, 0, 1 ), 500 );
+	flareorigin += self.flareoffset;
+	flareobject = spawn( "script_origin", flareorigin );
+	flareobject.angles = self.angles;
+	flareobject setmodel( "tag_origin" );
+	flareobject movegravity( velocity, 5 );
+	flareobject thread deleteaftertime( 5 );
+	self thread debug_tracker( flareobject );
+	return flareobject;
+// SP = 0x0 - check OK
+}
+
+// 0x1AE0
+debug_tracker( target )
+{
+	target endon( "death" );
+	maps\mp\killstreaks\_airsupport::debug_sphere( target.origin, 10, ( 1, 0, 0 ), 1, 1 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}

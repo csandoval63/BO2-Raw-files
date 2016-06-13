@@ -1,0 +1,18 @@
+// character/c_transit_player_engineer.gsc
+
+
+// 0xC8
+main()
+{
+	self setmodel( "c_zom_player_engineer_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xF0
+precache()
+{
+	precachemodel( "c_zom_player_engineer_fb" );
+// SP = 0x0 - check OK
+}

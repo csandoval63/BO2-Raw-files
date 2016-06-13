@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_gap15b_from_girder.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x108
+main()
+{
+	dosimpletraverse( "dierise_gap15b_from_girder" );
+// SP = 0x0 - check OK
+}

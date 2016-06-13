@@ -1,0 +1,11 @@
+// maps/mp/animscripts/zm_flashed.gsc
+
+#include maps\mp\animscripts\shared;
+#include maps\mp\animscripts\utility;
+
+
+// 0xAC
+main()
+{
+// SP = 0x0 - check OK
+}

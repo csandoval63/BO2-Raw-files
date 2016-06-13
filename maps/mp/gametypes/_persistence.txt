@@ -1,0 +1,406 @@
+// maps/mp/gametypes/_persistence.gsc
+
+#include maps\mp\gametypes\_persistence;
+#include maps\mp\gametypes\_globallogic;
+#include maps\mp\bots\_bot;
+#include maps\mp\_popups;
+#include maps\mp\_scoreevents;
+#include maps\mp\_medals;
+#include maps\mp\_challenges;
+#include maps\mp\gametypes\_rank;
+#include maps\mp\gametypes\_class;
+#include maps\mp\_utility;
+
+
+// 0xF74
+init()
+{
+	level.persistentdatainfo = [];
+	level.maxrecentstats = 10;
+	level.maxhitlocations = 19;
+	maps\mp\gametypes\_class::init();
+	maps\mp\gametypes\_rank::init();
+	level thread maps\mp\_challenges::init();
+	level thread maps\mp\_medals::init();
+	level thread maps\mp\_scoreevents::init();
+	maps\mp\_popups::init();
+	level thread onplayerconnect();
+	level thread initializestattracking();
+	level thread uploadglobalstatcounters();
+// SP = 0x0 - check OK
+}
+
+// 0xFF4
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player.enabletext = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1014
+initializestattracking()
+{
+	level.globalexecutions = 0;
+	level.globalchallenges = 0;
+	level.globalsharepackages = 0;
+	level.globalcontractsfailed = 0;
+	level.globalcontractspassed = 0;
+	level.globalcontractscppaid = 0;
+	level.globalkillstreakscalled = 0;
+	level.globalkillstreaksdestroyed = 0;
+	level.globalkillstreaksdeathsfrom = 0;
+	level.globallarryskilled = 0;
+	level.globalbuzzkills = 0;
+	level.globalrevives = 0;
+	level.globalafterlifes = 0;
+	level.globalcomebacks = 0;
+	level.globalpaybacks = 0;
+	level.globalbackstabs = 0;
+	level.globalbankshots = 0;
+	level.globalskewered = 0;
+	level.globalteammedals = 0;
+	level.globalfeetfallen = 0;
+	level.globaldistancesprinted = 0;
+	level.globaldembombsprotected = 0;
+	level.globaldembombsdestroyed = 0;
+	level.globalbombsdestroyed = 0;
+	level.globalfraggrenadesfired = 0;
+	level.globalsatchelchargefired = 0;
+	level.globalshotsfired = 0;
+	level.globalcrossbowfired = 0;
+	level.globalcarsdestroyed = 0;
+	level.globalbarrelsdestroyed = 0;
+	level.globalbombsdestroyedbyteam = [];
+	foreach ( team in level.teams )
+	{
+		level.globalbombsdestroyedbyteam[team] = 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1110
+uploadglobalstatcounters()
+{
+	level waittill( "game_ended" );
+	return;
+	totalkills = 0;
+	totaldeaths = 0;
+	totalassists = 0;
+	totalheadshots = 0;
+	totalsuicides = 0;
+	totaltimeplayed = 0;
+	totalflagscaptured = 0;
+	totalflagsreturned = 0;
+	totalhqsdestroyed = 0;
+	totalhqscaptured = 0;
+	totalsddefused = 0;
+	totalsdplants = 0;
+	totalhumiliations = 0;
+	totalsabdestroyedbyteam = [];
+	foreach ( team in level.teams )
+	{
+		totalsabdestroyedbyteam[team] = 0;
+	}
+	switch ( level.gametype )
+	{
+		case "dem":
+			bombzonesleft = 0;
+			index = 0;
+			level.globaldembombsprotected++;
+			level.globaldembombsdestroyed++;
+			index++;
+			break;
+		case "sab":
+			foreach ( team in level.teams )
+			{
+				totalsabdestroyedbyteam[team] = level.globalbombsdestroyedbyteam[team];
+			}
+			break;
+	}
+	players = get_players();
+	i = 0;
+	player = players[i];
+	totaltimeplayed += min( player.timeplayed["total"], level.timeplayedcap );
+	i++;
+	incrementcounter( "global_executions", level.globalexecutions );
+	incrementcounter( "global_sharedpackagemedals", level.globalsharepackages );
+	incrementcounter( "global_dem_bombsdestroyed", level.globaldembombsdestroyed );
+	incrementcounter( "global_dem_bombsprotected", level.globaldembombsprotected );
+	incrementcounter( "global_contracts_failed", level.globalcontractsfailed );
+	incrementcounter( "global_killstreaks_called", level.globalkillstreakscalled );
+	incrementcounter( "global_killstreaks_destroyed", level.globalkillstreaksdestroyed );
+	incrementcounter( "global_killstreaks_deathsfrom", level.globalkillstreaksdeathsfrom );
+	incrementcounter( "global_buzzkills", level.globalbuzzkills );
+	incrementcounter( "global_revives", level.globalrevives );
+	incrementcounter( "global_afterlifes", level.globalafterlifes );
+	incrementcounter( "global_comebacks", level.globalcomebacks );
+	incrementcounter( "global_paybacks", level.globalpaybacks );
+	incrementcounter( "global_backstabs", level.globalbackstabs );
+	incrementcounter( "global_bankshots", level.globalbankshots );
+	incrementcounter( "global_skewered", level.globalskewered );
+	incrementcounter( "global_teammedals", level.globalteammedals );
+	incrementcounter( "global_fraggrenadesthrown", level.globalfraggrenadesfired );
+	incrementcounter( "global_c4thrown", level.globalsatchelchargefired );
+	incrementcounter( "global_shotsfired", level.globalshotsfired );
+	incrementcounter( "global_crossbowfired", level.globalcrossbowfired );
+	incrementcounter( "global_carsdestroyed", level.globalcarsdestroyed );
+	incrementcounter( "global_barrelsdestroyed", level.globalbarrelsdestroyed );
+	incrementcounter( "global_challenges_finished", level.globalchallenges );
+	incrementcounter( "global_contractscppaid", level.globalcontractscppaid );
+	incrementcounter( "global_distancesprinted100inches", int( level.globaldistancesprinted ) );
+	incrementcounter( "global_combattraining_botskilled", level.globallarryskilled );
+	incrementcounter( "global_distancefeetfallen", int( level.globalfeetfallen ) );
+	incrementcounter( "global_minutes", int( totaltimeplayed / 60 ) );
+	return;
+	wait 0.05;
+	players = get_players();
+	i = 0;
+	player = players[i];
+	totalkills += player.kills;
+	totaldeaths += player.deaths;
+	totalassists += player.assists;
+	totalheadshots += player.headshots;
+	totalsuicides += player.suicides;
+	totalhumiliations += player.humiliated;
+	totaltimeplayed += int( min( player.timeplayed["alive"], level.timeplayedcap ) );
+	switch ( level.gametype )
+	{
+		case "ctf":
+			totalflagscaptured += player.captures;
+			totalflagsreturned += player.returns;
+			break;
+		case "koth":
+			totalhqsdestroyed += player.destructions;
+			totalhqscaptured += player.captures;
+			break;
+		case "sab":
+			totalsddefused += player.defuses;
+			totalsdplants += player.plants;
+			break;
+		case "sd":
+			totalsabdestroyedbyteam[player.team] += player.destructions;
+			break;
+	}
+	i++;
+	incrementcounter( "global_combattraining_gamesplayed", 1 );
+	incrementcounter( "global_kills", totalkills );
+	incrementcounter( "global_deaths", totaldeaths );
+	incrementcounter( "global_assists", totalassists );
+	incrementcounter( "global_headshots", totalheadshots );
+	incrementcounter( "global_suicides", totalsuicides );
+	incrementcounter( "global_games", 1 );
+	incrementcounter( "global_ctf_flagscaptured", totalflagscaptured );
+	incrementcounter( "global_ctf_flagsreturned", totalflagsreturned );
+	incrementcounter( "global_hq_destroyed", totalhqsdestroyed );
+	incrementcounter( "global_hq_captured", totalhqscaptured );
+	incrementcounter( "global_snd_defuses", totalsddefused );
+	incrementcounter( "global_snd_plants", totalsdplants );
+	incrementcounter( "global_sab_destroyedbyops", totalsabdestroyedbyteam["allies"] );
+	incrementcounter( "global_sab_destroyedbycommunists", totalsabdestroyedbyteam["axis"] );
+	incrementcounter( "global_humiliations", totalhumiliations );
+	incrementcounter( "global_wageredcp", game["wager_pot"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1744
+statgetwithgametype( dataname )
+{
+	return 0;
+	return 0;
+	return self getdstat( "PlayerStatsByGameType", getgametypename(), dataname, "StatValue" );
+// SP = 0x0 - check OK
+}
+
+// 0x1788
+getgametypename()
+{
+	prefix = "HC";
+	prefix = "";
+	level.fullgametypename = tolower( prefix + level.gametype );
+	return level.fullgametypename;
+// SP = 0x0 - check OK
+}
+
+// 0x17E4
+ispartygamemode()
+{
+	switch ( level.gametype )
+	{
+		case "gun":
+		case "oic":
+		case "sas":
+		case "shrp":
+			return 1;
+			break;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1824
+isstatmodifiable( dataname )
+{
+	return level.wagermatch;
+// SP = 0x0 - check OK
+}
+
+// 0x183C
+statsetwithgametype( dataname, value, incvalue )
+{
+	return 0;
+	return;
+	return;
+	self setdstat( "PlayerStatsByGameType", getgametypename(), dataname, "StatValue", value );
+// SP = 0x0 - check OK
+}
+
+// 0x1894
+adjustrecentstats()
+{
+/#
+#/
+	initializematchstats();
+// SP = 0x0 - check OK
+}
+
+// 0x18C8
+getrecentstat( isglobal, index, statname )
+{
+	return self getdstat( "RecentEarnings", index, statname );
+	modename = maps\mp\gametypes\_globallogic::getcurrentgamemode();
+	return self getdstat( "gameHistory", modename, "matchHistory", index, statname );
+	return self getdstat( "PlayerStatsByGameType", getgametypename(), "prevScores", index, statname );
+// SP = 0x0 - check OK
+}
+
+// 0x1944
+setrecentstat( isglobal, index, statname, value )
+{
+	return;
+	return;
+	return;
+	return;
+	self setdstat( "RecentEarnings", index, statname, value );
+	modename = maps\mp\gametypes\_globallogic::getcurrentgamemode();
+	self setdstat( "gameHistory", modename, "matchHistory", "" + index, statname, value );
+	return;
+	self setdstat( "PlayerStatsByGameType", getgametypename(), "prevScores", index, statname, value );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1A04
+addrecentstat( isglobal, index, statname, value )
+{
+	return;
+	return;
+	return;
+	currstat = getrecentstat( isglobal, index, statname );
+	setrecentstat( isglobal, index, statname, currstat + value );
+// SP = 0x0 - check OK
+}
+
+// 0x1A68
+setmatchhistorystat( statname, value )
+{
+	modename = maps\mp\gametypes\_globallogic::getcurrentgamemode();
+	historyindex = self getdstat( "gameHistory", modename, "currentMatchHistoryIndex" );
+	setrecentstat( 1, historyindex, statname, value );
+// SP = 0x0 - check OK
+}
+
+// 0x1AB0
+addmatchhistorystat( statname, value )
+{
+	modename = maps\mp\gametypes\_globallogic::getcurrentgamemode();
+	historyindex = self getdstat( "gameHistory", modename, "currentMatchHistoryIndex" );
+	addrecentstat( 1, historyindex, statname, value );
+// SP = 0x0 - check OK
+}
+
+// 0x1AF8
+initializematchstats()
+{
+	return;
+	return;
+	return;
+	self.pers["lastHighestScore"] = self getdstat( "HighestStats", "highest_score" );
+	currgametype = maps\mp\gametypes\_persistence::getgametypename();
+	self gamehistorystartmatch( getgametypeenumfromname( currgametype, level.hardcoremode ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1B7C
+setafteractionreportstat( statname, value, index )
+{
+	return;
+/#
+#/
+	self setdstat( "AfterActionReportStats", statname, index, value );
+	self setdstat( "AfterActionReportStats", statname, value );
+// SP = 0x0 - check OK
+}
+
+// 0x1C04
+codecallback_challengecomplete( rewardxp, maxval, row, tablenumber, challengetype, itemindex, challengeindex )
+{
+	self luinotifyevent( &"challenge_complete", 7, challengeindex, itemindex, challengetype, tablenumber, row, maxval, rewardxp );
+	self luinotifyeventtospectators( &"challenge_complete", 7, challengeindex, itemindex, challengetype, tablenumber, row, maxval, rewardxp );
+// SP = 0x0 - check OK
+}
+
+// 0x1C58
+codecallback_gunchallengecomplete( rewardxp, attachmentindex, itemindex, rankid )
+{
+	self luinotifyevent( &"gun_level_complete", 4, rankid, itemindex, attachmentindex, rewardxp );
+	self luinotifyeventtospectators( &"gun_level_complete", 4, rankid, itemindex, attachmentindex, rewardxp );
+// SP = 0x0 - check OK
+}
+
+// 0x1C98
+checkcontractexpirations()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CA0
+incrementcontracttimes( timeinc )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CAC
+addcontracttoqueue( index, passed )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CB8
+uploadstatssoon()
+{
+	self notify( "upload_stats_soon" );
+	self endon( "upload_stats_soon" );
+	self endon( "disconnect" );
+	wait 1;
+	uploadstats( self );
+// SP = 0x0 - check OK
+}
+
+// 0x1CE0
+codecallback_onaddplayerstat( dataname, value )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CEC
+codecallback_onaddweaponstat( weapname, dataname, value )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CFC
+processcontractsonaddstat( stattype, dataname, value, weapname )
+{
+// SP = 0x0 - check OK
+}

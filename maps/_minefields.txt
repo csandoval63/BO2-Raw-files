@@ -1,0 +1,45 @@
+// maps/_minefields.gsc
+
+#include maps\_utility;
+
+
+// 0x1EC
+main()
+{
+	minefields = getentarray( "minefield", "targetname" );
+	level._effect["mine_explosion"] = loadfx( "explosions/fx_grenadeExp_dirt" );
+	i = 0;
+	minefields[i] thread minefield_think();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x24C
+minefield_think()
+{
+	self waittill( "trigger", other );
+	other thread minefield_kill( self );
+// SP = 0x0 - check OK
+}
+
+// 0x284
+minefield_kill( trigger )
+{
+	return;
+	self.minefield = 1;
+	self playsound( "minefield_click" );
+	wait 0.5;
+	wait randomfloat( 0.2 );
+	return;
+	level notify( "mine death" );
+	self playsound( "explo_mine" );
+	level thread maps\_utility::play_sound_in_space( "explo_mine", self.origin );
+	origin = self getorigin();
+	playfx( level._effect["mine_explosion"], origin );
+	playsoundatposition( "mortar_dirt", origin );
+	self enablehealthshield( 0 );
+	radiusdamage( origin, 300, 2000, 50 );
+	self enablehealthshield( 1 );
+	self.minefield = undefined;
+// SP = 0x0 - check OK
+}

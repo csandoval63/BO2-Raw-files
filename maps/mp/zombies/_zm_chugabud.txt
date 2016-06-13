@@ -1,0 +1,565 @@
+// maps/mp/zombies/_zm_chugabud.gsc
+
+#include maps\mp\_visionset_mgr;
+#include maps\mp\zombies\_zm;
+#include maps\mp\zombies\_zm_equipment;
+#include maps\mp\zombies\_zm_weap_cymbal_monkey;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_clone;
+#include maps\mp\zombies\_zm_perks;
+#include maps\mp\zombies\_zm_chugabud;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x14E8
+init()
+{
+	level.chugabud_laststand_func = ::chugabud_laststand;
+	level thread chugabud_hostmigration();
+	level._effect["chugabud_revive_fx"] = loadfx( "weapon/quantum_bomb/fx_player_position_effect" );
+	level._effect["chugabud_bleedout_fx"] = loadfx( "weapon/quantum_bomb/fx_player_position_effect" );
+	add_custom_limited_weapon_check( ::is_weapon_available_in_chugabud_corpse );
+// SP = 0x0 - check OK
+}
+
+// 0x1540
+chugabug_precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1548
+chugabud_player_init()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1550
+chugabud_laststand()
+{
+	self endon( "player_suicide" );
+	self endon( "disconnect" );
+	self endon( "chugabud_bleedout" );
+	self maps\mp\zombies\_zm_laststand::increment_downed_stat();
+	self.ignore_insta_kill = 1;
+	self.health = self.maxhealth;
+	self maps\mp\zombies\_zm_chugabud::chugabud_save_loadout();
+	self maps\mp\zombies\_zm_chugabud::chugabud_fake_death();
+	wait 3;
+	create_corpse = 0;
+	create_corpse = 1;
+	reject_corpse = self [[level._chugabug_reject_corpse_override_func]]( self.origin );
+	create_corpse = 0;
+	self thread activate_chugabud_effects_and_audio();
+	corpse = self chugabud_spawn_corpse();
+	corpse thread chugabud_corpse_revive_icon( self );
+	self.e_chugabud_corpse = corpse;
+	corpse thread chugabud_corpse_cleanup_on_spectator( self );
+	corpse setclientfield( "clientfield_whos_who_clone_glow_shader", 1 );
+	self chugabud_fake_revive();
+	wait 0.1;
+	self.ignore_insta_kill = undefined;
+	self.disable_chugabud_corpse = undefined;
+	self notify( "chugabud_effects_cleanup" );
+	return;
+	bleedout_time = GetDvarFloat( #"0x661A27E2" );
+	self thread chugabud_bleed_timeout( bleedout_time, corpse );
+	self thread chugabud_handle_multiple_instances( corpse );
+	corpse waittill( "player_revived", e_reviver );
+	self notify( "whos_who_self_revive" );
+	self perk_abort_drinking( 0.1 );
+	self maps\mp\zombies\_zm_perks::perk_set_max_health_if_jugg( "health_reboot", 1, 0 );
+	self setorigin( corpse.origin );
+	self setplayerangles( corpse.angles );
+	self thread chugabud_laststand_cleanup( corpse, "player_revived" );
+	self enableweaponcycling();
+	self enableoffhandweapons();
+	self auto_revive( self, 1 );
+	return;
+	self chugabud_laststand_cleanup( corpse, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x1754
+chugabud_laststand_cleanup( corpse, str_notify )
+{
+	self waittill( str_notify );
+	self chugabud_give_loadout();
+	self chugabud_corpse_cleanup( corpse, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1788
+chugabud_bleed_timeout( delay, corpse )
+{
+	self endon( "player_suicide" );
+	self endon( "disconnect" );
+	corpse endon( "death" );
+	wait delay;
+	wait 0.01;
+	i = 0;
+	perk = self.loadout.perks[i];
+	arrayremovevalue( self.loadout.perks, self.loadout.perks[i] );
+	corpse notify( "player_revived", self );
+	return;
+	i++;
+	self chugabud_corpse_cleanup( corpse, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1854
+chugabud_corpse_cleanup( corpse, was_revived )
+{
+	self notify( "chugabud_effects_cleanup" );
+	playsoundatposition( "evt_ww_appear", corpse.origin );
+	playfx( level._effect["chugabud_revive_fx"], corpse.origin );
+	playsoundatposition( "evt_ww_disappear", corpse.origin );
+	playfx( level._effect["chugabud_bleedout_fx"], corpse.origin );
+	self notify( "chugabud_bleedout" );
+	corpse notify( "stop_revive_trigger" );
+	corpse.revivetrigger delete();
+	corpse.revivetrigger = undefined;
+	corpse.revive_hud_elem destroy();
+	corpse.revive_hud_elem = undefined;
+	self.loadout = undefined;
+	wait 0.1;
+	corpse delete();
+	self.e_chugabud_corpse = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1934
+chugabud_handle_multiple_instances( corpse )
+{
+	corpse endon( "death" );
+	self waittill( "perk_chugabud_activated" );
+	self chugabud_corpse_cleanup( corpse, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1958
+chugabud_spawn_corpse()
+{
+	corpse = maps\mp\zombies\_zm_clone::spawn_player_clone( self, self.origin, undefined, self.whos_who_shader );
+	corpse.angles = self.angles;
+	corpse maps\mp\zombies\_zm_clone::clone_give_weapon( "m1911_zm" );
+	corpse maps\mp\zombies\_zm_clone::clone_animate( "laststand" );
+	corpse.revive_hud = self chugabud_revive_hud_create();
+	corpse thread maps\mp\zombies\_zm_laststand::revive_trigger_spawn();
+	return corpse;
+// SP = 0x0 - check OK
+}
+
+// 0x19C0
+chugabud_revive_hud_create()
+{
+	self.revive_hud = newclienthudelem( self );
+	self.revive_hud.alignx = "center";
+	self.revive_hud.aligny = "middle";
+	self.revive_hud.horzalign = "center";
+	self.revive_hud.vertalign = "bottom";
+	self.revive_hud.y = -50;
+	self.revive_hud.foreground = 1;
+	self.revive_hud.font = "default";
+	self.revive_hud.fontscale = 1.5;
+	self.revive_hud.alpha = 0;
+	self.revive_hud.color = ( 1, 1, 1 );
+	self.revive_hud settext( "" );
+	return self.revive_hud;
+// SP = 0x0 - check OK
+}
+
+// 0x1A68
+chugabud_save_loadout()
+{
+	primaries = self getweaponslistprimaries();
+	currentweapon = self getcurrentweapon();
+	self.loadout = spawnstruct();
+	self.loadout.player = self;
+	self.loadout.weapons = [];
+	self.loadout.score = self.score;
+	self.loadout.current_weapon = -1;
+	foreach ( weapon in primaries )
+	{
+		self.loadout.weapons[index] = maps\mp\zombies\_zm_weapons::get_player_weapondata( self, weapon );
+		self.loadout.current_weapon = index;
+	}
+	self.loadout.equipment = self get_player_equipment();
+	self equipment_take( self.loadout.equipment );
+	self.loadout save_weapons_for_chugabud( self );
+	self.loadout.hasclaymore = 1;
+	self.loadout.claymoreclip = self getweaponammoclip( "claymore_zm" );
+	self.loadout.perks = chugabud_save_perks( self );
+	self chugabud_save_grenades();
+	self.loadout.zombie_cymbal_monkey_count = self getweaponammoclip( "cymbal_monkey_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0x1BE8
+chugabud_save_grenades()
+{
+	self.loadout.hasemp = 1;
+	self.loadout.empclip = self getweaponammoclip( "emp_grenade_zm" );
+	lethal_grenade = self get_player_lethal_grenade();
+	self.loadout.lethal_grenade = lethal_grenade;
+	self.loadout.lethal_grenade_count = self getweaponammoclip( lethal_grenade );
+	self.loadout.lethal_grenade = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1C70
+chugabud_give_loadout()
+{
+	self takeallweapons();
+	loadout = self.loadout;
+	primaries = self getweaponslistprimaries();
+	foreach ( weapon in primaries )
+	{
+		self takeweapon( weapon );
+	}
+	i = 0;
+	self maps\mp\zombies\_zm_weapons::weapondata_give( loadout.weapons[i] );
+	i++;
+	self switchtoweapon( loadout.weapons[loadout.current_weapon]["name"] );
+	self giveweapon( "knife_zm" );
+	self maps\mp\zombies\_zm_equipment::equipment_give( self.loadout.equipment );
+	loadout restore_weapons_for_chugabud( self );
+	self chugabud_restore_claymore();
+	self.score = loadout.score;
+	self.pers["score"] = loadout.score;
+	perk_array = maps\mp\zombies\_zm_perks::get_perk_array( 1 );
+	i = 0;
+	perk = perk_array[i];
+	self unsetperk( perk );
+	self.num_perks--;
+	self set_perk_clientfield( perk, 0 );
+	i++;
+	i = 0;
+	level.solo_game_free_player_quickrevive = 1;
+	maps\mp\zombies\_zm_perks::give_perk( loadout.perks[i] );
+	i++;
+	self chugabud_restore_grenades();
+	self maps\mp\zombies\_zm_weap_cymbal_monkey::player_give_cymbal_monkey();
+	self setweaponammoclip( "cymbal_monkey_zm", loadout.zombie_cymbal_monkey_count );
+// SP = 0x0 - check OK
+}
+
+// 0x1F04
+chugabud_restore_grenades()
+{
+	self giveweapon( "emp_grenade_zm" );
+	self setweaponammoclip( "emp_grenade_zm", self.loadout.empclip );
+	self giveweapon( self.loadout.lethal_grenade );
+	self setweaponammoclip( self.loadout.lethal_grenade, self.loadout.lethal_grenade_count );
+// SP = 0x0 - check OK
+}
+
+// 0x1F88
+chugabud_restore_claymore()
+{
+	self giveweapon( "claymore_zm" );
+	self set_player_placeable_mine( "claymore_zm" );
+	self setactionslot( 4, "weapon", "claymore_zm" );
+	self setweaponammoclip( "claymore_zm", self.loadout.claymoreclip );
+// SP = 0x0 - check OK
+}
+
+// 0x2004
+chugabud_fake_death()
+{
+	level notify( "fake_death" );
+	self notify( "fake_death" );
+	self takeallweapons();
+	self allowstand( 0 );
+	self allowcrouch( 0 );
+	self allowprone( 1 );
+	self.ignoreme = 1;
+	self enableinvulnerability();
+	wait 0.1;
+	self freezecontrols( 1 );
+	wait 0.9;
+// SP = 0x0 - check OK
+}
+
+// 0x2078
+chugabud_fake_revive()
+{
+	level notify( "fake_revive" );
+	self notify( "fake_revive" );
+	playsoundatposition( "evt_ww_disappear", self.origin );
+	playfx( level._effect["chugabud_revive_fx"], self.origin );
+	spawnpoint = chugabud_get_spawnpoint();
+	self [[level._chugabud_post_respawn_override_func]]( spawnpoint.origin );
+	self.e_chugabud_corpse forceteleport( level.chugabud_force_corpse_position );
+	level.chugabud_force_corpse_position = undefined;
+	spawnpoint.origin = level.chugabud_force_player_position;
+	level.chugabud_force_player_position = undefined;
+	self setorigin( spawnpoint.origin );
+	self setplayerangles( spawnpoint.angles );
+	playsoundatposition( "evt_ww_appear", spawnpoint.origin );
+	playfx( level._effect["chugabud_revive_fx"], spawnpoint.origin );
+	self allowstand( 1 );
+	self allowcrouch( 1 );
+	self allowprone( 1 );
+	self.ignoreme = 0;
+	self setstance( "stand" );
+	self freezecontrols( 0 );
+	self giveweapon( "knife_zm" );
+	self give_start_weapon( 1 );
+	self.score = self.loadout.score;
+	self.pers["score"] = self.loadout.score;
+	self giveweapon( "frag_grenade_zm" );
+	self setweaponammoclip( "frag_grenade_zm", 2 );
+	self chugabud_restore_claymore();
+	wait 1;
+	self disableinvulnerability();
+// SP = 0x0 - check OK
+}
+
+// 0x2224
+chugabud_get_spawnpoint()
+{
+	spawnpoint = undefined;
+	spawnpoint = level.chugabud_spawn_struct;
+	spawnpoint = level.chugabud_spawn_struct;
+	spawnpoint = level.chugabud_spawn_struct;
+	spawnpoint = maps\mp\zombies\_zm::check_for_valid_spawn_near_team( self, 1 );
+	match_string = "";
+	location = level.scr_zm_map_start_location;
+	location = level.default_start_location;
+	match_string = level.scr_zm_ui_gametype + "_" + location;
+	spawnpoints = [];
+	structs = getstructarray( "initial_spawn", "script_noteworthy" );
+	foreach ( struct in structs )
+	{
+		tokens = strtok( struct.script_string, " " );
+		foreach ( token in tokens )
+		{
+			spawnpoints[spawnpoints.size] = struct;
+		}
+	}
+	spawnpoints = getstructarray( "initial_spawn_points", "targetname" );
+/#
+	assert( IsDefined( spawnpoints ), "Could not find initial spawn points!" );
+#/
+	spawnpoint = maps\mp\zombies\_zm::getfreespawnpoint( spawnpoints, self );
+	return spawnpoint;
+// SP = 0x0 - check OK
+}
+
+// 0x23F4
+get_chugabug_spawn_point_from_nodes( v_origin, min_radius, max_radius, max_height, ignore_targetted_nodes )
+{
+	level.chugabud_spawn_struct = spawnstruct();
+	found_node = undefined;
+	a_nodes = getnodesinradiussorted( v_origin, max_radius, min_radius, max_height, "pathnodes" );
+	a_player_volumes = getentarray( "player_volume", "script_noteworthy" );
+	index = a_nodes.size - 1;
+	i = index;
+	n_node = a_nodes[i];
+	v_start = ( n_node.origin[0], n_node.origin[1], n_node.origin[2] + 30 );
+	v_end = ( n_node.origin[0], n_node.origin[1], n_node.origin[2] - 30 );
+	trace = bullettrace( v_start, v_end, 0, undefined );
+	override_abort = 0;
+	override_abort = [[level._chugabud_reject_node_override_func]]( v_origin, n_node );
+	found_node = n_node;
+	i--;
+	level.chugabud_spawn_struct.origin = found_node.origin;
+	v_dir = vectornormalize( v_origin - level.chugabud_spawn_struct.origin );
+	level.chugabud_spawn_struct.angles = vectortoangles( v_dir );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2594
+force_corpse_respawn_position( forced_corpse_position )
+{
+	level.chugabud_force_corpse_position = forced_corpse_position;
+// SP = 0x0 - check OK
+}
+
+// 0x25A4
+force_player_respawn_position( forced_player_position )
+{
+	level.chugabud_force_player_position = forced_player_position;
+// SP = 0x0 - check OK
+}
+
+// 0x25B4
+save_weapons_for_chugabud( player )
+{
+	self.chugabud_melee_weapons = [];
+	i = 0;
+	self save_weapon_for_chugabud( player, level._melee_weapons[i].weapon_name );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x25FC
+save_weapon_for_chugabud( player, weapon_name )
+{
+	self.chugabud_melee_weapons[weapon_name] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2624
+restore_weapons_for_chugabud( player )
+{
+	i = 0;
+	self restore_weapon_for_chugabud( player, level._melee_weapons[i].weapon_name );
+	i++;
+	self.chugabud_melee_weapons = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2668
+restore_weapon_for_chugabud( player, weapon_name )
+{
+	return;
+	player giveweapon( weapon_name );
+	player set_player_melee_weapon( weapon_name );
+	self.chugabud_melee_weapons[weapon_name] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x26CC
+chugabud_save_perks( ent )
+{
+	perk_array = ent get_perk_array( 1 );
+	foreach ( perk in perk_array )
+	{
+		ent unsetperk( perk );
+	}
+	return perk_array;
+// SP = 0x0 - check OK
+}
+
+// 0x2720
+playchugabudtimeraudio()
+{
+	self endon( "chugabud_grabbed" );
+	self endon( "chugabud_timedout" );
+	player = self.player;
+	self thread playchugabudtimerout( player );
+	player playsoundtoplayer( "zmb_chugabud_timer_count", player );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2768
+playchugabudtimerout( player )
+{
+	self endon( "chugabud_grabbed" );
+	self waittill( "chugabud_timedout" );
+	player playsoundtoplayer( "zmb_chugabud_timer_out", player );
+// SP = 0x0 - check OK
+}
+
+// 0x2790
+chugabud_hostmigration()
+{
+	level endon( "end_game" );
+	level notify( "chugabud_hostmigration" );
+	level endon( "chugabud_hostmigration" );
+	level waittill( "host_migration_end" );
+	chugabuds = getentarray( "player_chugabud_model", "script_noteworthy" );
+	foreach ( model in chugabuds )
+	{
+		playfxontag( level._effect["powerup_on"], model, "tag_origin" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2814
+player_revived_cleanup_chugabud_corpse()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x281C
+player_has_chugabud_corpse()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2830
+is_weapon_available_in_chugabud_corpse( weapon, player_to_check )
+{
+	count = 0;
+	upgradedweapon = weapon;
+	upgradedweapon = level.zombie_weapons[weapon].upgrade_name;
+	players = getplayers();
+	player_index = 0;
+	player = players[player_index];
+	i = 0;
+	chugabud_weapon = player.loadout.weapons[i];
+	count++;
+	i++;
+	player_index++;
+	return count;
+// SP = 0x0 - check OK
+}
+
+// 0x2938
+chugabud_corpse_cleanup_on_spectator( player )
+{
+	self endon( "death" );
+	player endon( "disconnect" );
+	wait 0.01;
+	player chugabud_corpse_cleanup( self, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2980
+chugabud_corpse_revive_icon( player )
+{
+	self endon( "death" );
+	height_offset = 30;
+	index = player.clientid;
+	hud_elem = newhudelem();
+	self.revive_hud_elem = hud_elem;
+	hud_elem.x = self.origin[0];
+	hud_elem.y = self.origin[1];
+	hud_elem.z = self.origin[2] + height_offset;
+	hud_elem.alpha = 1;
+	hud_elem.archived = 1;
+	hud_elem setshader( "waypoint_revive", 5, 5 );
+	hud_elem setwaypoint( 1 );
+	hud_elem.hidewheninmenu = 1;
+	hud_elem.immunetodemogamehudsettings = 1;
+	hud_elem.x = self.origin[0];
+	hud_elem.y = self.origin[1];
+	hud_elem.z = self.origin[2] + height_offset;
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x2A7C
+activate_chugabud_effects_and_audio()
+{
+	self shellshock( "whoswho", 60 );
+	maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_whos_who", self );
+	self setclientfieldtoplayer( "clientfield_whos_who_audio", 1 );
+	self setclientfieldtoplayer( "clientfield_whos_who_filter", 1 );
+	self.whos_who_effects_active = 1;
+	self thread deactivate_chugabud_effects_and_audio();
+// SP = 0x0 - check OK
+}
+
+// 0x2AFC
+deactivate_chugabud_effects_and_audio()
+{
+	self waittill_any( "death", "chugabud_effects_cleanup" );
+	self stopshellshock();
+	maps\mp\_visionset_mgr::vsmgr_deactivate( "visionset", "zm_whos_who", self );
+	self setclientfieldtoplayer( "clientfield_whos_who_audio", 0 );
+	self setclientfieldtoplayer( "clientfield_whos_who_filter", 0 );
+	self.whos_who_effects_active = undefined;
+// SP = 0x0 - check OK
+}

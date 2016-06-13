@@ -1,0 +1,54 @@
+// maps/mp/gametypes_zm/_dev.gsc
+
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x27C
+init()
+{
+/#
+	updatedevsettingszm();
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x29C
+updatedevsettingszm()
+{
+/#
+	level.streamdumpteamindex = 0;
+	level.streamdumpteamindex++;
+	numpoints = 0;
+	spawnpoints = [];
+	location = level.scr_zm_map_start_location;
+	location = level.default_start_location;
+	match_string = level.scr_zm_ui_gametype + "_" + location;
+	structs = getstructarray( "initial_spawn", "script_noteworthy" );
+	foreach ( struct in structs )
+	{
+		tokens = strtok( struct.script_string, " " );
+		foreach ( token in tokens )
+		{
+			spawnpoints[spawnpoints.size] = struct;
+		}
+	}
+	spawnpoints = getstructarray( "initial_spawn_points", "targetname" );
+	numpoints = spawnpoints.size;
+	setdvar( "r_streamDumpDistance", "0" );
+	level.streamdumpteamindex = -1;
+	averageorigin = ( 0, 0, 0 );
+	averageangles = ( 0, 0, 0 );
+	foreach ( spawnpoint in spawnpoints )
+	{
+		averageorigin += spawnpoint.origin / numpoints;
+		averageangles += spawnpoint.angles / numpoints;
+	}
+	level.players[0] setplayerangles( averageangles );
+	level.players[0] setorigin( averageorigin );
+	wait 0.05;
+	setdvar( "r_streamDumpDistance", "2" );
+#/
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,24 @@
+// aitype/clientscripts/zm_highrise_basic_02.csc
+
+#include character\clientscripts\c_zom_zombie_scientist;
+
+#using_animtree ( "zm_highrise_basic" );
+
+
+// 0x134
+main()
+{
+	character\clientscripts\c_zom_zombie_scientist::main();
+	self._aitype = "zm_highrise_basic_02";
+// SP = 0x0 - check OK
+}
+
+// 0x14C
+precache( ai_index )
+{
+	character\clientscripts\c_zom_zombie_scientist::precache();
+	usefootsteptable( ai_index, "default_ai" );
+	precacheanimstatedef( ai_index, -1, "zm_highrise_basic" );
+	setdemolockonvalues( ai_index, 100, 60, -15, 60, 30, -5, 60 );
+// SP = 0x0 - check OK
+}

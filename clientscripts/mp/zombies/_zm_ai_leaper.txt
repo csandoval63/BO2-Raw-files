@@ -1,0 +1,17 @@
+// clientscripts/mp/zombies/_zm_ai_leaper.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0xC4
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xCC
+init()
+{
+// SP = 0x0 - check OK
+}

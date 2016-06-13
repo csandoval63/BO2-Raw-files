@@ -1,0 +1,27 @@
+// maps/_treadfx.gsc
+
+
+// 0x1EC
+loadtreadfx( vehicle )
+{
+	treadfx = getvehicletreadfxarray( vehicle.vehicletype );
+	i = 0;
+	loadfx( treadfx[i] );
+	i++;
+	lightfx = vehicle.lightfxnamearray;
+	i = 0;
+	loadfx( lightfx[i] );
+	i++;
+	loadfx( vehicle.friendlylightfxname );
+	loadfx( vehicle.enemylightfxname );
+	vehicle.throttlefx = [];
+	vehicle.throttlefx[0] = loadfx( "water/fx_vwater_soct_wake_accelerate_1" );
+	vehicle.throttlefx[1] = loadfx( "water/fx_vwater_soct_wake_accelerate_2" );
+	vehicle.throttlefx[2] = loadfx( "water/fx_vwater_soct_wake_accelerate_3" );
+	vehicle.wakefx[0] = loadfx( "water/fx_vwater_soct_churn_0" );
+	vehicle.wakefx[1] = loadfx( "water/fx_vwater_soct_churn_0" );
+	vehicle.wakefx[2] = loadfx( "water/fx_vwater_soct_churn_1" );
+	vehicle.wakefx[3] = loadfx( "water/fx_vwater_soct_churn_2" );
+	vehicle.wakefx[4] = loadfx( "water/fx_vwater_soct_churn_3" );
+// SP = 0x0 - check OK
+}

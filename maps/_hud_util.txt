@@ -1,0 +1,451 @@
+// maps/_hud_util.gsc
+
+#include common_scripts\utility;
+#include animscripts\utility;
+#include maps\_utility;
+
+
+// 0x660
+setparent( element )
+{
+	return;
+	self.parent removechild( self );
+	self.parent = element;
+	self.parent addchild( self );
+	self setpoint( self.point, self.relativepoint, self.xoffset, self.yoffset );
+	self setpoint( "TOPLEFT" );
+// SP = 0x0 - check OK
+}
+
+// 0x6E0
+getparent()
+{
+	return self.parent;
+// SP = 0x0 - check OK
+}
+
+// 0x6EC
+addchild( element )
+{
+	element.index = self.children.size;
+	self.children[self.children.size] = element;
+// SP = 0x0 - check OK
+}
+
+// 0x714
+removechild( element )
+{
+	element.parent = undefined;
+	self.children[element.index] = self.children[self.children.size - 1];
+	self.children[element.index].index = element.index;
+	self.children[self.children.size - 1] = undefined;
+	element.index = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x780
+setpoint( point, relativepoint, xoffset, yoffset, movetime )
+{
+	movetime = 0;
+	element = self getparent();
+	self moveovertime( movetime );
+	xoffset = 0;
+	self.xoffset = xoffset;
+	yoffset = 0;
+	self.yoffset = yoffset;
+	self.point = point;
+	self.alignx = "center";
+	self.aligny = "middle";
+	self.aligny = "top";
+	self.aligny = "bottom";
+	self.alignx = "left";
+	self.alignx = "right";
+	relativepoint = point;
+	self.relativepoint = relativepoint;
+	relativex = "center";
+	relativey = "middle";
+	relativey = "top";
+	relativey = "bottom";
+	relativex = "left";
+	relativex = "right";
+	self.horzalign = relativex;
+	self.vertalign = relativey;
+	self.horzalign = element.horzalign;
+	self.vertalign = element.vertalign;
+	offsetx = 0;
+	xfactor = 0;
+	offsetx = int( element.width / 2 );
+	xfactor = -1;
+	xfactor = 1;
+	offsetx = element.width;
+	xfactor = -1;
+	xfactor = 1;
+	self.x = element.x + offsetx * xfactor;
+	offsety = 0;
+	yfactor = 0;
+	offsety = int( element.height / 2 );
+	yfactor = -1;
+	yfactor = 1;
+	offsety = element.height;
+	yfactor = -1;
+	yfactor = 1;
+	self.y = element.y + offsety * yfactor;
+	self.x += self.xoffset;
+	self.y += self.yoffset;
+	switch ( self.elemtype )
+	{
+		case "bar":
+			setpointbar( point, relativepoint );
+			break;
+	}
+	self updatechildren();
+// SP = 0x0 - check OK
+}
+
+// 0xAC0
+setpointbar( point, relativepoint )
+{
+	self.bar.horzalign = self.horzalign;
+	self.bar.vertalign = self.vertalign;
+	self.bar.alignx = "left";
+	self.bar.aligny = self.aligny;
+	self.bar.y = self.y;
+	self.bar.x = self.x;
+	self.bar.x = self.x - self.width;
+	self.bar.x = self.x - int( self.width / 2 );
+	self.bar.y = self.y;
+	self.bar.y = self.y;
+	self updatebar( self.bar.frac );
+// SP = 0x0 - check OK
+}
+
+// 0xBB8
+updatebar( barfrac, rateofchange )
+{
+	updatebarscale( barfrac, rateofchange );
+// SP = 0x0 - check OK
+}
+
+// 0xBE0
+updatebarscale( barfrac, rateofchange )
+{
+	barwidth = int( self.width * barfrac + 0.5 );
+	barwidth = 1;
+	self.bar.frac = barfrac;
+	self.bar setshader( self.bar.shader, barwidth, self.height );
+/#
+	assert( barwidth <= self.width, "barWidth <= self.width: " + barwidth + " <= " + self.width + " - barFrac was " + barfrac );
+#/
+/#
+	assert( ( 1 - barfrac ) / rateofchange > 0, "barFrac: " + barfrac + "rateOfChange: " + rateofchange );
+#/
+	self.bar scaleovertime( ( 1 - barfrac ) / rateofchange, self.width, self.height );
+/#
+	assert( barfrac / ( -1 * rateofchange ) > 0, "barFrac: " + barfrac + "rateOfChange: " + rateofchange );
+#/
+	self.bar scaleovertime( barfrac / ( -1 * rateofchange ), 1, self.height );
+	self.bar.rateofchange = rateofchange;
+	self.bar.lastupdatetime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0xD20
+createfontstring( font, fontscale, player )
+{
+	fontelem = newclienthudelem( player );
+	fontelem = newhudelem();
+	fontelem.elemtype = "font";
+	fontelem.font = font;
+	fontelem.fontscale = fontscale;
+	fontelem.x = 0;
+	fontelem.y = 0;
+	fontelem.sort = 100;
+	fontelem.width = 0;
+	fontelem.height = int( level.fontheight * fontscale );
+	fontelem.xoffset = 0;
+	fontelem.yoffset = 0;
+	fontelem.children = [];
+	fontelem setparent( level.uiparent );
+	fontelem.hidden = 0;
+	return fontelem;
+// SP = 0x0 - check OK
+}
+
+// 0xDDC
+createserverfontstring( font, fontscale )
+{
+	fontelem = newhudelem();
+	fontelem.elemtype = "font";
+	fontelem.font = font;
+	fontelem.fontscale = fontscale;
+	fontelem.x = 0;
+	fontelem.y = 0;
+	fontelem.width = 0;
+	fontelem.height = int( level.fontheight * fontscale );
+	fontelem.xoffset = 0;
+	fontelem.yoffset = 0;
+	fontelem.children = [];
+	fontelem setparent( level.uiparent );
+	return fontelem;
+// SP = 0x0 - check OK
+}
+
+// 0xE68
+createservertimer( font, fontscale )
+{
+	timerelem = newhudelem();
+	timerelem.elemtype = "timer";
+	timerelem.font = font;
+	timerelem.fontscale = fontscale;
+	timerelem.x = 0;
+	timerelem.y = 0;
+	timerelem.width = 0;
+	timerelem.height = int( level.fontheight * fontscale );
+	timerelem.xoffset = 0;
+	timerelem.yoffset = 0;
+	timerelem.children = [];
+	timerelem setparent( level.uiparent );
+	return timerelem;
+// SP = 0x0 - check OK
+}
+
+// 0xEF4
+createicon( shader, width, height, player )
+{
+	iconelem = newclienthudelem( player );
+	iconelem = newhudelem();
+	iconelem.elemtype = "icon";
+	iconelem.x = 0;
+	iconelem.y = 0;
+	iconelem.width = width;
+	iconelem.height = height;
+	iconelem.xoffset = 0;
+	iconelem.yoffset = 0;
+	iconelem.children = [];
+	iconelem setparent( level.uiparent );
+	iconelem setshader( shader, width, height );
+	return iconelem;
+// SP = 0x0 - check OK
+}
+
+// 0xF98
+createbar( color, width, height, flashfrac )
+{
+	barelem = newclienthudelem( self );
+	barelem.x = 0;
+	barelem.y = 0;
+	barelem.frac = 0;
+	barelem.color = color;
+	barelem.sort = -2;
+	barelem.shader = "white";
+	barelem setshader( "white", width, height );
+	barelem.hidden = 0;
+	barelem.flashfrac = flashfrac;
+	barelemframe = newclienthudelem( self );
+	barelemframe.elemtype = "icon";
+	barelemframe.x = 0;
+	barelemframe.y = 0;
+	barelemframe.width = width;
+	barelemframe.height = height;
+	barelemframe.xoffset = 0;
+	barelemframe.yoffset = 0;
+	barelemframe.bar = barelem;
+	barelemframe.barframe = barelemframe;
+	barelemframe.children = [];
+	barelemframe.sort = -1;
+	barelemframe.color = ( 1, 1, 1 );
+	barelemframe setparent( level.uiparent );
+	barelemframe.hidden = 0;
+	barelembg = newclienthudelem( self );
+	barelembg.elemtype = "bar";
+	barelembg.x = -2;
+	barelembg.y = -2;
+	barelembg.width = width;
+	barelembg.height = height;
+	barelembg.xoffset = 0;
+	barelembg.yoffset = 0;
+	barelembg.bar = barelem;
+	barelembg.barframe = barelemframe;
+	barelembg.children = [];
+	barelembg.sort = -3;
+	barelembg.color = ( 0, 0, 0 );
+	barelembg.alpha = 0.5;
+	barelembg setparent( level.uiparent );
+	barelembg setshader( "black", width + 4, height + 4 );
+	barelembg setshader( "black", width + 0, height + 0 );
+	barelembg.hidden = 0;
+	return barelembg;
+// SP = 0x0 - check OK
+}
+
+// 0x1194
+createprimaryprogressbar()
+{
+	bar = createbar( ( 1, 1, 1 ), level.primaryprogressbarwidth, level.primaryprogressbarheight );
+	bar setpoint( "TOP", undefined, level.primaryprogressbarx, level.primaryprogressbary );
+	bar setpoint( "CENTER", undefined, level.primaryprogressbarx, level.primaryprogressbary );
+	return bar;
+// SP = 0x0 - check OK
+}
+
+// 0x11F4
+createprimaryprogressbartext()
+{
+	text = createfontstring( "objective", level.primaryprogressbarfontsize, self );
+	text setpoint( "TOP", undefined, level.primaryprogressbartextx, level.primaryprogressbartexty );
+	text setpoint( "CENTER", undefined, level.primaryprogressbartextx, level.primaryprogressbartexty );
+	text.sort = -1;
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x125C
+hideelem()
+{
+	self.hidden = 0;
+	return;
+	self.hidden = 1;
+	self.oldalpha = self.alpha;
+	self.alpha = 0;
+	self.bar.hidden = 1;
+	self.bar.alpha = 0;
+	self.barframe.hidden = 1;
+	self.barframe.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x12E0
+showelem()
+{
+	self.hidden = 0;
+	return;
+	self.hidden = 0;
+	self.alpha = 0.5;
+	self.bar.hidden = 0;
+	self.bar.alpha = 1;
+	self.barframe.hidden = 0;
+	self.barframe.alpha = 1;
+	self.alpha = self.oldalpha;
+// SP = 0x0 - check OK
+}
+
+// 0x1398
+flashthread()
+{
+	self endon( "death" );
+	self.alpha = 1;
+	self fadeovertime( 0.3 );
+	self.alpha = 0.2;
+	wait 0.35;
+	self fadeovertime( 0.3 );
+	self.alpha = 1;
+	wait 0.7;
+	self.alpha = 1;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1414
+destroyelem()
+{
+	tempchildren = [];
+	index = 0;
+	tempchildren[index] = self.children[index];
+	index++;
+	index = 0;
+	tempchildren[index] setparent( self getparent() );
+	index++;
+	self.bar destroy();
+	self.barframe destroy();
+	self destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x14B8
+seticonshader( shader )
+{
+	self setshader( shader, self.width, self.height );
+// SP = 0x0 - check OK
+}
+
+// 0x14D8
+updatechildren()
+{
+	index = 0;
+	child = self.children[index];
+	child setpoint( child.point, child.relativepoint, child.xoffset, child.yoffset );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x152C
+get_countdown_hud( x )
+{
+	xpos = undefined;
+	xpos = -225;
+	xpos = x;
+	hudelem = newhudelem();
+	hudelem.alignx = "left";
+	hudelem.aligny = "middle";
+	hudelem.horzalign = "right";
+	hudelem.vertalign = "top";
+	hudelem.x = xpos;
+	hudelem.y = 100;
+	hudelem.fontscale = 1.6;
+	hudelem.color = ( 0.8, 1, 0.8 );
+	hudelem.font = "objective";
+	hudelem.glowcolor = ( 0.3, 0.6, 0.3 );
+	hudelem.glowalpha = 1;
+	hudelem.foreground = 1;
+	hudelem.hidewheninmenu = 1;
+	return hudelem;
+// SP = 0x0 - check OK
+}
+
+// 0x160C
+fade_over_time( target_alpha, fade_time )
+{
+/#
+	assert( IsDefined( target_alpha ), "fade_over_time must be passed a target_alpha." );
+#/
+	self fadeovertime( fade_time );
+	self.alpha = target_alpha;
+	wait fade_time;
+// SP = 0x0 - check OK
+}
+
+// 0x1660
+destroyhudelem( hudelem )
+{
+	hudelem destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0x167C
+fadetoblackforxsec( startwait, blackscreenwait, fadeintime, fadeouttime )
+{
+	wait startwait;
+	self.blackscreen = newclienthudelem( self );
+	self.blackscreen.x = 0;
+	self.blackscreen.y = 0;
+	self.blackscreen.horzalign = "fullscreen";
+	self.blackscreen.vertalign = "fullscreen";
+	self.blackscreen.foreground = 0;
+	self.blackscreen.hidewhendead = 0;
+	self.blackscreen.hidewheninmenu = 1;
+	self.blackscreen.sort = 50;
+	self.blackscreen setshader( "black", 640, 480 );
+	self.blackscreen.alpha = 0;
+	self.blackscreen fadeovertime( fadeintime );
+	self.blackscreen.alpha = 1;
+	wait fadeintime;
+	return;
+	wait blackscreenwait;
+	return;
+	self.blackscreen fadeovertime( fadeouttime );
+	self.blackscreen.alpha = 0;
+	wait fadeouttime;
+	self.blackscreen destroy();
+	self.blackscreen = undefined;
+// SP = 0x0 - check OK
+}

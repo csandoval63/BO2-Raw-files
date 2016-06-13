@@ -1,0 +1,58 @@
+// maps/ai_subclass/_subclass_main.gsc
+
+#include maps\ai_subclass\_subclass_elite;
+#include animscripts\ai_subclass\anims_table_elite;
+#include maps\ai_subclass\_subclass_dualwield;
+#include animscripts\ai_subclass\anims_table_dualwield;
+#include maps\ai_subclass\_subclass_militia;
+#include animscripts\ai_subclass\anims_table_militia;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x348
+subclass_setup_spawn_functions()
+{
+	level.subclass_spawn_functions = [];
+	level.subclass_spawn_functions["regular"] = ::subclass_regular;
+	level.subclass_spawn_functions["militia"] = ::subclass_militia;
+	level.subclass_spawn_functions["dualwield"] = ::subclass_dualwield;
+	level.subclass_spawn_functions["elite"] = ::subclass_elite;
+// SP = 0x0 - check OK
+}
+
+// 0x3A0
+run_subclass_spawn_function()
+{
+/#
+	assert( IsDefined( level.subclass_spawn_functions[self.subclass] ), "subclass spawn function not defined for '" + self.subclass + "'" );
+#/
+	[[level.subclass_spawn_functions[self.subclass]]]();
+// SP = 0x0 - check OK
+}
+
+// 0x3D8
+subclass_regular()
+{
+	subclass_regular_allies();
+	subclass_regular_axis();
+// SP = 0x0 - check OK
+}
+
+// 0x404
+subclass_regular_allies()
+{
+	self.a.disablewoundedset = 1;
+	self.a.neversprintforvariation = 1;
+	self.a.favor_lean = 1;
+	self.maxfaceenemydist = 350;
+// SP = 0x0 - check OK
+}
+
+// 0x438
+subclass_regular_axis()
+{
+// SP = 0x0 - check OK
+}

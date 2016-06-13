@@ -1,0 +1,61 @@
+// maps/mp/zombies/_zm_gump.gsc
+
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x1E4
+init()
+{
+	registerclientfield( "toplayer", "blackscreen", 1, 1, "int" );
+	level.uses_gumps = 0;
+	onplayerconnect_callback( ::player_connect_gump );
+// SP = 0x0 - check OK
+}
+
+// 0x244
+player_teleport_blackscreen_on()
+{
+	return;
+	self setclientfieldtoplayer( "blackscreen", 1 );
+	wait 0.05;
+	self setclientfieldtoplayer( "blackscreen", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x298
+player_connect_gump()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2A0
+player_watch_spectate_change()
+{
+	return;
+	self endon( "disconnect" );
+	self waittill( "spectator_cycle" );
+	self setclientfieldtoplayer( "blackscreen", 1 );
+	wait 0.05;
+	self setclientfieldtoplayer( "blackscreen", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F8
+gump_test()
+{
+/#
+	wait 10;
+	pos1 = ( -4904, -7657, 4 );
+	pos3 = ( 7918, -6506, 177 );
+	pos2 = ( 1986, -73, 4 );
+	players = get_players();
+	players[0] setorigin( pos1 );
+	wait 0.05;
+	players[1] setorigin( pos2 );
+	wait 0.05;
+	players[2] setorigin( pos3 );
+#/
+// SP = 0x0 - check OK
+}

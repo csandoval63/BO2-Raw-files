@@ -1,0 +1,221 @@
+// maps/mp/bots/_bot_hq.gsc
+
+#include maps\mp\bots\_bot;
+#include maps\mp\bots\_bot_combat;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes\koth;
+
+
+// 0x544
+bot_hq_think()
+{
+	time = GetTime();
+	return;
+	self.bot.update_objective = time + randomintrange( 500, 1500 );
+	self bot_patrol_hq();
+	self bot_move_to_hq();
+	self bot_capture_hq();
+	bot_hq_tactical_insertion();
+	bot_hq_grenade();
+	mine = getnearestnode( self.origin );
+	node = hq_nearest_node();
+	self lookat( level.radio.baseorigin + vector_scale( ( 0, 0, 1 ), 30 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x644
+bot_has_hq_goal()
+{
+	origin = self getgoal( "hq_radio" );
+	foreach ( node in level.radio.nodes )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6B4
+bot_is_capturing_hq()
+{
+	return self atgoal( "hq_radio" );
+// SP = 0x0 - check OK
+}
+
+// 0x6CC
+bot_should_patrol_hq()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x714
+bot_patrol_hq()
+{
+	self cancelgoal( "hq_radio" );
+	node = getnearestnode( self.origin );
+	self setstance( "crouch" );
+	self setstance( "stand" );
+	origin = self bot_get_look_at();
+	z = 20;
+	z = randomintrange( 16, 60 );
+	self lookat( origin + ( 0, 0, z ) );
+	dir = vectornormalize( self.origin - origin );
+	dir = vector_scale( dir, 256 );
+	origin += dir;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( origin );
+	self.bot.update_lookat = GetTime() + randomintrange( 1500, 3000 );
+	goal = self getgoal( "hq_patrol" );
+	nearest = hq_nearest_node();
+	mine = getnearestnode( goal );
+	self clearlookat();
+	self cancelgoal( "hq_patrol" );
+	self clearlookat();
+	self cancelgoal( "hq_patrol" );
+	return;
+	nearest = hq_nearest_node();
+	goal = self getgoal( "hq_patrol" );
+	origin = self bot_get_look_at();
+	self lookat( origin );
+	self.bot.update_objective_patrol = GetTime() + randomintrange( 3000, 6000 );
+	mine = getnearestnode( goal );
+	self clearlookat();
+	self cancelgoal( "hq_patrol" );
+	return;
+	nodes = getvisiblenodes( nearest );
+/#
+	assert( nodes.size );
+#/
+	i = randomint( nodes.size );
+	self addgoal( nodes[i], 24, 3, "hq_patrol" );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA30
+bot_move_to_hq()
+{
+	self clearlookat();
+	self cancelgoal( "hq_radio" );
+	self cancelgoal( "hq_patrol" );
+	self setstance( "crouch" );
+	wait 0.25;
+	self setstance( "stand" );
+	wait 0.25;
+	nodes = array_randomize( level.radio.nodes );
+	foreach ( node in nodes )
+	{
+		self addgoal( node, 24, 3, "hq_radio" );
+	}
+	self addgoal( random( nodes ), 24, 3, "hq_radio" );
+// SP = 0x0 - check OK
+}
+
+// 0xB40
+bot_get_look_at()
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( self.origin, 1 );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	enemies = self maps\mp\bots\_bot::bot_get_enemies( 0 );
+	enemy = random( enemies );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	spawn = random( level.spawnpoints );
+	node = getvisiblenode( self.origin, spawn.origin );
+	return node.origin;
+	return level.radio.baseorigin;
+// SP = 0x0 - check OK
+}
+
+// 0xC64
+bot_capture_hq()
+{
+	self addgoal( self.origin, 24, 3, "hq_radio" );
+	self setstance( "crouch" );
+	origin = self bot_get_look_at();
+	z = 20;
+	z = randomintrange( 16, 60 );
+	self lookat( origin + ( 0, 0, z ) );
+	dir = vectornormalize( self.origin - origin );
+	dir = vector_scale( dir, 256 );
+	origin += dir;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( origin );
+	self.bot.update_lookat = GetTime() + randomintrange( 1500, 3000 );
+// SP = 0x0 - check OK
+}
+
+// 0xD58
+any_other_team_touching( skip_team )
+{
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xDB0
+is_hq_contested( skip_team )
+{
+	return 1;
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( level.radio.baseorigin, 1 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE14
+bot_hq_grenade()
+{
+	enemies = bot_get_enemies();
+	return;
+	origin = bot_get_look_at();
+	return;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_smoke( level.radio.baseorigin );
+	return;
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( level.radio.baseorigin, 0 );
+	origin = enemy.origin;
+	origin = level.radio.baseorigin;
+	dir = vectornormalize( self.origin - origin );
+	dir = ( 0, dir[1], 0 );
+	origin += vector_scale( dir, 128 );
+	self maps\mp\bots\_bot_combat::bot_combat_throw_tactical( origin );
+// SP = 0x0 - check OK
+}
+
+// 0xF28
+bot_hq_tactical_insertion()
+{
+	return;
+	dist = self getlookaheaddist();
+	dir = self getlookaheaddir();
+	return;
+	node = hq_nearest_node();
+	mine = getnearestnode( self.origin );
+	origin = self.origin + vector_scale( dir, dist );
+	next = getnearestnode( origin );
+	bot_combat_tactical_insertion( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xFF0
+hq_nearest_node()
+{
+	return random( level.radio.nodes );
+// SP = 0x0 - check OK
+}
+
+// 0x1008
+hq_is_contested()
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( level.radio.baseorigin, 0 );
+	return distancesquared( enemy.origin, level.radio.baseorigin ) < level.radio.node_radius * level.radio.node_radius;
+// SP = 0x0 - check OK
+}

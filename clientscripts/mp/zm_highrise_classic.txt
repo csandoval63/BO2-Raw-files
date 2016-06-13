@@ -1,0 +1,146 @@
+// clientscripts/mp/zm_highrise_classic.csc
+
+#include clientscripts\mp\zm_highrise_buildables;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zombie_perk_elevator" );
+#using_animtree ( "€GSC
+" );
+
+
+// 0x594
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x59C
+premain()
+{
+	clientscripts\mp\zm_highrise_buildables::include_buildables();
+	clientscripts\mp\zm_highrise_buildables::init_buildables();
+	onplayerconnect_callback( ::floor_indicators );
+	onplayerconnect_callback( ::teller_fx_setup );
+// SP = 0x0 - check OK
+}
+
+// 0x5D4
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x5DC
+teller_fx_setup( localclientnum )
+{
+	playfx( localclientnum, level._effect["elevator_glint"], ( 2232.68, 569.287, 1312 ), ( 0, 0, 1 ) );
+	playfx( localclientnum, level._effect["elevator_glint"], ( 2264.36, 623.991, 1312 ), ( 0, 0, 1 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x63C
+init_perk_elvators_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x654
+floor_indicators( localclientnum )
+{
+	level thread floor_indicators_remove( localclientnum );
+	return;
+	floors = array( "3d", "3b", "3", "3c", "1d", "1c", "1b" );
+	foreach ( floor in floors )
+	{
+		indicators = getentarray( localclientnum, "elevator_bldg" + floor + "_indicator", "targetname" );
+		level thread floor_indicator( localclientnum, indicators, floor );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x708
+floor_indicators_remove( localclientnum )
+{
+	floors = array( "3d", "3b", "3", "3c", "1d", "1c", "1b" );
+	foreach ( floor in floors )
+	{
+		indicators = getentarray( localclientnum, "elevator_bldg" + floor + "_indicator", "targetname" );
+		level notify( "kill_floor_indicators_" + localclientnum );
+		foreach ( indicator in indicators )
+		{
+			indicator delete();
+		}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x7C4
+floor_indicator( clientnum, indicators, floorname )
+{
+	level endon( "kill_floor_indicators_" + clientnum );
+	indicators_list = [];
+	event = level waittill_any_return( floorname + "_u", floorname + "_d" );
+	new_indicators = [];
+	floor_fx = level._effect["perk_elevator_indicator_down"];
+	floor_fx = level._effect["perk_elevator_indicator_up"];
+	foreach ( indicator in indicators )
+	{
+		stopfx( clientnum, indicator.arrow_fx );
+		indicator.arrow_fx = playfxontag( clientnum, floor_fx, indicator, "tag_origin" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x890
+init_escape_elevators_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x8A8
+escape_pod_tell_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+/#
+	println( "escape_pod_tell_fx called on local client " + localclientnum );
+#/
+	self.tell_fx = playfxontag( localclientnum, level._effect["elevator_tell"], self, "tag_origin" );
+	stopfx( localclientnum, self.tell_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x914
+escape_pod_sparks_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+/#
+	println( "escape_pod_sparks_fx called on local client " + localclientnum );
+#/
+	self.sparks_fx = playfxontag( localclientnum, level._effect["elevator_sparks"], self, "tag_origin" );
+	stopfx( localclientnum, self.sparks_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x980
+escape_pod_impact_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+/#
+	println( "escape_pod_impact_fx called on local client " + localclientnum );
+#/
+	self.impact_fx = playfxontag( localclientnum, level._effect["elevator_impact"], self, "tag_origin" );
+	stopfx( localclientnum, self.impact_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x9EC
+escape_pod_light_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+/#
+	println( "escape_pod_light_fx called on local client " + localclientnum );
+#/
+	self.light_fx = playfxontag( localclientnum, level._effect["elevator_light"], self, "tag_animate" );
+	stopfx( localclientnum, self.light_fx );
+// SP = 0x0 - check OK
+}

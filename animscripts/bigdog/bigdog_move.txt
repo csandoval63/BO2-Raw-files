@@ -1,0 +1,130 @@
+// animscripts/bigdog/bigdog_move.gsc
+
+#include animscripts\run;
+#include animscripts\shared;
+#include animscripts\debug;
+#include animscripts\bigdog\bigdog_combat;
+#include common_scripts\utility;
+#include maps\_utility;
+#include animscripts\bigdog\bigdog_utility;
+#include animscripts\utility;
+#include animscripts\anims;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x460
+main()
+{
+	self endon( "killanimscript" );
+	animscripts\bigdog\bigdog_combat::main();
+	return;
+	animscripts\bigdog\bigdog_utility::initialize( "move" );
+	self.iswounded = 0;
+	moveinit();
+	movemainloop();
+// SP = 0x0 - check OK
+}
+
+// 0x4A4
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x4AC
+moveinit()
+{
+/#
+	self animscripts\debug::debugpushstate( "MoveInit" );
+#/
+	tryturning();
+	animscripts\bigdog\bigdog_combat::hunkerup();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4E0
+movemainloop()
+{
+/#
+	self animscripts\debug::debugpushstate( "MoveMainLoop" );
+#/
+	prevlooptime = self getanimtime( %walk_loops );
+	self.a.runloopcount = randomint( 10000 );
+	animscripts\bigdog\bigdog_combat::main();
+	return;
+	looptime = self getanimtime( %walk_loops );
+	self.a.runloopcount++;
+	prevlooptime = looptime;
+	animname = "walk";
+	animsuffix = animsuffix();
+	self orientmode( "face default" );
+	self animmode( "none", 0 );
+	walkanimname = animname + "_" + anim.moveglobals.relativediranimmap[self.relativedir] + animsuffix;
+	walkanim = animarraypickrandom( walkanimname, "move", 1 );
+	self setflaggedanimknob( "runanim", walkanim, 1, 0.5, self.moveplaybackrate );
+	self orientmode( "face default" );
+	animname = getmoveanimname();
+	self setflaggedanimknob( "runanim", animarray( animname + "_f" + animsuffix ), 1, 0.5, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.05, "runanim" );
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x688
+bigdoghandledisconnectpathswhilemoving()
+{
+	self.a.disconnectpathstime = GetTime() + 2000;
+// SP = 0x0 - check OK
+}
+
+// 0x6AC
+shouldtacticalwalk()
+{
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6B4
+shouldfacemotionwhilerunning()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6D0
+shouldwalkbackwards()
+{
+	anglediff = self animscripts\run::getlookaheadangle();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+getmoveanimname()
+{
+	return "walk";
+// SP = 0x0 - check OK
+}
+
+// 0x700
+tryturning()
+{
+	return 0;
+	anglediff = self animscripts\run::getlookaheadangle();
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics", 0 );
+	animname = animscripts\bigdog\bigdog_combat::getidleanimname();
+	self setflaggedanimrestart( "idle", animarray( animname, "stop" ), 1, 0.2, 1 );
+	wait 0.5;
+	anglediff = self animscripts\run::getlookaheadangle();
+	return animscripts\bigdog\bigdog_combat::turn( anglediff );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,1359 @@
+// animscripts/utility.gsc
+
+#include animscripts\utility;
+#include animscripts\shoot_behavior;
+#include maps\_gameskill;
+#include animscripts\shared;
+#include animscripts\combat;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\debug;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1C80
+initanimtree( animscript )
+{
+	self clearanim( %body, 0.3 );
+	self setanim( %body, 1, 0 );
+	self.a.special = "none";
+	self.missedsightchecks = 0;
+	self.a.aimweight = 1;
+	self.a.aimweight_start = 1;
+	self.a.aimweight_end = 1;
+	self.a.aimweight_transframes = 0;
+	self.a.aimweight_t = 0;
+	self.a.isaiming = 0;
+	self setanim( %shoot, 0, 0.2, 1 );
+	isincombat();
+/#
+	assert( IsDefined( animscript ), "Animscript not specified in initAnimTree" );
+#/
+	self.a.prevscript = self.a.script;
+	self.a.script = animscript;
+	self.a.script_suffix = undefined;
+	self animscripts\anims::clearanimcache();
+	[[self.a.stopcowering]]();
+// SP = 0x0 - check OK
+}
+
+// 0x1DA8
+updateanimpose()
+{
+/#
+	assert( self.a.movement == "run", "UpdateAnimPose " + self.a.pose + " " + self.a.movement );
+#/
+	self exitpronewrapper( 0.5 );
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_aiming, %prone_legs_up );
+	self enterpronewrapper( 0.5 );
+	self setanimknoball( animarray( "straight_level", "combat" ), %body, 1, 0.1, 1 );
+	self.desired_anim_pose = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1EAC
+initialize( animscript )
+{
+	self dodamage( self.health + 100, self.origin );
+	self.longdeathstarting = undefined;
+	self notify( "kill_long_death" );
+	self dodamage( self.health + 100, self.origin );
+	scriptfunc = self.a.postscriptfunc;
+	self.a.postscriptfunc = undefined;
+	[[scriptfunc]]( animscript );
+	self animscripts\combat::switchtolastweapon( 1 );
+	animscripts\shared::placeweaponon( self.primaryweapon, "right" );
+	self.a.magicreloadwhenreachenemy = 0;
+	self dropgrenade();
+	self.isholdinggrenade = undefined;
+/#
+#/
+/#
+	self animscripts\debug::debugpopstate( self.a.script );
+	self animscripts\debug::debugclearstate();
+	self animscripts\debug::debugpushstate( animscript );
+#/
+	self.covernode = undefined;
+	self.suppressed = 0;
+	self.isreloading = 0;
+	self.waschangingcoverpos = self.changingcoverpos;
+	self.changingcoverpos = 0;
+	self.a.scriptstarttime = GetTime();
+	self.a.atconcealmentnode = 0;
+	self.a.atpillarnode = 0;
+	self.a.atconcealmentnode = 1;
+	self.a.atpillarnode = 1;
+	initanimtree( animscript );
+	updateanimpose();
+// SP = 0x0 - check OK
+}
+
+// 0x2158
+setcurrentweapon( weapon )
+{
+	self.weapon = weapon;
+	self.weaponclass = weaponclass( weapon );
+	self.weaponmodel = getweaponmodel( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x2188
+setprimaryweapon( weapon )
+{
+	self.primaryweapon = weapon;
+	self.primaryweaponclass = weaponclass( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x21A8
+setsecondaryweapon( weapon )
+{
+	self.secondaryweapon = weapon;
+	self.secondaryweaponclass = weaponclass( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x21C8
+isincombat()
+{
+	self.a.combatendtime = GetTime() + anim.combatmemorytimeconst + randomint( anim.combatmemorytimerand );
+	return 1;
+	return self.a.combatendtime > GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x220C
+holdingweapon()
+{
+	return 0;
+	return 1;
+	return self.holdingweapon;
+// SP = 0x0 - check OK
+}
+
+// 0x224C
+getenemyeyepos()
+{
+	self.a.lastenemypos = self.enemy getshootatpos();
+	self.a.lastenemytime = GetTime();
+	return self.a.lastenemypos;
+	return self.a.lastenemypos;
+	targetpos = self getshootatpos();
+	targetpos += ( 196 * self.lookforward[0], 196 * self.lookforward[1], 196 * self.lookforward[2] );
+	return targetpos;
+// SP = 0x0 - check OK
+}
+
+// 0x2300
+getnodeforwardyaw( node )
+{
+	type = node.type;
+	return node.angles[1] + 90;
+	return node.angles[1] - 90;
+	return node.angles[1] + 90;
+	return node.angles[1] - 90;
+	return node.angles[1] - 180;
+	return node.angles[1];
+// SP = 0x0 - check OK
+}
+
+// 0x23A4
+getnodeyawtoenemy()
+{
+	pos = undefined;
+	pos = self.enemy.origin;
+	forward = anglestoforward( self.node.angles );
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, 150 );
+	pos = self.origin + forward;
+	yaw = self.node.angles[1] - vectortoangles( pos - self.origin )[1];
+	yaw = self.angles[1] - vectortoangles( pos - self.origin )[1];
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x244C
+getyawtospot( spot )
+{
+	pos = spot;
+	yaw = self.angles[1] - vectortoangles( pos - self.origin )[1];
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x2480
+getyawtoenemy()
+{
+	pos = undefined;
+	pos = self.enemy.origin;
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, 150 );
+	pos = self.origin + forward;
+	yaw = self.angles[1] - vectortoangles( pos - self.origin )[1];
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x24E8
+getyawtoorigin( org )
+{
+	yaw = self.angles[1] - vectortoangles( org - self.origin )[1];
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x2514
+isstanceallowedwrapper( stance )
+{
+	return self.covernode doesnodeallowstance( stance );
+	return self isstanceallowed( stance );
+// SP = 0x0 - check OK
+}
+
+// 0x2544
+choosepose( preferredpose )
+{
+	preferredpose = self.a.pose;
+	preferredpose = "stand";
+	switch ( preferredpose )
+	{
+		case "crouch":
+			resultpose = "stand";
+			resultpose = "crouch";
+			resultpose = "prone";
+/#
+			println( "No stance allowed!  Remaining standing." );
+#/
+			resultpose = "stand";
+			break;
+		case "prone":
+			resultpose = "crouch";
+			resultpose = "stand";
+			resultpose = "prone";
+/#
+			println( "No stance allowed!  Remaining crouched." );
+#/
+			resultpose = "crouch";
+			break;
+		case "stand":
+			resultpose = "prone";
+			resultpose = "crouch";
+			resultpose = "stand";
+/#
+			println( "No stance allowed!  Remaining prone." );
+#/
+			resultpose = "prone";
+			break;
+		default:
+/#
+			println( "utility::choosePose, called in " + self.a.script + " script: Unhandled anim_pose " + self.a.pose + " - using stand." );
+#/
+			resultpose = "stand";
+			break;
+	}
+	return resultpose;
+// SP = 0x0 - check OK
+}
+
+// 0x271C
+weaponanims()
+{
+	return "none";
+/#
+	assert( self.weaponclass == "none" );
+#/
+	switch ( self.weaponclass )
+	{
+		case "gas":
+		case "grenade":
+		case "mg":
+		case "pistol":
+		case "rifle":
+		case "rocketlauncher":
+			return self.weaponclass;
+		case "smg":
+			return "rifle";
+			switch ( self.weapon )
+			{
+				case "mp5k_sp":
+				case "vector_sp":
+					return "pistol";
+			}
+			break;
+		case "spread":
+			return "mg";
+			return "rifle";
+		default:
+			return "rifle";
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2870
+getclaimednode()
+{
+	mynode = self.node;
+	return mynode;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x28AC
+angleclamp( angle )
+{
+	anglefrac = angle / 360;
+	angle = ( anglefrac - floor( anglefrac ) ) * 360;
+	return angle;
+// SP = 0x0 - check OK
+}
+
+// 0x28E0
+quadrantanimweights( yaw )
+{
+	forwardweight = ( 90 - abs( yaw ) ) / 90;
+	leftweight = ( 90 - absangleclamp180( abs( yaw - 90 ) ) ) / 90;
+	result["front"] = 0;
+	result["right"] = 0;
+	result["back"] = 0;
+	result["left"] = 0;
+/#
+	assert( self.alwaysrunforward );
+#/
+	result["front"] = 1;
+	return result;
+	result["left"] = 1;
+	result["right"] = 1;
+	result["front"] = 1;
+	backweight = -1 * forwardweight;
+	result["left"] = 1;
+	result["right"] = 1;
+	result["back"] = 1;
+/#
+	quadrantanimweightsdebuginfo( result );
+#/
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x29F0
+getquadrant( angle )
+{
+	angle = angleclamp( angle );
+	quadrant = "front";
+	quadrant = "left";
+	quadrant = "back";
+	quadrant = "right";
+	return quadrant;
+// SP = 0x0 - check OK
+}
+
+// 0x2A54
+getenemysightpos()
+{
+/#
+	assert( self.goodshootposvalid );
+#/
+	return self.goodshootpos;
+// SP = 0x0 - check OK
+}
+
+// 0x2A70
+shootenemywrapper()
+{
+	self shoot_notify_wrapper();
+	[[anim.shootflamethrowerwrapper_func]]();
+	[[anim.shootenemywrapper_func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x2AA8
+getnodedirection()
+{
+	mynode = getclaimednode();
+	return mynode.angles[1];
+	return self.desiredangle;
+// SP = 0x0 - check OK
+}
+
+// 0x2AD4
+getnodeorigin()
+{
+	mynode = getclaimednode();
+	return mynode.origin;
+	return self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x2AFC
+hasenemysightpos()
+{
+	return cansuppressenemyfromexposed();
+	return cansuppressenemy();
+// SP = 0x0 - check OK
+}
+
+// 0x2B3C
+shootenemywrapper_normal()
+{
+	self.a.lastshoottime = GetTime();
+	maps\_gameskill::set_accuracy_based_on_situation();
+	animscripts\shoot_behavior::showsniperglint();
+	self shoot( self.script_accuracy );
+// SP = 0x0 - check OK
+}
+
+// 0x2B70
+shootflamethrowerwrapper_normal()
+{
+	self.a.lastshoottime = GetTime();
+	maps\_gameskill::set_accuracy_based_on_situation();
+	self.a.flamethrowershootswitch = 1;
+	self.a.flamethrowershootswitchtimer = self.a.lastshoottime + randomintrange( self.a.flamethrowershoottime_min, self.a.flamethrowershoottime_max );
+	self shoot( self.script_accuracy );
+	self.a.flamethrowershootswitch = 0;
+	flamethrower_stop_shoot();
+	self.a.flamethrowershootswitchtimer = self.a.lastshoottime + randomintrange( self.a.flamethrowershootdelay_min, self.a.flamethrowershootdelay_max );
+// SP = 0x0 - check OK
+}
+
+// 0x2C58
+flamethrower_stop_shoot( set_switch_timer )
+{
+	self.a.flamethrowershootswitchtimer = GetTime() + set_switch_timer;
+	self.a.flamethrowershootswitch = 0;
+	self notify( "flame stop shoot" );
+	self stopshoot();
+// SP = 0x0 - check OK
+}
+
+// 0x2CA0
+shootposwrapper( shootpos )
+{
+	self shoot_notify_wrapper();
+	endpos = bulletspread( self gettagorigin( "tag_flash" ), shootpos, 4 );
+	self.a.lastshoottime = GetTime();
+	self shoot( 1, endpos );
+// SP = 0x0 - check OK
+}
+
+// 0x2CF0
+setenv( env )
+{
+	array_thread( getaiarray(), ::personalcoldbreath );
+	array_thread( getspawnerarray(), ::personalcoldbreathspawner );
+// SP = 0x0 - check OK
+}
+
+// 0x2D34
+personalcoldbreath()
+{
+	tag = "TAG_EYE";
+	self endon( "death" );
+	self notify( "stop personal effect" );
+	self endon( "stop personal effect" );
+	playfxontag( level._effect["cold_breath"], self, tag );
+	wait 2.5 + randomfloat( 3 );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x2DA0
+personalcoldbreathspawner()
+{
+	self endon( "death" );
+	self notify( "stop personal effect" );
+	self endon( "stop personal effect" );
+	self waittill( "spawned", spawn );
+	spawn thread personalcoldbreath();
+// SP = 0x0 - check OK
+}
+
+// 0x2DE8
+issuppressedwrapper()
+{
+	return 0;
+/#
+	return 1;
+#/
+/#
+	recordenttext( "Is Aim Suppressed", self, level.color_debug["white"], "Suppression" );
+#/
+	return 1;
+	return 1;
+	return 0;
+	return self issuppressed();
+// SP = 0x0 - check OK
+}
+
+// 0x2E9C
+ispartiallysuppressedwrapper()
+{
+/#
+	return 1;
+#/
+/#
+	recordenttext( "Is Aim Suppressed", self, level.color_debug["white"], "Suppression" );
+#/
+	return 1;
+	return 0;
+	return self issuppressed();
+// SP = 0x0 - check OK
+}
+
+// 0x2F1C
+recentlysawenemy()
+{
+	return self seerecently( self.enemy, 5 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F40
+canseeenemy()
+{
+	return 0;
+	self.goodshootposvalid = 1;
+	self.goodshootpos = getenemyeyepos();
+	dontgiveuponsuppressionyet();
+	return 1;
+	self.goodshootposvalid = 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2FC8
+canseeenemyfromexposed()
+{
+	self.goodshootposvalid = 0;
+	return 0;
+	enemyeye = getenemyeyepos();
+	result = self cansee( self.enemy );
+	result = canseepointfromexposedatnode( enemyeye, self.node );
+	self.goodshootposvalid = 1;
+	self.goodshootpos = enemyeye;
+	dontgiveuponsuppressionyet();
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x3048
+getnodeoffset( node )
+{
+	cover_left_crouch_offset = ( -26, 0.4, 36 );
+	cover_left_stand_offset = ( -32, 7, 63 );
+	cover_right_crouch_offset = ( 43.5, 11, 36 );
+	cover_right_stand_offset = ( 36, 8.3, 63 );
+	cover_crouch_offset = ( 3.5, -12.5, 45 );
+	cover_stand_offset = ( -3.7, -22, 63 );
+	nodeoffset = ( 0, 0, 0 );
+	right = anglestoright( node.angles );
+	forward = anglestoforward( node.angles );
+	switch ( node.type )
+	{
+		case "Conceal Crouch":
+			nodeoffset = calculatenodeoffset( right, forward, cover_left_crouch_offset );
+			nodeoffset = calculatenodeoffset( right, forward, cover_left_stand_offset );
+			break;
+		case "Conceal Stand":
+			nodeoffset = calculatenodeoffset( right, forward, cover_right_crouch_offset );
+			nodeoffset = calculatenodeoffset( right, forward, cover_right_stand_offset );
+			break;
+		case "Cover Crouch":
+			nodeoffsets = [];
+/#
+			assert( !(node has_spawnflag( 2048 )) );
+#/
+			nodeoffsets[nodeoffsets.size] = ( -28, -10, 30 );
+			nodeoffsets[nodeoffsets.size] = ( 32, -10, 30 );
+/#
+			assert( !(node has_spawnflag( 2048 )) );
+#/
+			nodeoffsets[nodeoffsets.size] = ( -32, 3.7, 60 );
+			nodeoffsets[nodeoffsets.size] = ( 34, 0.2, 60 );
+			nodeoffset = calculatenodeoffset( right, forward, nodeoffsets[1] );
+			nodeoffset = calculatenodeoffset( right, forward, nodeoffsets[0] );
+			break;
+		case "Cover Crouch Window":
+		case "Cover Left":
+		case "Cover Pillar":
+			nodeoffset = calculatenodeoffset( right, forward, cover_stand_offset );
+			break;
+		case "Cover Right":
+		case "Cover Stand":
+		case "Turret":
+			nodeoffset = calculatenodeoffset( right, forward, cover_crouch_offset );
+			break;
+	}
+	node.offset = nodeoffset;
+	return node.offset;
+// SP = 0x0 - check OK
+}
+
+// 0x3364
+calculatenodeoffset( right, forward, baseoffset )
+{
+	return vector_scale( right, baseoffset[0] ) + vector_scale( forward, baseoffset[1] ) + ( 0, 0, baseoffset[2] );
+// SP = 0x0 - check OK
+}
+
+// 0x338C
+canseepointfromexposedatnode( point, node )
+{
+	return 0;
+	nodeoffset = getnodeoffset( node );
+	lookfrompoint = node.origin + nodeoffset;
+/#
+	record3dtext( self.team, lookfrompoint, level.color_debug["red"], "Animscript" );
+	recordline( lookfrompoint, point, level.color_debug["red"], "Animscript", self );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x344C
+canseepointfromexposedatcorner( point, node )
+{
+	yaw = node getyawtoorigin( point );
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x34B0
+canseepointfromexposedatnodewithoffset( point, node, lookfrompoint )
+{
+	return 0;
+	lookfrompoint = vector_scale( ( 0, 0, 1 ), 64 ) + node.origin;
+	return sighttracepassed( lookfrompoint, point, 0, undefined );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x352C
+checkpitchvisibility( frompoint, topoint, atnode )
+{
+	pitch = angleclamp180( vectortoangles( topoint - frompoint )[0] );
+	return 0;
+	dist = distancesquared( frompoint, topoint );
+	return 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x35B8
+dontgiveuponsuppressionyet()
+{
+	self.a.shouldresetgiveuponsuppressiontimer = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x35CC
+updategiveuponsuppressiontimer()
+{
+	self.a.shouldresetgiveuponsuppressiontimer = 1;
+	self.a.giveuponsuppressiontime = GetTime() + randomintrange( 15000, 30000 );
+	self.a.shouldresetgiveuponsuppressiontimer = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3620
+aisuppressai()
+{
+	return 0;
+	return 0;
+	return 0;
+	shootpos = undefined;
+	nodeoffset = getnodeoffset( self.enemy.node );
+	shootpos = self.enemy.node.origin + nodeoffset;
+	shootpos = self.enemy getshootatpos();
+	return 0;
+	return 0;
+	self.goodshootposvalid = 1;
+	self.goodshootpos = shootpos;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3700
+cansuppressenemyfromexposed()
+{
+	self.goodshootposvalid = 0;
+	return 0;
+	return aisuppressai();
+	return 0;
+	nodeoffset = getnodeoffset( self.node );
+	startoffset = self.node.origin + nodeoffset;
+	startoffset = self gettagorigin( "tag_flash" );
+	return 0;
+	return 0;
+	return findgoodsuppressspot( startoffset );
+// SP = 0x0 - check OK
+}
+
+// 0x37E8
+cansuppressenemy()
+{
+	self.goodshootposvalid = 0;
+	return 0;
+	startoffset = self gettagorigin( "tag_flash" );
+	return 0;
+	return aisuppressai();
+	return 0;
+	return findgoodsuppressspot( startoffset );
+// SP = 0x0 - check OK
+}
+
+// 0x385C
+hassuppressableenemy()
+{
+	return 0;
+	return 0;
+	updategiveuponsuppressiontimer();
+	return 0;
+	return self.goodshootposvalid;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x38A8
+canseeandshootpoint( point )
+{
+	return 0;
+	return 0;
+	gunpoint = self gettagorigin( "tag_flash" );
+	return sighttracepassed( gunpoint, point, 0, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x3904
+needrecalculatesuppressspot()
+{
+	return 1;
+	return distancesquared( self.lastenemysightposselforigin, self.origin ) > 1024;
+// SP = 0x0 - check OK
+}
+
+// 0x3958
+findgoodsuppressspot( startoffset )
+{
+	return self.goodshootposvalid;
+	self.goodshootposvalid = 0;
+	return 0;
+	self.lastenemysightposselforigin = self.origin;
+	self.lastenemysightposold = self.lastenemysightpos;
+	currentenemypos = getenemyeyepos();
+	trace = bullettrace( self.lastenemysightpos, currentenemypos, 0, undefined );
+	starttracesat = trace["position"];
+	percievedmovementvector = self.lastenemysightpos - starttracesat;
+	lookvector = vectornormalize( self.lastenemysightpos - startoffset );
+	percievedmovementvector -= vector_scale( lookvector, vectordot( percievedmovementvector, lookvector ) );
+	numtraces = int( length( percievedmovementvector ) / 20 + 0.5 );
+	numtraces = 1;
+	numtraces = 20;
+	vectordif = self.lastenemysightpos - starttracesat;
+	vectordif = ( vectordif[0] / numtraces, vectordif[1] / numtraces, vectordif[2] / numtraces );
+	numtraces++;
+	traceto = starttracesat;
+/#
+	thread print3dtime( 15, self.lastenemysightpos, "lastpos", ( 1, 0.2, 0.2 ), 1, 0.75 );
+	thread print3dtime( 15, starttracesat, "currentpos", ( 1, 0.2, 0.2 ), 1, 0.75 );
+#/
+	self.goodshootposvalid = 0;
+	goodtraces = 0;
+	i = 0;
+	tracepassed = sighttracepassed( startoffset, traceto, 0, undefined );
+	thistraceto = traceto;
+/#
+	color = ( 0.2, 0.2, 1 );
+	color = vector_scale( ( 1, 1, 1 ), 0.2 );
+	thread print3dtime( 15, traceto, ".", color, 1, 0.75 );
+#/
+	vectordif -= vector_scale( lookvector, vectordot( vectordif, lookvector ) );
+	traceto += vectordif;
+	goodtraces++;
+	self.goodshootposvalid = 1;
+	self.goodshootpos = thistraceto;
+	return 1;
+	goodtraces = 0;
+	i++;
+	return self.goodshootposvalid;
+// SP = 0x0 - check OK
+}
+
+// 0x3C14
+print3dtime( timer, org, msg, color, alpha, scale )
+{
+/#
+	newtime = timer / 0.05;
+	i = 0;
+	print3d( org, msg, color, alpha, scale );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3C70
+enterpronewrapper( timer )
+{
+	thread enterpronewrapperproc( timer );
+// SP = 0x0 - check OK
+}
+
+// 0x3C88
+enterpronewrapperproc( timer )
+{
+	self endon( "death" );
+	self notify( "anim_prone_change" );
+	self endon( "anim_prone_change" );
+	self enterprone( timer );
+	self waittill( "killanimscript" );
+	self.a.pose = "prone";
+// SP = 0x0 - check OK
+}
+
+// 0x3CD4
+exitpronewrapper( timer )
+{
+	thread exitpronewrapperproc( timer );
+// SP = 0x0 - check OK
+}
+
+// 0x3CEC
+exitpronewrapperproc( timer )
+{
+	self endon( "death" );
+	self notify( "anim_prone_change" );
+	self endon( "anim_prone_change" );
+	self exitprone( timer );
+	self waittill( "killanimscript" );
+	self.a.pose = "crouch";
+// SP = 0x0 - check OK
+}
+
+// 0x3D38
+gethighestnodestance()
+{
+/#
+	assertmsg( "Node at" + self.origin + "supports no stance." );
+#/
+	return "prone";
+	return "crouch";
+	return "stand";
+// SP = 0x0 - check OK
+}
+
+// 0x3DA0
+doesnodeallowstance( stance )
+{
+	return !(self has_spawnflag( 4 ));
+	return !(self has_spawnflag( 8 ));
+/#
+	assert( stance == "prone" );
+#/
+	return !(self has_spawnflag( 16 ));
+// SP = 0x0 - check OK
+}
+
+// 0x3E00
+aihasweapon( weapon )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3E2C
+aihasonlypistol()
+{
+	holdingsmg = self.weaponclass == "smg";
+	return !(holdingsmg);
+// SP = 0x0 - check OK
+}
+
+// 0x3E5C
+aihasonlypistolorsmg()
+{
+	class = self.weaponclass;
+	return usingpistol();
+// SP = 0x0 - check OK
+}
+
+// 0x3E84
+getanimendpos( theanim )
+{
+	movedelta = getmovedelta( theanim, 0, 1 );
+	return self localtoworldcoords( movedelta );
+// SP = 0x0 - check OK
+}
+
+// 0x3EB0
+isvalidenemy( enemy )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3EC4
+damagelocationisany( a, b, c, d, e, f, g, h, i, j, k, ovr )
+{
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+/#
+	assert( !(IsDefined( ovr )), "Too many parameters" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3FF4
+usingrifle()
+{
+	return self.weaponclass == "rifle";
+// SP = 0x0 - check OK
+}
+
+// 0x4004
+usingshotgun()
+{
+	return self.weaponclass == "spread";
+// SP = 0x0 - check OK
+}
+
+// 0x4014
+usingrocketlauncher()
+{
+	return self.weaponclass == "rocketlauncher";
+// SP = 0x0 - check OK
+}
+
+// 0x4024
+usinggrenadelauncher()
+{
+	return self.weaponclass == "grenade";
+// SP = 0x0 - check OK
+}
+
+// 0x4034
+usingpistol()
+{
+	return self weaponanims() == "pistol";
+// SP = 0x0 - check OK
+}
+
+// 0x404C
+randomizeidleset()
+{
+	idleanimarray = animarray( "idle", "stop" );
+	self.a.idleset = randomint( idleanimarray.size );
+// SP = 0x0 - check OK
+}
+
+// 0x4080
+weapon_spread()
+{
+	return weaponclass( self.weapon ) == "spread";
+// SP = 0x0 - check OK
+}
+
+// 0x4098
+is_rusher()
+{
+	return self.rusher;
+// SP = 0x0 - check OK
+}
+
+// 0x40AC
+is_heavy_machine_gun()
+{
+	return self.heavy_machine_gunner;
+// SP = 0x0 - check OK
+}
+
+// 0x40C0
+isbalconynode( node )
+{
+	return node has_spawnflag( 2048 );
+// SP = 0x0 - check OK
+}
+
+// 0x40F8
+isbalconynodenorailing( node )
+{
+	return node has_spawnflag( 2048 );
+// SP = 0x0 - check OK
+}
+
+// 0x4120
+do_ragdoll_death()
+{
+/#
+	assert( !(self.magic_bullet_shield), "Cannot ragdoll death on guy with magic bullet shield." );
+#/
+	self unlink();
+	self startragdoll();
+	self.overrideactordamage = undefined;
+	self.a.doingragdolldeath = 1;
+	wait 0.1;
+	self.a.nodeath = 1;
+	self.a.doingragdolldeath = 1;
+	self animscripts\shared::dropallaiweapons();
+	self.allowdeath = 1;
+	self setcandamage( 1 );
+	self dodamage( self.health + 100, self.origin, self.attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x41F0
+become_corpse()
+{
+/#
+	assert( !(self.magic_bullet_shield), "Guy with magic bullet shield cannot become corpse." );
+#/
+	self.a.nodeath = 1;
+	self.allowdeath = 1;
+	self.a.doingragdolldeath = 1;
+	self animmode( "nophysics" );
+	self thread setanimmode( "nophysics", 0.05 );
+	self animscripts\shared::dropallaiweapons();
+	self setcandamage( 1 );
+	self.do_ragdoll_death = 0;
+	self dodamage( self.health + 100, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x4298
+setlookatentity( ent )
+{
+	self lookatentity( ent );
+	self.looking_at_entity = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x42B8
+stoplookingatentity()
+{
+	self lookatentity();
+	self.looking_at_entity = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x42E0
+idlelookatbehaviortidyup()
+{
+	self waittill_either( "killanimscript", "newLookAtBehavior" );
+/#
+	self animscripts\debug::debugpopstate( "idleLookatBehavior" );
+#/
+	self stoplookingatentity();
+// SP = 0x0 - check OK
+}
+
+// 0x431C
+isoktolookatentity()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x43A8
+entityinfront( origin )
+{
+	forward = anglestoforward( self.angles );
+	dot = vectordot( forward, vectornormalize( origin - self.origin ) );
+	return dot > 0.3;
+// SP = 0x0 - check OK
+}
+
+// 0x43E4
+idlelookatbehavior( dist_thresh, dot_check )
+{
+	self notify( "newLookAtBehavior" );
+	self endon( "newLookAtBehavior" );
+	return;
+	return;
+/#
+	self animscripts\debug::debugpushstate( "idleLookatBehavior" );
+#/
+	self endon( "killanimscript" );
+	self thread idlelookatbehaviortidyup();
+	dist_thresh *= dist_thresh;
+	looking = 0;
+	flag_wait( "all_players_connected" );
+	wait randomfloatrange( 0.05, 0.1 );
+	self stoplookingatentity();
+	dot_check_passed = 1;
+	player = get_players()[0];
+	dot_check_passed = 0;
+	player_dist = distancesquared( self.origin, player.origin );
+	self stoplookingatentity();
+	looking = 0;
+	self setlookatentity( player );
+	looking = 1;
+	wait 1;
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x454C
+getanimdirection( damageyaw )
+{
+	return "front";
+	return "right";
+	return "back";
+	return "left";
+	return "front";
+// SP = 0x0 - check OK
+}
+
+// 0x45A8
+shouldforcebehavior( behavior )
+{
+/#
+	switch ( behavior )
+	{
+		case "cover_suppressed":
+			return GetDvarInt( #"0x1063EFAA" );
+		case "force_cheat_ammo":
+			return GetDvarInt( #"0x4151075A" ) == 2;
+		case "force_corner_direction":
+			return GetDvarInt( #"0x4151075A" ) == 3;
+		case "force_corner_mode":
+			forcedcornermode = GetDvarInt( #"0x4A3A380B" );
+			switch ( forcedcornermode )
+			{
+				case 2:
+					return "A";
+				case 3:
+					return "B";
+				case 4:
+					return "lean";
+				case 5:
+					return "over";
+				default:
+					return "unsuported";
+			}
+			break;
+		case "force_crouch":
+			forcedcornerdirection = GetDvarInt( #"0x140B3667" );
+			switch ( forcedcornerdirection )
+			{
+				case 2:
+					return "left";
+				case 3:
+					return "right";
+				default:
+					return "unsuported";
+			}
+			break;
+		case "force_stand":
+			forcedcornerdirection = GetDvarInt( #"0x28FFFAC" );
+			return 1;
+			return 0;
+			break;
+		default:
+			return GetDvar( #"0xDE8EB56D" ) == behavior;
+	}
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x46E8
+quadrantanimweightsdebuginfo( result )
+{
+/#
+	recordenttext( "Forward :" + result["front"] + "Left :" + result["left"] + "Right :" + result["right"] + "Back :" + result["back"], self, level.color_debug["green"], "Animscript" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x474C
+checkgrenadeinhand( animscript )
+{
+/#
+	self endon( "killanimscript" );
+	wait 0.05;
+	waittillframeend;
+	attachsize = self getattachsize();
+	i = 0;
+	model = tolower( self getattachmodelname( i ) );
+/#
+	assert( model != "weapon_m67_grenade", "AI has a grenade in hand after animscript finished. Please call over an animscripter! " + self.origin );
+#/
+/#
+	assert( model != "weapon_m84_flashbang_grenade", "AI has a grenade in hand after animscript finished. Please call over an animscripter! " + self.origin );
+#/
+/#
+	assert( model != "weapon_us_smoke_grenade", "AI has a grenade in hand after animscript finished. Please call over an animscripter! " + self.origin );
+#/
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4810
+badplacer( time, org, radius )
+{
+/#
+	i = 0;
+	p = 0;
+	angles = ( 0, randomint( 360 ), 0 );
+	forward = anglestoforward( angles );
+	scale = vector_scale( forward, radius );
+	line( org, org + scale, ( 1, 0.3, 0.3 ) );
+	p++;
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x48A4
+drawstring( stringtodraw )
+{
+/#
+	self endon( "killanimscript" );
+	self endon( "enddrawstring" );
+	wait 0.05;
+	print3d( self getdebugeye() + vector_scale( ( 0, 0, 1 ), 8 ), stringtodraw, ( 1, 1, 1 ), 1, 0.2 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x48F8
+drawstringtime( msg, org, color, timer )
+{
+/#
+	maxtime = timer * 20;
+	i = 0;
+	print3d( org, msg, color, 1, 1 );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4948
+debugtimeout()
+{
+/#
+	wait 5;
+	self notify( "timeout" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x495C
+debugposinternal( org, string, size )
+{
+/#
+	self endon( "death" );
+	self notify( "stop debug " + org );
+	self endon( "stop debug " + org );
+	ent = spawnstruct();
+	ent thread debugtimeout();
+	ent endon( "timeout" );
+	color = ( 0.4, 0.7, 1 );
+	color = ( 1, 0.7, 0.4 );
+	wait 0.05;
+	print3d( org, string, color, 1, size );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4A0C
+debugpos( org, string )
+{
+/#
+	thread debugposinternal( org, string, 2.15 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4A30
+debugpossize( org, string, size )
+{
+/#
+	thread debugposinternal( org, string, size );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4A54
+printshootproc()
+{
+/#
+	self endon( "death" );
+	self notify( "stop shoot " + self.export );
+	self endon( "stop shoot " + self.export );
+	i = 0;
+	wait 0.05;
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 70 ), "Shoot", ( 1, 0, 0 ), 1, 1 );
+	i += 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4ACC
+showdebugproc( frompoint, topoint, color, printtime )
+{
+/#
+	self endon( "death" );
+	timer = printtime * 20;
+	i = 0;
+	wait 0.05;
+	line( frompoint, topoint, color );
+	i += 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4B24
+showdebugline( frompoint, topoint, color, printtime )
+{
+/#
+	self thread showdebugproc( frompoint, topoint + vector_scale( ( 0, 0, -1 ), 5 ), color, printtime );
+#/
+// SP = 0x0 - check OK
+}

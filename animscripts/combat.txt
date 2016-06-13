@@ -1,0 +1,1069 @@
+// animscripts/combat.gsc
+
+#include animscripts\cover_prone;
+#include animscripts\melee;
+#include maps\_gameskill;
+#include animscripts\cover_behavior;
+#include animscripts\weaponlist;
+#include animscripts\shoot_behavior;
+#include maps\_dds;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\shared;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+#include animscripts\debug;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1AF4
+main()
+{
+	self endon( "killanimscript" );
+	[[self.exception["exposed"]]]();
+	animscripts\utility::initialize( "combat" );
+	combatinit();
+	self maps\_dds::dds_notify( "thrt_movement", self.team != "allies" );
+	self transitiontocombat();
+	self setup();
+	self exposedcombatmainloop();
+	self notify( "stop_deciding_how_to_shoot" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B64
+combatinit()
+{
+	self.a.arrivaltype = undefined;
+	self.ambushnode = self.node;
+// SP = 0x0 - check OK
+}
+
+// 0x1BAC
+combatglobalsinit()
+{
+	anim.combatglobals = spawnstruct();
+	anim.combatglobals.min_exposed_grenade_dist = 750;
+	anim.combatglobals.min_exposed_grenade_dist_player = 500;
+	anim.combatglobals.min_exposed_grenade_distsq = 250000;
+	anim.combatglobals.max_grenade_throw_distsq = 1562500;
+	anim.combatglobals.max_flash_grenade_throw_distsq = 589824;
+	anim.combatglobals.pistol_pullout_distsq = 160000;
+	anim.combatglobals.pistol_putback_distsq = 262144;
+// SP = 0x0 - check OK
+}
+
+// 0x1C34
+transitiontocombat()
+{
+	self animmode( "zonly_physics" );
+	self setflaggedanimknoballrestart( "transition", animarray( "idle_trans_out" ), %root, 1, 0.2, 1.2 * self.animplaybackrate );
+	self animscripts\shared::donotetracks( "transition" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CFC
+setup()
+{
+	transitionto( "stand" );
+	self set_aimturn_limits();
+	self thread stopshortly();
+	self clearanim( %root, 0.2 );
+	self setanim( animarray( "straight_level" ) );
+	self clearanim( %aim_4, 0.2 );
+	self clearanim( %aim_6, 0.2 );
+	self clearanim( %aim_2, 0.2 );
+	self clearanim( %aim_8, 0.2 );
+	setupaim( 0.2 );
+	self thread idlethread();
+// SP = 0x0 - check OK
+}
+
+// 0x1DF0
+set_aimturn_limits()
+{
+	switch ( self.a.pose )
+	{
+		case "crouch":
+		case "prone":
+			self.turnthreshold = 35;
+			break;
+		case "stand":
+/#
+			assert( !(self.weapon == self.sidearm) );
+#/
+			self.turnthreshold = 45;
+			break;
+		default:
+	}
+	self.rightaimlimit = 45;
+	self.leftaimlimit = -45;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+// SP = 0x0 - check OK
+}
+
+// 0x1E7C
+stopshortly()
+{
+	self endon( "killanimscript" );
+	self endon( "melee" );
+	wait 0.2;
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0x1EA4
+setupaim( transtime )
+{
+/#
+	assert( IsDefined( transtime ) );
+#/
+	self setanimknoblimited( animarray( "add_aim_up" ), 1, transtime );
+	self setanimknoblimited( animarray( "add_aim_down" ), 1, transtime );
+	self setanimknoblimited( animarray( "add_aim_left" ), 1, transtime );
+	self setanimknoblimited( animarray( "add_aim_right" ), 1, transtime );
+// SP = 0x0 - check OK
+}
+
+// 0x1F20
+idlethread()
+{
+	self endon( "killanimscript" );
+	self endon( "kill_idle_thread" );
+	self setanim( %add_idle );
+	idleanim = animarraypickrandom( "exposed_idle" );
+	idleanim = random( idleanim );
+	self setflaggedanimknoblimitedrestart( "idle", idleanim );
+	self waittillmatch( "idle" );
+	return "end";
+	self clearanim( idleanim, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x1FA8
+exposedcombatmainloop()
+{
+	self endon( "killanimscript" );
+	self endon( "combat_restart" );
+	self exposedcombatmainloopsetup();
+	self animmode( "zonly_physics", 0 );
+	self orientmode( "face angle", self.angles[1] );
+	self isincombat();
+	animscripts\shared::switchweapons();
+	resetweaponanims();
+	trymelee();
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+/#
+	self animscripts\debug::debugpushstate( "cantSeeEnemyBehavior" );
+#/
+	exposedcombatcantseeenemybehavior();
+/#
+	self animscripts\debug::debugpopstate( "cantSeeEnemyBehavior" );
+#/
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+	self resetgiveuponenemytime();
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	exposedcombatcheckputawaypistol( distsqtoshootpos );
+/#
+	self animscripts\debug::debugpushstate( "exposedCombatShootUntilNeedToTurn" );
+#/
+	self exposedcombatshootuntilneedtoturn();
+/#
+	self animscripts\debug::debugpopstate( "exposedCombatShootUntilNeedToTurn" );
+#/
+	self clearanim( %add_fire, 0.2 );
+	self maps\_dds::dds_notify( "thrt_acquired", self.team == "allies" );
+/#
+	self animscripts\debug::debugpushstate( "exposedCombatWait" );
+#/
+	exposedcombatwait();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x21B8
+exposedcombatmainloopsetup()
+{
+	self thread trackshootentorpos();
+	self thread exposedcombatreacquirewhennecessary();
+	self thread animscripts\shoot_behavior::decidewhatandhowtoshoot( "normal" );
+	self thread watchshootentvelocity();
+	self resetgiveuponenemytime();
+	self animscripts\weaponlist::refillclip();
+	self.a.magicreloadwhenreachenemy = 0;
+	self.a.dontcrouchtime = GetTime() + randomintrange( 500, 1500 );
+// SP = 0x0 - check OK
+}
+
+// 0x223C
+exposedcombatrambo()
+{
+	return 0;
+	return 0;
+	shouldexposedrambo = self.a.nextallowedexposedblindfiretime < GetTime();
+	self notify( "kill_idle_thread" );
+	self animmode( "gravity" );
+	ramboanim = animarraypickrandom( "exposed_rambo" );
+	time = getanimlength( ramboanim );
+	self setflaggedanimknoballrestart( "ramboAnim", ramboanim, %body, 1, 0.2, 1 );
+	self animscripts\shared::donotetracksfortime( time - 0.2, "ramboAnim" );
+	self animmode( "zonly_physics" );
+	self thread idlethread();
+	self.a.nextallowedexposedblindfiretime = GetTime() + randomintrange( 3000, 5000 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2354
+exposedcombatwaitforstancechange()
+{
+	curstance = self.a.pose;
+	stances = array( "stand", "crouch", "prone" );
+/#
+	assert( curstance == "prone" );
+#/
+	i = 0;
+	otherstance = stances[i];
+	return 1;
+	transitionto( otherstance );
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2428
+exposedcombatcantseeenemybehavior()
+{
+	return 1;
+	time = GetTime();
+	self.a.dontcrouchtime = time + 1500;
+	relyaw = angleclamp180( self.angles[1] - self.node.angles[1] );
+	return 1;
+	relyaw = undefined;
+	likelyenemydir = self getanglestolikelyenemypath();
+	relyaw = angleclamp180( self.angles[1] - likelyenemydir[1] );
+	relyaw = angleclamp180( self.angles[1] - self.node.angles[1] );
+	likelyenemydir = vectortoangles( self lastknownpos( self.enemy ) - self.origin );
+	relyaw = angleclamp180( self.angles[1] - likelyenemydir[1] );
+	return 1;
+	return 1;
+	givenuponenemy = self.a.nextgiveuponenemytime < time;
+	threshold = 0;
+	threshold = 0.99999;
+	return 1;
+	return 1;
+	exposedcantseeenemywait();
+	self maps\_dds::dds_notify( "rspns_neg", self.team == "allies" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2618
+exposedcantseeenemywait()
+{
+	self endon( "shoot_behavior_change" );
+	wait 0.05;
+	wait 0.4 + randomfloat( 0.4 );
+	self waittill( "do_slow_things" );
+// SP = 0x0 - check OK
+}
+
+// 0x2668
+exposedcombatstopusingrpgcheck()
+{
+	lastweapontype = weaponanims();
+	transitionto( "crouch" );
+	self notify( "kill_idle_thread" );
+	animscripts\shared::throwdownweapon();
+	self.a.pose = "stand";
+	resetweaponanims();
+	self thread idlethread();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2704
+exposedcombatneedtoturn()
+{
+	predicttime = 0.25;
+	predicttime = 1.5;
+	yawtoshootentorpos = getpredictedaimyawtoshootentorpos( predicttime );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x276C
+exposedcombatconsiderthrowgrenade()
+{
+	self.a.throwinggrenade = 1;
+	players = getplayers();
+	self.grenadeammo++;
+	return 1;
+	self.grenadeammo++;
+	return 1;
+	return 0;
+	return 1;
+	self.a.nextgrenadetrytime = GetTime() + 2000;
+	self.a.throwinggrenade = 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2868
+tryexposedthrowgrenade( throwat, mindist, forcethrow )
+{
+/#
+	self animscripts\debug::debugpushstate( "tryThrowGrenade" );
+#/
+	forcethrow = forcethrow;
+	threw = 0;
+	return 0;
+	return 0;
+	throwspot = throwat.origin;
+	throwspot = self.shootpos;
+	mindist = 250;
+	self setactivegrenadetimer( throwat );
+	return 0;
+	yaw = getyawtospot( throwspot );
+	throwanims = [];
+	throwanims[throwanims.size] = animarray( "grenade_throw" );
+	throwanims[throwanims.size] = animarray( "grenade_throw_1" );
+	throwanims[throwanims.size] = animarray( "grenade_throw_2" );
+	self setanim( %exposed_aiming, 0, 0.1 );
+	self animmode( "zonly_physics" );
+	setanimaimweight( 0, 0 );
+	threw = trygrenade( throwat, throwanims[randomint( throwanims.size )], forcethrow );
+	self setanim( %exposed_aiming, 1, 0.1 );
+	setanimaimweight( 1, 0.5 );
+	setanimaimweight( 1, 0 );
+/#
+	self animscripts\debug::debugpopstate( "tryThrowGrenade", "no throw anim that wouldn't collide with env" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "tryThrowGrenade", "angle to enemy > 60" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "tryThrowGrenade", "too close (<" + mindist + ")" );
+	self animscripts\debug::debugpopstate( "tryThrowGrenade", "not standing" );
+#/
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate( "tryThrowGrenade" );
+#/
+	return threw;
+// SP = 0x0 - check OK
+}
+
+// 0x2B44
+exposedcombatcheckreloadorusepistol( distsqtoshootpos )
+{
+/#
+	self.forcesidearm = 1;
+#/
+	shouldforcesidearm = self.forcesidearm;
+	return 1;
+	return 1;
+	transitionto( "stand" );
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2C78
+exposedcombatcheckputawaypistol( distsqtoshootpos )
+{
+/#
+	assert( self.a.pose == "stand" );
+#/
+	switchtolastweapon();
+// SP = 0x0 - check OK
+}
+
+// 0x2D04
+exposedcombatcheckstance( distsqtoshootpos )
+{
+/#
+	desiredstance = undefined;
+	desiredstance = "stand";
+	desiredstance = "crouch";
+	transitionto( desiredstance );
+	return 1;
+	return 0;
+#/
+	transitionto( "stand" );
+	return 1;
+	return 1;
+	iscrouchingatnodeallowed = 1;
+	iscrouchingatnodeallowed = !(self.node has_spawnflag( 8 ));
+	transitionto( "crouch" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2EA8
+exposedcombatshootuntilneedtoturn()
+{
+	self thread watchforneedtoturnortimeout();
+	self endon( "need_to_turn" );
+	self thread keeptryingtomelee();
+	shootuntilshootbehaviorchange();
+	self flamethrower_stop_shoot();
+	self notify( "stop_watching_for_need_to_turn" );
+	self notify( "stop_trying_to_melee" );
+// SP = 0x0 - check OK
+}
+
+// 0x2EEC
+watchforneedtoturnortimeout()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_watching_for_need_to_turn" );
+	endtime = GetTime() + 4000 + randomint( 2000 );
+	self notify( "need_to_turn" );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x2F48
+exposedcombatwait()
+{
+	self endon( "enemy" );
+	self endon( "shoot_behavior_change" );
+	wait 0.2 + randomfloat( 0.1 );
+	self waittill( "do_slow_things" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2FA8
+exposedcombatreacquirewhennecessary()
+{
+	self endon( "killanimscript" );
+	self.a.exposedreloading = 0;
+	wait 0.2;
+	tryexposedreacquire();
+// SP = 0x0 - check OK
+}
+
+// 0x3014
+tryexposedreacquire()
+{
+	return;
+	return;
+	return;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	self.prevenemy = undefined;
+	return;
+	self.prevenemy = self.enemy;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	dirtoenemy = vectornormalize( self.enemy.origin - self.origin );
+	forward = anglestoforward( self.angles );
+	self.reacquire_state = 0;
+	return;
+	self.reacquire_state = 0;
+	return;
+	switch ( self.reacquire_state )
+	{
+		case 0:
+			break;
+		case 1:
+			self.reacquire_state = 0;
+			break;
+		case 2:
+			self.reacquire_state = 0;
+			break;
+		case 3:
+			self.reacquire_state = 0;
+			break;
+		case 4:
+			self flagenemyunattackable();
+			break;
+		default:
+			self.reacquire_state = 0;
+			break;
+	}
+	self.reacquire_state++;
+// SP = 0x0 - check OK
+}
+
+// 0x32D0
+trymelee()
+{
+	animscripts\melee::melee_tryexecuting();
+// SP = 0x0 - check OK
+}
+
+// 0x32E0
+keeptryingtomelee()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_trying_to_melee" );
+	self endon( "done turning" );
+	self endon( "need_to_turn" );
+	self endon( "shoot_behavior_change" );
+	wait 0.2 + randomfloat( 0.3 );
+	checkdistsq = 40000;
+	checkdistsq = 10000;
+	trymelee();
+// SP = 0x0 - check OK
+}
+
+// 0x3380
+delaystandardmelee()
+{
+	return;
+	return;
+	animscripts\melee::melee_standard_delaystandardcharge( self.enemy );
+// SP = 0x0 - check OK
+}
+
+// 0x33B0
+end_script()
+{
+	self.ambushnode = undefined;
+	self.a.throwinggrenade = 0;
+	self.a.finishedreload = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x33D4
+resetweaponanims()
+{
+	self clearanim( %aim_4, 0 );
+	self clearanim( %aim_6, 0 );
+	self clearanim( %aim_2, 0 );
+	self clearanim( %aim_8, 0 );
+	self clearanim( %exposed_aiming, 0 );
+	self setanimknoballrestart( animarray( "straight_level" ), %body, 1, 0.2 );
+	setupaim( 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x3460
+resetgiveuponenemytime()
+{
+	self.a.nextgiveuponenemytime = GetTime() + randomintrange( 2000, 4000 );
+// SP = 0x0 - check OK
+}
+
+// 0x3480
+switchtolastweapon( cleanup )
+{
+	self endon( "killanimscript" );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+/#
+	self animscripts\debug::debugpushstate( "switchToLastWeapon" );
+#/
+	swapanim = animarray( "pistol_putaway", "combat" );
+/#
+	assert( self.lastweapon != self.sidearm );
+#/
+/#
+	assert( self.lastweapon == self.secondaryweapon );
+#/
+	self notify( "kill_idle_thread" );
+	self clearanim( %add_idle, 0.2 );
+	self clearanim( animarray( "straight_level", "combat" ), 0.2 );
+	self orientmode( "face current" );
+	self.swapanim = swapanim;
+	self setflaggedanimknoballrestart( "weapon swap", swapanim, %body, 1, 0.1, 1 );
+	self donotetrackspostcallbackwithendon( "weapon swap", ::handleputawaycleanup, "end_weapon_swap" );
+	self donotetrackspostcallbackwithendon( "weapon swap", ::handleputaway, "end_weapon_swap" );
+	self clearanim( self.swapanim, 0.2 );
+	self orientmode( "face angle", self.angles[1] );
+	self maps\_gameskill::didsomethingotherthanshooting();
+	self animscripts\anims::clearanimcache();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3650
+handleputawaycleanup( notetrack )
+{
+	self clearanim( animarray( "straight_level", "combat" ), 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3680
+handleputaway( notetrack )
+{
+	self clearanim( animarray( "straight_level", "combat" ), 0 );
+	self notify( "end_weapon_swap" );
+	self thread idlethread();
+	self setanimlimited( animarray( "straight_level", "combat" ), 1, 0 );
+	setupaim( 0 );
+	self setanim( %exposed_aiming, 1, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x3720
+standifmakesenemyvisible()
+{
+/#
+	assert( self.a.pose != "stand" );
+#/
+/#
+	assert( self isstanceallowed( "stand" ) );
+#/
+	self.a.dontcrouchtime = GetTime() + 3000;
+	transitionto( "stand" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x37D4
+transitionto( newpose )
+{
+	return;
+/#
+	self animscripts\debug::debugpushstate( "transitionTo: " + newpose );
+#/
+	self clearanim( %root, 0.3 );
+	self notify( "kill_idle_thread" );
+	transanim = animarray( self.a.pose + "_2_" + newpose, "combat" );
+	rate = 2;
+	rate = 1;
+/#
+	println( "error: ^2Pain missing notetrack to set pose!", transanim );
+#/
+	self setflaggedanimknoballrestart( "trans", transanim, %body, 1, 0.2, rate );
+	setupaim( 0 );
+	self setanim( %exposed_aiming, 1, 0 );
+	transtime = getanimlength( transanim ) / rate;
+	playtime = transtime - 0.3;
+	playtime = 0.2;
+	self animscripts\shared::donotetracksfortime( playtime, "trans" );
+	self clearanim( transanim, 0.2 );
+	self.a.pose = newpose;
+	self set_aimturn_limits();
+	self setanimknoballrestart( animarray( "straight_level" ), %body, 1, 0.25 );
+	setupaim( 0.25 );
+	self setanim( %add_idle );
+	self thread idlethread();
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x39A4
+watchshootentvelocity()
+{
+	self endon( "killanimscript" );
+	self.shootentvelocity = ( 0, 0, 0 );
+	prevshootent = undefined;
+	prevpos = self.origin;
+	curpos = self.shootent.origin;
+	self.shootentvelocity = vector_scale( curpos - prevpos, 1 / 0.15 );
+	prevpos = curpos;
+	prevpos = self.shootent.origin;
+	prevpos = self.origin;
+	prevshootent = self.shootent;
+	self.shootentvelocity = ( 0, 0, 0 );
+	wait 0.15;
+// SP = 0x0 - check OK
+}
+
+// 0x3A4C
+isdeltaallowed( theanim )
+{
+	delta = getmovedelta( theanim, 0, 1 );
+	endpoint = self localtoworldcoords( delta );
+	return self maymovetopoint( endpoint );
+// SP = 0x0 - check OK
+}
+
+// 0x3A98
+needtoturn()
+{
+	point = self.shootpos;
+	return 0;
+	yaw = self.angles[1] - vectortoangles( point - self.origin )[1];
+	distsq = distancesquared( self.origin, point );
+	dist = sqrt( distsq );
+	yaw += asin( -3 / dist );
+	return absangleclamp180( yaw ) > self.turnthreshold;
+// SP = 0x0 - check OK
+}
+
+// 0x3B2C
+exposedreload( threshold )
+{
+	self animscripts\weaponlist::refillclip();
+	return 1;
+/#
+	self animscripts\debug::debugpushstate( "exposedReload" );
+#/
+	self.keepclaimednode = 1;
+	self.a.exposedreloading = 1;
+	crouchreload = 0;
+	crouchreload = 1;
+	crouchreload = 1;
+	crouchreload = 1;
+	reloadanim = animarraypickrandom( "reload_crouchhide" );
+	reloadanim = animarraypickrandom( "reload" );
+	self thread keeptryingtomelee();
+	self setanim( %reload, 1, 0.2 );
+	self clearanim( %add_fire, 0 );
+	self.a.finishedreload = 0;
+	self animscripts\shared::updatelaserstatus( 0 );
+	self doreloadanim( reloadanim, threshold > 0.05, 0 );
+	self notify( "abort_reload" );
+	self animscripts\shared::updatelaserstatus( 1 );
+	self animscripts\weaponlist::refillclip();
+	self set_aimturn_limits();
+	self clearanim( %reload, 0.3 );
+	self setanim( %exposed_aiming, 1, 0.2 );
+	self setanim( %add_idle );
+	self.keepclaimednode = 0;
+	self notify( "stop_trying_to_melee" );
+	self.a.exposedreloading = 0;
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3D70
+doreloadanim( reloadanim, stopwhencanshoot, shouldkeepaiming )
+{
+	self endon( "abort_reload" );
+	self thread abortreloadwhencanshoot();
+	animrate = 1;
+	animrate = 1.2;
+	flagname = "reload_" + getuniqueflagnameindex();
+	self setflaggedanimrestart( flagname, reloadanim, 1, 0.3, animrate );
+	self waittillmatch( flagname );
+	return "stop_aim";
+	self setanim( %add_idle, 0, 0.1 );
+	self setanim( %exposed_aiming, 0, 0.1 );
+	self thread notifyonstartaim( "abort_reload", flagname );
+	self endon( "start_aim" );
+	self animscripts\shared::donotetracks( flagname );
+	self.a.finishedreload = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3EA4
+abortreloadwhencanshoot()
+{
+	self endon( "abort_reload" );
+	self endon( "killanimscript" );
+	wait 0.05;
+	self notify( "abort_reload" );
+// SP = 0x0 - check OK
+}
+
+// 0x3EEC
+notifyonstartaim( endonstr, flagname )
+{
+	self endon( endonstr );
+	self endon( "killanimscript" );
+	self waittillmatch( flagname );
+	return "start_aim";
+	self.a.finishedreload = 1;
+	self notify( "start_aim" );
+// SP = 0x0 - check OK
+}
+
+// 0x3F20
+finishnotetracks( animname )
+{
+	self endon( "killanimscript" );
+	animscripts\shared::donotetracks( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x3F3C
+tryusingsidearm()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	switchtosidearm( animarray( "pistol_pullout" ) );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3FB4
+switchtosidearm( swapanim )
+{
+	self endon( "killanimscript" );
+/#
+	self animscripts\debug::debugpushstate( "switchToSidearm" );
+#/
+/#
+	assert( self.sidearm != "" );
+#/
+	self thread putgunbackinhandonkillanimscript();
+	self notify( "kill_idle_thread" );
+	self clearanim( %add_idle, 0.2 );
+	self clearanim( animarray( "straight_level" ), 0.2 );
+	self orientmode( "face current" );
+	self.a.switchtosidearmdone = 0;
+	self.pistolswitchtime = GetTime() + 9000 + randomint( 3000 );
+	self.swapanim = swapanim;
+	self setflaggedanimknoballrestart( "weapon swap", swapanim, %body, 1, 0.2, 1 );
+	self donotetrackspostcallbackwithendon( "weapon swap", ::handlepickup, "end_weapon_swap" );
+	self clearanim( self.swapanim, 0 );
+	self animscripts\anims::clearanimcache();
+	self.a.switchtosidearmdone = 1;
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x40FC
+donotetrackspostcallbackwithendon( flagname, interceptfunction, endonmsg )
+{
+	self endon( endonmsg );
+	self animscripts\shared::donotetrackspostcallback( flagname, interceptfunction );
+// SP = 0x0 - check OK
+}
+
+// 0x411C
+faceenemydelay( delay )
+{
+	self endon( "killanimscript" );
+	wait delay;
+	self faceenemyimmediately();
+// SP = 0x0 - check OK
+}
+
+// 0x413C
+handlepickup( notetrack )
+{
+	self clearanim( animarray( "straight_level" ), 0 );
+	self thread faceenemydelay( 0.25 );
+	self notify( "end_weapon_swap" );
+	self thread idlethread();
+	self setanimlimited( animarray( "straight_level" ), 1, 0 );
+	setupaim( 0 );
+	self setanim( %exposed_aiming, 1, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x41E4
+turntofacerelativeyaw( faceyaw )
+{
+/#
+	self animscripts\debug::debugpushstate( "turnToFaceRelativeYaw", faceyaw );
+#/
+	self animscripts\cover_prone::proneto( "crouch" );
+	self set_aimturn_limits();
+	self doturn( "left", 0 - faceyaw );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate( "turnToFaceRelativeYaw", "faceYaw < 0-self.turnThreshold" );
+#/
+	return 1;
+	self animscripts\cover_prone::proneto( "crouch" );
+	self set_aimturn_limits();
+	self doturn( "right", faceyaw );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpopstate( "turnToFaceRelativeYaw", "faceYaw > self.turnThreshold" );
+#/
+	return 1;
+/#
+	self animscripts\debug::debugpopstate();
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x42E8
+faceenemyimmediately()
+{
+	self endon( "killanimscript" );
+	self notify( "facing_enemy_immediately" );
+	self endon( "facing_enemy_immediately" );
+	yawchange = 0 - getyawtoenemy();
+	yawchange = 5 * sign( yawchange );
+	self orientmode( "face angle", self.angles[1] + yawchange );
+	wait 0.05;
+	self orientmode( "face current" );
+	self notify( "can_stop_turning" );
+// SP = 0x0 - check OK
+}
+
+// 0x437C
+doturn( direction, amount )
+{
+/#
+	self animscripts\debug::debugpushstate( "turn", direction + " by " + amount );
+#/
+	rate = 1;
+	transtime = 0.2;
+	keepaimingon45degturn = 0;
+	mustfaceenemy = distancesquared( self.enemy.origin, self.origin ) < 262144;
+	transtime = 0.25;
+	self thread faceenemyimmediately();
+	urgency = 1 - distance( self.enemy.origin, self.origin ) / 512;
+	rate = 1 + urgency * 1;
+	transtime = 0.05;
+	transtime = 0.1;
+	transtime = 0.15;
+	angle = 0;
+	angle = 180;
+	angle = 135;
+	angle = 90;
+	angle = 45;
+	keepaimingon45degturn = self.animtype == "default";
+/#
+	exposedcombatturndebugmsg( "TurningAngle:" + amount );
+#/
+	animname = "turn_" + direction + "_" + angle;
+	turnanim = animarray( animname, "combat" );
+	self animmode( "angle deltas", 0 );
+	self animmode( "angle deltas" );
+	self animmode( "zonly_physics" );
+	self animmode( "angle deltas" );
+	self setanimknoball( %exposed_aiming, %body, 1, transtime );
+	shouldusestartstopaimnotetrack = animhasnotetrack( turnanim, "stop_aim" );
+	self thread turningaimingoff( turnanim, transtime, rate, shouldusestartstopaimnotetrack );
+	rate = 1.6;
+	self setanimlimited( %turn, 1, transtime );
+	self setflaggedanimknoblimitedrestart( "turn", turnanim, 1, 0, rate );
+	self notify( "turning" );
+	self thread turnstartaiming( turnanim, rate, shouldusestartstopaimnotetrack );
+	doturnnotetracks();
+	self setanimlimited( %turn, 0, 0.2 );
+	self turnsetupidle( transtime );
+	self clearanim( %turn, 0.2 );
+	self setanimknob( %exposed_aiming, 1, 0.2, 1 );
+	self.turnlastresort = undefined;
+	self thread faceenemyimmediately();
+	self clearanim( %add_fire, 0.2 );
+	self notify( "done turning" );
+/#
+	self animscripts\debug::debugpopstate( "turn" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4754
+doturnnotetracks()
+{
+	self endon( "turning_isnt_working" );
+	self endon( "can_stop_turning" );
+	self animscripts\shared::donotetracks( "turn" );
+// SP = 0x0 - check OK
+}
+
+// 0x4774
+turnstartaiming( turnanim, rate, shouldusestartstopaimnotetrack )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "turning_isnt_working" );
+	self endon( "can_stop_turning" );
+	self waittillmatch( "turn" );
+	return "start_aim";
+	animlength = getanimlength( turnanim ) / rate;
+	wait animlength * 0.8;
+/#
+	exposedcombatturndebugmsg( "starting_aim:" + shouldusestartstopaimnotetrack );
+#/
+	trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x47EC
+turningaimingoff( turnanim, transtime, rate, shouldusestartstopaimnotetrack )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "turning_isnt_working" );
+	self endon( "can_stop_turning" );
+	self waittillmatch( "turn" );
+	return "stop_aim";
+	animlength = getanimlength( turnanim ) / rate;
+	wait animlength * 0.2;
+/#
+	exposedcombatturndebugmsg( "stopping_aim:" + shouldusestartstopaimnotetrack );
+#/
+	self stoptracking();
+	self setanimlimited( animarray( "straight_level", "combat" ), 0, transtime );
+	self setanim( %aim_2, 0, transtime );
+	self setanim( %aim_4, 0, transtime );
+	self setanim( %aim_6, 0, transtime );
+	self setanim( %aim_8, 0, transtime );
+	self setanim( %add_idle, 0, transtime );
+// SP = 0x0 - check OK
+}
+
+// 0x48E8
+turnsetupidle( transtime )
+{
+	self setanimlimited( animarray( "straight_level" ), 1, transtime );
+	self setanim( %add_idle, 1, transtime );
+	trackloopstart();
+// SP = 0x0 - check OK
+}
+
+// 0x4928
+makesureturnworks()
+{
+	self endon( "killanimscript" );
+	self endon( "done turning" );
+	startangle = self.angles[1];
+	wait 0.3;
+	self notify( "turning_isnt_working" );
+	self.turnlastresort = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x496C
+exposedcombatturndebugmsg( msg )
+{
+/#
+	recordenttext( msg, self, level.color_debug["green"], "Script" );
+#/
+// SP = 0x0 - check OK
+}

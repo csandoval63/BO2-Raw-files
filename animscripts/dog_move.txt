@@ -1,0 +1,141 @@
+// animscripts/dog_move.gsc
+
+#include animscripts\shared;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "dog" );
+
+
+// 0x468
+main()
+{
+	self endon( "killanimscript" );
+	self clearanim( %root, 0.2 );
+	self clearanim( %german_shepherd_run_stop, 0 );
+	self thread randomsoundduringrunloop();
+	self startmove();
+	blendtime = 0;
+	blendtime = 0.2;
+	self.traversecomplete = undefined;
+	self.skipstartmove = undefined;
+	self clearanim( %german_shepherd_run_start, 0 );
+	weights = undefined;
+	weights = self getrunanimweights();
+	self setanimrestart( %german_shepherd_run, weights["center"], blendtime, 1 );
+	self setanimrestart( %german_shepherd_run_lean_l, weights["left"], 0.1, 1 );
+	self setanimrestart( %german_shepherd_run_lean_r, weights["right"], 0.1, 1 );
+	self setflaggedanimknob( "dog_run", %german_shepherd_run_knob, 1, blendtime, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.1, "dog_run" );
+	self setflaggedanimrestart( "dog_walk", %german_shepherd_walk, 1, 0.2, self.moveplaybackrate );
+	self moveloop();
+	self thread stopmove();
+	self waittill( "run" );
+	self clearanim( %german_shepherd_run_stop, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x634
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x63C
+moveloop()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_soon" );
+	self.stopanimdistsq = 0;
+	self.stopanimdistsq = anim.dogstoppingdistsq;
+	weights = self getrunanimweights();
+	self clearanim( %german_shepherd_walk, 0.3 );
+	self setanim( %german_shepherd_run, weights["center"], 0.2, 1 );
+	self setanim( %german_shepherd_run_lean_l, weights["left"], 0.2, 1 );
+	self setanim( %german_shepherd_run_lean_r, weights["right"], 0.2, 1 );
+	self setflaggedanimknob( "dog_run", %german_shepherd_run_knob, 1, 0.2, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.2, "dog_run" );
+/#
+	assert( self.a.movement == "walk" );
+#/
+	self clearanim( %german_shepherd_run_knob, 0.3 );
+	self setflaggedanim( "dog_walk", %german_shepherd_walk, 1, 0.2, self.moveplaybackrate );
+	animscripts\shared::donotetracksfortime( 0.2, "dog_walk" );
+// SP = 0x0 - check OK
+}
+
+// 0x7B0
+startmovetracklookahead()
+{
+	self endon( "killanimscript" );
+	i = 0;
+	lookaheadangle = vectortoangles( self.lookaheaddir );
+	self orientmode( "face angle", lookaheadangle );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7F0
+startmove()
+{
+	self setanimrestart( %german_shepherd_run_start, 1, 0.2, 1 );
+	self setflaggedanimknobrestart( "dog_prerun", %german_shepherd_run_start_knob, 1, 0.2, self.moveplaybackrate );
+	self animscripts\shared::donotetracks( "dog_prerun" );
+	self animmode( "none" );
+	self orientmode( "face motion" );
+// SP = 0x0 - check OK
+}
+
+// 0x864
+stopmove()
+{
+	self endon( "killanimscript" );
+	self endon( "run" );
+	self clearanim( %german_shepherd_run_knob, 0.1 );
+	self setflaggedanimrestart( "stop_anim", %german_shepherd_run_stop, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "stop_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x8C0
+randomsoundduringrunloop()
+{
+	self endon( "killanimscript" );
+/#
+	iprintln( "dog " + self getentnum() + " bark start " + GetTime() );
+#/
+	self play_sound_on_tag( "aml_dog_growl", "tag_eye" );
+	self play_sound_on_tag( "aml_dog_bark", "tag_eye" );
+/#
+	iprintln( "dog " + self getentnum() + " bark end " + GetTime() );
+#/
+	wait randomfloatrange( 0.1, 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x988
+getrunanimweights()
+{
+	weights = [];
+	weights["center"] = 0;
+	weights["left"] = 0;
+	weights["right"] = 0;
+	self.leanamount = 0.95;
+	weights["left"] = 0;
+	weights["right"] = ( 1 - self.leanamount ) * 20;
+	weights["right"] = 1;
+	weights["right"] = 0;
+	weights["center"] = 1 - weights["right"];
+	self.leanamount = -0.95;
+	weights["right"] = 0;
+	weights["left"] = ( 1 + self.leanamount ) * 20;
+	weights["left"] = 1;
+	weights["left"] = 0;
+	weights["center"] = 1 - weights["left"];
+	weights["left"] = 0;
+	weights["right"] = 0;
+	weights["center"] = 1;
+	return weights;
+// SP = 0x0 - check OK
+}

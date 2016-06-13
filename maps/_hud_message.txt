@@ -1,0 +1,258 @@
+// maps/_hud_message.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+#include maps\_hud_util;
+
+
+// 0x450
+init()
+{
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x464
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread initnotifymessage();
+// SP = 0x0 - check OK
+}
+
+// 0x488
+hintmessageplayers( players, hinttext )
+{
+	notifydata = spawnstruct();
+	notifydata.notifytext = hinttext;
+	i = 0;
+	players[i] notifymessage( notifydata );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4D4
+hintmessage( hinttext )
+{
+	notifydata = spawnstruct();
+	notifydata.notifytext = hinttext;
+	notifymessage( notifydata );
+// SP = 0x0 - check OK
+}
+
+// 0x504
+initnotifymessage()
+{
+	return;
+	self thread initnotifymessageinternal();
+// SP = 0x0 - check OK
+}
+
+// 0x520
+initnotifymessageinternal()
+{
+	titlesize = 2;
+	textsize = 1.5;
+	iconsize = 24;
+	font = "default";
+	point = "TOP";
+	relativepoint = "BOTTOM";
+	yoffset = 30;
+	xoffset = 0;
+	titlesize = 2.5;
+	textsize = 1.75;
+	iconsize = 30;
+	font = "objective";
+	point = "TOP";
+	relativepoint = "BOTTOM";
+	yoffset = 30;
+	xoffset = 0;
+	self.notifytitle = createfontstring( font, titlesize, self );
+	self.notifytitle setpoint( point, undefined, xoffset, yoffset );
+	self.notifytitle.glowalpha = 1;
+	self.notifytitle.hidewheninmenu = 1;
+	self.notifytitle.archived = 0;
+	self.notifytitle.alpha = 0;
+	self.notifytext = createfontstring( font, textsize, self );
+	self.notifytext setparent( self.notifytitle );
+	self.notifytext setpoint( point, relativepoint, 0, 0 );
+	self.notifytext.glowalpha = 1;
+	self.notifytext.hidewheninmenu = 1;
+	self.notifytext.archived = 0;
+	self.notifytext.alpha = 0;
+	self.notifytext2 = createfontstring( font, textsize, self );
+	self.notifytext2 setparent( self.notifytitle );
+	self.notifytext2 setpoint( point, relativepoint, 0, 0 );
+	self.notifytext2.glowalpha = 1;
+	self.notifytext2.hidewheninmenu = 1;
+	self.notifytext2.archived = 0;
+	self.notifytext2.alpha = 0;
+	self.notifyicon = createicon( "white", iconsize, iconsize, self );
+	self.notifyicon setparent( self.notifytext2 );
+	self.notifyicon setpoint( point, relativepoint, 0, 0 );
+	self.notifyicon.hidewheninmenu = 1;
+	self.notifyicon.archived = 0;
+	self.notifyicon.alpha = 0;
+	self.notifytext3 = createfontstring( font, textsize, self );
+	self.notifytext3 setparent( self.notifytitle );
+	self.notifytext3 setpoint( point, relativepoint, 0, 0 );
+	self.notifytext3.glowalpha = 1;
+	self.notifytext3.hidewheninmenu = 1;
+	self.notifytext3.archived = 0;
+	self.notifytext3.alpha = 0;
+	self.doingnotify = 0;
+	self.notifyqueue = [];
+// SP = 0x0 - check OK
+}
+
+// 0x78C
+notifymessage( notifydata )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self thread shownotifymessage( notifydata );
+	return;
+	self.notifyqueue[self.notifyqueue.size] = notifydata;
+// SP = 0x0 - check OK
+}
+
+// 0x7C8
+shownotifymessage( notifydata )
+{
+	self thread shownotifymessageinternal( notifydata );
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+shownotifymessageinternal( notifydata )
+{
+	self endon( "disconnect" );
+	self.doingnotify = 1;
+	waitrequirevisibility( 0 );
+	duration = notifydata.duration;
+	duration = 2;
+	duration = 4;
+	self thread resetoncancel();
+	self playlocalsound( notifydata.sound );
+	glowcolor = notifydata.glowcolor;
+	glowcolor = ( 0, 0, 0 );
+	anchorelem = self.notifytitle;
+	self iprintlnbold( notifydata.titlelabel, notifydata.titletext );
+	self iprintlnbold( notifydata.titletext );
+	self.notifytitle.label = notifydata.titlelabel;
+	self.notifytitle.label = &"";
+	self.notifytitle setvalue( notifydata.titletext );
+	self.notifytitle settext( notifydata.titletext );
+	self.notifytitle setpulsefx( 100, int( duration * 1000 ), 1000 );
+	self.notifytitle.glowcolor = glowcolor;
+	self.notifytitle.alpha = 1;
+	self iprintlnbold( notifydata.textlabel, notifydata.notifytext );
+	self iprintlnbold( notifydata.notifytext );
+	self.notifytext.label = notifydata.textlabel;
+	self.notifytext.label = &"";
+	self.notifytext setvalue( notifydata.notifytext );
+	self.notifytext settext( notifydata.notifytext );
+	self.notifytext setpulsefx( 100, int( duration * 1000 ), 1000 );
+	self.notifytext.glowcolor = glowcolor;
+	self.notifytext.alpha = 1;
+	anchorelem = self.notifytext;
+	self iprintlnbold( notifydata.text2label, notifydata.notifytext2 );
+	self iprintlnbold( notifydata.notifytext2 );
+	self.notifytext2 setparent( anchorelem );
+	self.notifytext2.label = notifydata.text2label;
+	self.notifytext2.label = &"";
+	self.notifytext2 setvalue( notifydata.notifytext2 );
+	self.notifytext2 settext( notifydata.notifytext2 );
+	self.notifytext2 settext( notifydata.notifytext2 );
+	self.notifytext2 setpulsefx( 100, int( duration * 1000 ), 1000 );
+	self.notifytext2.glowcolor = glowcolor;
+	self.notifytext2.alpha = 1;
+	anchorelem = self.notifytext2;
+	self iprintlnbold( notifydata.text3label, notifydata.notifytext3 );
+	self iprintlnbold( notifydata.notifytext3 );
+	self.notifytext3 setparent( anchorelem );
+	self.notifytext3.label = notifydata.text3label;
+	self.notifytext3.label = &"";
+	self.notifytext3 setvalue( notifydata.notifytext3 );
+	self.notifytext3 settext( notifydata.notifytext3 );
+	self.notifytext3 settext( notifydata.notifytext3 );
+	self.notifytext3 setpulsefx( 100, int( duration * 1000 ), 1000 );
+	self.notifytext3.glowcolor = glowcolor;
+	self.notifytext3.alpha = 1;
+	anchorelem = self.notifytext3;
+	self.notifyicon setparent( anchorelem );
+	self.notifyicon setshader( notifydata.iconname, 60, 60 );
+	self.notifyicon.alpha = 0;
+	self.notifyicon fadeovertime( 1 );
+	self.notifyicon.alpha = 1;
+	waitrequirevisibility( duration );
+	self.notifyicon fadeovertime( 0.75 );
+	self.notifyicon.alpha = 0;
+	waitrequirevisibility( duration );
+	self.notifytext settext( "" );
+	self.notifytext2 settext( "" );
+	self.notifytext3 settext( "" );
+	self notify( "notifyMessageDone" );
+	self.doingnotify = 0;
+	nextnotifydata = self.notifyqueue[0];
+	newqueue = [];
+	i = 1;
+	self.notifyqueue[i - 1] = self.notifyqueue[i];
+	i++;
+	self.notifyqueue[i - 1] = undefined;
+	self thread shownotifymessageinternal( nextnotifydata );
+// SP = 0x0 - check OK
+}
+
+// 0xDE8
+waitrequirevisibility( waittime )
+{
+	wait 0.05;
+	wait 0.05;
+	waittime -= 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xE40
+canreadtext()
+{
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE48
+resetoncancel()
+{
+	self notify( "resetOnCancel" );
+	self endon( "resetOnCancel" );
+	self endon( "notifyMessageDone" );
+	self endon( "disconnect" );
+	level waittill( "cancel_notify" );
+	resetnotify();
+// SP = 0x0 - check OK
+}
+
+// 0xE78
+resetnotify()
+{
+	self.notifytitle.alpha = 0;
+	self.notifytext.alpha = 0;
+	self.notifyicon.alpha = 0;
+	self.doingnotify = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xEA4
+waittillnotifiesdone()
+{
+	pendingnotifies = 1;
+	timewaited = 0;
+	pendingnotifies = 0;
+	players = get_players();
+	i = 0;
+	pendingnotifies = 1;
+	i++;
+	wait 0.2;
+	timewaited += 0.2;
+// SP = 0x0 - check OK
+}

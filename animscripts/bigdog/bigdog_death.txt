@@ -1,0 +1,87 @@
+// animscripts/bigdog/bigdog_death.gsc
+
+#include animscripts\bigdog\bigdog_utility;
+#include maps\_utility;
+#include animscripts\anims;
+#include common_scripts\utility;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x304
+main()
+{
+	self endon( "killanimscript" );
+	wait 0.1;
+	return;
+	self self_destruct();
+	return;
+	animscripts\bigdog\bigdog_utility::initialize( "death" );
+	handlebigdogdeathfunction();
+	death();
+// SP = 0x0 - check OK
+}
+
+// 0x374
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x37C
+handlebigdogdeathfunction()
+{
+	self [[self.deathfunction]]();
+// SP = 0x0 - check OK
+}
+
+// 0x394
+death()
+{
+	return normal_death();
+// SP = 0x0 - check OK
+}
+
+// 0x3A4
+normal_death()
+{
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics" );
+	deathanim = get_death_anim();
+/#
+	assert( IsDefined( deathanim ) );
+#/
+	self setflaggedanimrestart( "death", deathanim, 1, 0.2, 1 );
+	self self_destruct();
+// SP = 0x0 - check OK
+}
+
+// 0x414
+get_death_anim()
+{
+	deathanim = undefined;
+	deathanim = animarray( "death_b" );
+	deathanim = animarray( "death_l" );
+	deathanim = animarray( "death_r" );
+	deathanim = animarray( "death_f" );
+	return deathanim;
+// SP = 0x0 - check OK
+}
+
+// 0x4A0
+self_destruct()
+{
+	fxorigin = self gettagorigin( "tag_body" );
+	self notify( "stop_fire_turret" );
+	self notify( "stop_bigdog_scripted_fx_threads" );
+	wait 0.05;
+	self.turret delete();
+	badplace_delete( self.a.badplacename + "1" );
+	badplace_delete( self.a.badplacename + "2" );
+	radiusdamage( fxorigin, 256, 200, 50, level.player );
+	playfx( anim._effect["bigdog_explosion"], fxorigin );
+	playsoundatposition( "wpn_bigdog_explode", fxorigin );
+	self notsolid();
+	self hide();
+// SP = 0x0 - check OK
+}

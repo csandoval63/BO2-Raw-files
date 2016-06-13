@@ -1,0 +1,336 @@
+// maps/_autosave.gsc
+
+#include animscripts\utility;
+#include maps\_laststand;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0xB38
+main()
+{
+	level.lastautosavetime = 0;
+	flag_init( "game_saving" );
+	flag_init( "can_save", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB64
+block_save()
+{
+	level.block_save_count = 0;
+	level.block_save_count++;
+	flag_clear( "can_save" );
+// SP = 0x0 - check OK
+}
+
+// 0xB90
+allow_save()
+{
+	level.block_save_count = 0;
+	level.block_save_count--;
+	flag_set( "can_save" );
+// SP = 0x0 - check OK
+}
+
+// 0xBD0
+autosave_description()
+{
+	return &"AUTOSAVE_AUTOSAVE";
+// SP = 0x0 - check OK
+}
+
+// 0xBDC
+autosave_names( num )
+{
+	savedescription = &"AUTOSAVE_GAME";
+	savedescription = &"AUTOSAVE_NOGAME";
+	return savedescription;
+// SP = 0x0 - check OK
+}
+
+// 0xC04
+start_level_save()
+{
+	flag_wait( "all_players_connected" );
+	flag_wait( "starting final intro screen fadeout" );
+	wait 0.5;
+	players = get_players();
+	players[0] player_flag_wait( "loadout_given" );
+	return;
+	return;
+	return;
+	flag_set( "game_saving" );
+	imagename = "levelshots/autosave/autosave_" + level.script + "start";
+	i = 0;
+	players[i].savedvisionset = players[i] getvisionsetnaked();
+	i++;
+/#
+	auto_save_print( "start_level_save: Start of level save" );
+#/
+	savegame( "levelstart", 0, &"AUTOSAVE_LEVELSTART", imagename, 1 );
+	setdvar( "ui_grenade_death", "0" );
+/#
+	println( "Saving level start saved game" );
+#/
+	flag_clear( "game_saving" );
+// SP = 0x0 - check OK
+}
+
+// 0xD0C
+trigger_autosave( trigger )
+{
+	trigger.script_autosave = 0;
+	autosave_think( trigger );
+// SP = 0x0 - check OK
+}
+
+// 0xD34
+autosave_think( trigger )
+{
+	trigger waittill( "trigger", ent );
+	num = trigger.script_autosave;
+	imagename = "levelshots/autosave/autosave_" + level.script + num;
+	try_auto_save( num, imagename, ent );
+	wait 2;
+	trigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0xD88
+autosave_name_think( trigger )
+{
+	trigger endon( "death" );
+	trigger trigger_wait();
+	return;
+	maps\_utility::set_breadcrumbs_player_positions();
+	maps\_utility::autosave_by_name( trigger.script_autosavename );
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+trigger_autosave_immediate( trigger )
+{
+	trigger waittill( "trigger" );
+// SP = 0x0 - check OK
+}
+
+// 0xDE8
+auto_save_print( msg, msg2 )
+{
+/#
+	msg = "     AUTOSAVE: " + msg;
+	setdvar( "scr_autosave_debug", "0" );
+	println( msg + "[localized description]" );
+	println( msg );
+	println( msg, msg2 );
+	println( msg );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE80
+autosave_game_now( suppress_print )
+{
+	return 0;
+	return 0;
+	filename = "save_now";
+	descriptionstring = autosave_description();
+	players = get_players();
+	i = 0;
+	players[i].savedvisionset = players[i] getvisionsetnaked();
+	i++;
+	saveid = savegamenocommit( filename, descriptionstring, "$default", 1 );
+	saveid = savegamenocommit( filename, descriptionstring );
+	wait 0.05;
+/#
+	auto_save_print( "autosave_game_now: FAILED!!! -> save error - recently loaded." );
+#/
+	level.lastautosavetime = GetTime();
+	return 0;
+/#
+	auto_save_print( "autosave_game_now: Saving game " + filename + " with desc ", descriptionstring );
+#/
+/#
+	auto_save_print( "autosave_game_now: FAILED!!! -> save error.: " + filename + " with desc ", descriptionstring );
+#/
+	return 0;
+	return 0;
+	flag_set( "game_saving" );
+	wait 0.5;
+	level notify( "save_success" );
+	commitsave( saveid );
+	setdvar( "ui_grenade_death", "0" );
+	flag_clear( "game_saving" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xFF0
+autosave_now_trigger( trigger )
+{
+	trigger waittill( "trigger" );
+	autosave_now();
+// SP = 0x0 - check OK
+}
+
+// 0x100C
+try_to_autosave_now()
+{
+	return 0;
+	return 0;
+/#
+	auto_save_print( "try_to_autosave_now: Can_save flag was clear" );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1054
+autosave_check_simple()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10C4
+try_auto_save( filename, image, ent )
+{
+	flag_wait( "all_players_connected" );
+	wait 3;
+	level endon( "save_success" );
+	flag_waitopen( "game_saving" );
+	flag_wait( "can_save" );
+	flag_set( "game_saving" );
+	descriptionstring = autosave_description();
+	ent = get_players()[0];
+	maps\_utility::set_breadcrumbs_player_positions();
+	level.lastautosavetime = GetTime();
+	players = get_players();
+	i = 0;
+	players[i].savedvisionset = players[i] getvisionsetnaked();
+	i++;
+	level.checkpoint_time = GetTime();
+	saveid = savegamenocommit( filename, descriptionstring, image, coopgame() );
+	flag_clear( "game_saving" );
+	return 0;
+	wait 6;
+	retries = 0;
+	commitsave( saveid );
+	level.lastsavetime = GetTime();
+	setdvar( "ui_grenade_death", "0" );
+	flag_clear( "game_saving" );
+	return 1;
+	retries++;
+	wait 2;
+	flag_clear( "game_saving" );
+	return 0;
+	wait 1;
+	flag_clear( "game_saving" );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1270
+autosave_check( dopickychecks )
+{
+	return 0;
+	return 0;
+	return 0;
+	dopickychecks = 1;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+/#
+	auto_save_print( "autosave_check: FAILED!!! -> save call was unsuccessful" );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1328
+autosave_player_check()
+{
+	host = get_host();
+/#
+	auto_save_print( "autosave_player_check: FAILED!!! -> host is meleeing" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_player_check: FAILED!!! -> host is throwing a grenade" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_player_check: FAILED!!! -> host is firing" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_player_check: FAILED!!! -> host is in shellshock" );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x13DC
+autosave_health_check()
+{
+	players = get_players();
+	i = 1;
+/#
+	auto_save_print( "autosave_health_check: FAILED!!! -> player " + i + " has red flashing overlay" );
+#/
+	return 0;
+	i++;
+	host = get_host();
+	healthfraction = host.health / host.maxhealth;
+/#
+	auto_save_print( "autosave_health_check: FAILED!!! -> host health too low" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_health_check: FAILED!!! -> host has red flashing overlay" );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x14AC
+autosave_threat_check( dopickychecks )
+{
+	return 1;
+	host = get_host();
+	enemies = getaispeciesarray( "axis", "all" );
+	i = 0;
+/#
+	auto_save_print( "autosave_threat_check: FAILED!!! -> dog near player" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_threat_check: FAILED!!! -> AI firing on player" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_threat_check: FAILED!!! -> AI aiming at player" );
+#/
+	return 0;
+/#
+	auto_save_print( "autosave_threat_check: FAILED!!! -> AI meleeing player" );
+#/
+	return 0;
+	i++;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}

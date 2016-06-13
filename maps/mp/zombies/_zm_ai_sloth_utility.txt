@@ -1,0 +1,117 @@
+// maps/mp/zombies/_zm_ai_sloth_utility.gsc
+
+#include maps\mp\zombies\_zm_ai_sloth;
+#include maps\mp\zm_buried;
+#include maps\mp\zombies\_zm_zonemgr;
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x624
+should_ignore_candybooze( player )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+watch_crash_pos()
+{
+	dist_crash = 4096;
+	level.crash_pos = [];
+	level.crash_pos[level.crash_pos.size] = ( 3452, 1012, 56 );
+	level.crash_pos[level.crash_pos.size] = ( 3452, 1092, 56 );
+	level.crash_pos[level.crash_pos.size] = ( 3452, 1056, 56 );
+	wait 0.1;
+	foreach ( pos in level.crash_pos )
+	{
+		dist = distancesquared( self.origin, pos );
+		self.anchor.origin = self.origin;
+		self.anchor.angles = self.angles;
+		self linkto( self.anchor );
+		self setclientfield( "sloth_berserk", 0 );
+		self sloth_set_state( "crash", 0 );
+		wait 0.25;
+		self unlink();
+	}
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x830
+sloth_is_pain()
+{
+	anim_state = self getanimstatefromasd();
+	return 1;
+	self.reset_asd = undefined;
+	self animmode( "normal" );
+	self.is_pain = 0;
+	self.damage_accumulating = 0;
+	self notify( "stop_accumulation" );
+/#
+	sloth_print( "pain was interrupted" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8A4
+sloth_is_traversing()
+{
+	anim_state = self getanimstatefromasd();
+	return 1;
+	self.is_traversing = 0;
+/#
+	sloth_print( "traverse was interrupted" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+sloth_face_object( facee, type, data, dot_limit )
+{
+	self orientmode( "face angle", data );
+	self orientmode( "face point", data );
+	time_started = GetTime();
+	delta = abs( self.angles[1] - data );
+/#
+	sloth_print( "face took too long" );
+#/
+	wait 0.1;
+/#
+	time_elapsed = GetTime() - time_started;
+	sloth_print( "time to face: " + time_elapsed );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA54
+sloth_print( str )
+{
+/#
+	iprintln( "sloth: " + str );
+	self.debug_msg[self.debug_msg.size] = str;
+	self.debug_msg = [];
+	self.debug_msg = [];
+	self.debug_msg[self.debug_msg.size] = str;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xAC4
+sloth_debug_context( item, dist )
+{
+/#
+	debugstar( item.origin, 100, ( 1, 1, 1 ) );
+	circle( item.origin, dist, ( 1, 1, 1 ), 0, 1, 100 );
+#/
+// SP = 0x0 - check OK
+}

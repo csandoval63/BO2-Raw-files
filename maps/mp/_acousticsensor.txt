@@ -1,0 +1,105 @@
+// maps/mp/_acousticsensor.gsc
+
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\_scoreevents;
+#include maps\mp\_challenges;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\_utility;
+#include maps\mp\gametypes\_weaponobjects;
+#include common_scripts\utility;
+
+
+// 0x578
+init()
+{
+	level._effect["acousticsensor_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["acousticsensor_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+// SP = 0x0 - check OK
+}
+
+// 0x5A8
+createacousticsensorwatcher()
+{
+	watcher = self maps\mp\gametypes\_weaponobjects::createuseweaponobjectwatcher( "acoustic_sensor", "acoustic_sensor_mp", self.team );
+	watcher.onspawn = ::onspawnacousticsensor;
+	watcher.detonate = ::acousticsensordetonate;
+	watcher.stun = maps\mp\gametypes\_weaponobjects::weaponstun;
+	watcher.stuntime = 5;
+	watcher.reconmodel = "t5_weapon_acoustic_sensor_world_detect";
+	watcher.hackable = 1;
+	watcher.ondamage = ::watchacousticsensordamage;
+// SP = 0x0 - check OK
+}
+
+// 0x61C
+onspawnacousticsensor( watcher, player )
+{
+	self endon( "death" );
+	self thread maps\mp\gametypes\_weaponobjects::onspawnuseweaponobject( watcher, player );
+	player.acousticsensor = self;
+	self setowner( player );
+	self setteam( player.team );
+	self.owner = player;
+	self playloopsound( "fly_acoustic_sensor_lp" );
+	player addweaponstat( "acoustic_sensor_mp", "used", 1 );
+	self thread watchshutdown( player, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x6AC
+acousticsensordetonate( attacker, weaponname )
+{
+	from_emp = maps\mp\killstreaks\_emp::isempweapon( weaponname );
+	playfx( level._equipment_explode_fx, self.origin );
+	attacker maps\mp\_challenges::destroyedequipment( weaponname );
+	maps\mp\_scoreevents::processscoreevent( "destroyed_motion_sensor", attacker, self.owner, weaponname );
+	playsoundatposition( "dst_equipment_destroy", self.origin );
+	self destroyent();
+// SP = 0x0 - check OK
+}
+
+// 0x738
+destroyent()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x74C
+watchshutdown( player, origin )
+{
+	self waittill_any( "death", "hacked" );
+	player.acousticsensor = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x778
+watchacousticsensordamage( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self setcandamage( 1 );
+	damagemax = 100;
+	self.damagetaken = 0;
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname, idflags );
+	switch ( weaponname )
+	{
+		case "concussion_grenade_mp":
+		case "emp_grenade_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "flash_grenade_mp":
+			damage = damagemax;
+		default:
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+	}
+	weaponname = "";
+	self.damagetaken = damagemax;
+	self.damagetaken += damage;
+	watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( self, 0, attacker, weaponname );
+	return;
+// SP = 0x0 - check OK
+}

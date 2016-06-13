@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_alcatraz_dock_mid_climb_up.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x108
+main()
+{
+	dosimpletraverse( "dock_mid_way_jump_up_climb", 1 );
+// SP = 0x0 - check OK
+}

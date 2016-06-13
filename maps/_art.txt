@@ -1,0 +1,206 @@
+// maps/_art.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x720
+main()
+{
+/#
+	setdvar( "scr_art_tweak", 0 );
+	setdvar( "scr_dof_enable", "1" );
+	setdvar( "scr_cinematic_autofocus", "1" );
+	setdvar( "scr_art_visionfile", level.script );
+#/
+	level.dofdefault["nearStart"] = 0;
+	level.dofdefault["nearEnd"] = 1;
+	level.dofdefault["farStart"] = 8000;
+	level.dofdefault["farEnd"] = 10000;
+	level.dofdefault["nearBlur"] = 6;
+	level.dofdefault["farBlur"] = 0;
+	level.curdof = ( level.dofdefault["farStart"] - level.dofdefault["nearEnd"] ) / 2;
+/#
+	thread tweakart();
+#/
+	level.script = tolower( GetDvar( #"0xB4B895C4" ) );
+// SP = 0x0 - check OK
+}
+
+// 0x84C
+artfxprintln( file, string )
+{
+/#
+	fprintln( file, string );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x874
+setfogsliders()
+{
+	fogall = strtok( GetDvar( #"0x74682944" ), " " );
+	red = fogall[0];
+	green = fogall[1];
+	blue = fogall[2];
+	halfplane = GetDvar( #"0xE1FDE974" );
+	nearplane = GetDvar( #"0xF7F46A27" );
+	red = 1;
+	green = 1;
+	blue = 1;
+	halfplane = 10000001;
+	nearplane = 10000000;
+	setdvar( "scr_fog_exp_halfplane", halfplane );
+	setdvar( "scr_fog_nearplane", nearplane );
+	setdvar( "scr_fog_color", red + " " + green + " " + blue );
+// SP = 0x0 - check OK
+}
+
+// 0x948
+tweakart()
+{
+/#
+	level.tweakfile = 0;
+	script_gen_dump_addline( "maps\\createart\\" + level.script + "_art::main();", level.script + "_art" );
+	setdvar( "scr_fog_exp_halfplane", "500" );
+	setdvar( "scr_fog_exp_halfheight", "500" );
+	setdvar( "scr_fog_nearplane", "0" );
+	setdvar( "scr_fog_baseheight", "0" );
+	setdvar( "scr_fog_fraction", "1.0" );
+	setdvar( "scr_art_dump", "0" );
+	setdvar( "scr_art_sun_fog_dir_set", "0" );
+	setdvar( "scr_dof_nearStart", level.dofdefault["nearStart"] );
+	setdvar( "scr_dof_nearEnd", level.dofdefault["nearEnd"] );
+	setdvar( "scr_dof_farStart", level.dofdefault["farStart"] );
+	setdvar( "scr_dof_farEnd", level.dofdefault["farEnd"] );
+	setdvar( "scr_dof_nearBlur", level.dofdefault["nearBlur"] );
+	setdvar( "scr_dof_farBlur", level.dofdefault["farBlur"] );
+	dofvarupdate();
+	wait_for_first_player();
+	players = get_players();
+	tweak_toggle = 1;
+	tweak_toggle = 1;
+	wait 0.05;
+	tweak_toggle = 0;
+	fogsettings = getfogsettings();
+	setdvar( "scr_fog_nearplane", fogsettings[0] );
+	setdvar( "scr_fog_exp_halfplane", fogsettings[1] );
+	setdvar( "scr_fog_exp_halfheight", fogsettings[3] );
+	setdvar( "scr_fog_baseheight", fogsettings[2] );
+	setdvar( "scr_fog_color", fogsettings[4] + " " + fogsettings[5] + " " + fogsettings[6] );
+	setdvar( "scr_fog_color_scale", fogsettings[7] );
+	setdvar( "scr_sun_fog_color", fogsettings[8] + " " + fogsettings[9] + " " + fogsettings[10] );
+	level.fogsundir = [];
+	level.fogsundir[0] = fogsettings[11];
+	level.fogsundir[1] = fogsettings[12];
+	level.fogsundir[2] = fogsettings[13];
+	setdvar( "scr_sun_fog_start_angle", fogsettings[14] );
+	setdvar( "scr_sun_fog_end_angle", fogsettings[15] );
+	setdvar( "scr_fog_max_opacity", fogsettings[16] );
+	level.fogexphalfplane = GetDvarFloat( #"0xB59305FE" );
+	level.fogexphalfheight = GetDvarFloat( #"0x54D01B47" );
+	level.fognearplane = GetDvarFloat( #"0x5C40223D" );
+	level.fogbaseheight = GetDvarFloat( #"0x829C0FDB" );
+	level.fogcolorred = GetDvarColorRed( #"0x9DA55446" );
+	level.fogcolorgreen = GetDvarColorGreen( #"0x9DA55446" );
+	level.fogcolorblue = GetDvarColorBlue( #"0x9DA55446" );
+	level.fogcolorscale = GetDvarFloat( #"0x93B3FAED" );
+	level.sunfogcolorred = GetDvarColorRed( #"0x66A189BB" );
+	level.sunfogcolorgreen = GetDvarColorGreen( #"0x66A189BB" );
+	level.sunfogcolorblue = GetDvarColorBlue( #"0x66A189BB" );
+	level.sunstartangle = GetDvarFloat( #"0xECC36390" );
+	level.sunendangle = GetDvarFloat( #"0xFA1301D9" );
+	level.fogmaxopacity = GetDvarFloat( #"0x81EA8425" );
+	setdvar( "scr_art_sun_fog_dir_set", "0" );
+	println( "Setting sun fog direction to facing of player" );
+	players = get_players();
+	dir = vectornormalize( anglestoforward( players[0] getplayerangles() ) );
+	level.fogsundir = [];
+	level.fogsundir[0] = dir[0];
+	level.fogsundir[1] = dir[1];
+	level.fogsundir[2] = dir[2];
+	dofvarupdate();
+	fovslidercheck();
+	dumpsettings();
+	level.fogsundir = [];
+	level.fogsundir[0] = 1;
+	level.fogsundir[1] = 0;
+	level.fogsundir[2] = 0;
+	setvolfog( level.fognearplane, level.fogexphalfplane, level.fogexphalfheight, level.fogbaseheight, level.fogcolorred, level.fogcolorgreen, level.fogcolorblue, level.fogcolorscale, level.sunfogcolorred, level.sunfogcolorgreen, level.sunfogcolorblue, level.fogsundir[0], level.fogsundir[1], level.fogsundir[2], level.sunstartangle, level.sunendangle, 0, level.fogmaxopacity );
+	setexpfog( 100000000, 100000001, 0, 0, 0, 0 );
+	players[0] setdefaultdepthoffield();
+	wait 0.1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDE0
+fovslidercheck()
+{
+	level.dofdefault["nearStart"] = level.dofdefault["nearEnd"] - 1;
+	setdvar( "scr_dof_nearStart", level.dofdefault["nearStart"] );
+	level.dofdefault["nearEnd"] = level.dofdefault["nearStart"] + 1;
+	setdvar( "scr_dof_nearEnd", level.dofdefault["nearEnd"] );
+	level.dofdefault["farStart"] = level.dofdefault["farEnd"] - 1;
+	setdvar( "scr_dof_farStart", level.dofdefault["farStart"] );
+	level.dofdefault["farEnd"] = level.dofdefault["farStart"] + 1;
+	setdvar( "scr_dof_farEnd", level.dofdefault["farEnd"] );
+	level.dofdefault["farBlur"] = level.dofdefault["nearBlur"] - 0.1;
+	setdvar( "scr_dof_farBlur", level.dofdefault["farBlur"] );
+	level.dofdefault["farStart"] = level.dofdefault["nearEnd"] + 1;
+	setdvar( "scr_dof_farStart", level.dofdefault["farStart"] );
+// SP = 0x0 - check OK
+}
+
+// 0xF68
+dumpsettings()
+{
+/#
+	println( "\tstart_dist = " + level.fognearplane + ";" );
+	println( "\thalf_dist = " + level.fogexphalfplane + ";" );
+	println( "\thalf_height = " + level.fogexphalfheight + ";" );
+	println( "\tbase_height = " + level.fogbaseheight + ";" );
+	println( "\tfog_r = " + level.fogcolorred + ";" );
+	println( "\tfog_g = " + level.fogcolorgreen + ";" );
+	println( "\tfog_b = " + level.fogcolorblue + ";" );
+	println( "\tfog_scale = " + level.fogcolorscale + ";" );
+	println( "\tsun_col_r = " + level.sunfogcolorred + ";" );
+	println( "\tsun_col_g = " + level.sunfogcolorgreen + ";" );
+	println( "\tsun_col_b = " + level.sunfogcolorblue + ";" );
+	println( "\tsun_dir_x = " + level.fogsundir[0] + ";" );
+	println( "\tsun_dir_y = " + level.fogsundir[1] + ";" );
+	println( "\tsun_dir_z = " + level.fogsundir[2] + ";" );
+	println( "\tsun_start_ang = " + level.sunstartangle + ";" );
+	println( "\tsun_stop_ang = " + level.sunendangle + ";" );
+	println( "\ttime = 0;" );
+	println( "\tmax_fog_opacity = " + level.fogmaxopacity + ";" );
+	println( "" );
+	println( "\tsetVolFog(start_dist, half_dist, half_height, base_height, fog_r, fog_g, fog_b, fog_scale," );
+	println( "\t\tsun_col_r, sun_col_g, sun_col_b, sun_dir_x, sun_dir_y, sun_dir_z, sun_start_ang, " );
+	println( "\t\tsun_stop_ang, time, max_fog_opacity);" );
+	setdvar( "scr_art_dump", "0" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1170
+dofvarupdate()
+{
+/#
+	level.dofdefault["nearStart"] = GetDvarInt( #"0x38600718" );
+	level.dofdefault["nearEnd"] = GetDvarInt( #"0x53BD1721" );
+	level.dofdefault["farStart"] = GetDvarInt( #"0x5D2A310B" );
+	level.dofdefault["farEnd"] = GetDvarInt( #"0x63FE2854" );
+	level.dofdefault["nearBlur"] = GetDvarFloat( #"0xCB5E503F" );
+	level.dofdefault["farBlur"] = GetDvarFloat( #"0xE3C187D2" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11DC
+setdefaultdepthoffield()
+{
+	return;
+	self setdepthoffield( level.dofdefault["nearStart"], level.dofdefault["nearEnd"], level.dofdefault["farStart"], level.dofdefault["farEnd"], level.dofdefault["nearBlur"], level.dofdefault["farBlur"] );
+// SP = 0x0 - check OK
+}

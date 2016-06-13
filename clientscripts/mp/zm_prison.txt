@@ -1,0 +1,788 @@
+// clientscripts/mp/zm_prison.csc
+
+#include clientscripts\mp\zombies\_zm_equipment;
+#include clientscripts\mp\zm_prison_weap_quest;
+#include clientscripts\mp\zm_prison_spoon;
+#include clientscripts\mp\zombies\_zm_weap_tomahawk;
+#include clientscripts\mp\zombies\_zm_weap_blundersplat;
+#include clientscripts\mp\zombies\_zm_weap_riotshield_prison;
+#include clientscripts\mp\zombies\_zm_magicbox_prison;
+#include clientscripts\mp\zombies\_zm_craftables;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\zm_alcatraz_grief_cellblock;
+#include clientscripts\mp\zombies\_zm_ai_brutus;
+#include clientscripts\mp\zm_alcatraz_amb;
+#include clientscripts\mp\zm_prison_fx;
+#include clientscripts\mp\_visionset_mgr;
+#include clientscripts\mp\zm_alcatraz_classic;
+#include clientscripts\mp\zombies\_zm_perk_divetonuke;
+#include clientscripts\mp\zombies\_zm_perk_electric_cherry;
+#include clientscripts\mp\zm_prison_ffotd;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_filter;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "fxanim_props" );
+
+
+// 0x2418
+main()
+{
+	level thread clientscripts\mp\zm_prison_ffotd::main_start();
+	level.default_start_location = "prison";
+	level.default_game_mode = "zclassic";
+	level._no_water_risers = 1;
+	level._uses_sticky_grenades = 0;
+	level.setupcustomcharacterexerts = ::setup_personality_character_exerts;
+	level.zombiemode_using_doubletap_perk = 1;
+	level.zombiemode_using_juggernaut_perk = 1;
+	level.zombiemode_using_sleightofhand_perk = 1;
+	level.zombiemode_using_deadshot_perk = 1;
+	clientscripts\mp\zombies\_zm_perk_electric_cherry::enable_electric_cherry_perk_for_level();
+	level.zombiemode_using_additionalprimaryweapon_perk = 1;
+	level.zombiemode_using_divetonuke_perk = 1;
+	clientscripts\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
+	clientscripts\mp\zm_alcatraz_classic::init_fan_trap_animtree();
+	clientscripts\mp\zm_alcatraz_classic::init_gondola_chains_animtree();
+	start_zombie_stuff();
+	init_gamemodes();
+	register_client_fields();
+	clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_audio_log", 9000, 1, "cheat_bw", "cheat_bw" );
+	clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_electric_cherry", 9000, 1, "zm_electric_cherry", "zm_electric_cherry" );
+	clientscripts\mp\zm_prison_fx::main();
+	thread clientscripts\mp\zm_alcatraz_amb::main();
+	clientscripts\mp\zombies\_zm_ai_brutus::precache();
+	clientscripts\mp\zombies\_zm_ai_brutus::init();
+	zombe_gametype_premain();
+	level._entityspawned_override = ::entityspawned_alcatraz;
+	level thread setup_tomahawk_quest();
+	clientscripts\mp\zm_prison_fx::setup_prop_anims();
+	level thread clientscripts\mp\zm_prison_ffotd::main_end();
+	waitforclient( 0 );
+	setsaveddvar( "r_waterwavespeed", "0.1727 0.6560 0.3856 1" );
+	setsaveddvar( "r_waterwaveamplitude", "4.95 5.78 4.87 0" );
+	setsaveddvar( "r_waterwavewavelength", "1024 405 403 1" );
+	setsaveddvar( "r_waterwavesteepness", "0 1 1 1" );
+	setsaveddvar( "r_waterwaveangle", "84.36 62.668 105.945 0" );
+	setsaveddvar( "r_waterwavephase", "0 0 0 0" );
+	level thread init_fog_vol_to_visionset();
+	level thread scripted_player_lightning();
+	level thread cafeteria_clock();
+	level thread golden_gate_lighthouse();
+	waitforallclients();
+	level thread splitscreen_optimize();
+	level.sndsqfinalent = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2620
+splitscreen_optimize()
+{
+	wait 0.1;
+	a_players = getlocalplayers();
+	localclientnum = 0;
+	a_fxanim = getentarray( localclientnum, "fxanim", "targetname" );
+	i = 0;
+	a_fxanim[i] delete();
+	i++;
+	localclientnum++;
+// SP = 0x0 - check OK
+}
+
+// 0x26CC
+cafeteria_clock()
+{
+	waitforallclients();
+	wait 0.5;
+	players = getlocalplayers();
+	localclientnum = 0;
+	clock = getent( localclientnum, "clock_second_hand", "targetname" );
+	clock thread cafeteria_clock_tick();
+	localclientnum++;
+// SP = 0x0 - check OK
+}
+
+// 0x2728
+cafeteria_clock_tick()
+{
+	self rotatepitch( 200, 0.05 );
+	self waittill( "rotatedone" );
+	self rotatepitch( 50, 5 );
+	self waittill( "rotatedone" );
+	self rotatepitch( -50, 0.05 );
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x2780
+golden_gate_lighthouse()
+{
+	waitforallclients();
+	wait 0.5;
+	players = getlocalplayers();
+	localclientnum = 0;
+	m_light_house_fx = spawn( localclientnum, ( -1848, 9006, 2467 ), "script_model" );
+	m_light_house_fx setmodel( "tag_origin" );
+	m_light_house_fx.angles = ( 0, 0, 0 );
+	playfxontag( localclientnum, level._effect["fx_alcatraz_lighthouse"], m_light_house_fx, "tag_origin" );
+	m_light_house_fx thread golden_gate_lighthouse_rotate();
+	localclientnum++;
+// SP = 0x0 - check OK
+}
+
+// 0x281C
+golden_gate_lighthouse_rotate()
+{
+	self endon( "entity_shutdown" );
+	self rotateyaw( 360, 25 );
+	self waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x2848
+init_gamemodes()
+{
+	add_map_gamemode( "zclassic", undefined, undefined );
+	add_map_gamemode( "zgrief", undefined, undefined );
+	add_map_location_gamemode( "zclassic", "prison", clientscripts\mp\zm_alcatraz_classic::precache, clientscripts\mp\zm_alcatraz_classic::premain, clientscripts\mp\zm_alcatraz_classic::main );
+	add_map_location_gamemode( "zgrief", "cellblock", clientscripts\mp\zm_alcatraz_grief_cellblock::precache, undefined, clientscripts\mp\zm_alcatraz_grief_cellblock::main );
+// SP = 0x0 - check OK
+}
+
+// 0x28B8
+start_zombie_stuff()
+{
+	include_weapons();
+	include_powerups();
+	include_equipment_for_level();
+	clientscripts\mp\zombies\_zm::init();
+	clientscripts\mp\zombies\_zm_craftables::init();
+	clientscripts\mp\zombies\_zm_magicbox_prison::init();
+	clientscripts\mp\zombies\_zm_weap_riotshield_prison::init();
+	clientscripts\mp\zombies\_zm_weap_blundersplat::init();
+	clientscripts\mp\zombies\_zm_weap_tomahawk::init();
+// SP = 0x0 - check OK
+}
+
+// 0x2908
+init_fog_vol_to_visionset()
+{
+	init_fog_vol_to_visionset_monitor( "zm_prison", 1 );
+	fog_vol_to_visionset_set_suffix( "" );
+	fog_vol_to_visionset_set_info( 0, "zm_prison" );
+// SP = 0x0 - check OK
+}
+
+// 0x293C
+register_client_fields()
+{
+	registerclientfield( "actor", "fan_trap_blood_fx", 9000, 1, "int", clientscripts\mp\zm_prison_fx::fan_trap_blood_fx, 0 );
+	registerclientfield( "actor", "acid_trap_death_fx", 9000, 1, "int", clientscripts\mp\zm_prison_fx::acid_trap_death_fx, 0 );
+	registerclientfield( "world", "toggle_futz", 9000, 1, "int", ::toggle_futz_on_world, 0 );
+	registerclientfield( "world", "dryer_stage", 9000, 2, "int", ::dryer_stage_notifies, 0 );
+	registerclientfield( "world", "fog_stage", 9000, 2, "int", ::fog_stage_notifies, 0 );
+	registerclientfield( "world", "scripted_lightning_flash", 9000, 1, "int", ::scripted_lightning_flash, 0 );
+	registerclientfield( "world", "warden_fence_down", 9000, 1, "int", ::warden_fence_down, 0, 1 );
+	registerclientfield( "world", "master_key_is_lowered", 9000, 1, "int", ::master_key_is_lowered, 0 );
+	registerclientfield( "world", "fxanim_pulley_down_start", 9000, 2, "int", ::fxanim_pulley_down_start, 0 );
+	registerclientfield( "world", "sq_bg_reward_portal", 9000, 1, "int", clientscripts\mp\zm_prison_fx::sq_bg_reward_portal_fx, 0 );
+	registerclientfield( "toplayer", "toggle_lightning", 9000, 1, "int", ::toggle_player_lightning, 0 );
+	registerclientfield( "toplayer", "spoon_visual_state", 9000, 2, "int", clientscripts\mp\zm_prison_spoon::spoon_visual_callback, 0 );
+	registerclientfield( "toplayer", "rumble_electric_chair", 9000, 2, "int", ::rumble_electric_chair, 0 );
+	registerclientfield( "toplayer", "effects_escape_flight", 9000, 3, "int", ::effects_escape_flight, 0 );
+	registerclientfield( "toplayer", "rumble_gondola", 9000, 1, "int", ::rumble_gondola, 0 );
+	registerclientfield( "toplayer", "rumble_fan_trap", 9000, 1, "int", ::rumble_fan_trap, 0 );
+	registerclientfield( "toplayer", "rumble_sq_bg", 9000, 1, "int", ::rumble_sq_bg, 0 );
+	registerclientfield( "toplayer", "rumble_door_open", 9000, 1, "int", ::rumble_door_open, 0 );
+	registerclientfield( "scriptmover", "afterlife_shockbox_glow", 9000, 1, "int", clientscripts\mp\zm_prison_fx::spawn_glowfx_for_shockboxes, 0 );
+	registerclientfield( "scriptmover", "toggle_perk_machine_power", 9000, 2, "int", ::toggle_perk_machine_power, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2BC8
+setup_tomahawk_quest()
+{
+	level thread clientscripts\mp\zm_prison_weap_quest::tomahawk_rune_init();
+// SP = 0x0 - check OK
+}
+
+// 0x2BDC
+include_weapons()
+{
+	include_weapon( "knife_zm", 0 );
+	include_weapon( "knife_zm_alcatraz", 0 );
+	include_weapon( "spoon_zm_alcatraz", 0 );
+	include_weapon( "spork_zm_alcatraz", 0 );
+	include_weapon( "frag_grenade_zm", 0 );
+	include_weapon( "claymore_zm", 0 );
+	include_weapon( "willy_pete_zm", 0 );
+	include_weapon( "m1911_zm" );
+	include_weapon( "m1911_upgraded_zm", 0 );
+	include_weapon( "judge_zm" );
+	include_weapon( "judge_upgraded_zm", 0 );
+	include_weapon( "fiveseven_zm" );
+	include_weapon( "fiveseven_upgraded_zm", 0 );
+	include_weapon( "beretta93r_zm", 0 );
+	include_weapon( "beretta93r_upgraded_zm", 0 );
+	include_weapon( "fivesevendw_zm" );
+	include_weapon( "fivesevendw_upgraded_zm", 0 );
+	include_weapon( "uzi_zm", 0 );
+	include_weapon( "uzi_upgraded_zm", 0 );
+	include_weapon( "thompson_upgraded_zm", 0 );
+	include_weapon( "mp5k_zm", 0 );
+	include_weapon( "mp5k_upgraded_zm", 0 );
+	include_weapon( "thompson_zm", 0 );
+	include_weapon( "870mcs_zm", 0 );
+	include_weapon( "870mcs_zm" );
+	include_weapon( "thompson_zm" );
+	include_weapon( "pdw57_zm" );
+	include_weapon( "pdw57_upgraded_zm", 0 );
+	include_weapon( "870mcs_upgraded_zm", 0 );
+	include_weapon( "saiga12_zm" );
+	include_weapon( "saiga12_upgraded_zm", 0 );
+	include_weapon( "rottweil72_zm", 0 );
+	include_weapon( "rottweil72_upgraded_zm", 0 );
+	include_weapon( "m14_zm", 0 );
+	include_weapon( "m14_upgraded_zm", 0 );
+	include_weapon( "ak47_zm" );
+	include_weapon( "ak47_upgraded_zm", 0 );
+	include_weapon( "tar21_zm" );
+	include_weapon( "tar21_upgraded_zm", 0 );
+	include_weapon( "galil_zm" );
+	include_weapon( "galil_upgraded_zm", 0 );
+	include_weapon( "fnfal_zm" );
+	include_weapon( "fnfal_upgraded_zm", 0 );
+	include_weapon( "dsr50_zm" );
+	include_weapon( "dsr50_upgraded_zm", 0 );
+	include_weapon( "barretm82_zm" );
+	include_weapon( "barretm82_upgraded_zm", 0 );
+	include_weapon( "minigun_alcatraz_zm" );
+	include_weapon( "minigun_alcatraz_upgraded_zm", 0 );
+	include_weapon( "lsat_zm" );
+	include_weapon( "lsat_upgraded_zm", 0 );
+	include_weapon( "usrpg_zm" );
+	include_weapon( "usrpg_upgraded_zm", 0 );
+	include_weapon( "ray_gun_zm" );
+	include_weapon( "ray_gun_upgraded_zm", 0 );
+	include_weapon( "bouncing_tomahawk_zm", 0 );
+	include_weapon( "alcatraz_shield_zm", 0 );
+	include_weapon( "blundergat_zm" );
+	include_weapon( "blundergat_upgraded_zm", 0 );
+	include_weapon( "blundersplat_zm", 0 );
+	include_weapon( "blundersplat_upgraded_zm", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2ED0
+include_powerups()
+{
+	include_powerup( "nuke" );
+	include_powerup( "insta_kill" );
+	include_powerup( "double_points" );
+	include_powerup( "full_ammo" );
+	include_powerup( "fire_sale" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F14
+include_equipment_for_level()
+{
+	clientscripts\mp\zombies\_zm_equipment::include_equipment( "alcatraz_shield_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F28
+entityspawned_alcatraz( localclientnum )
+{
+/#
+	println( "Entity type undefined!" );
+#/
+	return;
+	self thread playerspawned( localclientnum );
+	switch ( self.weapon )
+	{
+		case "blundersplat_explosive_dart_zm":
+			self thread clientscripts\mp\zombies\_zm_weap_blundersplat::spawned( localclientnum );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2F9C
+setup_personality_character_exerts()
+{
+	level.exert_sounds[1]["playerbreathinsound"][0] = "vox_plr_0_exert_inhale_0";
+	level.exert_sounds[1]["playerbreathinsound"][1] = "vox_plr_0_exert_inhale_1";
+	level.exert_sounds[1]["playerbreathinsound"][2] = "vox_plr_0_exert_inhale_2";
+	level.exert_sounds[2]["playerbreathinsound"][0] = "vox_plr_0_exert_inhale_0";
+	level.exert_sounds[2]["playerbreathinsound"][1] = "vox_plr_0_exert_inhale_1";
+	level.exert_sounds[2]["playerbreathinsound"][2] = "vox_plr_0_exert_inhale_2";
+	level.exert_sounds[3]["playerbreathinsound"][0] = "vox_plr_2_exert_inhale_0";
+	level.exert_sounds[3]["playerbreathinsound"][1] = "vox_plr_2_exert_inhale_1";
+	level.exert_sounds[3]["playerbreathinsound"][2] = "vox_plr_2_exert_inhale_2";
+	level.exert_sounds[4]["playerbreathinsound"][0] = "vox_plr_3_exert_inhale_0";
+	level.exert_sounds[4]["playerbreathinsound"][1] = "vox_plr_3_exert_inhale_1";
+	level.exert_sounds[4]["playerbreathinsound"][2] = "vox_plr_3_exert_inhale_2";
+	level.exert_sounds[1]["playerbreathoutsound"][0] = "vox_plr_0_exert_exhale_0";
+	level.exert_sounds[1]["playerbreathoutsound"][1] = "vox_plr_0_exert_exhale_1";
+	level.exert_sounds[1]["playerbreathoutsound"][2] = "vox_plr_0_exert_exhale_2";
+	level.exert_sounds[2]["playerbreathoutsound"][0] = "vox_plr_1_exert_exhale_0";
+	level.exert_sounds[2]["playerbreathoutsound"][1] = "vox_plr_1_exert_exhale_1";
+	level.exert_sounds[2]["playerbreathoutsound"][2] = "vox_plr_1_exert_exhale_2";
+	level.exert_sounds[3]["playerbreathoutsound"][0] = "vox_plr_2_exert_exhale_0";
+	level.exert_sounds[3]["playerbreathoutsound"][1] = "vox_plr_2_exert_exhale_1";
+	level.exert_sounds[3]["playerbreathoutsound"][2] = "vox_plr_2_exert_exhale_2";
+	level.exert_sounds[4]["playerbreathoutsound"][0] = "vox_plr_3_exert_exhale_0";
+	level.exert_sounds[4]["playerbreathoutsound"][1] = "vox_plr_3_exert_exhale_1";
+	level.exert_sounds[4]["playerbreathoutsound"][2] = "vox_plr_3_exert_exhale_2";
+	level.exert_sounds[1]["playerbreathgaspsound"][0] = "vox_plr_0_exert_exhale_0";
+	level.exert_sounds[1]["playerbreathgaspsound"][1] = "vox_plr_0_exert_exhale_1";
+	level.exert_sounds[1]["playerbreathgaspsound"][2] = "vox_plr_0_exert_exhale_2";
+	level.exert_sounds[2]["playerbreathgaspsound"][0] = "vox_plr_1_exert_exhale_0";
+	level.exert_sounds[2]["playerbreathgaspsound"][1] = "vox_plr_1_exert_exhale_1";
+	level.exert_sounds[2]["playerbreathgaspsound"][2] = "vox_plr_1_exert_exhale_2";
+	level.exert_sounds[3]["playerbreathgaspsound"][0] = "vox_plr_2_exert_exhale_0";
+	level.exert_sounds[3]["playerbreathgaspsound"][1] = "vox_plr_2_exert_exhale_1";
+	level.exert_sounds[3]["playerbreathgaspsound"][2] = "vox_plr_2_exert_exhale_2";
+	level.exert_sounds[4]["playerbreathgaspsound"][0] = "vox_plr_3_exert_exhale_0";
+	level.exert_sounds[4]["playerbreathgaspsound"][1] = "vox_plr_3_exert_exhale_1";
+	level.exert_sounds[4]["playerbreathgaspsound"][2] = "vox_plr_3_exert_exhale_2";
+	level.exert_sounds[1]["falldamage"][0] = "vox_plr_0_exert_pain_medium_0";
+	level.exert_sounds[1]["falldamage"][1] = "vox_plr_0_exert_pain_medium_1";
+	level.exert_sounds[1]["falldamage"][2] = "vox_plr_0_exert_pain_medium_2";
+	level.exert_sounds[1]["falldamage"][3] = "vox_plr_0_exert_pain_medium_3";
+	level.exert_sounds[1]["falldamage"][4] = "vox_plr_0_exert_grunt_3";
+	level.exert_sounds[1]["falldamage"][5] = "vox_plr_0_exert_grunt_4";
+	level.exert_sounds[1]["falldamage"][6] = "vox_plr_0_exert_grunt_5";
+	level.exert_sounds[1]["falldamage"][7] = "vox_plr_0_exert_grunt_6";
+	level.exert_sounds[2]["falldamage"][0] = "vox_plr_1_exert_pain_low_0";
+	level.exert_sounds[2]["falldamage"][1] = "vox_plr_1_exert_pain_low_1";
+	level.exert_sounds[2]["falldamage"][2] = "vox_plr_1_exert_pain_low_2";
+	level.exert_sounds[2]["falldamage"][3] = "vox_plr_1_exert_pain_low_3";
+	level.exert_sounds[2]["falldamage"][4] = "vox_plr_1_exert_pain_low_4";
+	level.exert_sounds[2]["falldamage"][5] = "vox_plr_1_exert_pain_low_5";
+	level.exert_sounds[2]["falldamage"][6] = "vox_plr_1_exert_pain_low_6";
+	level.exert_sounds[2]["falldamage"][7] = "vox_plr_1_exert_pain_low_7";
+	level.exert_sounds[3]["falldamage"][0] = "vox_plr_2_exert_pain_low_0";
+	level.exert_sounds[3]["falldamage"][1] = "vox_plr_2_exert_pain_low_1";
+	level.exert_sounds[3]["falldamage"][2] = "vox_plr_2_exert_pain_low_2";
+	level.exert_sounds[3]["falldamage"][3] = "vox_plr_2_exert_pain_low_3";
+	level.exert_sounds[3]["falldamage"][4] = "vox_plr_2_exert_pain_low_4";
+	level.exert_sounds[3]["falldamage"][5] = "vox_plr_2_exert_pain_low_5";
+	level.exert_sounds[3]["falldamage"][6] = "vox_plr_2_exert_pain_low_6";
+	level.exert_sounds[3]["falldamage"][7] = "vox_plr_2_exert_pain_low_7";
+	level.exert_sounds[4]["falldamage"][0] = "vox_plr_3_exert_pain_low_0";
+	level.exert_sounds[4]["falldamage"][1] = "vox_plr_3_exert_pain_low_1";
+	level.exert_sounds[4]["falldamage"][2] = "vox_plr_3_exert_pain_low_2";
+	level.exert_sounds[4]["falldamage"][3] = "vox_plr_3_exert_pain_low_3";
+	level.exert_sounds[4]["falldamage"][4] = "vox_plr_3_exert_pain_low_4";
+	level.exert_sounds[4]["falldamage"][5] = "vox_plr_3_exert_pain_low_5";
+	level.exert_sounds[4]["falldamage"][6] = "vox_plr_3_exert_pain_low_6";
+	level.exert_sounds[4]["falldamage"][7] = "vox_plr_3_exert_pain_low_7";
+	level.exert_sounds[1]["mantlesoundplayer"][0] = "vox_plr_0_exert_grunt_0";
+	level.exert_sounds[1]["mantlesoundplayer"][1] = "vox_plr_0_exert_grunt_1";
+	level.exert_sounds[1]["mantlesoundplayer"][2] = "vox_plr_0_exert_grunt_2";
+	level.exert_sounds[1]["mantlesoundplayer"][3] = "vox_plr_0_exert_grunt_3";
+	level.exert_sounds[1]["mantlesoundplayer"][4] = "vox_plr_0_exert_grunt_4";
+	level.exert_sounds[1]["mantlesoundplayer"][5] = "vox_plr_0_exert_grunt_5";
+	level.exert_sounds[1]["mantlesoundplayer"][6] = "vox_plr_0_exert_grunt_6";
+	level.exert_sounds[2]["mantlesoundplayer"][0] = "vox_plr_1_exert_grunt_0";
+	level.exert_sounds[2]["mantlesoundplayer"][1] = "vox_plr_1_exert_grunt_1";
+	level.exert_sounds[2]["mantlesoundplayer"][2] = "vox_plr_1_exert_grunt_2";
+	level.exert_sounds[2]["mantlesoundplayer"][3] = "vox_plr_1_exert_grunt_3";
+	level.exert_sounds[2]["mantlesoundplayer"][4] = "vox_plr_1_exert_grunt_4";
+	level.exert_sounds[2]["mantlesoundplayer"][5] = "vox_plr_1_exert_grunt_5";
+	level.exert_sounds[3]["mantlesoundplayer"][0] = "vox_plr_2_exert_grunt_0";
+	level.exert_sounds[3]["mantlesoundplayer"][1] = "vox_plr_2_exert_grunt_1";
+	level.exert_sounds[3]["mantlesoundplayer"][2] = "vox_plr_2_exert_grunt_2";
+	level.exert_sounds[3]["mantlesoundplayer"][3] = "vox_plr_2_exert_grunt_3";
+	level.exert_sounds[3]["mantlesoundplayer"][4] = "vox_plr_2_exert_grunt_4";
+	level.exert_sounds[3]["mantlesoundplayer"][5] = "vox_plr_2_exert_grunt_5";
+	level.exert_sounds[3]["mantlesoundplayer"][6] = "vox_plr_2_exert_grunt_6";
+	level.exert_sounds[4]["mantlesoundplayer"][0] = "vox_plr_3_exert_grunt_0";
+	level.exert_sounds[4]["mantlesoundplayer"][1] = "vox_plr_3_exert_grunt_1";
+	level.exert_sounds[4]["mantlesoundplayer"][2] = "vox_plr_3_exert_grunt_2";
+	level.exert_sounds[4]["mantlesoundplayer"][3] = "vox_plr_3_exert_grunt_4";
+	level.exert_sounds[4]["mantlesoundplayer"][4] = "vox_plr_3_exert_grunt_5";
+	level.exert_sounds[4]["mantlesoundplayer"][5] = "vox_plr_3_exert_grunt_6";
+	level.exert_sounds[1]["meleeswipesoundplayer"][0] = "vox_plr_0_exert_knife_swipe_0";
+	level.exert_sounds[1]["meleeswipesoundplayer"][1] = "vox_plr_0_exert_knife_swipe_1";
+	level.exert_sounds[1]["meleeswipesoundplayer"][2] = "vox_plr_0_exert_knife_swipe_2";
+	level.exert_sounds[1]["meleeswipesoundplayer"][3] = "vox_plr_0_exert_knife_swipe_3";
+	level.exert_sounds[1]["meleeswipesoundplayer"][4] = "vox_plr_0_exert_knife_swipe_4";
+	level.exert_sounds[1]["meleeswipesoundplayer"][5] = "vox_plr_0_exert_knife_swipe_5";
+	level.exert_sounds[2]["meleeswipesoundplayer"][0] = "vox_plr_1_exert_knife_swipe_0";
+	level.exert_sounds[2]["meleeswipesoundplayer"][1] = "vox_plr_1_exert_knife_swipe_1";
+	level.exert_sounds[2]["meleeswipesoundplayer"][2] = "vox_plr_1_exert_knife_swipe_2";
+	level.exert_sounds[2]["meleeswipesoundplayer"][3] = "vox_plr_1_exert_knife_swipe_3";
+	level.exert_sounds[2]["meleeswipesoundplayer"][4] = "vox_plr_1_exert_knife_swipe_4";
+	level.exert_sounds[2]["meleeswipesoundplayer"][5] = "vox_plr_1_exert_knife_swipe_5";
+	level.exert_sounds[3]["meleeswipesoundplayer"][0] = "vox_plr_2_exert_knife_swipe_0";
+	level.exert_sounds[3]["meleeswipesoundplayer"][1] = "vox_plr_2_exert_knife_swipe_1";
+	level.exert_sounds[3]["meleeswipesoundplayer"][2] = "vox_plr_2_exert_knife_swipe_2";
+	level.exert_sounds[3]["meleeswipesoundplayer"][3] = "vox_plr_2_exert_knife_swipe_3";
+	level.exert_sounds[3]["meleeswipesoundplayer"][4] = "vox_plr_2_exert_knife_swipe_4";
+	level.exert_sounds[3]["meleeswipesoundplayer"][5] = "vox_plr_2_exert_knife_swipe_5";
+	level.exert_sounds[4]["meleeswipesoundplayer"][0] = "vox_plr_3_exert_knife_swipe_0";
+	level.exert_sounds[4]["meleeswipesoundplayer"][1] = "vox_plr_3_exert_knife_swipe_1";
+	level.exert_sounds[4]["meleeswipesoundplayer"][2] = "vox_plr_3_exert_knife_swipe_2";
+	level.exert_sounds[4]["meleeswipesoundplayer"][3] = "vox_plr_3_exert_knife_swipe_3";
+	level.exert_sounds[4]["meleeswipesoundplayer"][4] = "vox_plr_3_exert_knife_swipe_4";
+	level.exert_sounds[4]["meleeswipesoundplayer"][5] = "vox_plr_3_exert_knife_swipe_5";
+	level.exert_sounds[1]["dtplandsoundplayer"][0] = "vox_plr_0_exert_pain_medium_0";
+	level.exert_sounds[1]["dtplandsoundplayer"][1] = "vox_plr_0_exert_pain_medium_1";
+	level.exert_sounds[1]["dtplandsoundplayer"][2] = "vox_plr_0_exert_pain_medium_2";
+	level.exert_sounds[1]["dtplandsoundplayer"][3] = "vox_plr_0_exert_pain_medium_3";
+	level.exert_sounds[2]["dtplandsoundplayer"][0] = "vox_plr_1_exert_pain_medium_0";
+	level.exert_sounds[2]["dtplandsoundplayer"][1] = "vox_plr_1_exert_pain_medium_1";
+	level.exert_sounds[2]["dtplandsoundplayer"][2] = "vox_plr_1_exert_pain_medium_2";
+	level.exert_sounds[2]["dtplandsoundplayer"][3] = "vox_plr_1_exert_pain_medium_3";
+	level.exert_sounds[3]["dtplandsoundplayer"][0] = "vox_plr_2_exert_pain_medium_0";
+	level.exert_sounds[3]["dtplandsoundplayer"][1] = "vox_plr_2_exert_pain_medium_1";
+	level.exert_sounds[3]["dtplandsoundplayer"][2] = "vox_plr_2_exert_pain_medium_2";
+	level.exert_sounds[3]["dtplandsoundplayer"][3] = "vox_plr_2_exert_pain_medium_3";
+	level.exert_sounds[4]["dtplandsoundplayer"][0] = "vox_plr_3_exert_pain_medium_0";
+	level.exert_sounds[4]["dtplandsoundplayer"][1] = "vox_plr_3_exert_pain_medium_1";
+	level.exert_sounds[4]["dtplandsoundplayer"][2] = "vox_plr_3_exert_pain_medium_2";
+	level.exert_sounds[4]["dtplandsoundplayer"][3] = "vox_plr_3_exert_pain_medium_3";
+// SP = 0x0 - check OK
+}
+
+// 0x39E4
+toggle_player_lightning( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self waittill_dobj( localclientnum );
+	self.b_lightning = 0;
+	self thread player_lightning( localclientnum );
+	self.b_lightning = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3A44
+toggle_futz_on_world( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.sndsqfinalent = spawn( 0, ( 0, 0, 0 ), "script_origin" );
+	setglobalfutz( "dlc_res_1", 0 );
+	playsound( 0, "zmb_sq_headset_start", ( 0, 0, 0 ) );
+	level.sndsqfinalent playloopsound( "zmb_sq_headset_loop" );
+	setglobalfutz( "no_gfutz", 0 );
+	playsound( 0, "zmb_sq_headset_stop", ( 0, 0, 0 ) );
+	level.sndsqfinalent stoploopsound( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3AF4
+dryer_stage_notifies( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	m_dryer_prop = undefined;
+	fxanim_props = getentarray( localclientnum, "fxanim", "targetname" );
+	i = 0;
+	m_dryer_prop = fxanim_props[i];
+	i++;
+	stopfx( localclientnum, level.dryer_light );
+	switch ( newval )
+	{
+		case 1:
+			level.dryer_light = playfxontag( localclientnum, level._effect["alcatraz_dryer_light_red"], m_dryer_prop, "tag_light01" );
+			break;
+		case 2:
+			level.dryer_light = playfxontag( localclientnum, level._effect["alcatraz_dryer_light_yellow"], m_dryer_prop, "tag_light02" );
+			setworldfogactivebank( localclientnum, 2 );
+			break;
+		case 3:
+			level.dryer_light = playfxontag( localclientnum, level._effect["alcatraz_dryer_light_green"], m_dryer_prop, "tag_light03" );
+			setworldfogactivebank( localclientnum, 1 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3C24
+fog_stage_notifies( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	switch ( newval )
+	{
+		case 1:
+			setworldfogactivebank( localclientnum, 4 );
+			break;
+		case 2:
+			setworldfogactivebank( localclientnum, 8 );
+			break;
+		case 3:
+			setworldfogactivebank( localclientnum, 1 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3C94
+flicker_in_and_out( localclientnum )
+{
+	self endon( "stop_flicker" );
+	self endon( "delete" );
+	level endon( "demo_jump" );
+	s_timer = new_timer();
+	wait randomfloatrange( 0.5, 2 );
+	n_phase_in = randomfloatrange( 0.1, 0.3 );
+	wait 0.01;
+	serverwait( localclientnum, 0.1 );
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 0, 1, n_current_time / n_phase_in );
+	self setshaderconstant( localclientnum, 1, n_delta_val, 1, 0, 0 );
+	self playsound( 0, "evt_perk_warp" );
+	s_timer reset_timer();
+	n_phase_in = randomfloatrange( 0.1, 0.3 );
+	wait 0.01;
+	serverwait( localclientnum, 0.1 );
+	n_current_time = s_timer get_time_in_seconds();
+	n_delta_val = lerpfloat( 1, 0, n_current_time / n_phase_in );
+	self setshaderconstant( localclientnum, 1, n_delta_val, 1, 0, 0 );
+	s_timer reset_timer();
+// SP = 0x0 - check OK
+}
+
+// 0x3DF0
+toggle_perk_machine_power( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self mapshaderconstant( localclientnum, 1, "ScriptVector0" );
+	self thread flicker_in_and_out( localclientnum );
+	self notify( "stop_flicker" );
+	self setshaderconstant( localclientnum, 0, 0, 1, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3E50
+player_lightning( localclientnum )
+{
+	self endon( "disconnect" );
+	self.b_lightning = 1;
+	self waittill_dobj( localclientnum );
+	v_p_angles = self.angles;
+	v_forward = anglestoforward( self.angles ) * 25000;
+	v_end_pos = self.origin + ( v_forward[0], v_forward[1], 0 );
+	v_offset = ( randomintrange( -5000, 5000 ), randomintrange( -5000, 5000 ), randomint( 3000 ) );
+	v_end_pos += v_offset;
+	playfx( localclientnum, level._effect["lightning_flash"], v_end_pos );
+	playsound( 0, "amb_thunder_clap_zm", v_end_pos );
+	wait randomfloatrange( 0.2, 0.3 );
+	n_level_sunlight = GetDvarFloat( #"0xDAAF16D8" );
+	n_level_exposure = GetDvarFloat( #"0x3113AF0E" );
+	n_strikes = randomintrange( 3, 5 );
+	i = 0;
+	serverwait( localclientnum, 0.1 );
+	n_blend_time = randomfloatrange( 0.1, 0.35 );
+	setdvar( "r_exposureTweak", 1 );
+	playsound( 0, "amb_thunder_flash_zm", v_end_pos );
+	setdvar( "r_exposureValue", randomfloatrange( -1, 1 ) );
+	level thread lerp_dvar( "r_exposureValue", n_level_exposure, n_blend_time, undefined, localclientnum );
+	setsaveddvar( "r_lightTweakSunLight", randomfloatrange( 28, 32 ) );
+	level thread lerp_dvar( "r_lightTweakSunLight", n_level_sunlight, n_blend_time, 1, localclientnum );
+	wait n_blend_time;
+	setdvar( "r_exposureTweak", 0 );
+	i++;
+	wait randomfloatrange( 5, 10 );
+// SP = 0x0 - check OK
+}
+
+// 0x404C
+scripted_lightning_flash( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level thread scripted_player_lightning( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x4078
+scripted_player_lightning( localclientnum )
+{
+	level endon( "end_game" );
+	players = level.localplayers;
+	foreach ( player in players )
+	{
+		player waittill_dobj( localclientnum );
+		player thread scripted_player_lightning_strike();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x40F4
+scripted_player_lightning_strike()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	return;
+	localclientnum = self getlocalclientnumber();
+	return;
+	v_p_angles = self.angles;
+	v_forward = anglestoforward( self.angles ) * 25000;
+	v_end_pos = self.origin + ( v_forward[0], v_forward[1], 0 );
+	v_offset = ( randomintrange( -5000, 5000 ), randomintrange( -5000, 5000 ), randomint( 3000 ) );
+	v_end_pos += v_offset;
+	playfx( localclientnum, level._effect["lightning_flash"], v_end_pos );
+	playsound( 0, "amb_thunder_clap_zm", v_end_pos );
+	n_level_sunlight = GetDvarFloat( #"0xDAAF16D8" );
+	n_level_exposure = GetDvarFloat( #"0x3113AF0E" );
+	n_strikes = randomintrange( 3, 5 );
+	i = 0;
+	serverwait( localclientnum, 0.1 );
+	n_blend_time = randomfloatrange( 0.05, 0.1 );
+	setdvar( "r_exposureTweak", 1 );
+	playsound( 0, "amb_thunder_flash_zm", v_end_pos );
+	setdvar( "r_exposureValue", randomfloatrange( -1, 1 ) );
+	level thread lerp_dvar( "r_exposureValue", n_level_exposure, n_blend_time, undefined, localclientnum );
+	setsaveddvar( "r_lightTweakSunLight", randomfloatrange( 28, 32 ) );
+	level thread lerp_dvar( "r_lightTweakSunLight", n_level_sunlight, n_blend_time, 1, localclientnum );
+	serverwait( localclientnum, 0.1 );
+	wait n_blend_time;
+	setdvar( "r_exposureTweak", 0 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x42D0
+warden_fence_down( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level notify( "warden_fence_up" );
+	level notify( "warden_fence_down" );
+// SP = 0x0 - check OK
+}
+
+// 0x4308
+master_key_is_lowered( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level notify( "master_key_is_lowered" );
+// SP = 0x0 - check OK
+}
+
+// 0x4324
+fxanim_pulley_down_start( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level notify( "fxanim_west_pulley_down_start" );
+	level notify( "fxanim_east_pulley_down_start" );
+// SP = 0x0 - check OK
+}
+
+// 0x435C
+lerp_dvar( str_dvar, n_val, n_lerp_time, b_saved_dvar, localclientnum )
+{
+	n_start_val = GetDvarFloat( str_dvar );
+	n_time_delta = 0;
+	realwait( 0.05 );
+	n_time_delta += 0.05;
+	serverwait( localclientnum, 0.1 );
+	n_curr_val = lerpfloat( n_start_val, n_val, n_time_delta / n_lerp_time );
+	setsaveddvar( str_dvar, n_curr_val );
+	setdvar( str_dvar, n_curr_val );
+// SP = 0x0 - check OK
+}
+
+// 0x43EC
+timer_increment_loop()
+{
+	self.n_time_current += 0.016;
+	realwait( 0.016 );
+// SP = 0x0 - check OK
+}
+
+// 0x4414
+new_timer()
+{
+	s_timer = spawnstruct();
+	s_timer.n_time_current = 0;
+	s_timer thread timer_increment_loop();
+	return s_timer;
+// SP = 0x0 - check OK
+}
+
+// 0x443C
+get_time()
+{
+	return self.n_time_current * 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x444C
+get_time_in_seconds()
+{
+	return self.n_time_current;
+// SP = 0x0 - check OK
+}
+
+// 0x4458
+timer_wait( n_wait )
+{
+	realwait( n_wait );
+	return get_time_in_seconds();
+// SP = 0x0 - check OK
+}
+
+// 0x4470
+reset_timer()
+{
+	self.n_time_current = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x447C
+rumble_gondola( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "rumble_gondola_finished" );
+	self earthquake( 0.1, 1, self.origin, 1500 );
+	self playrumbleonentity( localclientnum, "reload_small" );
+	wait 0.25;
+	self notify( "rumble_gondola_finished" );
+	self earthquake( 0.25, 0.25, self.origin, 1500 );
+	self playrumbleonentity( localclientnum, "damage_heavy" );
+// SP = 0x0 - check OK
+}
+
+// 0x4554
+rumble_fan_trap( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "rumble_fan_trap_finished" );
+	self earthquake( 0.15, 1, self.origin, 1500 );
+	self playrumbleonentity( localclientnum, "damage_light" );
+	wait 0.25;
+	self notify( "rumble_fan_trap_finished" );
+// SP = 0x0 - check OK
+}
+
+// 0x45E4
+rumble_sq_bg( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "rumble_sq_bg_finished" );
+	i = 0;
+	self earthquake( 0.15, 1, self.origin, 1500 );
+	self playrumbleonentity( localclientnum, "damage_heavy" );
+	wait 0.1;
+	i++;
+	self notify( "rumble_sq_bg_finished" );
+// SP = 0x0 - check OK
+}
+
+// 0x4680
+rumble_door_open( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self playrumbleonentity( localclientnum, "damage_light" );
+// SP = 0x0 - check OK
+}
+
+// 0x46BC
+is_gametype_active( a_gametypes )
+{
+	is_gametype_active = 0;
+	a_gametypes = array( a_gametypes );
+	i = 0;
+	is_gametype_active = 1;
+	i++;
+	return is_gametype_active;
+// SP = 0x0 - check OK
+}

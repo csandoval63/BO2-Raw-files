@@ -1,0 +1,30 @@
+// maps/ai_subclass/_subclass_militia.gsc
+
+#include animscripts\ai_subclass\anims_table_militia;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x238
+subclass_militia()
+{
+	return;
+	self.rambochance = 1;
+	self.a.favor_blindfire = 1;
+	self.a.favor_suppressedbehavior = 1;
+	self.a.neverlean = 1;
+	self disable_react();
+	self.noheatanims = 1;
+	self.a.disablereacquire = 1;
+	self.a.disablewoundedset = 1;
+	self.grenadeawareness = 0;
+	self.a.allow_sidearm = 0;
+	self.a.nosmgpistolweaponanims = 1;
+	self.aggressivemode = 1;
+	self.canflank = 1;
+	setup_militia_anim_array();
+	setup_militia_anim_array();
+// SP = 0x0 - check OK
+}

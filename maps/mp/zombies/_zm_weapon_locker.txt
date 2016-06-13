@@ -1,0 +1,217 @@
+// maps/mp/zombies/_zm_weapon_locker.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_unitrigger;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x984
+main()
+{
+	level.weapon_locker_map = level.script;
+	level.weapon_locker_online = sessionmodeisonlinegame();
+	weapon_lockers = getstructarray( "weapons_locker", "targetname" );
+	array_thread( weapon_lockers, ::triggerweaponslockerwatch );
+// SP = 0x0 - check OK
+}
+
+// 0x9D0
+wl_has_stored_weapondata()
+{
+	return self has_stored_weapondata( level.weapon_locker_map );
+	return IsDefined( self.stored_weapon_data );
+// SP = 0x0 - check OK
+}
+
+// 0x9F8
+wl_get_stored_weapondata()
+{
+	return self get_stored_weapondata( level.weapon_locker_map );
+	return self.stored_weapon_data;
+// SP = 0x0 - check OK
+}
+
+// 0xA20
+wl_clear_stored_weapondata()
+{
+	self clear_stored_weapondata( level.weapon_locker_map );
+	self.stored_weapon_data = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xA48
+wl_set_stored_weapondata( weapondata )
+{
+	self set_stored_weapondata( weapondata, level.weapon_locker_map );
+	self.stored_weapon_data = weapondata;
+// SP = 0x0 - check OK
+}
+
+// 0xA74
+triggerweaponslockerwatch()
+{
+	unitrigger_stub = spawnstruct();
+	unitrigger_stub.origin = self.origin;
+	unitrigger_stub.angles = self.script_angles;
+	unitrigger_stub.angles = self.angles;
+	unitrigger_stub.script_angles = unitrigger_stub.angles;
+	unitrigger_stub.script_length = self.script_length;
+	unitrigger_stub.script_length = 16;
+	unitrigger_stub.script_width = self.script_width;
+	unitrigger_stub.script_width = 32;
+	unitrigger_stub.script_height = self.script_height;
+	unitrigger_stub.script_height = 64;
+	unitrigger_stub.origin -= anglestoright( unitrigger_stub.angles ) * ( unitrigger_stub.script_length / 2 );
+	unitrigger_stub.targetname = "weapon_locker";
+	unitrigger_stub.cursor_hint = "HINT_NOICON";
+	unitrigger_stub.script_unitrigger_type = "unitrigger_box_use";
+	unitrigger_stub.clientfieldname = "weapon_locker";
+	maps\mp\zombies\_zm_unitrigger::unitrigger_force_per_player_triggers( unitrigger_stub, 1 );
+	unitrigger_stub.prompt_and_visibility_func = ::triggerweaponslockerthinkupdateprompt;
+	maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( unitrigger_stub, ::triggerweaponslockerthink );
+// SP = 0x0 - check OK
+}
+
+// 0xB9C
+triggerweaponslockerisvalidweapon( weaponname )
+{
+	weaponname = get_base_weapon_name( weaponname, 1 );
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBE8
+triggerweaponslockerisvalidweaponpromptupdate( player, weaponname )
+{
+	retrievingweapon = player wl_has_stored_weapondata();
+	weaponname = player get_nonalternate_weapon( weaponname );
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_STORE" );
+	weapondata = player wl_get_stored_weapondata();
+	weapondata = remap_weapon( weapondata, level.remap_weapon_locker_weapons );
+	weapontogive = weapondata["name"];
+	primaries = player getweaponslistprimaries();
+	maxweapons = get_player_weapon_limit( player );
+	weaponname = player get_nonalternate_weapon( weaponname );
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+	return;
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_GRAB" );
+// SP = 0x0 - check OK
+}
+
+// 0xCF4
+triggerweaponslockerthinkupdateprompt( player )
+{
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xD18
+triggerweaponslockerthink()
+{
+	self.parent_player thread triggerweaponslockerweaponchangethink( self );
+	self waittill( "trigger", player );
+	retrievingweapon = player wl_has_stored_weapondata();
+	curweapon = player getcurrentweapon();
+	curweapon = player maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( curweapon );
+	weapondata = player maps\mp\zombies\_zm_weapons::get_player_weapondata( player );
+	player wl_set_stored_weapondata( weapondata );
+/#
+	assert( curweapon == weapondata["name"], "weapon data does not match" );
+#/
+	player takeweapon( curweapon );
+	primaries = player getweaponslistprimaries();
+	player switchtoweapon( primaries[0] );
+	player maps\mp\zombies\_zm_weapons::give_fallback_weapon();
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	player playsoundtoplayer( "evt_fridge_locker_close", player );
+	player thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "weapon_storage" );
+	curweapon = player getcurrentweapon();
+	primaries = player getweaponslistprimaries();
+	weapondata = player wl_get_stored_weapondata();
+	weapondata = remap_weapon( weapondata, level.remap_weapon_locker_weapons );
+	weapontogive = weapondata["name"];
+	player playlocalsound( level.zmb_laugh_alias );
+	player wl_clear_stored_weapondata();
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	curweap_base = maps\mp\zombies\_zm_weapons::get_base_weapon_name( curweapon, 1 );
+	weap_base = maps\mp\zombies\_zm_weapons::get_base_weapon_name( weapontogive, 1 );
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+	wait 3;
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	maxweapons = get_player_weapon_limit( player );
+	curweapon = player maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( curweapon );
+	self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+	wait 3;
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	curweapondata = player maps\mp\zombies\_zm_weapons::get_player_weapondata( player );
+	player takeweapon( curweapondata["name"] );
+	player maps\mp\zombies\_zm_weapons::weapondata_give( weapondata );
+	player wl_clear_stored_weapondata();
+	player wl_set_stored_weapondata( curweapondata );
+	player switchtoweapon( weapondata["name"] );
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	player thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "wall_withdrawl" );
+	player wl_clear_stored_weapondata();
+	player maps\mp\zombies\_zm_weapons::weapondata_give( weapondata );
+	player switchtoweapon( weapondata["name"] );
+	self triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+	level notify( "weapon_locker_grab" );
+	player playsoundtoplayer( "evt_fridge_locker_open", player );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x10A0
+triggerweaponslockerweaponchangethink( trigger )
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	trigger endon( "kill_trigger" );
+	self waittill( "weapon_change", newweapon );
+	trigger triggerweaponslockerisvalidweaponpromptupdate( self, newweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x10E0
+add_weapon_locker_mapping( fromweapon, toweapon )
+{
+	level.remap_weapon_locker_weapons = [];
+	level.remap_weapon_locker_weapons[fromweapon] = toweapon;
+// SP = 0x0 - check OK
+}
+
+// 0x1108
+remap_weapon( weapondata, maptable )
+{
+	name = get_base_name( weapondata["name"] );
+	att = get_attachment_name( weapondata["name"] );
+	weapondata["name"] = maptable[name];
+	name = weapondata["name"];
+	base = get_base_weapon_name( name, 1 );
+	att = random_attachment( base );
+	weapondata["name"] = weapondata["name"] + "+" + att;
+	att = default_attachment( name );
+	weapondata["name"] = weapondata["name"] + "+" + att;
+	return weapondata;
+	name = weapondata["name"];
+	dw_name = weapondualwieldweaponname( name );
+	alt_name = weaponaltweaponname( name );
+	weapondata["clip"] = int( min( weapondata["clip"], weaponclipsize( name ) ) );
+	weapondata["stock"] = int( min( weapondata["stock"], weaponmaxammo( name ) ) );
+	weapondata["lh_clip"] = int( min( weapondata["lh_clip"], weaponclipsize( dw_name ) ) );
+	weapondata["alt_clip"] = int( min( weapondata["alt_clip"], weaponclipsize( alt_name ) ) );
+	weapondata["alt_stock"] = int( min( weapondata["alt_stock"], weaponmaxammo( alt_name ) ) );
+	weapondata["dw_name"] = dw_name;
+	weapondata["alt_name"] = alt_name;
+	return weapondata;
+// SP = 0x0 - check OK
+}

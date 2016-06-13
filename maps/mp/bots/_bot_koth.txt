@@ -1,0 +1,171 @@
+// maps/mp/bots/_bot_koth.gsc
+
+#include maps\mp\bots\_bot_combat;
+#include maps\mp\bots\_bot;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes\koth;
+
+
+// 0x588
+bot_koth_think()
+{
+	maxs = level.zone.trig getmaxs();
+	maxs = level.zone.trig.origin + maxs;
+	level.zone.trig.goal_radius = distance( level.zone.trig.origin, maxs );
+/#
+	println( "distance: " + level.zone.trig.goal_radius );
+#/
+	ground = bullettrace( level.zone.gameobject.curorigin, level.zone.gameobject.curorigin - vector_scale( ( 0, 0, 1 ), 1024 ), 0, undefined );
+	level.zone.trig.goal = ground["position"] + vector_scale( ( 0, 0, 1 ), 8 );
+	self bot_move_to_hill();
+	self bot_capture_hill();
+	bot_hill_tactical_insertion();
+	bot_hill_grenade();
+// SP = 0x0 - check OK
+}
+
+// 0x698
+bot_has_hill_goal()
+{
+	origin = self getgoal( "koth_hill" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6F0
+bot_is_at_hill()
+{
+	return self atgoal( "koth_hill" );
+// SP = 0x0 - check OK
+}
+
+// 0x708
+bot_move_to_hill()
+{
+	return;
+	self clearlookat();
+	self cancelgoal( "koth_hill" );
+	self setstance( "crouch" );
+	wait 0.25;
+	self setstance( "stand" );
+	wait 0.25;
+	nodes = getnodesinradiussorted( level.zone.trig.goal, level.zone.trig.goal_radius, 0, 128 );
+	foreach ( node in nodes )
+	{
+		self addgoal( node, 24, 3, "koth_hill" );
+		self.bot.update_objective = GetTime();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x83C
+bot_get_look_at()
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( self.origin, 1 );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	enemies = self maps\mp\bots\_bot::bot_get_enemies( 0 );
+	enemy = random( enemies );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	spawn = random( level.spawnpoints );
+	node = getvisiblenode( self.origin, spawn.origin );
+	return node.origin;
+	return level.zone.gameobject.curorigin;
+// SP = 0x0 - check OK
+}
+
+// 0x964
+bot_capture_hill()
+{
+	self addgoal( self.origin, 24, 3, "koth_hill" );
+	self setstance( "crouch" );
+	origin = self bot_get_look_at();
+	z = 20;
+	z = randomintrange( 16, 60 );
+	self lookat( origin + ( 0, 0, z ) );
+	dir = vectornormalize( self.origin - origin );
+	dir = vector_scale( dir, 256 );
+	origin += dir;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( origin );
+	nodes = getnodesinradius( level.zone.trig.goal, level.zone.trig.goal_radius + 128, 0, 128 );
+	i = randomintrange( 0, nodes.size );
+	node = nodes[i];
+	self addgoal( node, 24, 3, "koth_hill" );
+	self.bot.update_objective = GetTime();
+	i++;
+	self.bot.update_lookat = GetTime() + randomintrange( 1500, 3000 );
+// SP = 0x0 - check OK
+}
+
+// 0xB4C
+any_other_team_touching( skip_team )
+{
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBA4
+is_hill_contested( skip_team )
+{
+	return 1;
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( level.zone.gameobject.curorigin, 1 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC10
+bot_hill_grenade()
+{
+	enemies = bot_get_enemies();
+	return;
+	origin = bot_get_look_at();
+	return;
+	level.next_smoke_time = 0;
+	level.next_smoke_time = GetTime() + randomintrange( 60000, 120000 );
+	return;
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( level.zone.gameobject.curorigin, 0 );
+	origin = enemy.origin;
+	origin = level.zone.gameobject.curorigin;
+	dir = vectornormalize( self.origin - origin );
+	dir = ( 0, dir[1], 0 );
+	origin += vector_scale( dir, 128 );
+	level.next_grenade_time = 0;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_tactical( origin );
+	level.next_grenade_time = GetTime() + randomintrange( 60000, 120000 );
+	self maps\mp\bots\_bot_combat::bot_combat_throw_tactical( origin );
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+bot_hill_tactical_insertion()
+{
+	return;
+	dist = self getlookaheaddist();
+	dir = self getlookaheaddir();
+	return;
+	node = hill_nearest_node();
+	mine = getnearestnode( self.origin );
+	origin = self.origin + vector_scale( dir, dist );
+	next = getnearestnode( origin );
+	bot_combat_tactical_insertion( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xE9C
+hill_nearest_node()
+{
+	nodes = getnodesinradiussorted( level.zone.gameobject.curorigin, 256, 0 );
+/#
+	assert( nodes.size );
+#/
+	return nodes[0];
+// SP = 0x0 - check OK
+}

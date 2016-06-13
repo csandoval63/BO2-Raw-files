@@ -1,0 +1,335 @@
+// clientscripts/mp/zombies/_zm_utility.csc
+
+#include clientscripts\mp\zombies\_zm_buildables;
+#include clientscripts\mp\zombies\_zm_powerups;
+#include clientscripts\mp\zombies\_callbacks;
+#include clientscripts\mp\_utility;
+
+
+// 0x9F4
+is_valid_type_for_callback( type )
+{
+	switch ( type )
+	{
+		case "NA":
+		case "actor":
+		case "general":
+		case "missile":
+		case "plane":
+		case "player":
+		case "scriptmover":
+		case "turret":
+		case "vehicle":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xA64
+register_clientflag_callback( type, flag, function )
+{
+/#
+	assertmsg( type + " is not a valid entity type to have a callback function registered." );
+#/
+	return;
+	return;
+/#
+	println( "*** Free client flags for type " + type );
+	free = "";
+	i = 0;
+	free += i + " ";
+	i++;
+	free = "No free flags.";
+	println( "*** " + free );
+#/
+/#
+	assertmsg( "Flag " + flag + " is already registered for ent type " + type + ".  Please use a different flag number.  See console for list of free flags for this type." );
+#/
+	return;
+	level._client_flag_callbacks[type][flag] = function;
+// SP = 0x0 - check OK
+}
+
+// 0xB54
+ignore_triggers( timer )
+{
+	self endon( "death" );
+	self.ignoretriggers = 1;
+	wait timer;
+	wait 0.5;
+	self.ignoretriggers = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xB84
+clamp( val, val_min, val_max )
+{
+	val = val_min;
+	val = val_max;
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0xBB0
+is_mature()
+{
+	return 1;
+	return ismaturecontentenabled();
+// SP = 0x0 - check OK
+}
+
+// 0xBCC
+init_fog_vol_to_visionset_monitor( default_visionset, default_trans_in, host_migration_active )
+{
+	level._fv2vs_default_visionset = default_visionset;
+	level._fv2vs_default_trans_in = default_trans_in;
+	level._fv2vs_unset_visionset = "_fv2vs_unset";
+	level._fv2vs_prev_visionsets = [];
+	level._fv2vs_prev_visionsets[0] = level._fv2vs_unset_visionset;
+	level._fv2vs_prev_visionsets[1] = level._fv2vs_unset_visionset;
+	level._fv2vs_prev_visionsets[2] = level._fv2vs_unset_visionset;
+	level._fv2vs_prev_visionsets[3] = level._fv2vs_unset_visionset;
+	level._fv2vs_infos = [];
+	fog_vol_to_visionset_set_info( -1, default_visionset, default_trans_in );
+	level._fogvols_inited = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xC4C
+fog_vol_to_visionset_set_suffix( suffix )
+{
+	level._fv2vs_suffix = suffix;
+// SP = 0x0 - check OK
+}
+
+// 0xC5C
+fog_vol_to_visionset_set_info( id, visionset, trans_in )
+{
+	trans_in = level._fv2vs_default_trans_in;
+	level._fv2vs_infos[id] = spawnstruct();
+	level._fv2vs_infos[id].visionset = visionset;
+	level._fv2vs_infos[id].trans_in = trans_in;
+// SP = 0x0 - check OK
+}
+
+// 0xCA4
+fog_vol_to_visionset_instant_transition_monitor()
+{
+	level endon( "vsionset_mgr_incontrol" );
+	level._fv2vs_force_instant_transition = 0;
+	level thread fog_vol_to_visionset_hostmigration_monitor();
+	level waittill_any( "demo_jump", "demo_player_switch", "visionset_manager_none_state" );
+/#
+	println( "CLIENT: force instant transition" );
+#/
+	level._fv2vs_force_instant_transition = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xCFC
+fog_vol_to_visionset_hostmigration_monitor()
+{
+	level endon( "vsionset_mgr_incontrol" );
+	level waittill( "hmo" );
+	wait 3;
+/#
+	println( "CLIENT: force instant transition due to host migration" );
+#/
+	init_fog_vol_to_visionset_monitor( level._fv2vs_default_visionset, level._fv2vs_default_trans_in, 1 );
+	level thread fog_vol_to_visionset_monitor();
+	level thread reset_player_fv2vs_infos_on_respawn();
+	wait 1;
+	level notify( "visionset_mgr_reset" );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xD58
+fog_vol_to_visionset_monitor()
+{
+	level endon( "hmo" );
+	level endon( "vsionset_mgr_incontrol" );
+	level thread fog_vol_to_visionset_instant_transition_monitor();
+	wait 0.01;
+	players = getlocalplayers();
+	localclientnum = 0;
+	level._fv2vs_prev_visionsets[localclientnum] = level._fv2vs_unset_visionset;
+	id = getworldfogscriptid( localclientnum );
+/#
+	assert( IsDefined( level._fv2vs_infos[id] ), "WorldFogScriptID '" + id + "' was not registered with fog_vol_to_visionset_set_info()" );
+#/
+	new_visionset = level._fv2vs_infos[id].visionset + level._fv2vs_suffix;
+/#
+	assert( IsDefined( level._fv2vs_infos[id] ), "WorldFogScriptId '" + id + "' was not registered with fog_vol_to_visionset_set_info()" );
+#/
+/#
+#/
+	trans = level._fv2vs_infos[id].trans_in;
+/#
+	println( "Force instant transition set. " + new_visionset );
+#/
+	trans = 0;
+	visionsetnaked( localclientnum, new_visionset, trans );
+	level._fv2vs_prev_visionsets[localclientnum] = new_visionset;
+	localclientnum++;
+	level._fv2vs_force_instant_transition = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xEA4
+callback( event, clientnum )
+{
+	i = 0;
+	callback = level._callbacks[event][i];
+	self thread [[callback]]( clientnum );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xF00
+onplayerconnect_callback( func )
+{
+	clientscripts\mp\zombies\_callbacks::addcallback( "on_player_connect", func );
+// SP = 0x0 - check OK
+}
+
+// 0xF18
+waittill_notify_or_timeout( msg, timer )
+{
+	self endon( msg );
+	wait timer;
+// SP = 0x0 - check OK
+}
+
+// 0xF2C
+include_powerup( powerup_name )
+{
+	clientscripts\mp\zombies\_zm_powerups::include_zombie_powerup( powerup_name );
+// SP = 0x0 - check OK
+}
+
+// 0xF44
+is_encounter()
+{
+	return 1;
+	var = GetDvar( #"0x6B64B9B4" );
+	level._is_encounter = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF80
+is_createfx_active()
+{
+	level.createfx_enabled = GetDvar( #"0x134D5297" ) != "";
+	return level.createfx_enabled;
+// SP = 0x0 - check OK
+}
+
+// 0xFA8
+include_buildable( buildable_name )
+{
+	clientscripts\mp\zombies\_zm_buildables::include_zombie_buildable( buildable_name );
+// SP = 0x0 - check OK
+}
+
+// 0xFC0
+add_zombie_buildable( buildable_name )
+{
+	clientscripts\mp\zombies\_zm_buildables::add_zombie_buildable( buildable_name );
+// SP = 0x0 - check OK
+}
+
+// 0xFD8
+set_clientfield_buildables_code_callbacks()
+{
+	clientscripts\mp\zombies\_zm_buildables::set_clientfield_buildables_code_callbacks();
+// SP = 0x0 - check OK
+}
+
+// 0xFE8
+spawn_weapon_model( localclientnum, weapon, model, origin, angles, options )
+{
+	model = getweaponmodel( weapon );
+	weapon_model = spawn( localclientnum, origin, "script_model" );
+	weapon_model.angles = angles;
+	weapon_model useweaponmodel( weapon, model, options );
+	weapon_model useweaponmodel( weapon, model, options );
+	weapon_model useweaponmodel( weapon, model );
+	return weapon_model;
+// SP = 0x0 - check OK
+}
+
+// 0x1074
+reset_player_fv2vs_infos_on_respawn()
+{
+	level endon( "hmo" );
+	level endon( "vsionset_mgr_incontrol" );
+	level waittill( "respawn" );
+	players = getlocalplayers();
+	localclientnum = 0;
+	level._fv2vs_prev_visionsets[localclientnum] = level._fv2vs_unset_visionset;
+	localclientnum++;
+// SP = 0x0 - check OK
+}
+
+// 0x10C8
+get_array_of_closest( org, array, excluders, max, maxdist )
+{
+	max = array.size;
+	excluders = [];
+	maxdists2rd = undefined;
+	maxdists2rd = maxdist * maxdist;
+	dist = [];
+	index = [];
+	i = 0;
+	excluded = 0;
+	p = 0;
+	excluded = 1;
+	p++;
+	length = distancesquared( org, array[i].origin );
+	dist[dist.size] = length;
+	index[index.size] = i;
+	i++;
+	change = 0;
+	i = 0;
+	change = 1;
+	temp = dist[i];
+	dist[i] = dist[i + 1];
+	dist[i + 1] = temp;
+	temp = index[i];
+	index[i] = index[i + 1];
+	index[i + 1] = temp;
+	i++;
+	newarray = [];
+	max = dist.size;
+	i = 0;
+	newarray[i] = array[index[i]];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x1274
+is_classic()
+{
+	var = GetDvar( #"0x6B64B9B4" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1298
+is_gametype_active( a_gametypes )
+{
+	b_is_gametype_active = 0;
+	a_gametypes = array( a_gametypes );
+	i = 0;
+	b_is_gametype_active = 1;
+	i++;
+	return b_is_gametype_active;
+// SP = 0x0 - check OK
+}

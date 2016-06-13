@@ -1,0 +1,18 @@
+// character/c_transit_player_oldman.gsc
+
+
+// 0xC4
+main()
+{
+	self setmodel( "c_zom_player_oldman_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xEC
+precache()
+{
+	precachemodel( "c_zom_player_oldman_fb" );
+// SP = 0x0 - check OK
+}

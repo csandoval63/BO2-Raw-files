@@ -1,0 +1,381 @@
+// maps/mp/animscripts/zm_shared.gsc
+
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+
+
+// 0xC04
+deleteatlimit()
+{
+	wait 30;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC20
+lookatentity( looktargetentity, lookduration, lookspeed, eyesonly, interruptothers )
+{
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xC34
+lookatposition( looktargetpos, lookduration, lookspeed, eyesonly, interruptothers )
+{
+/#
+	assert( isai( self ), "Can only call this function on an AI character" );
+#/
+/#
+	assert( self.a.targetlookinitilized == 1, "LookAtPosition called on AI that lookThread was not called on" );
+#/
+/#
+	assert( lookspeed == "alert", "lookSpeed must be casual or alert" );
+#/
+	self.a.looktargetpos = looktargetpos;
+	self.a.lookendtime = GetTime() + lookduration * 1000;
+	self.a.looktargetspeed = 800;
+	self.a.looktargetspeed = 1600;
+	self notify( "eyes look now" );
+	self notify( "look now" );
+// SP = 0x0 - check OK
+}
+
+// 0xD20
+lookatanimations( leftanim, rightanim )
+{
+	self.a.lookanimationleft = leftanim;
+	self.a.lookanimationright = rightanim;
+// SP = 0x0 - check OK
+}
+
+// 0xD44
+handledogsoundnotetracks( note )
+{
+	self playsound( "fly_dog_step_run_default" );
+	return 1;
+	prefix = getsubstr( note, 0, 5 );
+	return 0;
+	alias = "aml" + getsubstr( note, 5 );
+	self thread play_sound_on_tag_endon_death( alias, "tag_eye" );
+	self thread play_sound_in_space( alias, self gettagorigin( "tag_eye" ) );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xDF0
+growling()
+{
+	return IsDefined( self.script_growl );
+// SP = 0x0 - check OK
+}
+
+// 0xDFC
+registernotetracks()
+{
+	anim.notetracks["anim_pose = \"stand\""] = ::notetrackposestand;
+	anim.notetracks["anim_pose = \"crouch\""] = ::notetrackposecrouch;
+	anim.notetracks["anim_movement = \"stop\""] = ::notetrackmovementstop;
+	anim.notetracks["anim_movement = \"walk\""] = ::notetrackmovementwalk;
+	anim.notetracks["anim_movement = \"run\""] = ::notetrackmovementrun;
+	anim.notetracks["anim_alertness = causal"] = ::notetrackalertnesscasual;
+	anim.notetracks["anim_alertness = alert"] = ::notetrackalertnessalert;
+	anim.notetracks["gravity on"] = ::notetrackgravity;
+	anim.notetracks["gravity off"] = ::notetrackgravity;
+	anim.notetracks["gravity code"] = ::notetrackgravity;
+	anim.notetracks["bodyfall large"] = ::notetrackbodyfall;
+	anim.notetracks["bodyfall small"] = ::notetrackbodyfall;
+	anim.notetracks["footstep"] = ::notetrackfootstep;
+	anim.notetracks["step"] = ::notetrackfootstep;
+	anim.notetracks["footstep_right_large"] = ::notetrackfootstep;
+	anim.notetracks["footstep_right_small"] = ::notetrackfootstep;
+	anim.notetracks["footstep_left_large"] = ::notetrackfootstep;
+	anim.notetracks["footstep_left_small"] = ::notetrackfootstep;
+	anim.notetracks["footscrape"] = ::notetrackfootscrape;
+	anim.notetracks["land"] = ::notetrackland;
+	anim.notetracks["start_ragdoll"] = ::notetrackstartragdoll;
+// SP = 0x0 - check OK
+}
+
+// 0xF54
+notetrackstopanim( note, flagname )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xF60
+notetrackstartragdoll( note, flagname )
+{
+	return;
+	self unlink();
+	self startragdoll();
+// SP = 0x0 - check OK
+}
+
+// 0xF8C
+notetrackmovementstop( note, flagname )
+{
+	self.a.movement = "stop";
+// SP = 0x0 - check OK
+}
+
+// 0xFB4
+notetrackmovementwalk( note, flagname )
+{
+	self.a.movement = "walk";
+// SP = 0x0 - check OK
+}
+
+// 0xFDC
+notetrackmovementrun( note, flagname )
+{
+	self.a.movement = "run";
+// SP = 0x0 - check OK
+}
+
+// 0x1004
+notetrackalertnesscasual( note, flagname )
+{
+	self.a.alertness = "casual";
+// SP = 0x0 - check OK
+}
+
+// 0x102C
+notetrackalertnessalert( note, flagname )
+{
+	self.a.alertness = "alert";
+// SP = 0x0 - check OK
+}
+
+// 0x1054
+notetrackposestand( note, flagname )
+{
+	self.a.pose = "stand";
+	self notify( "entered_pose" + "stand" );
+// SP = 0x0 - check OK
+}
+
+// 0x1078
+notetrackposecrouch( note, flagname )
+{
+	self.a.pose = "crouch";
+	self notify( "entered_pose" + "crouch" );
+	self.a.crouchpain = 0;
+	self.health = 150;
+// SP = 0x0 - check OK
+}
+
+// 0x10BC
+notetrackgravity( note, flagname )
+{
+	self animmode( "gravity" );
+	self animmode( "nogravity" );
+	self.nogravity = 1;
+	self animmode( "none" );
+	self.nogravity = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1134
+notetrackbodyfall( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_bodyfall_large_" + groundtype );
+	self playsound( "fly_bodyfall_small_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x11A4
+notetrackfootstep( note, flagname )
+{
+	playfootstep( "J_Ball_LE" );
+	playfootstep( "J_BALL_RI" );
+	self playsound( "fly_gear_run" );
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+notetrackfootscrape( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_step_scrape_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x1230
+notetrackland( note, flagname )
+{
+	groundtype = self.groundtype;
+	groundtype = "dirt";
+	self playsound( "fly_land_npc_" + groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x1268
+handlenotetrack( note, flagname, customfunction, var1 )
+{
+	return;
+	notetrackfunc = anim.notetracks[note];
+	return [[notetrackfunc]]( note, flagname );
+	switch ( note )
+	{
+		case "allow pain":
+		case "anim_melee = "left"":
+		case "anim_melee = "right"":
+			return note;
+		case "anim_melee = left":
+			self thread play_sound_in_space( "fly_gear_enemy", self gettagorigin( "TAG_WEAPON_RIGHT" ) );
+			break;
+		case "anim_melee = right":
+			self thread play_sound_in_space( "fly_gear_enemy_large", self gettagorigin( "TAG_WEAPON_RIGHT" ) );
+			break;
+		case "end":
+			self.a.nodeath = 1;
+			break;
+		case "finish":
+			self.allowpain = 0;
+			break;
+		case "no death":
+			self.allowpain = 1;
+			break;
+		case "no pain":
+		case "swap taghelmet to tagleft":
+			self.a.meleestate = "right";
+			break;
+		case "swish large":
+		case "swish small":
+			self.a.meleestate = "left";
+			break;
+		case "undefined":
+			self detach( self.helmetsidemodel, "TAG_HELMETSIDE" );
+			self.helmetsidemodel = undefined;
+			self detach( self.hatmodel, "" );
+			self attach( self.hatmodel, "TAG_WEAPON_LEFT" );
+			self.hatmodel = undefined;
+			break;
+		default:
+			return [[customfunction]]( note );
+			return [[customfunction]]( note, var1 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x145C
+donotetracks( flagname, customfunction, var1 )
+{
+	self waittill( flagname, note );
+	note = "undefined";
+	val = self handlenotetrack( note, flagname, customfunction, var1 );
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x14A8
+donotetracksforeverproc( notetracksfunc, flagname, killstring, customfunction, var1 )
+{
+	self endon( killstring );
+	self endon( "killanimscript" );
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, var1 );
+	timetaken = GetTime() - time;
+	time = GetTime();
+	returnednote = [[notetracksfunc]]( flagname, customfunction, var1 );
+	timetaken = GetTime() - time;
+/#
+	println( GetTime() + " mapsmpanimscriptsshared::DoNoteTracksForever is trying to cause an infinite loop on anim " + flagname + ", returned " + returnednote + "." );
+#/
+	wait 0.05 - timetaken;
+// SP = 0x0 - check OK
+}
+
+// 0x1550
+donotetracksforever( flagname, killstring, customfunction, var1 )
+{
+	donotetracksforeverproc( ::donotetracks, flagname, killstring, customfunction, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1578
+donotetracksfortimeproc( donotetracksforeverfunc, time, flagname, customfunction, ent, var1 )
+{
+	ent endon( "stop_notetracks" );
+	[[donotetracksforeverfunc]]( flagname, undefined, customfunction, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x15A0
+donotetracksfortime( time, flagname, customfunction, var1 )
+{
+	ent = spawnstruct();
+	ent thread donotetracksfortimeendnotify( time );
+	donotetracksfortimeproc( ::donotetracksforever, time, flagname, customfunction, ent, var1 );
+// SP = 0x0 - check OK
+}
+
+// 0x15E8
+donotetracksfortimeendnotify( time )
+{
+	wait time;
+	self notify( "stop_notetracks" );
+// SP = 0x0 - check OK
+}
+
+// 0x15FC
+playfootstep( foot )
+{
+	self playsound( "fly_step_run_dirt" );
+	return;
+	groundtype = undefined;
+	self playsound( "fly_step_run_dirt" );
+	return;
+	groundtype = self.lastgroundtype;
+	groundtype = self.groundtype;
+	self.lastgroundtype = self.groundtype;
+	self playsound( "fly_step_run_" + groundtype );
+	[[anim.optionalstepeffectfunction]]( foot, groundtype );
+// SP = 0x0 - check OK
+}
+
+// 0x1698
+playfootstepeffect( foot, groundtype )
+{
+	return;
+	i = 0;
+	groundtype = "fire";
+	org = self gettagorigin( foot );
+	playfx( level._effect["step_" + anim.optionalstepeffects[i]], org, org + vector_scale( ( 0, 0, 1 ), 100 ) );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x172C
+movetooriginovertime( origin, time )
+{
+	self endon( "killanimscript" );
+/#
+	println( "^1Warning: AI starting behavior for node at " + origin + " but could not move to that point." );
+#/
+	return;
+	self.keepclaimednodeingoal = 1;
+	offset = self.origin - origin;
+	frames = int( time * 20 );
+	offsetreduction = vector_scale( offset, 1 / frames );
+	i = 0;
+	offset -= offsetreduction;
+	self teleport( origin + offset );
+	wait 0.05;
+	i++;
+	self.keepclaimednodeingoal = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x17F0
+returntrue()
+{
+	return 1;
+// SP = 0x0 - check OK
+}

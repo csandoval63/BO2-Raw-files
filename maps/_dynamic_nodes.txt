@@ -1,0 +1,122 @@
+// maps/_dynamic_nodes.gsc
+
+#include maps\_dynamic_nodes;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x3A8
+node_connect_to_path()
+{
+	self node_disconnect_from_path();
+	a_connection_nodes = [];
+	a_near_nodes = getanynodearray( self.origin, 240 );
+	v_forward = anglestoforward( self.angles );
+	nn = 0;
+	nd_test = a_near_nodes[nn];
+	v_dir = vectornormalize( nd_test.origin - self.origin );
+	dot = vectordot( v_forward, v_dir );
+	trace = bullettrace( ( self.origin[0], self.origin[1], self.origin[2] + 42 ), ( nd_test.origin[0], nd_test.origin[1], nd_test.origin[2] + 42 ), 0, undefined, 1, 1 );
+	a_connection_nodes[a_connection_nodes.size] = nd_test;
+	nn++;
+	i = 0;
+	self node_add_connection( a_connection_nodes[i] );
+	i++;
+	return a_connection_nodes.size;
+// SP = 0x0 - check OK
+}
+
+// 0x4E4
+node_add_connection( nd_node )
+{
+	self.a_node_path_connections = [];
+	linknodes( self, nd_node );
+	linknodes( nd_node, self );
+	self.a_node_path_connections[self.a_node_path_connections.size] = nd_node;
+// SP = 0x0 - check OK
+}
+
+// 0x538
+node_disconnect_from_path()
+{
+	i = 0;
+	nd_node = self.a_node_path_connections[i];
+	unlinknodes( self, nd_node );
+	unlinknodes( nd_node, self );
+	i++;
+	self.a_node_path_connections = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x58C
+entity_grab_attached_dynamic_nodes( connect_nodes_to_path )
+{
+	connect_nodes_to_path = 1;
+	a_nodes = getnodearray( self.targetname, "target" );
+	foreach ( node in a_nodes )
+	{
+		self.a_dynamic_nodes = [];
+		self.a_dynamic_nodes[self.a_dynamic_nodes.size] = node;
+	}
+	self thread maps\_dynamic_nodes::entity_connect_dynamic_nodes_to_navigation_mesh();
+// SP = 0x0 - check OK
+}
+
+// 0x628
+entity_connect_dynamic_nodes_to_navigation_mesh()
+{
+	self endon( "death" );
+	self entity_connect_nodes();
+	wait 0.05;
+	foreach ( node in self.a_dynamic_nodes )
+	{
+		dropnodetofloor( node );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x68C
+entity_connect_nodes()
+{
+	self endon( "death" );
+	return;
+	foreach ( nd_dynamic in self.a_dynamic_nodes )
+	{
+		nd_dynamic.a_linked_nodes = [];
+		a_near_nodes = getanynodearray( nd_dynamic.origin, 256 );
+		foreach ( nd_test in a_near_nodes )
+		{
+			reject = 0;
+			reject = 1;
+			reject = 1;
+			reject = 1;
+			v_forward = anglestoforward( nd_dynamic.angles );
+			v_dir = vectornormalize( nd_test.origin - nd_dynamic.origin );
+			dot = vectordot( v_forward, v_dir );
+			reject = 1;
+			trace = bullettrace( nd_dynamic.origin, nd_test.origin, 0, undefined, 1, 1 );
+			reject = 1;
+			reject = 1;
+			reject = 1;
+			linknodes( nd_dynamic, nd_test );
+			linknodes( nd_test, nd_dynamic );
+			nd_dynamic.a_linked_nodes[nd_dynamic.a_linked_nodes.size] = nd_test;
+		}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x864
+entity_disconnect_dynamic_nodes_from_navigation_mesh()
+{
+	foreach ( nd_dynamic in self.a_dynamic_nodes )
+	{
+		foreach ( nd_linked in nd_dynamic.a_linked_nodes )
+		{
+			unlinknodes( nd_dynamic, nd_linked );
+			unlinknodes( nd_linked, nd_dynamic );
+		}
+		nd_dynamic.a_linked_nodes = [];
+	}
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,1341 @@
+// maps/gametypes/_gameobjects.gsc
+
+#include maps\gametypes\_objpoints;
+#include maps\_hud_util;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x152C
+main( allowed )
+{
+	vehicles_enabled = 0;
+/#
+	vehicles_enabled = 1;
+#/
+	vehicles_enabled = 1;
+	vehicles_enabled = 0;
+	allowed[allowed.size] = "vehicle";
+	filter_script_vehicles_from_vehicle_descriptors( allowed );
+	entities = getentarray();
+	entity_index = entities.size - 1;
+	entity = entities[entity_index];
+	entity delete();
+	entity_index--;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x15F0
+entity_is_allowed( entity, allowed_game_modes )
+{
+	return 1;
+	allowed = 1;
+	allowed = 0;
+	gameobjectnames = strtok( entity.script_gameobjectname, " " );
+	i = 0;
+	j = 0;
+	allowed = gameobjectnames[j] == allowed_game_modes[i];
+	j++;
+	i++;
+	return allowed;
+// SP = 0x0 - check OK
+}
+
+// 0x1688
+filter_script_vehicles_from_vehicle_descriptors( allowed_game_modes )
+{
+	vehicle_descriptors = getentarray( "vehicle_descriptor", "targetname" );
+	script_vehicles = getentarray( "script_vehicle", "classname" );
+	vehicles_to_remove = [];
+	descriptor_index = 0;
+	descriptor = vehicle_descriptors[descriptor_index];
+	closest_distance_sq = 1e+012;
+	closest_vehicle = undefined;
+	vehicle_index = 0;
+	vehicle = script_vehicles[vehicle_index];
+	dsquared = distancesquared( vehicle getorigin(), descriptor getorigin() );
+	closest_distance_sq = dsquared;
+	closest_vehicle = vehicle;
+	vehicle_index++;
+	vehicles_to_remove[vehicles_to_remove.size] = closest_vehicle;
+	descriptor_index++;
+	vehicle_index = 0;
+	vehicles_to_remove[vehicle_index] delete();
+	vehicle_index++;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1794
+init()
+{
+	level.numgametypereservedobjectives = 0;
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x17AC
+onplayerconnect()
+{
+	level endon( "game_ended" );
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+	player thread ondisconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x17E0
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "spawned_player" );
+	self thread ondeath();
+	self.touchtriggers = [];
+	self.carryobject = undefined;
+	self.claimtrigger = undefined;
+	self.canpickupobject = 1;
+	self.disabledweapon = 0;
+	self.killedinuse = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1828
+ondeath()
+{
+	level endon( "game_ended" );
+	self waittill( "death" );
+	self.carryobject thread setdropped();
+// SP = 0x0 - check OK
+}
+
+// 0x1854
+ondisconnect()
+{
+	level endon( "game_ended" );
+	self waittill( "disconnect" );
+	self.carryobject thread setdropped();
+// SP = 0x0 - check OK
+}
+
+// 0x1880
+createcarryobject( ownerteam, trigger, visuals, offset )
+{
+	carryobject = spawnstruct();
+	carryobject.type = "carryObject";
+	carryobject.curorigin = trigger.origin;
+	carryobject.ownerteam = ownerteam;
+	carryobject.entnum = trigger getentitynumber();
+	carryobject.triggertype = "use";
+	carryobject.triggertype = "proximity";
+	trigger.baseorigin = trigger.origin;
+	carryobject.trigger = trigger;
+	carryobject.useweapon = undefined;
+	offset = ( 0, 0, 0 );
+	carryobject.offset3d = offset;
+	index = 0;
+	visuals[index].baseorigin = visuals[index].origin;
+	visuals[index].baseangles = visuals[index].angles;
+	index++;
+	carryobject.visuals = visuals;
+	carryobject.compassicons = [];
+	carryobject.objidallies = getnextobjid();
+	carryobject.objidaxis = getnextobjid();
+	carryobject.objidpingfriendly = 0;
+	carryobject.objidpingenemy = 0;
+	level.objidstart += 2;
+	objective_add_team( "allies", carryobject.objidallies, "invisible", "", carryobject.curorigin );
+	objective_add_team( "axis", carryobject.objidaxis, "invisible", "", carryobject.curorigin );
+	carryobject.objpoints["allies"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_allies_" + carryobject.entnum, carryobject.curorigin + offset, "allies", undefined );
+	carryobject.objpoints["axis"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_axis_" + carryobject.entnum, carryobject.curorigin + offset, "axis", undefined );
+	carryobject.objpoints["allies"].alpha = 0;
+	carryobject.objpoints["axis"].alpha = 0;
+	carryobject.carrier = undefined;
+	carryobject.isresetting = 0;
+	carryobject.interactteam = "none";
+	carryobject.allowweapons = 0;
+	carryobject.visiblecarriermodel = undefined;
+	carryobject.worldicons = [];
+	carryobject.carriervisible = 0;
+	carryobject.visibleteam = "none";
+	carryobject.worldiswaypoint = [];
+	carryobject.carryicon = undefined;
+	carryobject.ondrop = undefined;
+	carryobject.onpickup = undefined;
+	carryobject.onreset = undefined;
+	carryobject thread carryobjectusethink();
+	carryobject thread carryobjectproxthink();
+	carryobject thread updatecarryobjectorigin();
+	return carryobject;
+// SP = 0x0 - check OK
+}
+
+// 0x1B18
+carryobjectusethink()
+{
+	level endon( "game_ended" );
+	self.trigger waittill( "trigger", player );
+	self setpickedup( player );
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+carryobjectproxthink()
+{
+	level endon( "game_ended" );
+	self.trigger waittill( "trigger", player );
+	self setpickedup( player );
+// SP = 0x0 - check OK
+}
+
+// 0x1CA8
+pickupobjectdelay( origin )
+{
+	level endon( "game_ended" );
+	self endon( "death" );
+	self endon( "disconnect" );
+	self.canpickupobject = 0;
+	wait 0.2;
+	self.canpickupobject = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1CF8
+setpickedup( player )
+{
+	self [[self.onpickupfailed]]( player );
+	return;
+	player giveobject( self );
+	self setcarrier( player );
+	index = 0;
+	self.visuals[index] hide();
+	index++;
+	self.trigger.origin += vector_scale( ( 0, 0, 1 ), 10000 );
+	self notify( "pickup_object" );
+	self [[self.onpickup]]( player );
+	self updatecompassicons();
+	self updateworldicons();
+// SP = 0x0 - check OK
+}
+
+// 0x1DB4
+updatecarryobjectorigin()
+{
+	level endon( "game_ended" );
+	self.curorigin = self.carrier.origin + vector_scale( ( 0, 0, 1 ), 75 );
+	self.objpoints["allies"] maps\gametypes\_objpoints::updateorigin( self.curorigin );
+	self.objpoints["axis"] maps\gametypes\_objpoints::updateorigin( self.curorigin );
+	self.objpoints["allies"].alpha = self.objpoints["allies"].basealpha;
+	self.objpoints["allies"] fadeovertime( 5 + 1 );
+	self.objpoints["allies"].alpha = 0;
+	objective_position( self.objidallies, self.curorigin );
+	self.objpoints["axis"].alpha = self.objpoints["axis"].basealpha;
+	self.objpoints["axis"] fadeovertime( 5 + 1 );
+	self.objpoints["axis"].alpha = 0;
+	objective_position( self.objidaxis, self.curorigin );
+	self.objpoints["allies"].alpha = self.objpoints["allies"].basealpha;
+	self.objpoints["allies"] fadeovertime( 5 + 1 );
+	self.objpoints["allies"].alpha = 0;
+	objective_position( self.objidallies, self.curorigin );
+	self.objpoints["axis"].alpha = self.objpoints["axis"].basealpha;
+	self.objpoints["axis"] fadeovertime( 5 + 1 );
+	self.objpoints["axis"].alpha = 0;
+	objective_position( self.objidaxis, self.curorigin );
+	self wait_endon( 5, "dropped", "reset" );
+	self.objpoints["allies"] maps\gametypes\_objpoints::updateorigin( self.curorigin + self.offset3d );
+	self.objpoints["axis"] maps\gametypes\_objpoints::updateorigin( self.curorigin + self.offset3d );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2104
+giveobject( object )
+{
+/#
+	assert( !(IsDefined( self.carryobject )) );
+#/
+	self.carryobject = object;
+	self thread trackcarrier();
+	self _disableweapon();
+	self thread manualdropthink();
+	self.disallowvehicleusage = 1;
+	self.carryicon = createicon( object.carryicon, 35, 35 );
+	self.carryicon.x = -130;
+	self.carryicon.y = -90;
+	self.carryicon.horzalign = "right";
+	self.carryicon.vertalign = "bottom";
+	self.carryicon = createicon( object.carryicon, 50, 50 );
+	self.carryicon setpoint( "CENTER", "CENTER", 0, 60 );
+	self.carryicon.x = -135;
+	self.carryicon.y = -103;
+	self.carryicon.horzalign = "user_right";
+	self.carryicon.vertalign = "user_bottom";
+// SP = 0x0 - check OK
+}
+
+// 0x222C
+returnhome()
+{
+	self.isresetting = 1;
+	self notify( "reset" );
+	index = 0;
+	self.visuals[index].origin = self.visuals[index].baseorigin;
+	self.visuals[index].angles = self.visuals[index].baseangles;
+	self.visuals[index] show();
+	index++;
+	self.trigger.origin = self.trigger.baseorigin;
+	self.curorigin = self.trigger.origin;
+	self [[self.onreset]]();
+	self clearcarrier();
+	updateworldicons();
+	updatecompassicons();
+	self.isresetting = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x22F0
+isobjectawayfromhome()
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+onplayerlaststand()
+{
+	self.carryobject thread setdropped();
+// SP = 0x0 - check OK
+}
+
+// 0x2344
+setdropped()
+{
+	self.isresetting = 1;
+	self notify( "dropped" );
+	trace = undefined;
+	angletrace = bullettrace( self.carrier.origin + vector_scale( ( 0, 0, 1 ), 20 ), self.carrier.origin - vector_scale( ( 0, 0, 1 ), 2000 ), 0, self.carrier.body );
+	angletrace = bullettrace( self.safeorigin + vector_scale( ( 0, 0, 1 ), 20 ), self.safeorigin - vector_scale( ( 0, 0, 1 ), 20 ), 0, undefined );
+	droppingplayer = self.carrier;
+	tempangle = randomfloat( 360 );
+	droporigin = trace;
+	forward = ( cos( tempangle ), sin( tempangle ), 0 );
+	forward = vectornormalize( forward - vector_scale( angletrace["normal"], vectordot( forward, angletrace["normal"] ) ) );
+	dropangles = vectortoangles( forward );
+	dropangles = ( 0, tempangle, 0 );
+	index = 0;
+	self.visuals[index].origin = droporigin;
+	self.visuals[index].angles = dropangles;
+	self.visuals[index] show();
+	index++;
+	self.trigger.origin = droporigin;
+	self.curorigin = self.trigger.origin;
+	self thread pickuptimeout();
+	index = 0;
+	self.visuals[index].origin = self.visuals[index].baseorigin;
+	self.visuals[index].angles = self.visuals[index].baseangles;
+	self.visuals[index] show();
+	index++;
+	self.trigger.origin = self.trigger.baseorigin;
+	self.curorigin = self.trigger.baseorigin;
+	self [[self.ondrop]]( droppingplayer );
+	self clearcarrier();
+	self updatecompassicons();
+	self updateworldicons();
+	self.isresetting = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x25AC
+setcarrier( carrier )
+{
+	self.carrier = carrier;
+	self thread updatevisibilityaccordingtoradar();
+// SP = 0x0 - check OK
+}
+
+// 0x25C8
+clearcarrier()
+{
+	return;
+	self.carrier takeobject( self );
+	self.carrier = undefined;
+	self notify( "carrier_cleared" );
+// SP = 0x0 - check OK
+}
+
+// 0x25F4
+pickuptimeout()
+{
+	self endon( "pickup_object" );
+	self endon( "stop_pickup_timeout" );
+	wait 0.05;
+	minetriggers = getentarray( "minefield", "targetname" );
+	hurttriggers = getentarray( "trigger_hurt", "classname" );
+	index = 0;
+	self returnhome();
+	return;
+	index++;
+	index = 0;
+	self returnhome();
+	return;
+	index++;
+	wait self.autoresettime;
+	self returnhome();
+// SP = 0x0 - check OK
+}
+
+// 0x26D4
+takeobject( object )
+{
+	self.carryicon destroyelem();
+	self.carryobject = undefined;
+	return;
+	self notify( "drop_object" );
+	self.disallowvehicleusage = 0;
+	self thread pickupobjectdelay( object.trigger.origin );
+	self _enableweapon();
+// SP = 0x0 - check OK
+}
+
+// 0x2750
+trackcarrier()
+{
+	level endon( "game_ended" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "drop_object" );
+	trace = bullettrace( self.origin + vector_scale( ( 0, 0, 1 ), 20 ), self.origin - vector_scale( ( 0, 0, 1 ), 20 ), 0, undefined );
+	self.carryobject.safeorigin = trace["position"];
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x27EC
+manualdropthink()
+{
+	level endon( "game_ended" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "drop_object" );
+	wait 0.05;
+	wait 0.05;
+	self.carryobject thread setdropped();
+// SP = 0x0 - check OK
+}
+
+// 0x2890
+createuseobject( ownerteam, trigger, visuals, offset, descriptionallies, descriptionaxis )
+{
+	useobject = spawnstruct();
+	useobject.type = "useObject";
+	useobject.curorigin = trigger.origin;
+	useobject.ownerteam = ownerteam;
+	useobject.entnum = trigger getentitynumber();
+	useobject.keyobject = undefined;
+	useobject.triggertype = "use";
+	useobject.triggertype = "proximity";
+	useobject.trigger = trigger;
+	index = 0;
+	visuals[index].baseorigin = visuals[index].origin;
+	visuals[index].baseangles = visuals[index].angles;
+	index++;
+	useobject.visuals = visuals;
+	offset = ( 0, 0, 0 );
+	useobject.offset3d = offset;
+	useobject.compassicons = [];
+	useobject.objidallies = getnextobjid();
+	useobject.objidaxis = getnextobjid();
+	descriptiontextforallies = "";
+	descriptiontextforallies = descriptionallies;
+	descriptiontextforaxis = "";
+	descriptiontextforaxis = descriptionaxis;
+	objective_add_team( "allies", useobject.objidallies, "invisible", descriptiontextforallies, useobject.curorigin );
+	objective_add_team( "axis", useobject.objidaxis, "invisible", descriptiontextforaxis, useobject.curorigin );
+	useobject.objpoints["allies"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_allies_" + useobject.entnum, useobject.curorigin + offset, "allies", undefined );
+	useobject.objpoints["axis"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_axis_" + useobject.entnum, useobject.curorigin + offset, "axis", undefined );
+	useobject.objpoints["allies"].alpha = 0;
+	useobject.objpoints["axis"].alpha = 0;
+	useobject.interactteam = "none";
+	useobject.worldicons = [];
+	useobject.visibleteam = "none";
+	useobject.worldiswaypoint = [];
+	useobject.onuse = undefined;
+	useobject.oncantuse = undefined;
+	useobject.usetext = "default";
+	useobject.usetime = 10000;
+	useobject.curprogress = 0;
+	useobject.decayprogress = 0;
+	useobject.numtouching["neutral"] = 0;
+	useobject.numtouching["axis"] = 0;
+	useobject.numtouching["allies"] = 0;
+	useobject.numtouching["none"] = 0;
+	useobject.touchlist["neutral"] = [];
+	useobject.touchlist["axis"] = [];
+	useobject.touchlist["allies"] = [];
+	useobject.touchlist["none"] = [];
+	useobject.userate = 0;
+	useobject.claimteam = "none";
+	useobject.claimplayer = undefined;
+	useobject.lastclaimteam = "none";
+	useobject.lastclaimtime = 0;
+	useobject thread useobjectproxthink();
+	useobject.userate = 1;
+	useobject thread useobjectusethink();
+	return useobject;
+// SP = 0x0 - check OK
+}
+
+// 0x2BA4
+setkeyobject( object )
+{
+	self.keyobject = object;
+// SP = 0x0 - check OK
+}
+
+// 0x2BB4
+useobjectusethink()
+{
+	level endon( "game_ended" );
+	self.trigger waittill( "trigger", player );
+	self [[self.oncantuse]]( player );
+	result = 1;
+	self [[self.onbeginuse]]( player );
+	team = player.pers["team"];
+	result = self useholdthink( player );
+	self [[self.onenduse]]( team, player, result );
+	self [[self.onuse]]( player );
+// SP = 0x0 - check OK
+}
+
+// 0x2CCC
+getearliestclaimplayer()
+{
+/#
+	assert( self.claimteam != "none" );
+#/
+	team = self.claimteam;
+	earliestplayer = self.claimplayer;
+	earliesttime = undefined;
+	players = getarraykeys( self.touchlist[team] );
+	index = 0;
+	touchdata = self.touchlist[team][players[index]];
+	earliestplayer = touchdata.player;
+	earliesttime = touchdata.starttime;
+	index++;
+	return earliestplayer;
+// SP = 0x0 - check OK
+}
+
+// 0x2D7C
+useobjectproxthink()
+{
+	level endon( "game_ended" );
+	self thread proxtriggerthink();
+	self.curprogress = 0;
+	creditplayer = getearliestclaimplayer();
+	self [[self.onenduse]]( self getclaimteam(), creditplayer, IsDefined( creditplayer ) );
+	self [[self.onuse]]( creditplayer );
+	self setclaimteam( "none" );
+	self.claimplayer = undefined;
+	self [[self.onenduse]]( self getclaimteam(), self.claimplayer, 0 );
+	self setclaimteam( "none" );
+	self.claimplayer = undefined;
+	self.curprogress = 0;
+	self [[self.onenduse]]( self getclaimteam(), self.claimplayer, 0 );
+	self.claimplayer = undefined;
+	self.curprogress -= 50 * self.userate;
+	self.curprogress = 0;
+	self [[self.onuseupdate]]( self getclaimteam(), self.curprogress / self.usetime, 50 * self.userate / self.usetime );
+	self setclaimteam( "none" );
+	self [[self.onenduse]]( self getclaimteam(), self.claimplayer, 0 );
+	self setclaimteam( "none" );
+	self.claimplayer = undefined;
+	self.curprogress += 50 * self.userate;
+	self [[self.onuseupdate]]( self getclaimteam(), self.curprogress / self.usetime, 50 * self.userate / self.usetime );
+	self [[self.onuse]]( self.claimplayer );
+	self setclaimteam( "none" );
+	self.claimplayer = undefined;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2FF0
+useobjectlockedforteam( team )
+{
+	return self.teamlock[team];
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3020
+proxtriggerthink()
+{
+	level endon( "game_ended" );
+	entitynumber = self.entnum;
+	self.trigger waittill( "trigger", player );
+	setclaimteam( player.pers["team"] );
+	self.claimplayer = player;
+	self [[self.onbeginuse]]( self.claimplayer );
+	self [[self.oncantuse]]( player );
+	player thread triggertouchthink( self );
+// SP = 0x0 - check OK
+}
+
+// 0x3144
+setclaimteam( newteam )
+{
+/#
+	assert( newteam != self.claimteam );
+#/
+	self.curprogress = 0;
+	self.curprogress = 0;
+	self.lastclaimteam = self.claimteam;
+	self.lastclaimtime = GetTime();
+	self.claimteam = newteam;
+	self updateuserate();
+// SP = 0x0 - check OK
+}
+
+// 0x31C8
+getclaimteam()
+{
+	return self.claimteam;
+// SP = 0x0 - check OK
+}
+
+// 0x31D4
+triggertouchthink( object )
+{
+	team = self.pers["team"];
+	object.numtouching[team]++;
+	object updateuserate();
+	touchname = "player" + self.clientid;
+	struct = spawnstruct();
+	struct.player = self;
+	struct.starttime = GetTime();
+	object.touchlist[team][touchname] = struct;
+	self.touchtriggers[object.entnum] = object.trigger;
+	object [[object.ontouchuse]]( self );
+	self updateproxbar( object, 0 );
+	wait 0.05;
+	self updateproxbar( object, 1 );
+	self.touchtriggers[object.entnum] = undefined;
+	return;
+	object.touchlist[team][touchname] = undefined;
+	object.numtouching[team]--;
+	object [[object.onendtouchuse]]( self );
+	object updateuserate();
+// SP = 0x0 - check OK
+}
+
+// 0x3320
+updateproxbar( object, forceremove )
+{
+	self.proxbar hideelem();
+	self.proxbartext hideelem();
+	return;
+	self.proxbar = createprimaryprogressbar();
+	self.proxbar.lastuserate = -1;
+	self.proxbar.bar.color = ( 1, 1, 1 );
+	self.proxbar.lastuserate = -1;
+	self.proxbar.bar.color = ( 1, 0, 0 );
+	self.proxbar.lastuserate = -1;
+	self.proxbar hideelem();
+	self.proxbartext hideelem();
+	return;
+	self.proxbar = createprimaryprogressbar();
+	self.proxbar.lastuserate = -1;
+	self.proxbar showelem();
+	self.proxbar.lastuserate = -1;
+	self.proxbartext = createprimaryprogressbartext();
+	self.proxbartext settext( object.usetext );
+	self.proxbartext showelem();
+	self.proxbartext settext( object.usetext );
+	object.curprogress = object.usetime;
+	self.proxbar updatebar( object.curprogress / object.usetime, 1000 / object.usetime * ( object.userate * -1 ) );
+	self.proxbar updatebar( object.curprogress / object.usetime, 1000 / object.usetime * object.userate );
+	self.proxbar.lastuserate = object.userate;
+// SP = 0x0 - check OK
+}
+
+// 0x35EC
+updateuserate()
+{
+	numclaimants = self.numtouching[self.claimteam];
+	numother = 0;
+	numother += self.numtouching["axis"];
+	numother += self.numtouching["allies"];
+	self.userate = 0;
+	self.userate = numclaimants;
+	self.userate = numother;
+	self.userate = 1;
+	self.userate = numclaimants;
+	self [[self.onupdateuserate]]();
+// SP = 0x0 - check OK
+}
+
+// 0x36B4
+attachusemodel()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "done_using" );
+	wait 1.3;
+	self attach( "weapon_explosives", "tag_inhand", 1 );
+	self.attachedusemodel = "weapon_explosives";
+// SP = 0x0 - check OK
+}
+
+// 0x36F0
+useholdthink( player )
+{
+	player notify( "use_hold" );
+	player freezecontrols( 1 );
+	player clientclaimtrigger( self.trigger );
+	player.claimtrigger = self.trigger;
+	useweapon = self.useweapon;
+	lastweapon = player getcurrentweapon();
+/#
+	assert( IsDefined( lastweapon ) );
+#/
+/#
+	assert( IsDefined( player.lastnonuseweapon ) );
+#/
+	lastweapon = player.lastnonuseweapon;
+/#
+	assert( lastweapon != useweapon );
+#/
+	player.lastnonuseweapon = lastweapon;
+	player giveweapon( useweapon );
+	player setweaponammostock( useweapon, 0 );
+	player setweaponammoclip( useweapon, 0 );
+	player switchtoweapon( useweapon );
+	player thread attachusemodel();
+	player _disableweapon();
+	self.curprogress = 0;
+	self.inuse = 1;
+	self.userate = 0;
+	player thread personalusebar( self );
+	result = useholdthinkloop( player, lastweapon );
+	player detach( player.attachedusemodel, "tag_inhand" );
+	player.attachedusemodel = undefined;
+	player notify( "done_using" );
+	player thread takeuseweapon( useweapon );
+	return 1;
+	player.claimtrigger = undefined;
+	player switchtoweapon( lastweapon );
+	player takeweapon( useweapon );
+	player _enableweapon();
+	player freezecontrols( 0 );
+	player.killedinuse = 1;
+	self.inuse = 0;
+	self.trigger releaseclaimedtrigger();
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3908
+takeuseweapon( useweapon )
+{
+	self endon( "use_hold" );
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	wait 0.05;
+	self takeweapon( useweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x3958
+useholdthinkloop( player, lastweapon )
+{
+	level endon( "game_ended" );
+	self endon( "disabled" );
+	useweapon = self.useweapon;
+	waitforweapon = 1;
+	timedout = 0;
+	timedout += 0.05;
+	self.curprogress += 50 * self.userate;
+	self.userate = 1;
+	waitforweapon = 0;
+	self.userate = 0;
+	self.inuse = 0;
+	player clientreleasetrigger( self.trigger );
+	player.claimtrigger = undefined;
+	player setweaponammostock( useweapon, 1 );
+	player setweaponammoclip( useweapon, 1 );
+	player switchtoweapon( lastweapon );
+	player takeweapon( useweapon );
+	player _enableweapon();
+	player freezecontrols( 0 );
+	wait 0.05;
+	return isalive( player );
+	wait 0.05;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3B04
+personalusebar( object )
+{
+	self endon( "disconnect" );
+	return;
+	self.usebar = createprimaryprogressbar();
+	self.usebartext = createprimaryprogressbartext();
+	self.usebartext settext( object.usetext );
+	lastrate = -1;
+	object.curprogress = object.usetime;
+	self.proxbar updatebar( object.curprogress / object.usetime, 1000 / object.usetime * ( object.userate * -1 ) );
+	self.usebar updatebar( object.curprogress / object.usetime, 1000 / object.usetime * object.userate );
+	self.usebar hideelem();
+	self.usebartext hideelem();
+	self.usebar showelem();
+	self.usebartext showelem();
+	lastrate = object.userate;
+	wait 0.05;
+	self.usebar destroyelem();
+	self.usebartext destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0x3C90
+updatetrigger()
+{
+	return;
+	self.trigger.origin -= vector_scale( ( 0, 0, 1 ), 50000 );
+	self.trigger.origin = self.curorigin;
+	self.trigger setteamfortrigger( "none" );
+	self.trigger.origin = self.curorigin;
+	self.trigger setteamfortrigger( "allies" );
+	self.trigger setteamfortrigger( "axis" );
+	self.trigger.origin -= vector_scale( ( 0, 0, 1 ), 50000 );
+	self.trigger.origin = self.curorigin;
+	self.trigger setteamfortrigger( "axis" );
+	self.trigger setteamfortrigger( "allies" );
+	self.trigger setteamfortrigger( "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x3DE0
+updateworldicons()
+{
+	updateworldicon( "friendly", 1 );
+	updateworldicon( "enemy", 1 );
+	updateworldicon( "friendly", 1 );
+	updateworldicon( "enemy", 0 );
+	updateworldicon( "friendly", 0 );
+	updateworldicon( "enemy", 1 );
+	updateworldicon( "friendly", 0 );
+	updateworldicon( "enemy", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3E84
+updateworldicon( relativeteam, showicon )
+{
+	showicon = 0;
+	updateteams = getupdateteams( relativeteam );
+	index = 0;
+	opname = "objpoint_" + updateteams[index] + "_" + self.entnum;
+	objpoint = maps\gametypes\_objpoints::getobjpointbyname( opname );
+	objpoint notify( "stop_flashing_thread" );
+	objpoint thread maps\gametypes\_objpoints::stopflashing();
+	objpoint setshader( self.worldicons[relativeteam], level.objpointsize, level.objpointsize );
+	objpoint fadeovertime( 0.05 );
+	objpoint.alpha = objpoint.basealpha;
+	objpoint.isshown = 1;
+	iswaypoint = 1;
+	iswaypoint = self.worldiswaypoint[relativeteam];
+	objpoint setwaypoint( iswaypoint, self.worldicons[relativeteam], objpoint.isdistanceshown );
+	objpoint setwaypoint( iswaypoint, "", objpoint.isdistanceshown );
+	objpoint settargetent( self.carrier );
+	objpoint cleartargetent();
+	objpoint fadeovertime( 0.05 );
+	objpoint.alpha = 0;
+	objpoint.isshown = 0;
+	objpoint cleartargetent();
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x4024
+updatecompassicons()
+{
+	updatecompassicon( "friendly", 1 );
+	updatecompassicon( "enemy", 1 );
+	updatecompassicon( "friendly", 1 );
+	updatecompassicon( "enemy", 0 );
+	updatecompassicon( "friendly", 0 );
+	updatecompassicon( "enemy", 1 );
+	updatecompassicon( "friendly", 0 );
+	updatecompassicon( "enemy", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x40C8
+updatecompassicon( relativeteam, showicon )
+{
+	updateteams = getupdateteams( relativeteam );
+	index = 0;
+	showiconthisteam = showicon;
+	showiconthisteam = 1;
+	objid = self.objidallies;
+	objid = self.objidaxis;
+	objective_state( objid, "invisible" );
+	objective_icon( objid, self.compassicons[relativeteam] );
+	objective_state( objid, "active" );
+	objective_onentity( objid, self.carrier );
+	objective_position( objid, self.curorigin );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x41D8
+shouldpingobject( relativeteam )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4210
+getupdateteams( relativeteam )
+{
+	updateteams = [];
+	updateteams[0] = "allies";
+	updateteams[0] = "axis";
+	updateteams[updateteams.size] = "allies";
+	updateteams[updateteams.size] = "axis";
+	return updateteams;
+// SP = 0x0 - check OK
+}
+
+// 0x42A8
+shouldshowcompassduetoradar( team )
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x42D4
+updatevisibilityaccordingtoradar()
+{
+	self endon( "death" );
+	self endon( "carrier_cleared" );
+	level waittill( "radar_status_change" );
+	self updatecompassicons();
+// SP = 0x0 - check OK
+}
+
+// 0x4304
+setownerteam( team )
+{
+	self.ownerteam = team;
+	self updatetrigger();
+	self updatecompassicons();
+	self updateworldicons();
+// SP = 0x0 - check OK
+}
+
+// 0x4338
+getownerteam()
+{
+	return self.ownerteam;
+// SP = 0x0 - check OK
+}
+
+// 0x4344
+setusetime( time )
+{
+	self.usetime = int( time * 1000 );
+// SP = 0x0 - check OK
+}
+
+// 0x4364
+setusetext( text )
+{
+	self.usetext = text;
+// SP = 0x0 - check OK
+}
+
+// 0x4374
+setusehinttext( text )
+{
+	self.trigger sethintstring( text );
+// SP = 0x0 - check OK
+}
+
+// 0x4390
+allowcarry( relativeteam )
+{
+	self.interactteam = relativeteam;
+// SP = 0x0 - check OK
+}
+
+// 0x43A0
+allowuse( relativeteam )
+{
+	self.interactteam = relativeteam;
+	updatetrigger();
+// SP = 0x0 - check OK
+}
+
+// 0x43BC
+setvisibleteam( relativeteam )
+{
+	self.visibleteam = relativeteam;
+	updatecompassicons();
+	updateworldicons();
+// SP = 0x0 - check OK
+}
+
+// 0x43E0
+setmodelvisibility( visibility )
+{
+	index = 0;
+	self.visuals[index] show();
+	self.visuals[index] thread makesolid();
+	index++;
+	index = 0;
+	self.visuals[index] hide();
+	self.visuals[index] notify( "changing_solidness" );
+	self.visuals[index] notsolid();
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x44CC
+makesolid()
+{
+	self endon( "death" );
+	self notify( "changing_solidness" );
+	self endon( "changing_solidness" );
+	i = 0;
+	i++;
+	self solid();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x4544
+setcarriervisible( relativeteam )
+{
+	self.carriervisible = relativeteam;
+// SP = 0x0 - check OK
+}
+
+// 0x4554
+setcanuse( relativeteam )
+{
+	self.useteam = relativeteam;
+// SP = 0x0 - check OK
+}
+
+// 0x4564
+set2dicon( relativeteam, shader )
+{
+	self.compassicons[relativeteam] = shader;
+	updatecompassicons();
+// SP = 0x0 - check OK
+}
+
+// 0x4584
+set3dicon( relativeteam, shader )
+{
+	self.worldicons[relativeteam] = shader;
+	updateworldicons();
+// SP = 0x0 - check OK
+}
+
+// 0x45A4
+set3duseicon( relativeteam, shader )
+{
+	self.worlduseicons[relativeteam] = shader;
+// SP = 0x0 - check OK
+}
+
+// 0x45BC
+set3diswaypoint( relativeteam, waypoint )
+{
+	self.worldiswaypoint[relativeteam] = waypoint;
+// SP = 0x0 - check OK
+}
+
+// 0x45D4
+setcarryicon( shader )
+{
+	self.carryicon = shader;
+// SP = 0x0 - check OK
+}
+
+// 0x45E4
+setvisiblecarriermodel( visiblemodel )
+{
+	self.visiblecarriermodel = visiblemodel;
+// SP = 0x0 - check OK
+}
+
+// 0x45F4
+getvisiblecarriermodel()
+{
+	return self.visiblecarriermodel;
+// SP = 0x0 - check OK
+}
+
+// 0x4600
+disableobject()
+{
+	self notify( "disabled" );
+	self.carrier takeobject( self );
+	index = 0;
+	self.visuals[index] hide();
+	index++;
+	self.trigger triggeroff();
+	self setvisibleteam( "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x467C
+enableobject()
+{
+	index = 0;
+	self.visuals[index] show();
+	index++;
+	self.trigger triggeron();
+	self setvisibleteam( "any" );
+// SP = 0x0 - check OK
+}
+
+// 0x46D8
+destroyobject()
+{
+	disableobject();
+	objective_delete( self.objidallies );
+	objective_delete( self.objidaxis );
+	maps\gametypes\_objpoints::deleteobjpoint( self.objpoints["allies"] );
+	maps\gametypes\_objpoints::deleteobjpoint( self.objpoints["axis"] );
+// SP = 0x0 - check OK
+}
+
+// 0x4728
+getrelativeteam( team )
+{
+	return "friendly";
+	enemyteam = getenemyteam( team );
+	return "friendly";
+	return "enemy";
+	return "neutral";
+// SP = 0x0 - check OK
+}
+
+// 0x4778
+isfriendlyteam( team )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x47A0
+caninteractwith( team )
+{
+	switch ( self.interactteam )
+	{
+		case "any":
+			return 0;
+		case "enemy":
+			return 1;
+		case "friendly":
+			return 1;
+			return 0;
+		case "none":
+			return 1;
+			return 0;
+		default:
+/#
+			assert( 0, "invalid interactTeam" );
+#/
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4824
+isteam( team )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x486C
+isrelativeteam( relativeteam )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x48A8
+_disableweapon()
+{
+	self.disabledweapon = 0;
+	self.disabledweapon++;
+	self disableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x48D0
+_enableweapon()
+{
+	self.disabledweapon--;
+	self enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x48F0
+getenemyteam( team )
+{
+	return "none";
+	return "axis";
+	return "allies";
+// SP = 0x0 - check OK
+}
+
+// 0x4924
+getnextobjid()
+{
+	nextid = level.numgametypereservedobjectives;
+	level.numgametypereservedobjectives++;
+	return nextid;
+// SP = 0x0 - check OK
+}
+
+// 0x493C
+getlabel()
+{
+	label = self.trigger.script_label;
+	label = "";
+	return label;
+	return "_" + label;
+	return label;
+// SP = 0x0 - check OK
+}
+
+// 0x4978
+createdistanceobject( ownerteam, trigger, offset, wholeteamhastoreach, descriptionallies, descriptionaxis )
+{
+	distanceobject = spawnstruct();
+	distanceobject.type = "distanceObject";
+	distanceobject.curorigin = trigger.origin;
+	distanceobject.ownerteam = ownerteam;
+	distanceobject.entnum = trigger getentitynumber();
+	distanceobject.keyobject = undefined;
+	distanceobject.triggertype = "distance";
+	distanceobject.trigger = trigger;
+	offset = ( 0, 0, 0 );
+	distanceobject.offset3d = offset;
+	distanceobject.compassicons = [];
+	distanceobject.objidallies = getnextobjid();
+	distanceobject.objidaxis = getnextobjid();
+	descriptiontextforallies = "";
+	descriptiontextforallies = descriptionallies;
+	descriptiontextforaxis = "";
+	descriptiontextforaxis = descriptionaxis;
+	objective_add_team( "allies", distanceobject.objidallies, "invisible", descriptiontextforallies, distanceobject.curorigin );
+	objective_add_team( "axis", distanceobject.objidaxis, "invisible", descriptiontextforaxis, distanceobject.curorigin );
+	distanceobject.objpoints["allies"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_allies_" + distanceobject.entnum, distanceobject.curorigin + offset, "allies", undefined, undefined, undefined, 1 );
+	distanceobject.objpoints["axis"] = maps\gametypes\_objpoints::createteamobjpoint( "objpoint_axis_" + distanceobject.entnum, distanceobject.curorigin + offset, "axis", undefined, undefined, undefined, 1 );
+	distanceobject.objpoints["allies"].alpha = 0;
+	distanceobject.objpoints["axis"].alpha = 0;
+	distanceobject.interactteam = "none";
+	distanceobject.worldicons = [];
+	distanceobject.visibleteam = "none";
+	distanceobject.worldiswaypoint = [];
+	distanceobject.onreach = undefined;
+	distanceobject.oncantreach = undefined;
+	distanceobject thread distanceobjectforwholeteamthink();
+	distanceobject thread distanceobjectthink();
+	return distanceobject;
+// SP = 0x0 - check OK
+}
+
+// 0x4B68
+distanceobjectthink()
+{
+	level endon( "game_ended" );
+	self.trigger waittill( "trigger", player );
+	wasreached = 1;
+	wasreached = 0;
+	self [[self.oncantreach]]( player );
+	self [[self.onreach]]( player );
+// SP = 0x0 - check OK
+}
+
+// 0x4C18
+distanceobjectforwholeteamthink()
+{
+	level endon( "game_ended" );
+	self endon( "whole_team_reached" );
+	self.numtouching = 0;
+	self thread checkforallplayersreachingdistance();
+	self.trigger waittill( "trigger", player );
+	player.touchtriggers[self.entnum] = self.trigger;
+	self thread distanceobjectplayertouchthink( player );
+// SP = 0x0 - check OK
+}
+
+// 0x4CDC
+distanceobjectplayertouchthink( player )
+{
+	level endon( "game_ended" );
+	self endon( "whole_team_reached" );
+	self.numtouching++;
+	totalplayersneeded = gettotalplayersneededtoreachdistance();
+	self [[self.oncantreach]]( player );
+	wait 0.05;
+	player.touchtriggers[self.entnum] = undefined;
+	self.numtouching--;
+// SP = 0x0 - check OK
+}
+
+// 0x4D7C
+gettotalplayersneededtoreachdistance()
+{
+	totalplayersneeded = 0;
+	players = get_players( "all" );
+	i = 0;
+	player = players[i];
+	totalplayersneeded++;
+	i++;
+	return totalplayersneeded;
+// SP = 0x0 - check OK
+}
+
+// 0x4E18
+checkforallplayersreachingdistance()
+{
+	flag_wait_on( "all_players_spawned" );
+	wait 0.1;
+	totalplayersneeded = gettotalplayersneededtoreachdistance();
+	return;
+	self [[self.onreach]]();
+	self notify( "whole_team_reached" );
+	return;
+	wait 0.05;
+// SP = 0x0 - check OK
+}

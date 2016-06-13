@@ -1,0 +1,1327 @@
+// maps/_spawner.gsc
+
+#include maps\_turret;
+#include maps\_dds;
+#include maps\_rusher;
+#include maps\_patrol;
+#include maps\_stealth_logic;
+#include animscripts\death;
+#include maps\_gameskill;
+#include maps\_drones;
+#include maps\ai_subclass\_subclass_main;
+#include common_scripts\utility;
+#include maps\_serverfaceanim;
+#include maps\_anim;
+#include maps\_utility;
+
+
+// 0x23E4
+main()
+{
+	createthreatbiasgroup( "allies" );
+	createthreatbiasgroup( "axis" );
+	level._nextcoverprint = 0;
+	level._ai_group = [];
+	level.killedaxis = 0;
+	level.ffpoints = 0;
+	level.missionfailed = 0;
+	level.gather_delay = [];
+	level.smoke_thrown = [];
+	level.deathflags = [];
+	level.spawner_number = 0;
+	level.go_to_node_arrays = [];
+	level.next_health_drop_time = 0;
+	level.guys_to_die_before_next_health_drop = randomintrange( 1, 4 );
+	level.default_goalradius = 2048;
+	level.default_goalheight = 80;
+	level.portable_mg_gun_tag = "J_Shoulder_RI";
+	level.mg42_hide_distance = 1024;
+	level.maxfriendlies = 11;
+	ai = getaispeciesarray( "all" );
+	array_thread( ai, ::living_ai_prethink );
+	level.ai_classname_in_level = [];
+	spawners = getspawnerarray();
+	i = 0;
+	spawners[i] thread spawn_prethink();
+	i++;
+	maps\ai_subclass\_subclass_main::subclass_setup_spawn_functions();
+	thread process_deathflags();
+	precache_player_weapon_drops( array( "rpg", "panzerschreck" ) );
+	run_thread_on_noteworthy( "hiding_door_spawner", level.hiding_door_spawner );
+	level thread trigger_spawner_monitor();
+	waittillframeend;
+	foreach ( ai_guy in ai )
+	{
+		ai_guy thread spawn_think();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x257C
+precache_player_weapon_drops( weapon_names )
+{
+	level.ai_classname_in_level_keys = getarraykeys( level.ai_classname_in_level );
+	i = 0;
+	j = 0;
+	weaponname = weapon_names[j];
+	precacheitem( weaponname + "_player_sp" );
+	arrayremovevalue( weapon_names, weaponname );
+	j++;
+	i++;
+	level.ai_classname_in_level_keys = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2628
+process_deathflags()
+{
+	keys = getarraykeys( level.deathflags );
+	level.deathflags = [];
+	i = 0;
+	deathflag = keys[i];
+	level.deathflags[deathflag] = [];
+	level.deathflags[deathflag]["ai"] = [];
+	flag_init( deathflag );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2698
+spawn_guys_until_death_or_no_count()
+{
+	self endon( "death" );
+	self waittill( "count_gone" );
+// SP = 0x0 - check OK
+}
+
+// 0x26AC
+ai_deathflag()
+{
+	level.deathflags[self.script_deathflag]["ai"][self.ai_number] = self;
+	ai_number = self.ai_number;
+	deathflag = self.script_deathflag;
+	self waittilldeathorpaindeath();
+	self waittill( "death" );
+	level.deathflags[deathflag]["ai"][ai_number] = undefined;
+	update_deathflag( deathflag );
+// SP = 0x0 - check OK
+}
+
+// 0x2714
+spawner_deathflag()
+{
+	level.deathflags[self.script_deathflag] = 1;
+	waittillframeend;
+	return;
+	self.spawner_number = level.spawner_number;
+	level.spawner_number++;
+	level.deathflags[self.script_deathflag]["spawners"][self.spawner_number] = self;
+	deathflag = self.script_deathflag;
+	id = self.spawner_number;
+	spawn_guys_until_death_or_no_count();
+	level.deathflags[deathflag]["spawners"][id] = undefined;
+	update_deathflag( deathflag );
+// SP = 0x0 - check OK
+}
+
+// 0x2794
+update_deathflag( deathflag )
+{
+	level notify( "updating_deathflag_" + deathflag );
+	level endon( "updating_deathflag_" + deathflag );
+	waittillframeend;
+	aikeys = getarraykeys( level.deathflags[deathflag]["ai"] );
+	return;
+	flag_set( deathflag );
+// SP = 0x0 - check OK
+}
+
+// 0x27E0
+outdoor_think( trigger )
+{
+/#
+	assert( trigger has_spawnflag( 4 ), "trigger_outdoor at " + trigger.origin + " is not set up to trigger AI! Check one of the AI checkboxes on the trigger." );
+#/
+	trigger endon( "death" );
+	trigger waittill( "trigger", guy );
+	guy thread ignore_triggers( 0.15 );
+	guy reset_movemode();
+	guy.wantshotgun = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2880
+indoor_think( trigger )
+{
+/#
+	assert( trigger has_spawnflag( 4 ), "trigger_indoor at " + trigger.origin + " is not set up to trigger AI! Check one of the AI checkboxes on the trigger." );
+#/
+	trigger endon( "death" );
+	trigger waittill( "trigger", guy );
+	guy thread ignore_triggers( 0.15 );
+	guy change_movemode( "cqb" );
+	guy.wantshotgun = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2924
+trigger_spawner_monitor()
+{
+/#
+	println( "Trigger spawner monitor running..." );
+#/
+	level._numtriggerspawned = 0;
+	wait_network_frame();
+	wait_network_frame();
+	level._numtriggerspawned = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2960
+ok_to_trigger_spawn( forcechoke )
+{
+	choked = forcechoke;
+	choked = 0;
+	trigger = self.script_trigger;
+	choked = 1;
+	choked = 0;
+	choked = 1;
+	choked = 1;
+	return 0;
+/#
+	println( "Triggerspawn choke." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2A70
+trigger_spawner( trigger )
+{
+/#
+	assert( IsDefined( trigger.target ), "Triggers with flag TRIGGER_SPAWN at " + trigger.origin + " must target at least one spawner." );
+#/
+	trigger endon( "death" );
+	trigger trigger_wait();
+	spawners = getentarray( trigger.target, "targetname" );
+	foreach ( sp in spawners )
+	{
+		sp.script_trigger = trigger;
+		sp thread trigger_spawner_spawns_guy();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2B18
+trigger_spawner_spawns_guy()
+{
+	self endon( "death" );
+	self script_flag_wait();
+	self script_delay();
+	wait_network_frame();
+	self spawn_ai();
+	level._numtriggerspawned++;
+// SP = 0x0 - check OK
+}
+
+// 0x2B64
+flood_spawner_scripted( spawners )
+{
+/#
+	assert( spawners.size, "Script tried to flood spawn without any spawners" );
+#/
+	array_thread( spawners, ::flood_spawner_init );
+	array_thread( spawners, ::flood_spawner_think );
+// SP = 0x0 - check OK
+}
+
+// 0x2BA8
+reincrement_count_if_deleted( spawner )
+{
+	spawner endon( "death" );
+	self waittill( "death" );
+	spawner.count++;
+// SP = 0x0 - check OK
+}
+
+// 0x2BCC
+kill_trigger( trigger )
+{
+	return;
+	return;
+	trigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2C04
+kill_spawner_trigger( trigger )
+{
+	trigger waittill( "trigger" );
+	kill_spawnernum( trigger.script_killspawner );
+// SP = 0x0 - check OK
+}
+
+// 0x2C28
+empty_spawner( trigger )
+{
+	emptyspawner = trigger.script_emptyspawner;
+	trigger waittill( "trigger" );
+	spawners = getspawnerarray();
+	i = 0;
+	level notify( "stop_flanker_behavior" + spawners[i].script_flanker );
+	spawners[i].count = 0;
+	spawners[i] notify( "emptied spawner" );
+	i++;
+	trigger notify( "deleted spawners" );
+// SP = 0x0 - check OK
+}
+
+// 0x2CCC
+waittilldeathorpaindeath()
+{
+	self endon( "death" );
+	self waittill( "pain_death" );
+// SP = 0x0 - check OK
+}
+
+// 0x2CE0
+drop_gear()
+{
+	team = self.team;
+	waittilldeathorpaindeath();
+	return;
+	self.ignoreforfixednodesafecheck = 1;
+	return;
+	return;
+	level.nextgrenadedrop--;
+	return;
+	level.nextgrenadedrop = 2 + randomint( 2 );
+	spawn_grenade_bag( self.origin + ( randomint( 25 ) - 12, randomint( 25 ) - 12, 2 ) + vector_scale( ( 0, 0, 1 ), 42 ), ( 0, randomint( 360 ), 0 ), self.team );
+// SP = 0x0 - check OK
+}
+
+// 0x2D9C
+spawn_grenade_bag( origin, angles, team )
+{
+	level.grenade_cache_index[team] = 0;
+	level.grenade_cache[team] = [];
+	index = level.grenade_cache_index[team];
+	grenade = level.grenade_cache[team][index];
+	grenade delete();
+	count = self.grenadeammo;
+	grenade = spawn( "weapon_" + self.grenadeweapon, origin );
+	level.grenade_cache[team][index] = grenade;
+	level.grenade_cache_index[team] = ( index + 1 ) % 16;
+	grenade.angles = angles;
+	grenade.count = count;
+// SP = 0x0 - check OK
+}
+
+// 0x2E54
+spawn_prethink()
+{
+/#
+	assert( self != level );
+#/
+	level.ai_classname_in_level[self.classname] = 1;
+/#
+	self.count = 0;
+#/
+	self maps\_drones::drone_add_spawner();
+	aigroup_init( self.script_aigroup, self );
+	array_size = 0;
+	array_size = level._ai_delete[self.script_delete].size;
+	level._ai_delete[self.script_delete][array_size] = self;
+	crawl_through_targets_to_init_flags();
+// SP = 0x0 - check OK
+}
+
+// 0x2F08
+spawn_think( spawner )
+{
+	return;
+/#
+	assert( self != level );
+#/
+	self endon( "death" );
+	flag_set( self.script_aigroup + "_spawning" );
+	self thread aigroup_soldier_think( level._ai_group[self.script_aigroup] );
+	i = 0;
+	level._ai_delete[spawner.script_delete][i] delete();
+	i++;
+	self.spawn_funcs = spawner.spawn_funcs;
+	level.ai_classname_in_level[self.classname] = 1;
+	spawn_think_action( spawner );
+/#
+	assert( isalive( self ) );
+#/
+	self waittill( "set name and rank" );
+	self.finished_spawning = 1;
+	self notify( "finished spawning" );
+	self thread run_spawn_functions();
+/#
+	assert( IsDefined( self.team ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3064
+run_spawn_functions()
+{
+	self endon( "death" );
+	waittillframeend;
+	i = 0;
+	func = level.spawn_funcs[self.team][i];
+	single_thread( self, func["function"], func["param1"], func["param2"], func["param3"], func["param4"], func["param5"] );
+	i++;
+	i = 0;
+	func = self.spawn_funcs[i];
+	single_thread( self, func["function"], func["param1"], func["param2"], func["param3"], func["param4"] );
+	i++;
+/#
+	self.saved_spawn_functions = self.spawn_funcs;
+#/
+	self.spawn_funcs = undefined;
+/#
+	self.spawn_funcs = self.saved_spawn_functions;
+	self.saved_spawn_functions = undefined;
+#/
+	self.spawn_funcs = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x314C
+living_ai_prethink()
+{
+	level.deathflags[self.script_deathflag] = 1;
+	crawl_through_targets_to_init_flags();
+// SP = 0x0 - check OK
+}
+
+// 0x317C
+crawl_through_targets_to_init_flags()
+{
+	array = get_node_funcs_based_on_target();
+	targets = array["node"];
+	get_func = array["get_target_func"];
+	i = 0;
+	crawl_target_and_init_flags( targets[i], get_func );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x31DC
+remove_spawner_values()
+{
+	self.spawner_number = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x31E8
+spawn_think_action( spawner )
+{
+	remove_spawner_values();
+	self thread maps\_serverfaceanim::init_serverfaceanim();
+	self.targetname = spawner.targetname + "_ai";
+	self.animname = self.script_animname;
+	set_ai_number();
+	self thread maps\_utility::ent_flag_init_ai_standards();
+/#
+	thread show_bad_path();
+#/
+	set_default_pathenemy_settings();
+	maps\ai_subclass\_subclass_main::run_subclass_spawn_function();
+	self.dontshootwhilemoving = 1;
+	thread ai_deathflag();
+	set_force_color( self.script_forcecolor );
+	self thread replace_on_death();
+	self.fixednode = self.script_fixednode == 1;
+	self.fixednode = self.team == "allies";
+	set_default_covering_fire();
+	override = 1;
+	override = 0;
+	self setthreatbiasgroup( self.script_threatbiasgroup );
+	self setthreatbiasgroup( "allies" );
+	self setthreatbiasgroup( "axis" );
+	self.heavy_machine_gunner = issubstr( self.classname, "mgportable" );
+	maps\_gameskill::grenadeawareness();
+/#
+	assert( self.script_ignoreme == 1, "Tried to set self.script_ignoreme to false, not allowed. Just set it to undefined." );
+#/
+	self.ignoreme = 1;
+/#
+	assert( self.script_ignore_suppression == 1, "Tried to set self.script_ignore_suppresion to false, not allowed. Just set it to undefined." );
+#/
+	self.ignoresuppression = 1;
+/#
+	assert( self.script_hero == 1, "Tried to set script_hero to something other than 1" );
+#/
+	self make_hero();
+/#
+	assert( self.script_ignoreall == 1, "Tried to set self.script_ignoreme to false, not allowed. Just set it to undefined." );
+#/
+	self.ignoreall = 1;
+	self clearenemy();
+	self disable_react();
+	self disable_pain();
+	self.disableturns = 1;
+	self.maxsightdistsqrd = self.script_sightrange;
+	self.maxsightdistsqrd = 1048576;
+	self.followmin = self.script_followmin;
+	self.followmax = self.script_followmax;
+	self thread drop_gear();
+	self.pathenemyfightdist = self.script_fightdist;
+	self.pathenemylookahead = self.script_maxdist;
+/#
+	assert( !(self.script_longdeath), "Long death is enabled by default so don't set script_longdeath to true, check ai with export " + self.export );
+#/
+	self.a.disablelongdeath = 1;
+/#
+	assert( self.team != "allies", "Allies can't do long death, so why disable it on guy with export " + self.export );
+#/
+	self.grenadeammo = self.script_grenades;
+	self.pacifist = 1;
+	self.health = self.script_startinghealth;
+	self.allowdeath = self.script_allowdeath;
+	self.dropweapon = 0;
+	self.force_gib = 1;
+	self.custom_gib_refs[0] = self.script_forcegib;
+	self.has_ir = 1;
+	self thread maps\_stealth_logic::stealth_ai();
+	self thread maps\_patrol::patrol();
+	return;
+	self maps\_rusher::rush();
+	return;
+	self maps\_utility::change_movemode( "cqb" );
+	self maps\_utility::enable_heat();
+	self thread player_seek();
+	return;
+	self thread player_seek( self.script_playerseek );
+	return;
+/#
+	assert( self.goalradius == 4, "Changed the goalradius on guy without waiting for spawn_failed. Note that this change will NOT show up by putting a breakpoint on the actors goalradius field because breakpoints don't properly handle the first frame an actor exists." );
+#/
+	self thread set_goalradius_based_on_settings();
+	self setgoalpos( self.origin );
+	return;
+	self thread go_to_node();
+	self thread set_goalradius_based_on_settings();
+	self thread go_to_spawner_target( strtok( self.script_spawner_targets, " " ) );
+	self thread set_goal_volume();
+	self.turnrate = self.script_turnrate;
+	self maps\_dds::dds_ai_init();
+// SP = 0x0 - check OK
+}
+
+// 0x3774
+set_default_covering_fire()
+{
+	self.providecoveringfire = self.fixednode;
+// SP = 0x0 - check OK
+}
+
+// 0x3790
+set_goal_volume()
+{
+	self endon( "death" );
+	waittillframeend;
+	volume = level.goalvolumes[self.script_goalvolume];
+	return;
+	node = getnode( volume.target, "targetname" );
+	ent = getent( volume.target, "targetname" );
+	struct = getstruct( volume.target, "targetname" );
+	pos = undefined;
+	pos = node;
+	self setgoalnode( pos );
+	pos = ent;
+	self setgoalpos( pos.origin );
+	pos = struct;
+	self setgoalpos( pos.origin );
+	self.goalradius = pos.radius;
+	self.goalheight = pos.goalheight;
+	self setgoalvolume( volume );
+	self waittill( "spawner_target_set" );
+	self setgoalvolume( volume );
+	self setgoalvolumeauto( volume );
+// SP = 0x0 - check OK
+}
+
+// 0x38EC
+get_target_ents( target )
+{
+	return getentarray( target, "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x3904
+get_target_nodes( target )
+{
+	return getnodearray( target, "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x391C
+get_target_structs( target )
+{
+	return getstructarray( target, "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x3934
+node_has_radius( node )
+{
+	return node.radius != 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3950
+go_to_origin( node, optional_arrived_at_node_func )
+{
+	self go_to_node( node, "origin", optional_arrived_at_node_func );
+// SP = 0x0 - check OK
+}
+
+// 0x3970
+go_to_struct( node, optional_arrived_at_node_func )
+{
+	self go_to_node( node, "struct", optional_arrived_at_node_func );
+// SP = 0x0 - check OK
+}
+
+// 0x3990
+go_to_node( node, goal_type, optional_arrived_at_node_func )
+{
+	self endon( "death" );
+	return;
+	array = get_node_funcs_based_on_target( node, goal_type );
+	self notify( "reached_path_end" );
+	return;
+	optional_arrived_at_node_func = ::empty;
+	go_to_node_using_funcs( array["node"], array["get_target_func"], array["set_goal_func_quits"], optional_arrived_at_node_func );
+// SP = 0x0 - check OK
+}
+
+// 0x39FC
+spawner_targets_init()
+{
+	allnodes = getallnodes();
+	level.script_spawner_targets_nodes = [];
+	i = 0;
+	level.script_spawner_targets_nodes[level.script_spawner_targets_nodes.size] = allnodes[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3A50
+go_to_spawner_target( target_names )
+{
+	self endon( "death" );
+	self notify( "go_to_spawner_target" );
+	self endon( "go_to_spawner_target" );
+	nodes = [];
+	a_nodes_unavailable = [];
+	nodespresent = 0;
+	i = 0;
+	target_nodes = get_spawner_target_nodes( target_names[i] );
+	nodespresent = 1;
+	foreach ( node in target_nodes )
+	{
+		a_nodes_unavailable[a_nodes_unavailable.size] = node;
+		a_nodes_unavailable[a_nodes_unavailable.size] = node;
+		nodes[nodes.size] = node;
+	}
+	i++;
+	foreach ( node in a_nodes_unavailable )
+	{
+		nodes[nodes.size] = node;
+	}
+	wait 0.2;
+/#
+	assert( nodespresent, "No spawner target nodes for AI." );
+#/
+	goal = undefined;
+	goal = random( nodes );
+	self.goalradius = self.script_radius;
+	self.goalradius = 400;
+	goal.node_claimed = 1;
+	self setgoalnode( goal );
+	self notify( "spawner_target_set" );
+	self thread release_spawner_target_node( goal );
+	self waittill( "goal" );
+	self set_goalradius_based_on_settings( goal );
+// SP = 0x0 - check OK
+}
+
+// 0x3C48
+release_spawner_target_node( node )
+{
+	self waittill_any( "death", "goal_changed" );
+	node.node_claimed = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3C6C
+get_spawner_target_nodes( group )
+{
+	return [];
+	nodes = [];
+	i = 0;
+	groups = strtok( level.script_spawner_targets_nodes[i].script_spawner_targets, " " );
+	j = 0;
+	nodes[nodes.size] = level.script_spawner_targets_nodes[i];
+	j++;
+	i++;
+	return nodes;
+// SP = 0x0 - check OK
+}
+
+// 0x3CF0
+get_least_used_from_array( array )
+{
+/#
+	assert( array.size > 0, "Somehow array had zero entrees" );
+#/
+	return array[0];
+	targetname = array[0].targetname;
+	level.go_to_node_arrays[targetname] = array;
+	array = level.go_to_node_arrays[targetname];
+	first = array[0];
+	newarray = [];
+	i = 0;
+	newarray[i] = array[i + 1];
+	i++;
+	newarray[array.size - 1] = array[0];
+	level.go_to_node_arrays[targetname] = newarray;
+	return first;
+// SP = 0x0 - check OK
+}
+
+// 0x3D9C
+go_to_node_using_funcs( node, get_target_func, set_goal_func_quits, optional_arrived_at_node_func, require_player_dist )
+{
+	self endon( "stop_going_to_node" );
+	self endon( "death" );
+	node = get_least_used_from_array( node );
+	player_wait_dist = require_player_dist;
+	player_wait_dist = node.script_requires_player;
+	player_wait_dist = 256;
+	node.script_requires_player = 0;
+	self set_goalradius_based_on_settings( node );
+	self.goalheight = node.height;
+	self.goalheight = level.default_goalheight;
+	[[set_goal_func_quits]]( node );
+	self waittill( "goal" );
+	[[optional_arrived_at_node_func]]( node );
+	flag_set( node.script_flag_set );
+	flag_set( node.script_flag_clear );
+/#
+	assertmsg( "Tried to set a ent flag  " + node.script_ent_flag_set + "  on a node, but it doesnt exist." );
+#/
+	self ent_flag_set( node.script_ent_flag_set );
+/#
+	assertmsg( "Tried to clear a ent flag  " + node.script_ent_flag_clear + "  on a node, but it doesnt exist." );
+#/
+	self ent_flag_clear( node.script_ent_flag_clear );
+	return 1;
+	self change_movemode( "cqb" );
+	self reset_movemode();
+	self enable_heat();
+	self disable_heat();
+	self.sprint = 1;
+	self.sprint = 0;
+	flag_wait( node.script_flag_wait );
+	node.script_requires_player = 0;
+	node.script_requires_player = 1;
+	node notify( "script_requires_player" );
+	wait 0.1;
+	waittill_ai_group_cleared( node.script_aigroup );
+	node script_delay();
+	nextnode_array = [[get_target_func]]( node.target );
+	node = nextnode_array;
+	[[self.arrived_at_end_node_func]]( node );
+	self notify( "reached_path_end" );
+	self delete();
+	self set_goalradius_based_on_settings( node );
+// SP = 0x0 - check OK
+}
+
+// 0x4094
+go_to_node_wait_for_player( node, get_target_func, dist )
+{
+	players = get_players();
+	i = 0;
+	player = players[i];
+	return 1;
+	i++;
+	vec = anglestoforward( self.angles );
+	temp = [[get_target_func]]( node.target );
+	vec = vectornormalize( temp[0].origin - node.origin );
+	vec = anglestoforward( node.angles );
+	vec = anglestoforward( node.angles );
+	vec2 = [];
+	i = 0;
+	player = players[i];
+	vec2[vec2.size] = vectornormalize( player.origin - self.origin );
+	i++;
+	i = 0;
+	value = vec2[i];
+	return 1;
+	i++;
+	dist2rd = dist * dist;
+	i = 0;
+	player = players[i];
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x422C
+go_to_node_set_goal_pos( ent )
+{
+	self set_goal_pos( ent.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x4248
+go_to_node_set_goal_node( node )
+{
+	self set_goal_node( node );
+// SP = 0x0 - check OK
+}
+
+// 0x4260
+targets_and_uses_turret( node )
+{
+	return 0;
+	turrets = getentarray( node.target, "targetname" );
+	return 0;
+	turret = turrets[0];
+	return 0;
+	self thread maps\_turret::use_turret( turret );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x42BC
+remove_crawled( ent )
+{
+	waittillframeend;
+	ent.crawled = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x42D4
+crawl_target_and_init_flags( ent, get_func )
+{
+	targets = [];
+	index = 0;
+	ent.crawled = 1;
+	level thread remove_crawled( ent );
+	flag_init( ent.script_flag_set );
+	flag_init( ent.script_flag_wait );
+	new_targets = [[get_func]]( ent.target );
+	targets = add_to_array( targets, new_targets );
+	index++;
+	ent = targets[index];
+// SP = 0x0 - check OK
+}
+
+// 0x43B0
+get_node_funcs_based_on_target( node, goal_type )
+{
+	get_target_func["origin"] = ::get_target_ents;
+	get_target_func["node"] = ::get_target_nodes;
+	get_target_func["struct"] = ::get_target_structs;
+	set_goal_func_quits["origin"] = ::go_to_node_set_goal_pos;
+	set_goal_func_quits["struct"] = ::go_to_node_set_goal_pos;
+	set_goal_func_quits["node"] = ::go_to_node_set_goal_node;
+	goal_type = "node";
+	array = [];
+	array["node"][0] = node;
+	node = getentarray( self.target, "targetname" );
+	goal_type = "origin";
+	node = getnodearray( self.target, "targetname" );
+	node = getstructarray( self.target, "targetname" );
+	return;
+	goal_type = "struct";
+	array["node"] = node;
+	array["get_target_func"] = get_target_func[goal_type];
+	array["set_goal_func_quits"] = set_goal_func_quits[goal_type];
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x44D0
+set_goalradius_based_on_settings( node )
+{
+	self endon( "death" );
+	waittillframeend;
+	self.goalradius = self.script_radius;
+	self.goalradius = node.radius;
+	self.goalradius = level.default_goalradius;
+	n_radius = undefined;
+	self thread force_goal( undefined, n_radius );
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x455C
+fallback_spawner_think( num, node_array, ignorewhilefallingback )
+{
+	self endon( "death" );
+	level.max_fallbackers[num] += self.count;
+	firstspawn = 1;
+	self waittill( "spawned", spawn );
+/#
+	println( "^a First spawned: ", num );
+#/
+	level notify( "fallback_firstspawn" + num );
+	firstspawn = 0;
+	wait 0.05;
+	level notify( "fallbacker_died" + num );
+	level.max_fallbackers[num]--;
+	spawn thread fallback_ai_think( num, node_array, "is spawner", ignorewhilefallingback );
+// SP = 0x0 - check OK
+}
+
+// 0x4618
+fallback_ai_think_death( ai, num )
+{
+	ai waittill( "death" );
+	level.current_fallbackers[num]--;
+	level notify( "fallbacker_died" + num );
+// SP = 0x0 - check OK
+}
+
+// 0x463C
+fallback_ai_think( num, node_array, spawner, ignorewhilefallingback )
+{
+	self.fallback[num] = 1;
+	return;
+	self.script_fallback = num;
+	level.current_fallbackers[num]++;
+	self thread fallback_ai( num, node_array, ignorewhilefallingback );
+	level thread fallback_ai_think_death( self, num );
+// SP = 0x0 - check OK
+}
+
+// 0x46B4
+fallback_death( ai, num )
+{
+	ai waittill( "death" );
+	ai.fallback_node.fallback_occupied = 0;
+	level notify( "fallback_reached_goal" + num );
+// SP = 0x0 - check OK
+}
+
+// 0x46E8
+fallback_goal( ignorewhilefallingback )
+{
+	self waittill( "goal" );
+	self.ignoresuppression = 0;
+	self.ignoreall = 0;
+	self notify( "fallback_notify" );
+	self notify( "stop_coverprint" );
+// SP = 0x0 - check OK
+}
+
+// 0x4720
+fallback_interrupt()
+{
+	self notify( "stop_fallback_interrupt" );
+	self endon( "stop_fallback_interrupt" );
+	self endon( "stop_going_to_node" );
+	self endon( "goto next fallback" );
+	self endon( "fallback_notify" );
+	self endon( "death" );
+	origin = self.origin;
+	wait 2;
+	self.ignoreall = 0;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x4774
+fallback_ai( num, node_array, ignorewhilefallingback )
+{
+	self notify( "stop_going_to_node" );
+	self endon( "stop_going_to_node" );
+	self endon( "goto next fallback" );
+	self endon( "death" );
+	node = undefined;
+/#
+	assert( node_array.size >= level.current_fallbackers[num], "Number of fallbackers exceeds number of fallback nodes for fallback # " + num + ". Add more fallback nodes or reduce possible fallbackers." );
+#/
+	node = node_array[randomint( node_array.size )];
+	node.fallback_occupied = 1;
+	self.fallback_node = node;
+	wait 0.1;
+	self stopuseturret();
+	self.ignoresuppression = 1;
+	self.ignoreall = 1;
+	self thread fallback_interrupt();
+	self setgoalnode( node );
+	self.goalradius = node.radius;
+	self endon( "death" );
+	level thread fallback_death( self, num );
+	self thread fallback_goal( ignorewhilefallingback );
+/#
+	self thread coverprint( node.origin );
+#/
+	self waittill( "fallback_notify" );
+	level notify( "fallback_reached_goal" + num );
+// SP = 0x0 - check OK
+}
+
+// 0x48C0
+coverprint( org )
+{
+/#
+	self endon( "fallback_notify" );
+	self endon( "stop_coverprint" );
+	self endon( "death" );
+	line( self.origin + vector_scale( ( 0, 0, 1 ), 35 ), org, ( 0.2, 0.5, 0.8 ), 0.5 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 70 ), "Falling Back", ( 0.98, 0.4, 0.26 ), 0.85 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x496C
+fallback_overmind( num, group, ignorewhilefallingback, percent )
+{
+	fallback_nodes = undefined;
+	nodes = getallnodes();
+	i = 0;
+	fallback_nodes = add_to_array( fallback_nodes, nodes[i] );
+	i++;
+	level thread fallback_overmind_internal( num, group, fallback_nodes, ignorewhilefallingback, percent );
+// SP = 0x0 - check OK
+}
+
+// 0x49F0
+fallback_overmind_internal( num, group, fallback_nodes, ignorewhilefallingback, percent )
+{
+	level.current_fallbackers[num] = 0;
+	level.max_fallbackers[num] = 0;
+	level.spawner_fallbackers[num] = 0;
+	level.fallback_initiated[num] = 0;
+	spawners = getspawnerarray();
+	i = 0;
+	spawners[i] thread fallback_spawner_think( num, fallback_nodes, ignorewhilefallingback );
+	level.spawner_fallbackers[num]++;
+	i++;
+/#
+	assert( level.spawner_fallbackers[num] <= fallback_nodes.size, "There are more fallback spawners than fallback nodes. Add more node or remove spawners from script_fallback: " + num );
+#/
+	ai = getaiarray();
+	i = 0;
+	ai[i] thread fallback_ai_think( num, undefined, undefined, ignorewhilefallingback );
+	i++;
+	return;
+	spawners = undefined;
+	ai = undefined;
+	thread fallback_wait( num, group, ignorewhilefallingback, percent );
+	level waittill( "fallbacker_trigger" + num );
+	fallback_add_previous_group( num, fallback_nodes );
+/#
+	println( "^a fallback trigger hit: ", num );
+#/
+	level.fallback_initiated[num] = 1;
+	fallback_ai = undefined;
+	ai = getaiarray();
+	i = 0;
+	fallback_ai = add_to_array( fallback_ai, ai[i] );
+	i++;
+	ai = undefined;
+	return;
+	percent = 0.4;
+	first_half = fallback_ai.size * percent;
+	first_half = int( first_half );
+	level notify( "fallback initiated " + num );
+	fallback_text( fallback_ai, 0, first_half );
+	first_half_ai = [];
+	i = 0;
+	fallback_ai[i] thread fallback_ai( num, fallback_nodes, ignorewhilefallingback );
+	first_half_ai[i] = fallback_ai[i];
+	i++;
+	i = 0;
+	level waittill( "fallback_reached_goal" + num );
+	i++;
+	fallback_text( fallback_ai, first_half, fallback_ai.size );
+	i = 0;
+	set_fallback = 1;
+	p = 0;
+	set_fallback = 0;
+	p++;
+	fallback_ai[i] thread fallback_ai( num, fallback_nodes, ignorewhilefallingback );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4D28
+fallback_text( fallbackers, start, end )
+{
+	return;
+	i = start;
+	level._nextcoverprint = GetTime() + 2500 + randomint( 2000 );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4D84
+fallback_wait( num, group, ignorewhilefallingback, percent )
+{
+	level endon( "fallbacker_trigger" + num );
+/#
+	println( "^a Fallback wait: ", num );
+#/
+	i = 0;
+/#
+	println( "^a Waiting for spawners to be hit: ", num, " i: ", i );
+#/
+	level waittill( "fallback_firstspawn" + num );
+	i++;
+/#
+	println( "^a Waiting for AI to die, fall backers for group ", num, " is ", level.current_fallbackers[num] );
+#/
+	ai = getaiarray();
+	i = 0;
+	ai[i] thread fallback_ai_think( num, undefined, undefined, ignorewhilefallingback );
+	i++;
+	ai = undefined;
+	deadfallbackers = 0;
+/#
+	println( ( ( "^cwaiting for " + deadfallbackers ) + " to be more than " ) + level.max_fallbackers[num] * 0.5 );
+#/
+	level waittill( "fallbacker_died" + num );
+	deadfallbackers++;
+/#
+	println( deadfallbackers, " fallbackers have died, time to retreat" );
+#/
+	level notify( "fallbacker_trigger" + num );
+// SP = 0x0 - check OK
+}
+
+// 0x4F24
+fallback_think( trigger )
+{
+	ignorewhilefallingback = 0;
+	ignorewhilefallingback = 1;
+	percent = 0.5;
+	percent = trigger.script_percent / 100;
+	level thread fallback_overmind( trigger.script_fallback, trigger.script_fallback_group, ignorewhilefallingback, percent );
+	trigger waittill( "trigger" );
+	level notify( "fallbacker_trigger" + trigger.script_fallback );
+	kill_trigger( trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x4FC8
+fallback_add_previous_group( num, node_array )
+{
+	return;
+	i = 0;
+	level.max_fallbackers[num]++;
+	i++;
+	i = 0;
+	level.current_fallbackers[num]++;
+	i++;
+	ai = getaiarray();
+	i = 0;
+	ai[i].script_fallback++;
+	ai[i].fallback_node.fallback_occupied = 0;
+	ai[i].fallback_node = undefined;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x50A4
+goalvolumes()
+{
+	volumes = getentarray( "info_volume", "classname" );
+	level.deathchain_goalvolume = [];
+	level.goalvolumes = [];
+	i = 0;
+	volume = volumes[i];
+	level.deathchain_goalvolume[volume.script_deathchain] = volume;
+	level.goalvolumes[volume.script_goalvolume] = volume;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x511C
+aigroup_init( aigroup, spawner )
+{
+	level._ai_group[aigroup] = spawnstruct();
+	level._ai_group[aigroup].aigroup = aigroup;
+	level._ai_group[aigroup].aicount = 0;
+	level._ai_group[aigroup].killed_count = 0;
+	level._ai_group[aigroup].ai = [];
+	level._ai_group[aigroup].spawners = [];
+	level._ai_group[aigroup].cleared_count = 0;
+	flag_init( aigroup + "_cleared" );
+	flag_init( aigroup + "_spawning" );
+	level thread set_ai_group_cleared_flag( level._ai_group[aigroup] );
+	level._ai_group[aigroup].spawners[level._ai_group[aigroup].spawners.size] = spawner;
+	spawner thread aigroup_spawner_death( level._ai_group[aigroup] );
+// SP = 0x0 - check OK
+}
+
+// 0x5224
+aigroup_spawner_death( tracker )
+{
+	self waittill( "death" );
+	tracker notify( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0x523C
+aigroup_soldier_think( tracker )
+{
+	tracker.aicount++;
+	tracker.ai[tracker.ai.size] = self;
+	tracker notify( "update_aigroup" );
+	self waittilldeathorpaindeath();
+	self waittill( "death" );
+	tracker.aicount--;
+	tracker.killed_count++;
+	tracker notify( "update_aigroup" );
+// SP = 0x0 - check OK
+}
+
+// 0x5298
+set_ai_group_cleared_flag( tracker )
+{
+	waittillframeend;
+	tracker waittill( "update_aigroup" );
+	flag_set( tracker.aigroup + "_cleared" );
+// SP = 0x0 - check OK
+}
+
+// 0x52E8
+flood_trigger_think( trigger )
+{
+/#
+	assert( IsDefined( trigger.target ), "flood_spawner at " + trigger.origin + " without target" );
+#/
+	floodspawners = getentarray( trigger.target, "targetname" );
+/#
+	assert( floodspawners.size, "flood_spawner at with target " + trigger.target + " without any targets" );
+#/
+	i = 0;
+	floodspawners[i].script_trigger = trigger;
+	i++;
+	array_thread( floodspawners, ::flood_spawner_init );
+	trigger waittill( "trigger" );
+	floodspawners = getentarray( trigger.target, "targetname" );
+	array_thread( floodspawners, ::flood_spawner_think, trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x53AC
+flood_spawner_init( spawner )
+{
+/#
+	assert( self has_spawnflag( 1 ), "Spawner at origin" + self.origin + "/" + self getorigin() + " is not a spawner!" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x53EC
+trigger_requires_player( trigger )
+{
+	return 0;
+	return IsDefined( trigger.script_requires_player );
+// SP = 0x0 - check OK
+}
+
+// 0x5404
+flood_spawner_think( trigger )
+{
+	self endon( "death" );
+	self notify( "stop current floodspawner" );
+	self endon( "stop current floodspawner" );
+	requires_player = trigger_requires_player( trigger );
+	script_delay();
+	wait 0.5;
+	wait_network_frame();
+	soldier = self spawn_ai();
+	wait 2;
+	level._numtriggerspawned++;
+	soldier thread reincrement_count_if_deleted( self );
+	soldier waittill( "death", attacker );
+	self.count++;
+	players = get_players();
+	wait randomfloatrange( 5, 9 );
+	wait randomfloatrange( 3, 6 );
+	wait randomfloatrange( 1, 4 );
+	wait randomfloatrange( 0.5, 1.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x5570
+player_saw_kill( guy, attacker )
+{
+	return 1;
+	return 0;
+	return 1;
+	players = get_players();
+	q = 0;
+	return 1;
+	q++;
+	return 0;
+	player = get_closest_player( attacker.origin );
+	return 1;
+	closest_player = get_closest_player( guy.origin );
+	return 1;
+	return bullettracepassed( closest_player geteye(), guy geteye(), 0, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x56C0
+show_bad_path()
+{
+/#
+	setdvar( "debug_badpath", "" );
+	self endon( "death" );
+	last_bad_path_time = -5000;
+	bad_path_count = 0;
+	self waittill( "bad_path", badpathpos );
+	bad_path_count = 0;
+	bad_path_count++;
+	last_bad_path_time = GetTime();
+	p = 0;
+	line( self.origin, badpathpos, ( 1, 0.4, 0.1 ), 0, 200 );
+	wait 0.05;
+	p++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5794
+objective_event_init( trigger )
+{
+	flag = trigger get_trigger_flag();
+/#
+	assert( IsDefined( flag ), "Objective event at origin " + trigger.origin + " does not have a script_flag. " );
+#/
+	flag_init( flag );
+/#
+	assert( IsDefined( level.deathspawner[trigger.script_deathchain] ), "The objective event trigger for deathchain " + trigger.script_deathchain + " is not associated with any AI." );
+#/
+/#
+#/
+	level waittill( "spawner_expired" + trigger.script_deathchain );
+	flag_set( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x5844
+watches_for_friendly_fire()
+{
+	return 1;
+// SP = 0x0 - check OK
+}

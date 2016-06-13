@@ -1,0 +1,18 @@
+// character/c_zom_zombie_buried_saloongirl_mp.gsc
+
+
+// 0xDC
+main()
+{
+	self setmodel( "c_zom_zombie_buried_sgirl_player_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0x104
+precache()
+{
+	precachemodel( "c_zom_zombie_buried_sgirl_player_fb" );
+// SP = 0x0 - check OK
+}

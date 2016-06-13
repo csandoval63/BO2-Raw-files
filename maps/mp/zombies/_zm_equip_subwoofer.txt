@@ -1,0 +1,647 @@
+// maps/mp/zombies/_zm_equip_subwoofer.gsc
+
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\animscripts\zm_death;
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_buildables;
+#include maps\mp\zombies\_zm_power;
+#include maps\mp\zombies\_zm_unitrigger;
+#include maps\mp\zombies\_zm;
+#include maps\mp\gametypes_zm\_weaponobjects;
+#include maps\mp\zombies\_zm_equipment;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x1390
+init( pickupstring, howtostring )
+{
+	return;
+	level.subwoofer_name = "equip_subwoofer_zm";
+	precacherumble( "subwoofer_light" );
+	precacherumble( "subwoofer_medium" );
+	precacherumble( "subwoofer_heavy" );
+	init_animtree();
+	maps\mp\zombies\_zm_equipment::register_equipment( level.subwoofer_name, pickupstring, howtostring, "zom_hud_subwoofer_complete", "subwoofer", undefined, ::transfersubwoofer, ::dropsubwoofer, ::pickupsubwoofer, ::placesubwoofer );
+	maps\mp\zombies\_zm_equipment::add_placeable_equipment( level.subwoofer_name, "t6_wpn_turret_zmb_subwoofer_view" );
+	level thread onplayerconnect();
+	maps\mp\gametypes_zm\_weaponobjects::createretrievablehint( "equip_subwoofer", pickupstring );
+	level._effect["subwoofer_on"] = loadfx( "maps/zombie_highrise/fx_highrise_trmpl_steam_os" );
+	level._effect["subwoofer_audio_wave"] = loadfx( "maps/zombie_buried/fx_buried_subwoofer_blast" );
+	level._effect["subwoofer_knockdown_ground"] = loadfx( "weapon/thunder_gun/fx_thundergun_knockback_ground" );
+	level._effect["subwoofer_disappear"] = loadfx( "maps/zombie/fx_zmb_tranzit_turbine_explo" );
+	level.subwoofer_gib_refs = [];
+	level.subwoofer_gib_refs[level.subwoofer_gib_refs.size] = "guts";
+	level.subwoofer_gib_refs[level.subwoofer_gib_refs.size] = "right_arm";
+	level.subwoofer_gib_refs[level.subwoofer_gib_refs.size] = "left_arm";
+	registerclientfield( "actor", "subwoofer_flings_zombie", 12000, 1, "int" );
+	thread wait_init_damage();
+// SP = 0x0 - check OK
+}
+
+// 0x14EC
+wait_init_damage()
+{
+	wait 1;
+	level.subwoofer_damage = maps\mp\zombies\_zm::ai_zombie_health( 50 );
+// SP = 0x0 - check OK
+}
+
+// 0x1524
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x1548
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self thread setupwatchers();
+	self waittill( "spawned_player" );
+	self thread watchsubwooferuse();
+// SP = 0x0 - check OK
+}
+
+// 0x1574
+setupwatchers()
+{
+	self waittill( "weapon_watchers_created" );
+	watcher = maps\mp\gametypes_zm\_weaponobjects::getweaponobjectwatcher( "equip_subwoofer" );
+	watcher.onspawnretrievetriggers = maps\mp\zombies\_zm_equipment::equipment_onspawnretrievableweaponobject;
+// SP = 0x0 - check OK
+}
+
+// 0x15A0
+watchsubwooferuse()
+{
+	self notify( "watchSubwooferUse" );
+	self endon( "watchSubwooferUse" );
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "equipment_placed", weapon, weapname );
+	self cleanupoldsubwoofer();
+	self.buildablesubwoofer = weapon;
+	self thread startsubwooferdeploy( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x15FC
+cleanupoldsubwoofer( preserve_state )
+{
+	thread maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( self.buildablesubwoofer.stub );
+	self.buildablesubwoofer.stub = undefined;
+	self.buildablesubwoofer delete();
+	self.subwoofer_kills = undefined;
+	self.subwoofer_health = undefined;
+	self.subwoofer_emped = undefined;
+	self.subwoofer_emp_time = undefined;
+	level.subwoofer_sound_ent delete();
+	level.subwoofer_sound_ent = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x167C
+watchforcleanup()
+{
+	self notify( "subwoofer_cleanup" );
+	self endon( "subwoofer_cleanup" );
+	evt = self waittill_any_return( "death_or_disconnect", "equip_subwoofer_zm_taken", "equip_subwoofer_zm_pickup" );
+	self cleanupoldsubwoofer( evt == "equip_subwoofer_zm_pickup" );
+// SP = 0x0 - check OK
+}
+
+// 0x16C0
+placesubwoofer( origin, angles )
+{
+	item = self maps\mp\zombies\_zm_equipment::placed_equipment_think( "t6_wpn_zmb_subwoofer", level.subwoofer_name, origin, angles, 32, 0 );
+	item.subwoofer_kills = self.subwoofer_kills;
+	item.requires_pickup = 1;
+	self.subwoofer_kills = undefined;
+	return item;
+// SP = 0x0 - check OK
+}
+
+// 0x170C
+dropsubwoofer()
+{
+	item = self maps\mp\zombies\_zm_equipment::dropped_equipment_think( "t6_wpn_zmb_subwoofer", level.subwoofer_name, self.origin, self.angles, 32, 0 );
+	item.subwoofer_kills = self.subwoofer_kills;
+	item.requires_pickup = 1;
+	item.subwoofer_power_on = self.subwoofer_power_on;
+	item.subwoofer_power_level = self.subwoofer_power_level;
+	item.subwoofer_round_start = self.subwoofer_round_start;
+	item.subwoofer_health = self.subwoofer_health;
+	item.subwoofer_emped = self.subwoofer_emped;
+	item.subwoofer_emp_time = self.subwoofer_emp_time;
+	self.subwoofer_kills = undefined;
+	self.subwoofer_is_powering_on = undefined;
+	self.subwoofer_power_on = undefined;
+	self.subwoofer_power_level = undefined;
+	self.subwoofer_round_start = undefined;
+	self.subwoofer_health = undefined;
+	self.subwoofer_emped = undefined;
+	self.subwoofer_emp_time = undefined;
+	return item;
+// SP = 0x0 - check OK
+}
+
+// 0x17BC
+pickupsubwoofer( item )
+{
+	self.subwoofer_kills = item.subwoofer_kills;
+	item.subwoofer_kills = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x17D8
+transfersubwoofer( fromplayer, toplayer )
+{
+	buildablesubwoofer = toplayer.buildablesubwoofer;
+	toarmed = 0;
+	toarmed = buildablesubwoofer.is_armed;
+	subwoofer_kills = toplayer.subwoofer_kills;
+	fromarmed = 0;
+	fromarmed = fromplayer.buildablesubwoofer.is_armed;
+	toplayer.buildablesubwoofer = fromplayer.buildablesubwoofer;
+	subwoofer_power_on = toplayer.subwoofer_power_on;
+	subwoofer_power_level = toplayer.subwoofer_power_level;
+	subwoofer_round_start = toplayer.subwoofer_round_start;
+	subwoofer_health = toplayer.subwoofer_health;
+	subwoofer_emped = toplayer.subwoofer_emped;
+	subwoofer_emp_time = toplayer.subwoofer_emp_time;
+	toplayer.buildablesubwoofer = fromplayer.buildablesubwoofer;
+	fromplayer.buildablesubwoofer = buildablesubwoofer;
+	toplayer.subwoofer_emped = fromplayer.subwoofer_emped;
+	fromplayer.subwoofer_emped = subwoofer_emped;
+	toplayer.subwoofer_emp_time = fromplayer.subwoofer_emp_time;
+	fromplayer.subwoofer_emp_time = subwoofer_emp_time;
+	toplayer.subwoofer_is_powering_on = undefined;
+	fromplayer.subwoofer_is_powering_on = undefined;
+	toplayer.subwoofer_power_on = fromplayer.subwoofer_power_on;
+	fromplayer.subwoofer_power_on = subwoofer_power_on;
+	toplayer.subwoofer_power_level = fromplayer.subwoofer_power_level;
+	toplayer.subwoofer_round_start = fromplayer.subwoofer_round_start;
+	fromplayer.subwoofer_power_level = subwoofer_power_level;
+	fromplayer.subwoofer_round_start = subwoofer_round_start;
+	toplayer.subwoofer_health = fromplayer.subwoofer_health;
+	fromplayer.subwoofer_health = subwoofer_health;
+	toplayer.buildablesubwoofer.original_owner = toplayer;
+	toplayer.buildablesubwoofer.owner = toplayer;
+	toplayer notify( "equip_subwoofer_zm_taken" );
+	toplayer.subwoofer_kills = fromplayer.subwoofer_kills;
+	toplayer thread startsubwooferdeploy( toplayer.buildablesubwoofer, fromarmed );
+	fromplayer.subwoofer_kills = subwoofer_kills;
+	fromplayer notify( "equip_subwoofer_zm_taken" );
+	fromplayer thread startsubwooferdeploy( fromplayer.buildablesubwoofer, toarmed );
+	fromplayer.buildablesubwoofer.original_owner = fromplayer;
+	fromplayer.buildablesubwoofer.owner = fromplayer;
+	fromplayer maps\mp\zombies\_zm_equipment::equipment_release( level.subwoofer_name );
+// SP = 0x0 - check OK
+}
+
+// 0x19F8
+subwoofer_in_range( delta, origin, radius )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1A28
+subwoofer_power_on( origin, radius )
+{
+/#
+	println( "^1ZM POWER: trap on\n" );
+#/
+	return;
+	self.target.power_on = 1;
+	self.target.power_on_time = GetTime();
+	self.target.owner thread subwooferthink( self.target );
+// SP = 0x0 - check OK
+}
+
+// 0x1A78
+subwoofer_power_off( origin, radius )
+{
+/#
+	println( "^1ZM POWER: trap off\n" );
+#/
+	return;
+	self.target.power_on = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1AA8
+subwoofer_cost()
+{
+	return maps\mp\zombies\_zm_power::cost_high() / 2;
+// SP = 0x0 - check OK
+}
+
+// 0x1AB8
+startsubwooferdeploy( weapon, armed )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "equip_subwoofer_zm_taken" );
+	self thread watchforcleanup();
+	weapon.subwoofer_kills = self.subwoofer_kills;
+	self.subwoofer_kills = undefined;
+	weapon.subwoofer_kills = 0;
+	self.subwoofer_health = 60;
+	self.subwoofer_power_level = 4;
+/#
+	self thread debugsubwoofer();
+#/
+	weapon.power_on = 0;
+	maps\mp\zombies\_zm_power::add_temp_powered_item( ::subwoofer_power_on, ::subwoofer_power_off, ::subwoofer_in_range, ::subwoofer_cost, 1, weapon.power_on, weapon );
+	weapon.power_on = 1;
+	self thread subwooferthink( weapon, armed );
+	self iprintlnbold( &"ZOMBIE_NEED_LOCAL_POWER" );
+	self thread startsubwooferdecay( weapon );
+	self thread maps\mp\zombies\_zm_buildables::delete_on_disconnect( weapon );
+	weapon waittill( "death" );
+	level.subwoofer_sound_ent playsound( "wpn_zmb_electrap_stop" );
+	level.subwoofer_sound_ent delete();
+	level.subwoofer_sound_ent = undefined;
+	self notify( "subwoofer_cleanup" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C18
+startsubwooferdecay( weapon )
+{
+	self notify( "subwooferDecay" );
+	self endon( "subwooferDecay" );
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "equip_subwoofer_zm_taken" );
+	weapon endon( "death" );
+	roundlives = 4;
+	self.subwoofer_power_level = roundlives;
+	old_power_level = self.subwoofer_power_level;
+	emp_time = level.zombie_vars["emp_perk_off_time"];
+	now = GetTime();
+	emp_time_left = emp_time - now - self.subwoofer_emp_time / 1000;
+	self.subwoofer_emped = undefined;
+	self.subwoofer_emp_time = undefined;
+	old_power_level = -1;
+	self.subwoofer_power_level = 0;
+	cost = 1;
+	self.subwoofer_power_level = 1;
+	weapon.low_health_sparks = 1;
+	playfxontag( level._effect["switch_sparks"], weapon, "tag_origin" );
+	self.subwoofer_power_level = 2;
+	self.subwoofer_power_level = 4;
+	self notify( "subwoofer_power_change" );
+	wait 1;
+	self destroy_placed_subwoofer();
+	subwoofer_disappear_fx( weapon );
+	self thread wait_and_take_equipment();
+	self.subwoofer_health = undefined;
+	self.subwoofer_power_level = undefined;
+	self.subwoofer_round_start = undefined;
+	self.subwoofer_power_on = undefined;
+	self.subwoofer_emped = undefined;
+	self.subwoofer_emp_time = undefined;
+	self cleanupoldsubwoofer();
+// SP = 0x0 - check OK
+}
+
+// 0x1DBC
+destroy_placed_subwoofer()
+{
+	wait 0.05;
+	return;
+	thread maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( self.buildablesubwoofer.stub );
+	thread subwoofer_disappear_fx( self.buildablesubwoofer, 0.75 );
+	self.buildablesubwoofer.dying = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E38
+wait_and_take_equipment()
+{
+	wait 0.05;
+	self thread maps\mp\zombies\_zm_equipment::equipment_release( level.subwoofer_name );
+// SP = 0x0 - check OK
+}
+
+// 0x1E58
+init_animtree()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1E60
+subwoofer_fx( weapon )
+{
+	weapon endon( "death" );
+	self endon( "equip_subwoofer_zm_taken" );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E84
+subwoofer_disappear_fx( weapon, waittime )
+{
+	wait waittime;
+	playfx( level._effect["subwoofer_disappear"], weapon.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1EC4
+subwoofer_choke()
+{
+	level._subwoofer_choke = 0;
+	wait_network_frame();
+// SP = 0x0 - check OK
+}
+
+// 0x1EE4
+subwooferthink( weapon, armed )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "equip_subwoofer_zm_taken" );
+	weapon notify( "subwooferthink" );
+	weapon endon( "subwooferthink" );
+	weapon endon( "death" );
+	direction_forward = anglestoforward( flat_angle( weapon.angles ) + vector_scale( ( -1, 0, 0 ), 30 ) );
+	direction_vector = vector_scale( direction_forward, 512 );
+	direction_origin = weapon.origin + direction_vector;
+	original_angles = weapon.angles;
+	original_origin = weapon.origin;
+	tag_spin_origin = weapon gettagorigin( "tag_spin" );
+	wait 0.05;
+	wait 1;
+	wait 2;
+	level thread subwoofer_choke();
+	wait 0.05;
+	level._subwoofer_choke++;
+	weapon.subwoofer_network_choke_count = 0;
+	weapon thread maps\mp\zombies\_zm_equipment::signal_equipment_activated( 1 );
+	vibrateamplitude = 4;
+	vibrateamplitude = 8;
+	vibrateamplitude = 13;
+	vibrateamplitude = 17;
+	weapon vibrate( vector_scale( ( 0, -1, 0 ), 100 ), vibrateamplitude, 0.2, 0.3 );
+	zombies = get_array_of_closest( weapon.origin, get_round_enemy_array(), undefined, undefined, 1200 );
+	players = get_array_of_closest( weapon.origin, get_players(), undefined, undefined, 1200 );
+	props = get_array_of_closest( weapon.origin, getentarray( "subwoofer_target", "script_noteworthy" ), undefined, undefined, 1200 );
+	entities = arraycombine( zombies, players, 0, 0 );
+	entities = arraycombine( entities, props, 0, 0 );
+	foreach ( ent in entities )
+	{
+		distanceentityandsubwoofer = distance2dsquared( original_origin, ent.origin );
+		onlydamage = 0;
+		action = undefined;
+		action = "burst";
+		action = "fling";
+		action = "stumble";
+		ent hit_player( action, 0 );
+		weapon subwoofer_network_choke();
+		ent_trace_origin = ent.origin;
+		ent_trace_origin = ent geteye();
+		ent_trace_origin += vector_scale( ( 0, 0, 1 ), 48 );
+		ent notify( "damaged_by_subwoofer" );
+		onlydamage = 1;
+		ent notify( "player_" + action );
+		ent hit_player( action, 1 );
+		ent notify( "zombie_" + action );
+/#
+		ent thread subwoofer_debug_print( action, ( 1, 0, 0 ) );
+#/
+		shouldgib = distanceentityandsubwoofer <= 810000;
+		ent thread fling_zombie( weapon, direction_vector / 4, self, onlydamage );
+		weapon.subwoofer_kills++;
+		self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "subwoofer" );
+		ent thread burst_zombie( weapon, self );
+		weapon.subwoofer_kills++;
+		self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "subwoofer" );
+		ent thread knockdown_zombie( weapon, shouldgib, onlydamage );
+	}
+	self thread subwoofer_expired( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x241C
+subwoofer_expired( weapon )
+{
+	weapon maps\mp\zombies\_zm_equipment::dropped_equipment_destroy( 1 );
+	self maps\mp\zombies\_zm_equipment::equipment_release( level.subwoofer_name );
+	self.subwoofer_kills = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2448
+hit_player( action, doshellshock )
+{
+	self playrumbleonentity( "subwoofer_heavy" );
+	self shellshock( "frag_grenade_mp", 1.5 );
+	self playrumbleonentity( "subwoofer_medium" );
+	self shellshock( "frag_grenade_mp", 0.5 );
+	self playrumbleonentity( "subwoofer_light" );
+	self shellshock( "frag_grenade_mp", 0.13 );
+// SP = 0x0 - check OK
+}
+
+// 0x2504
+burst_zombie( weapon, player )
+{
+	return;
+	self thread [[self.subwoofer_burst_func]]( weapon );
+	return;
+	self dodamage( self.health + 666, weapon.origin );
+	player notify( "zombie_subwoofer_kill" );
+	self.guts_explosion = 1;
+	self setclientfield( "zombie_gut_explosion", 1 );
+	wait 0.1;
+	self ghost();
+// SP = 0x0 - check OK
+}
+
+// 0x25A8
+fling_zombie( weapon, fling_vec, player, onlydamage )
+{
+	return;
+	self thread [[self.subwoofer_fling_func]]( weapon, fling_vec );
+	player notify( "zombie_subwoofer_kill" );
+	return;
+	self dodamage( self.health + 666, weapon.origin );
+	player notify( "zombie_subwoofer_kill" );
+	self startragdoll();
+	self setclientfield( "subwoofer_flings_zombie", 1 );
+	self.subwoofer_death = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2644
+knockdown_zombie( weapon, gib, onlydamage )
+{
+	self endon( "death" );
+	return;
+	return;
+	self thread [[self.subwoofer_knockdown_func]]( weapon, gib );
+	return;
+	self thread knockdown_zombie_damage( weapon );
+	return;
+	self thread knockdown_zombie_damage( weapon );
+	self.a.gib_ref = random( level.subwoofer_gib_refs );
+	self thread maps\mp\animscripts\zm_death::do_gib();
+	self.subwoofer_handle_pain_notetracks = ::handle_subwoofer_pain_notetracks;
+	self thread knockdown_zombie_damage( weapon );
+	self animcustom( ::knockdown_zombie_animate );
+// SP = 0x0 - check OK
+}
+
+// 0x271C
+knockdown_zombie_damage( weapon )
+{
+	weapon.subwoofer_kills++;
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "kill", "subwoofer" );
+	self dodamage( 15, weapon.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x2760
+handle_subwoofer_pain_notetracks( note )
+{
+	playfx( level._effect["subwoofer_knockdown_ground"], self.origin, anglestoforward( self.angles ), anglestoup( self.angles ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2798
+knockdown_zombie_animate()
+{
+	self notify( "end_play_subwoofer_pain_anim" );
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "end_play_subwoofer_pain_anim" );
+	return;
+	return;
+	return;
+	return;
+	animation_direction = undefined;
+	animation_side = undefined;
+	animation_duration = "_default";
+	animation_direction = "back";
+	animation_side = "back";
+	animation_direction = "left";
+	animation_side = "back";
+	animation_direction = "right";
+	animation_side = "belly";
+	animation_direction = "front";
+	animation_side = "belly";
+	wait randomfloatrange( 0.05, 0.35 );
+	self thread knockdown_zombie_animate_state();
+/#
+	self thread subwoofer_debug_animation_print( animation_direction, animation_side );
+#/
+	self setanimstatefromasd( "zm_subwoofer_fall_" + animation_direction );
+	self maps\mp\animscripts\zm_shared::donotetracks( "subwoofer_fall_anim", self.subwoofer_handle_pain_notetracks );
+	return;
+	animation_duration = "_late";
+	animation_duration = "_early";
+	animation_duration = "_early";
+	self setanimstatefromasd( "zm_subwoofer_getup_" + animation_side + animation_duration );
+	self maps\mp\animscripts\zm_shared::donotetracks( "subwoofer_getup_anim" );
+	self notify( "back_up" );
+// SP = 0x0 - check OK
+}
+
+// 0x2A14
+knockdown_zombie_animate_state()
+{
+	self endon( "death" );
+	self.is_knocked_down = 1;
+	self waittill_any( "damage", "back_up" );
+	self.is_knocked_down = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2A40
+subwoofer_network_choke()
+{
+	self.subwoofer_network_choke_count++;
+	wait_network_frame();
+// SP = 0x0 - check OK
+}
+
+// 0x2A64
+enemy_killed_by_subwoofer()
+{
+	return self.subwoofer_death;
+// SP = 0x0 - check OK
+}
+
+// 0x2A78
+debugsubwoofer()
+{
+/#
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "equip_subwoofer_zm_taken" );
+	self.buildablesubwoofer endon( "death" );
+	red = ( 1, 0, 0 );
+	green = ( 0, 1, 0 );
+	blue = ( 0, 0, 1 );
+	yellow = vector_scale( ( 1, 1, 0 ), 0.65 );
+	row = 1;
+	health_color = green;
+	health_color = red;
+	health_color = yellow;
+	row = self debugsubwooferprint3d( row, "Kills: " + self.buildablesubwoofer.subwoofer_kills, health_color );
+	row = self debugsubwooferprint3d( row, "Use Time: " + self.subwoofer_health, health_color );
+	row = self debugsubwooferprint3d( row, "Original Owner: " + self.buildablesubwoofer.original_owner.name, green );
+	row = self debugsubwooferprint3d( row, "Current Owner: " + self.buildablesubwoofer.owner.name, green );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2BB0
+debugsubwooferprint3d( row, text, color )
+{
+/#
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "equip_subwoofer_zm_taken" );
+	self.buildablesubwoofer endon( "death" );
+	print3dspace = vector_scale( ( 0, 0, 1 ), 10 );
+	print3d( self.buildablesubwoofer.origin + ( vector_scale( ( 0, 0, 1 ), 30 ) + print3dspace * row ), text, color, 1, 0.5, 1 );
+	row++;
+	return row;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2C20
+subwoofer_debug_print( msg, color, offset )
+{
+/#
+	color = ( 1, 1, 1 );
+	offset = ( 0, 0, 0 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 60 ) + offset, msg, color, 1, 1, 40 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2C80
+subwoofer_debug_animation_print( msg1, msg2 )
+{
+/#
+	self endon( "death" );
+	self endon( "damage" );
+	self endon( "back_up" );
+	color = ( 0, 1, 0 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 50 ), "FallDown: " + msg1, color, 1, 0.75 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 40 ), "GetUp: " + msg2, color, 1, 0.75 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}

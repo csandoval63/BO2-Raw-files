@@ -1,0 +1,82 @@
+// clientscripts/_qrcode.csc
+
+
+// 0x14C
+init()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x154
+setup_qr_code( mapname, slot, userrequest )
+{
+	switch ( mapname )
+	{
+		case "blackout":
+			createqrcode( "http://treyarch.com", 0 );
+			createqrcode( "http://treyarch.com", 0 );
+			switch ( slot )
+			{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					createqrcode( level.music_tracks_qr[userrequest], 3 );
+					break;
+			}
+			break;
+		case "frontend":
+		case "haiti":
+			createqrcode( "http://treyarch.com", 0 );
+			switch ( slot )
+			{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					createqrcode( level.music_tracks_qr[userrequest], 3 );
+					break;
+			}
+			break;
+		case "karma":
+			switch ( slot )
+			{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					createqrcode( level.music_tracks_qr[userrequest], 3 );
+					break;
+			}
+			break;
+		case "karma_2":
+		case "la_1":
+		case "la_1b":
+		case "la_2":
+		case "monsoon":
+		case "pakistan":
+		case "pakistan_2":
+		case "pakistan_3":
+		case "yemen":
+			switch ( slot )
+			{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					createqrcode( level.music_tracks_qr[userrequest], 3 );
+					break;
+			}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x25C
+setupmusiccodes( num )
+{
+	level.music_tracks_qr = [];
+	i = 0;
+	level.music_tracks_qr[i] = "http://itunes/sales";
+	i++;
+// SP = 0x0 - check OK
+}

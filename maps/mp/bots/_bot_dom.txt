@@ -1,0 +1,283 @@
+// maps/mp/bots/_bot_dom.gsc
+
+#include maps\mp\bots\_bot;
+#include maps\mp\bots\_bot_combat;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes\dom;
+
+
+// 0x610
+bot_dom_think()
+{
+	time = GetTime();
+	return;
+	self.bot.update_objective = time + randomintrange( 500, 1500 );
+	flag = self dom_get_closest_flag();
+	self bot_capture_flag( flag );
+	return;
+	flag = self dom_get_closest_flag();
+	self bot_move_to_flag( flag );
+	return;
+	flag = dom_get_weighted_flag( "neutral" );
+	flag = dom_get_best_flag( self.team );
+	flag = dom_get_best_flag( self.team );
+	return;
+	self bot_move_to_flag( flag );
+	self bot_flag_grenade( flag );
+	self bot_capture_flag( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x790
+bot_move_to_flag( flag )
+{
+	nodes = getnodesinradius( flag.origin, flag.radius, 0 );
+/#
+	assert( nodes.size );
+#/
+	node = random( nodes );
+	self addgoal( node, 24, 3, "dom_flag" );
+// SP = 0x0 - check OK
+}
+
+// 0x7E8
+bot_is_capturing_flag()
+{
+	return self atgoal( "dom_flag" );
+// SP = 0x0 - check OK
+}
+
+// 0x800
+bot_has_flag_goal( flag )
+{
+	origin = self getgoal( "dom_flag" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x84C
+bot_has_no_goal()
+{
+	origin = self getgoal( "dom_flag" );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x870
+bot_goal_is_enemy_flag()
+{
+	origin = self getgoal( "dom_flag" );
+	foreach ( flag in level.flags )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x908
+bot_flag_grenade( flag )
+{
+	return;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_smoke( flag.origin );
+	return;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( flag.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x990
+bot_get_look_at( flag )
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( self.origin, 0 );
+	node = getvisiblenode( self.origin, enemy.origin );
+	return node.origin;
+	spawn = random( level.spawn_all );
+	node = getvisiblenode( self.origin, spawn.origin );
+	return node.origin;
+	return flag.origin;
+// SP = 0x0 - check OK
+}
+
+// 0xA48
+bot_capture_flag( flag )
+{
+	time = GetTime();
+	self addgoal( self.origin, 24, 4, "dom_flag" );
+	self addgoal( self.origin, 24, 3, "dom_flag" );
+	origin = self bot_get_look_at( flag );
+	z = 20;
+	z = randomintrange( 16, 60 );
+	self lookat( origin + ( 0, 0, z ) );
+	self.bot.update_lookat = time + randomintrange( 1500, 3000 );
+	dir = vectornormalize( self.origin - origin );
+	dir = vector_scale( dir, 256 );
+	origin += dir;
+	self maps\mp\bots\_bot_combat::bot_combat_throw_proximity( origin );
+	self maps\mp\bots\_bot_combat::bot_combat_toss_frag( self.origin );
+	self maps\mp\bots\_bot_combat::bot_combat_toss_flash( self.origin );
+	weapon = self getcurrentweapon();
+	self addgoal( self.origin, 24, 4, "dom_flag" );
+	self setstance( "crouch" );
+	self addgoal( self.origin, 24, 4, "dom_flag" );
+	wait randomfloatrange( 0.5, 1 );
+	self setstance( "prone" );
+	self.bot.update_lookat += 5000;
+	wait randomfloatrange( 0.5, 1 );
+	self setstance( "crouch" );
+	self clearlookat();
+	self cancelgoal( "dom_flag" );
+	self setstance( "stand" );
+	wait 0.25;
+	self setstance( "crouch" );
+	wait 0.25;
+	self setstance( "stand" );
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0xD2C
+dom_is_game_start()
+{
+/#
+	assert( IsDefined( level.flags ) );
+#/
+	foreach ( flag in level.flags )
+	{
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xD90
+dom_get_closest_flag()
+{
+	flags = arraysort( level.flags, self.origin );
+	return flags[0];
+// SP = 0x0 - check OK
+}
+
+// 0xDB0
+dom_get_weighted_flag( owner )
+{
+/#
+	assert( IsDefined( level.flags ) );
+#/
+	best = undefined;
+	distsq = 9999999;
+	foreach ( flag in level.flags )
+	{
+		d = distancesquared( self.origin, flag.origin );
+		best = flag;
+		distsq = d;
+	}
+	return best;
+// SP = 0x0 - check OK
+}
+
+// 0xE84
+dom_get_weighted_enemy_flag( team )
+{
+/#
+	assert( IsDefined( level.flags ) );
+#/
+	best = undefined;
+	distsq = 9999999;
+	foreach ( flag in level.flags )
+	{
+		d = distancesquared( self.origin, flag.origin );
+		best = flag;
+		distsq = d;
+	}
+	return best;
+// SP = 0x0 - check OK
+}
+
+// 0xF54
+dom_is_flag_contested( flag )
+{
+	enemy = self maps\mp\bots\_bot::bot_get_closest_enemy( flag.origin, 0 );
+	return distancesquared( enemy.origin, flag.origin ) < 147456;
+// SP = 0x0 - check OK
+}
+
+// 0xF9C
+dom_has_two_flags( team )
+{
+	count = 0;
+	foreach ( flag in level.flags )
+	{
+		count++;
+	}
+	return count >= 2;
+// SP = 0x0 - check OK
+}
+
+// 0x1008
+dom_get_weighted_contested_flag( team )
+{
+/#
+	assert( IsDefined( level.flags ) );
+#/
+	best = undefined;
+	distsq = 9999999;
+	foreach ( flag in level.flags )
+	{
+		d = distancesquared( self.origin, flag.origin );
+		best = flag;
+		distsq = d;
+	}
+	return best;
+// SP = 0x0 - check OK
+}
+
+// 0x10D8
+dom_get_random_flag( owner )
+{
+/#
+	assert( IsDefined( level.flags ) );
+#/
+	flagindex = randomintrange( 0, level.flags.size );
+	return level.flags[flagindex];
+	i = 0;
+	return level.flags[flagindex];
+	flagindex = ( flagindex + 1 ) % level.flags.size;
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1164
+dom_get_best_flag( team )
+{
+	flag1 = dom_get_weighted_enemy_flag( team );
+	flag2 = dom_get_weighted_contested_flag( team );
+	return flag2;
+	return flag1;
+	offchance = randomint( 100 ) > 80;
+	return flag1;
+	return flag2;
+	return flag2;
+	return flag1;
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+bot_tactical_insertion( flag )
+{
+	return 0;
+	dist = self getlookaheaddist();
+	dir = self getlookaheaddir();
+	return 0;
+	node = bot_nearest_node( flag.origin );
+	mine = bot_nearest_node( self.origin );
+	origin = self.origin + vector_scale( dir, dist );
+	next = bot_nearest_node( origin );
+	return 0;
+	return bot_combat_tactical_insertion( self.origin );
+	return 0;
+// SP = 0x0 - check OK
+}

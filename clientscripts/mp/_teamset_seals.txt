@@ -1,0 +1,10 @@
+// clientscripts/mp/_teamset_seals.csc
+
+
+// 0x94
+level_init()
+{
+	level.allies_team = "seals";
+	level.axis_team = "pmc";
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,14 @@
+// clientscripts/mp/zombies/_zm_equip_springpad.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zombie_springpad" );
+
+
+// 0xE4
+init_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}

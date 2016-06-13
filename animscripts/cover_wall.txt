@@ -1,0 +1,604 @@
+// animscripts/cover_wall.gsc
+
+#include animscripts\shoot_behavior;
+#include maps\_turret;
+#include maps\_gameskill;
+#include animscripts\debug;
+#include animscripts\cover_behavior;
+#include animscripts\shared;
+#include maps\_utility;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include animscripts\cover_utility;
+#include animscripts\combat_utility;
+#include animscripts\anims;
+
+#using_animtree ( "generic_human" );
+
+
+// 0xFC8
+cover_wall_think( covertype )
+{
+	self endon( "killanimscript" );
+/#
+	assert( IsDefined( self.node ) );
+#/
+	self.covernode = self.node;
+	self.covertype = covertype;
+	animscripts\cover_utility::turntomatchnodedirection( 0 );
+	self setup_cover_crouch();
+	self initcovercrouchnode();
+	self setup_cover_stand();
+/#
+	assert( self.a.pose == "prone" );
+#/
+	self exitpronewrapper( 1 );
+	self.a.pose = "crouch";
+	self.a.standidlethread = undefined;
+	self orientmode( "face angle", self.covernode.angles[1] );
+	self usestationaryturret();
+	self animmode( "normal" );
+	transanim = animarray( "stand_2_hide" );
+	time = getanimlength( transanim );
+	self setanimknoballrestart( transanim, %body, 1, 0.2 );
+	self thread animscripts\shared::movetooriginovertime( self.covernode.origin, time );
+	wait time;
+	self.a.covermode = "Hide";
+	transanim = animarray( "crouch_2_hide" );
+	time = getanimlength( transanim );
+	self thread animscripts\shared::movetooriginovertime( self.covernode.origin, time );
+	self setflaggedanimknoballrestart( "crouch_2_stand", transanim, %body, 1, 0.2 );
+	self animscripts\shared::donotetracks( "crouch_2_stand" );
+	self.a.covermode = "Hide";
+	loophide( 0.4 );
+	self thread animscripts\shared::movetooriginovertime( self.covernode.origin, 0.4 );
+	wait 0.2;
+	self.a.pose = "crouch";
+	wait 0.2;
+	self animmode( "zonly_physics" );
+	self exitpronewrapper( 1 );
+	self.a.pose = "crouch";
+	self.a.special = "cover_stand";
+	self.a.special = "cover_crouch";
+	behaviorcallbacks = spawnstruct();
+	behaviorcallbacks.reload = ::coverreload;
+	behaviorcallbacks.leavecoverandshoot = ::leavecoverandshoot;
+	behaviorcallbacks.look = ::look;
+	behaviorcallbacks.fastlook = ::fastlook;
+	behaviorcallbacks.idle = ::idle;
+	behaviorcallbacks.flinch = ::flinch;
+	behaviorcallbacks.grenade = ::trythrowinggrenade;
+	behaviorcallbacks.grenadehidden = ::trythrowinggrenadestayhidden;
+	behaviorcallbacks.blindfire = animscripts\cover_utility::blindfire;
+	behaviorcallbacks.resetweaponanims = ::resetweaponanims;
+	behaviorcallbacks.rambo = ::rambo;
+	animscripts\cover_behavior::main( behaviorcallbacks );
+// SP = 0x0 - check OK
+}
+
+// 0x1338
+initcovercrouchnode()
+{
+	return;
+	crouchheightoffset = vector_scale( ( 0, 0, 1 ), 42 );
+	forward = anglestoforward( self.angles );
+	self.covernode.crouchingisok = sighttracepassed( self.origin + crouchheightoffset, self.origin + crouchheightoffset + vector_scale( forward, 64 ), 0, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0x1390
+setup_cover_crouch()
+{
+	self.rightaimlimit = 48;
+	self.leftaimlimit = -48;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+// SP = 0x0 - check OK
+}
+
+// 0x13B8
+setup_cover_stand()
+{
+	self.rightaimlimit = 45;
+	self.leftaimlimit = -45;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+// SP = 0x0 - check OK
+}
+
+// 0x13E0
+coverreload()
+{
+	return reload( 2, animarraypickrandom( "reload" ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1404
+leavecoverandshoot( theweapontype, mode, suppressspot )
+{
+	self.keepclaimednodeifvalid = 1;
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to pop up" );
+#/
+	return 0;
+	shootastold();
+	self notify( "kill_idle_thread" );
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	animscripts\shared::throwdownweapon();
+	resetweaponanims();
+	go_to_hide();
+	self.keepclaimednodeifvalid = 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1498
+shootastold()
+{
+	self endon( "return_to_cover" );
+	self endon( "need_to_switch_weapons" );
+	self maps\_gameskill::didsomethingotherthanshooting();
+/#
+	self animscripts\debug::debugpushstate( "shootAsTold" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shouldReturnToCover is true" );
+#/
+	wait 0.5;
+	waittillframeend;
+	self lookforbettercover();
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "Looking better cover as can't aim at enemy" );
+#/
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	self waittill( "do_slow_things" );
+	waittillframeend;
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "shootPos undefined" );
+#/
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "needToChangeCoverMode true" );
+#/
+	shootuntilshootbehaviorchange_coverwall();
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold" );
+#/
+	self flamethrower_stop_shoot();
+	self clearanim( %add_fire, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x15F4
+shootuntilshootbehaviorchange_coverwall()
+{
+	self thread anglerangethread();
+	self thread standidlethread();
+	shootuntilshootbehaviorchange();
+// SP = 0x0 - check OK
+}
+
+// 0x1628
+idle()
+{
+	self endon( "end_idle" );
+	usetwitch = animarrayanyexist( "hide_idle_twitch" );
+	idleanim = animarraypickrandom( "hide_idle_twitch" );
+	idleanim = animarray( "hide_idle" );
+	playidleanimation( idleanim, usetwitch );
+// SP = 0x0 - check OK
+}
+
+// 0x169C
+flinch()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no flinch anim" );
+#/
+	return 0;
+	forward = anglestoforward( self.angles );
+	stepto = self.origin + vector_scale( forward, -16 );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no room to flinch" );
+#/
+	return 0;
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	flinchanim = animarraypickrandom( "hide_idle_flinch" );
+	playidleanimation( flinchanim, 1 );
+	self.keepclaimednodeifvalid = 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1740
+playidleanimation( idleanim, needsrestart )
+{
+	self setflaggedanimknoballrestart( "idle", idleanim, %body, 1, 0.1, 1 );
+	self setflaggedanimknoball( "idle", idleanim, %body, 1, 0.1, 1 );
+	self.a.covermode = "Hide";
+	self animscripts\shared::donotetracks( "idle" );
+// SP = 0x0 - check OK
+}
+
+// 0x17B4
+look( looktime )
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "no look anim" );
+#/
+	return 0;
+	return 0;
+	animscripts\shared::playlookanimation( animarray( "look_idle" ), looktime );
+	lookanim = undefined;
+	lookanim = animarray( "look_to_hide_fast" );
+	lookanim = animarray( "look_to_hide" );
+	self setflaggedanimknoballrestart( "looking_end", lookanim, %body, 1, 0.1 );
+	animscripts\shared::donotetracks( "looking_end" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1868
+peekout()
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "cover node has script_dontpeek on" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "self.a.dontpeek on" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "no pistol anims" );
+#/
+	return 0;
+	self setflaggedanimknoball( "looking_start", animarray( "hide_to_look" ), %body, 1, 0.2 );
+	animscripts\shared::donotetracks( "looking_start" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1908
+fastlook()
+{
+	self setflaggedanimknoballrestart( "look", animarraypickrandom( "look" ), %body, 1, 0.1 );
+	self animscripts\shared::donotetracks( "look" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1948
+standidlethread()
+{
+	self endon( "killanimscript" );
+	self.a.standidlethread = 1;
+	self setanim( %add_idle, 1, 0.2 );
+	standidlethreadinternal();
+	self clearanim( %add_idle, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x19A4
+endstandidlethread()
+{
+	self.a.standidlethread = undefined;
+	self notify( "end_stand_idle_thread" );
+// SP = 0x0 - check OK
+}
+
+// 0x19BC
+standidlethreadinternal()
+{
+	self endon( "killanimscript" );
+	self endon( "end_stand_idle_thread" );
+	i = 0;
+	flagname = "idle" + i;
+	idleanim = animarraypickrandom( "exposed_idle" );
+	self setflaggedanimknoblimitedrestart( flagname, idleanim, 1, 0.2 );
+	self waittillmatch( flagname );
+	return "end";
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1A1C
+pop_up_and_hide_speed()
+{
+	return 1;
+	return randomfasteranimspeed();
+// SP = 0x0 - check OK
+}
+
+// 0x1A60
+pop_up()
+{
+/#
+	assert( self.a.covermode == "Hide" );
+#/
+	newcovermode = getbestcovermode();
+	return 0;
+	popupanim = animarray( "hide_2_" + newcovermode );
+	return 0;
+	self setup_cover_crouch();
+	self setup_cover_stand();
+	self.a.special = "none";
+	self.a.special = "cover_stand_aim";
+	self.a.special = "cover_crouch_aim_" + newcovermode;
+	self.a.special = "cover_crouch_aim";
+	self.changingcoverpos = 1;
+	self notify( "done_changing_cover_pos" );
+	self animmode( "zonly_physics" );
+	animrate = pop_up_and_hide_speed();
+	self setflaggedanimknoballrestart( "pop_up", popupanim, %body, 1, 0.1, animrate );
+	self thread donotetracksforpopup( "pop_up" );
+	self waittillmatch( "pop_up" );
+	return "start_aim";
+	timeleft = getanimlength( popupanim ) / animrate * ( 1 - self getanimtime( popupanim ) );
+	self waittillmatch( "pop_up" );
+	return "end";
+	timeleft = 0.1;
+	self clearanim( popupanim, timeleft + 0.05 );
+	self.a.covermode = newcovermode;
+	self.a.prevattack = newcovermode;
+	self setup_additive_aim( timeleft );
+	self thread animscripts\shared::trackshootentorpos();
+	wait timeleft;
+	self.changingcoverpos = 0;
+	self.coverposestablishedtime = GetTime();
+	self notify( "stop_popup_donotetracks" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1C60
+donotetracksforpopup( animname )
+{
+	self endon( "killanimscript" );
+	self endon( "stop_popup_donotetracks" );
+	self animscripts\shared::donotetracks( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x1C84
+setup_additive_aim( transtime )
+{
+	aimcovermode = "crouch";
+	aimcovermode = self.a.covermode;
+	self setanimknoball( animarray( aimcovermode + "_aim" ), %body, 1, transtime );
+	prefix = "";
+	prefix = "over_";
+	self setanimlimited( animarray( prefix + "add_aim_down" ), 1, 0 );
+	self setanimlimited( animarray( prefix + "add_aim_left" ), 1, 0 );
+	self setanimlimited( animarray( prefix + "add_aim_right" ), 1, 0 );
+	self setanimlimited( animarray( prefix + "add_aim_up" ), 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1D7C
+go_to_hide()
+{
+	self notify( "return_to_cover" );
+/#
+	self animscripts\debug::debugpopstate( "shootAsTold", "needToChangeCoverMode true" );
+#/
+	self.changingcoverpos = 1;
+	self notify( "done_changing_cover_pos" );
+	self endstandidlethread();
+	animrate = pop_up_and_hide_speed();
+	self setflaggedanimknoball( "go_to_hide", animarray( self.a.covermode + "_2_hide" ), %body, 1, 0.2, animrate );
+	self clearanim( %exposed_modern, 0.2 );
+	self animscripts\shared::donotetracks( "go_to_hide" );
+	self animscripts\shared::stoptracking();
+	self.a.covermode = "Hide";
+	self.a.special = "cover_stand";
+	self.a.special = "cover_crouch";
+	self.changingcoverpos = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1E6C
+trythrowinggrenadestayhidden( throwat, forcethrow )
+{
+	return trythrowinggrenade( throwat, 1, forcethrow );
+// SP = 0x0 - check OK
+}
+
+// 0x1E88
+trythrowinggrenade( throwat, safe, forcethrow )
+{
+	theanim = undefined;
+	theanim = animarray( "grenade_rambo" );
+	theanim = animarraypickrandom( "grenade_safe" );
+	theanim = animarraypickrandom( "grenade_exposed" );
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	threwgrenade = trygrenade( throwat, theanim, forcethrow );
+	self.keepclaimednodeifvalid = 0;
+	return threwgrenade;
+// SP = 0x0 - check OK
+}
+
+// 0x1F34
+createturret( posent, weaponinfo, weaponmodel )
+{
+	turret = spawnturret( "misc_turret", posent.origin, weaponinfo );
+	turret.angles = posent.angles;
+	turret.aiowner = self;
+	turret setmodel( weaponmodel );
+	turret maketurretusable();
+	turret setdefaultdroppitch( 0 );
+	turret.leftarc = posent.leftarc;
+	turret.rightarc = posent.rightarc;
+	turret.toparc = posent.toparc;
+	turret.bottomarc = posent.bottomarc;
+	return turret;
+// SP = 0x0 - check OK
+}
+
+// 0x1FF8
+deleteifnotused( owner )
+{
+	self endon( "death" );
+	self endon( "being_used" );
+	wait 0.1;
+/#
+	assert( owner.a.usingturret != self );
+#/
+	owner notify( "turret_use_failed" );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x205C
+useselfplacedturret( weaponinfo, weaponmodel )
+{
+	turret = self createturret( self.covernode.turretinfo, weaponinfo, weaponmodel );
+	turret thread deleteifnotused( self );
+	self waittill( "turret_use_failed" );
+	turret delete();
+// SP = 0x0 - check OK
+}
+
+// 0x20B8
+usestationaryturret()
+{
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+/#
+	assert( IsDefined( self.covernode.turret ) );
+#/
+	self.covernode.turret.ai_node_user = self;
+	self thread maps\_turret::use_turret( self.covernode.turret );
+// SP = 0x0 - check OK
+}
+
+// 0x2124
+loophide( transtime )
+{
+	transtime = 0.1;
+	self setanimknoballrestart( animarray( "hide_idle" ), %body, 1, transtime );
+	self.a.covermode = "Hide";
+// SP = 0x0 - check OK
+}
+
+// 0x216C
+anglerangethread()
+{
+	self endon( "killanimscript" );
+	self notify( "newAngleRangeCheck" );
+	self endon( "newAngleRangeCheck" );
+	self endon( "return_to_cover" );
+	wait 0.1;
+	self notify( "stopShooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x21B4
+needtochangecovermode()
+{
+	return 0;
+	pitch = getshootpospitch( self geteye() );
+	return pitch < 10;
+	return abs( pitch ) > 45;
+// SP = 0x0 - check OK
+}
+
+// 0x2204
+getbestcovermode()
+{
+	modes = [];
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+	modes = self.covernode getvalidcoverpeekouts();
+	allowstepback = 1;
+	pitch = getshootpospitch( self.covernode.origin + getnodeoffset( self.covernode ) );
+	allowstepback = 0;
+	modes[modes.size] = "stand";
+	pitch = getshootpospitch( self.covernode.origin + getnodeoffset( self.covernode ) );
+	return "lean";
+	return "stand";
+	modes = self.covernode getvalidcoverpeekouts();
+	modes[modes.size] = "crouch";
+	modes = array_exclude( modes, array( "over" ) );
+	modes = array_exclude( modes, array( "over" ) );
+	return getrandomcovermode( modes );
+// SP = 0x0 - check OK
+}
+
+// 0x2364
+resetweaponanims()
+{
+	self setup_cover_crouch();
+	self setup_cover_stand();
+// SP = 0x0 - check OK
+}
+
+// 0x2390
+rambo()
+{
+/#
+	self animscripts\debug::debugpushstate( "rambo" );
+#/
+	return 0;
+	shouldrambo = randomfloat( 1 ) < self.rambochance;
+/#
+	self animscripts\debug::debugpopstate( "rambo" );
+#/
+	return 1;
+/#
+	self animscripts\debug::debugpopstate( "rambo", "not allowed or can't step out" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2428
+rambostepout()
+{
+	animtype = "rambo";
+	animtype = "rambo_jam";
+	return 0;
+/#
+	assert( animarrayanyexist( animtype ) );
+#/
+	pitch = getshootpospitch( self.covernode.origin + getnodeoffset( self.covernode ) );
+	return 0;
+	forward = anglestoforward( self.angles );
+	rambooutpos = self.origin + forward * -16;
+/#
+	self thread debugrambooutposition( rambooutpos );
+#/
+	return 0;
+	ramboanim = animarraypickrandom( animtype );
+	resetanimspecial( 0 );
+	self animmode( "zonly_physics" );
+	self.keepclaimednode = 1;
+	self.keepclaimednodeifvalid = 1;
+	self.isramboing = 1;
+	self setflaggedanimknoballrestart( "rambo", ramboanim, %body, 1, 0 );
+	self thread startblindaiming( ramboanim, "rambo" );
+	self thread stopblindaiming( ramboanim, "rambo" );
+	self animscripts\shoot_behavior::setshootent( self.enemy );
+	self animscripts\shared::donotetracks( "rambo" );
+	self.keepclaimednode = 1;
+	self.keepclaimednodeifvalid = 0;
+	self.isramboing = 0;
+	self.a.prevattack = "rambo";
+	waittillframeend;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x25E0
+resetanimspecial( delay )
+{
+	self endon( "killanimscript" );
+	wait delay;
+	self.a.special = "none";
+// SP = 0x0 - check OK
+}

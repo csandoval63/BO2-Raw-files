@@ -1,0 +1,467 @@
+// maps/mp/zombies/_zm_ai_faller.gsc
+
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xC0C
+zombie_faller_delete()
+{
+	level.zombie_total++;
+	self maps\mp\zombies\_zm_spawner::reset_attack_spot();
+	self.zombie_faller_location.is_enabled = 1;
+	self.zombie_faller_location = undefined;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xC48
+faller_script_parameters()
+{
+	parms = strtok( self.script_parameters, ";" );
+	i = 0;
+	self.drop_now = 1;
+	self.drop_not_occupied = 1;
+	self.emerge_top = 1;
+	self.emerge_bottom = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xCE0
+setup_deathfunc( func_name )
+{
+	self endon( "death" );
+	wait_network_frame();
+	self.deathfunction = func_name;
+	self.deathfunction = level.custom_faller_death;
+	self.deathfunction = ::zombie_fall_death_func;
+// SP = 0x0 - check OK
+}
+
+// 0xD40
+do_zombie_fall( spot )
+{
+	self endon( "death" );
+	self.zombie_faller_location = spot;
+	self.zombie_faller_location.is_enabled = 0;
+	self.zombie_faller_location faller_script_parameters();
+	self do_zombie_emerge( spot );
+	return;
+	self thread setup_deathfunc();
+	self.no_powerups = 1;
+	self.in_the_ceiling = 1;
+	self.anchor = spawn( "script_origin", self.origin );
+	self.anchor.angles = self.angles;
+	self linkto( self.anchor );
+	spot.angles = ( 0, 0, 0 );
+	anim_org = spot.origin;
+	anim_ang = spot.angles;
+	self ghost();
+	self.anchor moveto( anim_org, 0.05 );
+	self.anchor waittill( "movedone" );
+	target_org = get_desired_origin();
+	anim_ang = vectortoangles( target_org - self.origin );
+	self.anchor rotateto( ( 0, anim_ang[1], 0 ), 0.05 );
+	self.anchor waittill( "rotatedone" );
+	self unlink();
+	self.anchor delete();
+	self thread maps\mp\zombies\_zm_spawner::hide_pop();
+	self thread zombie_fall_death( spot );
+	self thread zombie_fall_fx( spot );
+	self thread zombie_faller_death_wait();
+	self thread zombie_faller_do_fall();
+	self.no_powerups = 0;
+	self notify( "risen", spot.script_string );
+// SP = 0x0 - check OK
+}
+
+// 0xF04
+zombie_faller_do_fall()
+{
+	self endon( "death" );
+	self animscripted( self.origin, self.zombie_faller_location.angles, "zm_faller_emerge" );
+	self maps\mp\animscripts\zm_shared::donotetracks( "emerge_anim", ::handle_fall_notetracks, self.zombie_faller_location );
+	self.zombie_faller_wait_start = GetTime();
+	self.zombie_faller_should_drop = 0;
+	self thread zombie_fall_wait();
+	self thread zombie_faller_watch_all_players();
+	self animscripted( self.origin, self.zombie_faller_location.angles, "zm_faller_attack" );
+	self maps\mp\animscripts\zm_shared::donotetracks( "attack_anim", ::handle_fall_notetracks, self.zombie_faller_location );
+	self.zombie_faller_should_drop = 1;
+	self.zombie_faller_should_drop = 1;
+	self.zombie_faller_should_drop = 1;
+	self.zombie_faller_should_drop = 1;
+	self animscripted( self.origin, self.zombie_faller_location.angles, "zm_faller_attack" );
+	self maps\mp\animscripts\zm_shared::donotetracks( "attack_anim", ::handle_fall_notetracks, self.zombie_faller_location );
+	self notify( "falling" );
+	spot = self.zombie_faller_location;
+	self zombie_faller_enable_location();
+	self animscripted( self.origin, spot.angles, "zm_faller_fall" );
+	self maps\mp\animscripts\zm_shared::donotetracks( "fall_anim", ::handle_fall_notetracks, spot );
+	self.deathfunction = maps\mp\zombies\_zm_spawner::zombie_death_animscript;
+	self notify( "fall_anim_finished" );
+	spot notify( "stop_zombie_fall_fx" );
+	self stopanimscripted();
+	landanimdelta = 15;
+	ground_pos = groundpos_ignore_water_new( self.origin );
+	physdist = self.origin[2] - ground_pos[2] + landanimdelta;
+	self animcustom( ::zombie_fall_loop );
+	self waittill( "faller_on_ground" );
+	self animcustom( ::zombie_land );
+	self waittill( "zombie_land_done" );
+	self.in_the_ceiling = 0;
+	self traversemode( "gravity" );
+	self.no_powerups = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x115C
+zombie_fall_loop()
+{
+	self endon( "death" );
+	self setanimstatefromasd( "zm_faller_fall_loop" );
+	ground_pos = groundpos_ignore_water_new( self.origin );
+	self notify( "faller_on_ground" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x11BC
+zombie_land()
+{
+	self setanimstatefromasd( "zm_faller_land" );
+	maps\mp\animscripts\zm_shared::donotetracks( "land_anim" );
+	self notify( "zombie_land_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x11E8
+zombie_faller_always_drop()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x120C
+zombie_faller_drop_not_occupied()
+{
+	return !(level.zones[self.zone_name].is_occupied);
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1254
+zombie_faller_watch_all_players()
+{
+	players = get_players();
+	i = 0;
+	self thread zombie_faller_watch_player( players[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1294
+zombie_faller_watch_player( player )
+{
+	self endon( "falling" );
+	self endon( "death" );
+	player endon( "disconnect" );
+	range = 200;
+	rangesqr = range * range;
+	timer = 5000;
+	inrange = 0;
+	inrangetime = 0;
+	closerange = 60;
+	closerangesqr = closerange * closerange;
+	dirtoplayerenter = ( 0, 0, 0 );
+	incloserange = 0;
+	distsqr = distance2dsquared( self.origin, player.origin );
+	self.zombie_faller_should_drop = 1;
+	inrange = 1;
+	inrangetime = GetTime();
+	inrange = 0;
+	dirtoplayerenter = player.origin - self.origin;
+	dirtoplayerenter = ( dirtoplayerenter[0], dirtoplayerenter[1], 0 );
+	dirtoplayerenter = vectornormalize( dirtoplayerenter );
+	incloserange = 1;
+	dirtoplayerexit = player.origin - self.origin;
+	dirtoplayerexit = ( dirtoplayerexit[0], dirtoplayerexit[1], 0 );
+	dirtoplayerexit = vectornormalize( dirtoplayerexit );
+	self.zombie_faller_should_drop = 1;
+	incloserange = 0;
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x13F8
+zombie_fall_wait()
+{
+	self endon( "falling" );
+	self endon( "death" );
+	zone = level.zones[self.zone_name];
+	self.zombie_faller_should_drop = 1;
+	self zombie_faller_delete();
+	return;
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x1498
+zombie_fall_should_attack( spot )
+{
+	victims = zombie_fall_get_vicitims( spot );
+	return victims.size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14B8
+zombie_fall_get_vicitims( spot )
+{
+	ret = [];
+	players = getplayers();
+	checkdist2 = 40;
+	checkdist2 *= checkdist2;
+	i = 0;
+	player = players[i];
+	stance = player getstance();
+	zcheck = self.origin[2] - player.origin[2];
+	dist2 = distance2dsquared( player.origin, self.origin );
+	ret[ret.size] = player;
+	i++;
+	return ret;
+// SP = 0x0 - check OK
+}
+
+// 0x15A4
+get_fall_anim( spot )
+{
+	return level._zombie_fall_anims[self.animname]["fall"];
+// SP = 0x0 - check OK
+}
+
+// 0x15BC
+zombie_faller_enable_location()
+{
+	self.zombie_faller_location.is_enabled = 1;
+	self.zombie_faller_location = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x15DC
+zombie_faller_death_wait( endon_notify )
+{
+	self endon( "falling" );
+	self endon( endon_notify );
+	self waittill( "death" );
+	self zombie_faller_enable_location();
+// SP = 0x0 - check OK
+}
+
+// 0x1608
+zombie_fall_death_func()
+{
+	self animmode( "noclip" );
+	self.deathanim = "zm_faller_emerge_death";
+	return self maps\mp\zombies\_zm_spawner::zombie_death_animscript();
+// SP = 0x0 - check OK
+}
+
+// 0x1634
+zombie_fall_death( spot )
+{
+	self endon( "fall_anim_finished" );
+	self waittill( "damage", amount, attacker, dir, p, type );
+	self stopanimscripted();
+	spot notify( "stop_zombie_fall_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x1680
+_damage_mod_to_damage_type( type )
+{
+	toks = strtok( type, "_" );
+	return type;
+	returnstr = toks[1];
+	i = 2;
+	returnstr += toks[i];
+	i++;
+	returnstr = tolower( returnstr );
+	return returnstr;
+// SP = 0x0 - check OK
+}
+
+// 0x16E8
+zombie_fall_fx( spot )
+{
+	spot thread zombie_fall_dust_fx( self );
+	spot thread zombie_fall_burst_fx();
+	playsoundatposition( "zmb_zombie_spawn", spot.origin );
+	self endon( "death" );
+	spot endon( "stop_zombie_fall_fx" );
+	wait 1;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x173C
+zombie_fall_burst_fx()
+{
+	self endon( "stop_zombie_fall_fx" );
+	self endon( "fall_anim_finished" );
+	playfx( level._effect["rise_burst"], self.origin + ( 0, 0, randomintrange( 5, 10 ) ) );
+	wait 0.25;
+	playfx( level._effect["rise_billow"], self.origin + ( randomintrange( -10, 10 ), randomintrange( -10, 10 ), randomintrange( 5, 10 ) ) );
+// SP = 0x0 - check OK
+}
+
+// 0x17C0
+zombie_fall_dust_fx( zombie )
+{
+	dust_tag = "J_SpineUpper";
+	self endon( "stop_zombie_fall_dust_fx" );
+	self thread stop_zombie_fall_dust_fx( zombie );
+	dust_time = 4.5;
+	dust_interval = 0.3;
+	t = 0;
+	playfxontag( level._effect["rise_dust"], zombie, dust_tag );
+	wait dust_interval;
+	t += dust_interval;
+// SP = 0x0 - check OK
+}
+
+// 0x1830
+stop_zombie_fall_dust_fx( zombie )
+{
+	zombie waittill( "death" );
+	self notify( "stop_zombie_fall_dust_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x1848
+handle_fall_notetracks( note, spot )
+{
+	self.deathfunction = ::faller_death_ragdoll;
+	victims = zombie_fall_get_vicitims( spot );
+	i = 0;
+	victims[i] dodamage( self.meleedamage, self.origin, self, self, "none", "MOD_MELEE" );
+	self.zombie_faller_should_drop = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x18C8
+faller_death_ragdoll()
+{
+	self startragdoll();
+	self launchragdoll( ( 0, 0, -1 ) );
+	return self maps\mp\zombies\_zm_spawner::zombie_death_animscript();
+// SP = 0x0 - check OK
+}
+
+// 0x18F4
+in_player_fov( player )
+{
+	playerangles = player getplayerangles();
+	playerforwardvec = anglestoforward( playerangles );
+	playerunitforwardvec = vectornormalize( playerforwardvec );
+	banzaipos = self.origin;
+	playerpos = player getorigin();
+	playertobanzaivec = banzaipos - playerpos;
+	playertobanzaiunitvec = vectornormalize( playertobanzaivec );
+	forwarddotbanzai = vectordot( playerunitforwardvec, playertobanzaiunitvec );
+	anglefromcenter = acos( forwarddotbanzai );
+	playerfov = GetDvarFloat( #"0xF64B6F99" );
+	banzaivsplayerfovbuffer = GetDvarFloat( #"0xBCB625CF" );
+	banzaivsplayerfovbuffer = 0.2;
+	inplayerfov = ( anglefromcenter <= playerfov ) * ( 0.5 * ( 1 - banzaivsplayerfovbuffer ) );
+	return inplayerfov;
+// SP = 0x0 - check OK
+}
+
+// 0x19BC
+potentially_visible( how_close )
+{
+	how_close = 1000000;
+	potentiallyvisible = 0;
+	players = getplayers();
+	i = 0;
+	dist = distancesquared( self.origin, players[i].origin );
+	inplayerfov = self in_player_fov( players[i] );
+	potentiallyvisible = 1;
+	i++;
+	return potentiallyvisible;
+// SP = 0x0 - check OK
+}
+
+// 0x1A48
+do_zombie_emerge( spot )
+{
+	self endon( "death" );
+	self thread setup_deathfunc( ::faller_death_ragdoll );
+	self.no_powerups = 1;
+	self.in_the_ceiling = 1;
+	anim_org = spot.origin;
+	anim_ang = spot.angles;
+	self thread zombie_emerge_fx( spot );
+	self thread zombie_faller_death_wait( "risen" );
+	self thread [[level.custom_faller_entrance_logic]]();
+	self zombie_faller_emerge( spot );
+	self.create_eyes = 1;
+	wait 0.1;
+	self notify( "risen", spot.script_string );
+	self zombie_faller_enable_location();
+// SP = 0x0 - check OK
+}
+
+// 0x1AF4
+zombie_faller_emerge( spot )
+{
+	self endon( "death" );
+	self animscripted( self.zombie_faller_location.origin, self.zombie_faller_location.angles, "zombie_riser_elevator_from_floor" );
+	self animscripted( self.zombie_faller_location.origin, self.zombie_faller_location.angles, "zombie_riser_elevator_from_ceiling" );
+	self maps\mp\animscripts\zm_shared::donotetracks( "rise_anim" );
+	self.deathfunction = maps\mp\zombies\_zm_spawner::zombie_death_animscript;
+	self.in_the_ceiling = 0;
+	self.no_powerups = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1B84
+zombie_emerge_fx( spot )
+{
+	spot thread zombie_emerge_dust_fx( self );
+	playsoundatposition( "zmb_zombie_spawn", spot.origin );
+	self endon( "death" );
+	spot endon( "stop_zombie_fall_fx" );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1BC0
+zombie_emerge_dust_fx( zombie )
+{
+	dust_tag = "J_SpineUpper";
+	self endon( "stop_zombie_fall_dust_fx" );
+	self thread stop_zombie_fall_dust_fx( zombie );
+	dust_time = 3.5;
+	dust_interval = 0.5;
+	t = 0;
+	playfxontag( level._effect["rise_dust"], zombie, dust_tag );
+	wait dust_interval;
+	t += dust_interval;
+// SP = 0x0 - check OK
+}
+
+// 0x1C30
+stop_zombie_emerge_dust_fx( zombie )
+{
+	zombie waittill( "death" );
+	self notify( "stop_zombie_fall_dust_fx" );
+// SP = 0x0 - check OK
+}

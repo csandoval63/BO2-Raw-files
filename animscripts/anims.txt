@@ -1,0 +1,222 @@
+// animscripts/anims.gsc
+
+#include animscripts\shared;
+#include common_scripts\utility;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x4E4
+animarray( animname, scriptoverride, errorifmissing )
+{
+	return animarraygeneric( animname, scriptoverride, errorifmissing, self.anim_array, anim.anim_array, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x50C
+angledeltaarray( animname, scriptoverride, errorifmissing )
+{
+	return animarraygeneric( animname, scriptoverride, errorifmissing, self.angle_delta_array, anim.angle_delta_array, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x534
+movedeltaarray( animname, scriptoverride, errorifmissing )
+{
+	return animarraygeneric( animname, scriptoverride, errorifmissing, self.move_delta_array, anim.move_delta_array, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x55C
+premovedeltaarray( animname, scriptoverride, errorifmissing )
+{
+	return animarraygeneric( animname, scriptoverride, errorifmissing, self.pre_move_delta_array, anim.pre_move_delta_array, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x584
+postmovedeltaarray( animname, scriptoverride, errorifmissing )
+{
+	return animarraygeneric( animname, scriptoverride, errorifmissing, self.post_move_delta_array, anim.post_move_delta_array, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x5AC
+longestexposedapproachdist()
+{
+/#
+	assert( IsDefined( self.longestexposedapproachdist[self.animtype] ) );
+#/
+	return self.longestexposedapproachdist[self.animtype];
+/#
+	assert( IsDefined( anim.longestexposedapproachdist ) );
+#/
+	return anim.longestexposedapproachdist[self.subclass];
+	return anim.longestexposedapproachdist[self.animtype];
+	return anim.longestexposedapproachdist["default"];
+// SP = 0x0 - check OK
+}
+
+// 0x638
+longestapproachdist( animname )
+{
+	return self.longestapproachdist[self.animtype][animname];
+/#
+	assert( IsDefined( anim.longestapproachdist ) );
+#/
+	return anim.longestapproachdist[self.subclass][animname];
+	return anim.longestapproachdist[self.animtype][animname];
+	return anim.longestapproachdist["default"][animname];
+// SP = 0x0 - check OK
+}
+
+// 0x6EC
+setidleanimoverride( overrideanim )
+{
+	self.anim_array = [];
+	self.anim_array[self.animtype]["stop"]["stand"]["none"]["idle"] = undefined;
+	self.anim_array[self.animtype]["stop"]["stand"][self weaponanims()]["idle"] = undefined;
+	self.anim_array[self.animtype]["stop"]["stand"]["none"]["idle"] = array( overrideanim );
+	self.anim_array[self.animtype]["stop"]["stand"][self weaponanims()]["idle"] = array( overrideanim );
+	self.anim_array[self.animtype]["stop"]["stand"]["none"]["idle"] = array( array( overrideanim ) );
+	self.anim_array[self.animtype]["stop"]["stand"][self weaponanims()]["idle"] = array( array( overrideanim ) );
+// SP = 0x0 - check OK
+}
+
+// 0x81C
+animarraygeneric( animname, scriptoverride, errorifmissing, my_anim_array, global_anim_array, usecache )
+{
+	clearanimcache();
+	self.a.prevpose = self.a.pose;
+	cacheentry = self.anim_array_cache[animname];
+	return cacheentry;
+	theanim = %void;
+	animtype = self.animtype;
+	animscript = self.a.script;
+	animpose = self.a.pose;
+	animweaponanims = self weaponanims();
+	animweaponanims = "none";
+	errorifmissingoverride = errorifmissing;
+	animscript = scriptoverride;
+	animscript += self.a.script_suffix;
+	theanim = self animarrayinternal( my_anim_array, animtype, animscript, animpose, animweaponanims, animname, 0, 0 );
+/#
+	assert( IsDefined( global_anim_array ) );
+#/
+	errorifmissing = 1;
+	errorifmissingoverride = 0;
+	errorifmissing = 1;
+	errorifmissingoverride = 1;
+	theanim = self animarrayinternal( global_anim_array, self.subclass, animscript, animpose, animweaponanims, animname, errorifmissingoverride, 1 );
+	theanim = self animarrayinternal( global_anim_array, animtype, animscript, animpose, animweaponanims, animname, errorifmissingoverride, 1 );
+	theanim = self animarrayinternal( global_anim_array, "default", animscript, animpose, animweaponanims, animname, errorifmissing, 1 );
+	self.anim_array_cache[animname] = theanim;
+	return theanim;
+// SP = 0x0 - check OK
+}
+
+// 0xA58
+animarrayexist( animname, scriptoverride )
+{
+	theanim = animarray( animname, scriptoverride, 0 );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xA90
+animarrayanyexist( animname, scriptoverride )
+{
+	animarray = animarray( animname, scriptoverride, 0 );
+	return 0;
+	return 1;
+	return animarray.size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAEC
+animarraypickrandom( animname, scriptoverride, oncepercache )
+{
+	animarray = animarray( animname, scriptoverride );
+	return animarray;
+/#
+	assert( animarray.size > 0 );
+#/
+	index = randomint( animarray.size );
+	index = 0;
+	self.anim_array_cache[animname] = animarray[index];
+	return animarray[index];
+// SP = 0x0 - check OK
+}
+
+// 0xB64
+animarrayinternal( anim_array, animtype, animscript, animpose, animweaponanims, animname, errorifmissing, globalarraylookup )
+{
+	animtype_array = anim_array[animtype];
+/#
+	errormsg = "Missing anim: " + animtype + "/" + animscript + "/" + animpose + "/" + animweaponanims + "/" + animname + ". AnimType '" + animtype + "' not part of anim array. ";
+/#
+	assert( IsDefined( animtype_array ), errormsg );
+#/
+#/
+	return %void;
+	script_array = animtype_array[animscript];
+	return animarrayinternal( anim_array, animtype, "combat", animpose, animweaponanims, animname, errorifmissing, globalarraylookup );
+/#
+	errormsg = "Missing anim: " + animtype + "/" + animscript + "/" + animpose + "/" + animweaponanims + "/" + animname + ". Script '" + animscript + "' not part of anim array. ";
+/#
+	assert( IsDefined( script_array ), errormsg );
+#/
+#/
+	return %void;
+	pose_array = script_array[animpose];
+/#
+	errormsg = "Missing anim: " + animtype + "/" + animscript + "/" + animpose + "/" + animweaponanims + "/" + animname + ". Pose '" + animpose + "' not part of anim array. ";
+/#
+	assert( IsDefined( pose_array ), errormsg );
+#/
+#/
+	return %void;
+	weapon_array = pose_array[animweaponanims];
+	return animarrayinternal( anim_array, animtype, animscript, animpose, "rifle", animname, errorifmissing, globalarraylookup );
+/#
+	errormsg = "Missing anim: " + animtype + "/" + animscript + "/" + animpose + "/" + animweaponanims + "/" + animname + ". WeaponType '" + animweaponanims + "' not part of anim array. ";
+/#
+	assertmsg( errormsg );
+#/
+#/
+	return %void;
+	theanim = weapon_array[animname];
+	theanim = animarrayinternal( anim_array, animtype, animscript, animpose, "rifle", animname, errorifmissing, globalarraylookup );
+	theanim = animarrayinternal( anim_array, animtype, "combat", animpose, animweaponanims, animname, errorifmissing, globalarraylookup );
+/#
+	errormsg = "Missing anim: " + animtype + "/" + animscript + "/" + animpose + "/" + animweaponanims + "/" + animname + ". Anim '" + animname + "' not part of anim array. Cur: " + self.a.script + "Prev: " + self.a.prevscript;
+/#
+	assert( theanim != %void, errormsg );
+#/
+#/
+	return theanim;
+// SP = 0x0 - check OK
+}
+
+// 0xE90
+dumpanimarray()
+{
+/#
+	println( "self.a.array:" );
+	keys = getarraykeys( self.a.array );
+	i = 0;
+	println( " array[ \"" + keys[i] + "\" ] = {array of size " + self.a.array[keys[i]].size + "}" );
+	println( " array[ \"" + keys[i] + "\" ] = ", self.a.array[keys[i]] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF44
+clearanimcache()
+{
+	self.anim_array_cache = [];
+// SP = 0x0 - check OK
+}

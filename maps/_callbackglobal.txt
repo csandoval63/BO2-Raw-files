@@ -1,0 +1,783 @@
+// maps/_callbackglobal.gsc
+
+#include maps\_introscreen;
+#include maps\_vehicle;
+#include maps\_laststand;
+#include maps\_weapons;
+#include animscripts\balcony;
+#include maps\_friendlyfire;
+#include maps\_dds;
+#include maps\_damagefeedback;
+#include maps\_utility_code;
+#include maps\_flashgrenades;
+#include maps\_empgrenade;
+#include maps\_load_common;
+#include maps\_music;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x1D40
+init()
+{
+	level.splitscreen = issplitscreen();
+	level.xenon = GetDvar( #"0xE0DDE627" ) == "true";
+	level.ps3 = GetDvar( #"0xC15079F5" ) == "true";
+	level.wiiu = GetDvar( #"0xDE5D2CDD" ) == "true";
+	level.onlinegame = sessionmodeisonlinegame();
+	level.systemlink = sessionmodeissystemlink();
+	level.console = level.wiiu;
+	precachemenu( "briefing" );
+	level.rankedmatch = level.onlinegame;
+	level.profileloggedin = GetDvar( #"0xB03F35F7" ) == "1";
+/#
+	level.rankedmatch = 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1DF8
+setupcallbacks()
+{
+	level.otherplayersspectate = 0;
+	level.spawnplayer = ::spawnplayer;
+	level.spawnclient = ::spawnclient;
+	level.spawnspectator = ::spawnspectator;
+	level.spawnintermission = ::spawnintermission;
+	level.onspawnplayer = ::default_onspawnplayer;
+	level.onpostspawnplayer = ::default_onpostspawnplayer;
+	level.onspawnspectator = ::default_onspawnspectator;
+	level.onspawnintermission = ::default_onspawnintermission;
+	level.onstartgametype = ::blank;
+	level.onplayerconnect = ::blank;
+	level.onplayerdisconnect = ::blank;
+	level.onplayerdamage = ::blank;
+	level.onplayerkilled = ::blank;
+	level.onplayerweaponswap = ::blank;
+	level._callbacks["on_first_player_connect"] = [];
+	level._callbacks["on_player_connect"] = [];
+	level._callbacks["on_player_disconnect"] = [];
+	level._callbacks["on_player_damage"] = [];
+	level._callbacks["on_player_last_stand"] = [];
+	level._callbacks["on_player_killed"] = [];
+	level._callbacks["on_actor_damage"] = [];
+	level._callbacks["on_actor_killed"] = [];
+	level._callbacks["on_vehicle_damage"] = [];
+	level._callbacks["on_save_restored"] = [];
+// SP = 0x0 - check OK
+}
+
+// 0x1F10
+addcallback( event, func )
+{
+/#
+	assert( IsDefined( event ), "Trying to set a callback on an undefined event." );
+#/
+/#
+	assert( IsDefined( level._callbacks[event] ), "Trying to set callback for unknown event '" + event + "'." );
+#/
+	level._callbacks[event] = add_to_array( level._callbacks[event], func, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1F6C
+removecallback( event, func )
+{
+/#
+	assert( IsDefined( event ), "Trying to remove a callback on an undefined event." );
+#/
+/#
+	assert( IsDefined( level._callbacks[event] ), "Trying to remove callback for unknown event '" + event + "'." );
+#/
+	arrayremovevalue( level._callbacks[event], func, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1FC0
+callback( event )
+{
+/#
+	assert( IsDefined( level._callbacks[event] ), "Must init callback array before trying to call it." );
+#/
+	i = 0;
+	callback = level._callbacks[event][i];
+	self thread [[callback]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x201C
+blank( arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10 )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2038
+callback_curvenotify( string, curveid, nodeindex )
+{
+	level notify( string, curveid, nodeindex );
+// SP = 0x0 - check OK
+}
+
+// 0x2050
+callback_startgametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2058
+checkpoint_invulnerability()
+{
+	self endon( "disconnect" );
+	self.checkpoint_invulnerability = 1;
+/#
+	println( "****checkpoint_invulnerability setting player involnerable for 3 sec****" );
+#/
+	wait 3;
+	self.checkpoint_invulnerability = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2084
+callback_saverestored()
+{
+/#
+	println( "****Coop CodeCallback_SaveRestored****" );
+#/
+	players = get_players();
+	level.debug_player = players[0];
+	i = 0;
+	player = players[i];
+	player thread checkpoint_invulnerability();
+	player visionsetnaked( player.savedvisionset, 0.1 );
+	dvarname = "player" + player getentitynumber() + "downs";
+	player.downs = GetDvarInt( dvarname );
+	player setclientdvar( "hud_missionFailed", "0" );
+	i++;
+	level notify( "save_restored" );
+	level callback( "on_save_restored" );
+// SP = 0x0 - check OK
+}
+
+// 0x2154
+player_breadcrumb_reset( position, angles )
+{
+	angles = ( 0, 0, 0 );
+	level.playerprevorigin0 = position;
+	level.playerprevorigin1 = position;
+	level._player_breadcrumbs = [];
+	i = 0;
+	level._player_breadcrumbs[i] = [];
+	j = 0;
+	level._player_breadcrumbs[i][j] = spawnstruct();
+	j++;
+	i++;
+	i = 0;
+	j = 0;
+	level._player_breadcrumbs[i][j].pos = position;
+	level._player_breadcrumbs[i][j].ang = angles;
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x221C
+player_breadcrumb_update()
+{
+	self endon( "disconnect" );
+	right = anglestoright( self.angles ) * 70;
+	level.playerprevorigin0 = self.origin + right;
+	level.playerprevorigin1 = self.origin - right;
+	player_breadcrumb_reset( self.origin, self.angles );
+	num = self getentitynumber();
+	wait 1;
+	dist_squared = distancesquared( self.origin, level.playerprevorigin0 );
+	right = anglestoright( self.angles ) * 70;
+	level.playerprevorigin0 = self.origin + right;
+	level.playerprevorigin1 = self.origin - right;
+	level.playerprevorigin1 = level.playerprevorigin0;
+	level.playerprevorigin0 = self.origin;
+	dist_squared = distancesquared( self.origin, level._player_breadcrumbs[num][0].pos );
+	dropbreadcrumbs = 1;
+	dropbreadcrumbs = 0;
+	i = 2;
+	level._player_breadcrumbs[num][i + 1].pos = level._player_breadcrumbs[num][i].pos;
+	level._player_breadcrumbs[num][i + 1].ang = level._player_breadcrumbs[num][i].ang;
+	i--;
+	level._player_breadcrumbs[num][0].pos = playerphysicstrace( self.origin, self.origin + vector_scale( ( 0, 0, -1 ), 1000 ) );
+	level._player_breadcrumbs[num][0].ang = self.angles;
+// SP = 0x0 - check OK
+}
+
+// 0x23EC
+setplayerspawnpos()
+{
+	players = get_players();
+	player = players[0];
+	spawnpoints = getentarray( "info_player_deathmatch", "classname" );
+	player_breadcrumb_reset( spawnpoints[0].origin, spawnpoints[0].angles );
+	player_breadcrumb_reset( player.origin, player.angles );
+	spawn_pos = level._player_breadcrumbs[0][0].pos;
+	dist_squared = distancesquared( player.origin, spawn_pos );
+	spawn_pos = player.origin + vector_scale( ( 0, 1, 0 ), 30 );
+	spawn_pos = level._player_breadcrumbs[0][1].pos;
+	spawn_angles = vectornormalize( player.origin - spawn_pos );
+	spawn_angles = vectortoangles( spawn_angles );
+	spawn_pos = player.origin;
+	spawn_angles = player.angles;
+	self setorigin( spawn_pos );
+	self setplayerangles( spawn_angles );
+// SP = 0x0 - check OK
+}
+
+// 0x2540
+callback_playerconnect()
+{
+	self thread player_connect();
+	self waittill( "begin" );
+	self reset_clientdvars();
+	waittillframeend;
+	wait 0.1;
+	level notify( "connected", self );
+	self thread maps\_load_common::player_special_death_hint();
+	self thread maps\_empgrenade::monitorempgrenade();
+	self thread maps\_flashgrenades::monitorflash();
+	info_player_spawn = getentarray( "info_player_deathmatch", "classname" );
+	players = get_players( "all" );
+/#
+	println( "2:  Setting player origin to info_player_start " + info_player_spawn[0].origin );
+#/
+	self setorigin( info_player_spawn[0].origin );
+	self setplayerangles( info_player_spawn[0].angles );
+	self thread player_breadcrumb_update();
+/#
+	println( "Callback_PlayerConnect:  Setting player origin near host position " + players[0].origin );
+#/
+	self setplayerspawnpos();
+	self thread player_breadcrumb_update();
+/#
+	println( "Callback_PlayerConnect:  Setting player origin to info_player_start " + info_player_spawn[0].origin );
+#/
+	self setorigin( info_player_spawn[0].origin );
+	self setplayerangles( info_player_spawn[0].angles );
+	self thread player_breadcrumb_update();
+	self.flag = [];
+	self.flags_lock = [];
+	self player_flag_init( "player_has_red_flashing_overlay" );
+	self player_flag_init( "player_is_invulnerable" );
+	self player_flag_init( "loadout_given" );
+	self player_flag_clear( "loadout_given" );
+	waittillframeend;
+	self thread spawnplayer();
+	return;
+/#
+	waittillframeend;
+	self thread spawnplayer();
+#/
+	self setclientdvar( "ui_allow_loadoutchange", "1" );
+	self setclientuivisibilityflag( "hud_visible", 1 );
+	self thread [[level.spawnclient]]();
+	dvarname = "player" + self getentitynumber() + "downs";
+	setdvar( dvarname, self.downs );
+// SP = 0x0 - check OK
+}
+
+// 0x27A4
+reset_clientdvars()
+{
+	self [[level.reset_clientdvars]]();
+	return;
+	self setclientdvars( "compass", "1", "hud_showStance", "1", "cg_cursorHints", "4", "hud_showobjectives", "1", "ammoCounterHide", "0", "miniscoreboardhide", "0", "ui_hud_hardcore", "0", "credits_active", "0", "hud_missionFailed", "0", "cg_cameraUseTagCamera", "1", "cg_drawCrosshair", "1", "r_heroLightScale", "1 1 1", "player_sprintUnlimited", "0", "r_bloomTweaks", "0", "r_exposureTweak", "0" );
+	self resetfov();
+	self allowspectateteam( "allies", 0 );
+	self allowspectateteam( "axis", 0 );
+	self allowspectateteam( "freelook", 0 );
+	self allowspectateteam( "none", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x288C
+callback_playerdisconnect()
+{
+	self callback( "on_player_disconnect" );
+// SP = 0x0 - check OK
+}
+
+// 0x28A4
+callback_playerdamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime )
+{
+/#
+	println( "*Callback_PlayerDamage: checkpoint protection enabled." );
+#/
+	return;
+/#
+	assert( IsDefined( level.cac_armorvest_data ), "level.cac_armorvest_data value is missing. this is required for specialty_armorvest" );
+#/
+	idamage = int( idamage * ( level.cac_armorvest_data * 0.01 ) );
+/#
+	println( "Perk--> Player took less bullet damage due to armorvest" );
+#/
+	idamage = self [[self.overrideplayerdamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+	idamage = self [[level.overrideplayerdamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+/#
+	assert( IsDefined( idamage ), "You must return a value from a damage override function." );
+#/
+	self callback( "on_player_damage" );
+	self notify( "emp_grenaded", eattacker );
+	switch ( sweapon )
+	{
+		case "concussion_grenade_80s_sp":
+		case "concussion_grenade_sp":
+			dist = distance( self.origin, einflictor.origin );
+			scale = 1 - dist / 512;
+			time = 1 + 4 * scale;
+			self shellshock( "concussion_grenade_mp", time );
+			break;
+	}
+	maxhealth = self.maxhealth;
+	self.health += idamage;
+	self.maxhealth = maxhealth;
+	return;
+	dist = distance2d( vpoint, self.origin );
+	dot_product = vectordot( anglestoforward( self.angles ), vdir );
+	idamage = int( idamage * 0.5 );
+/#
+	println( "Exiting - players can't hut each other." );
+#/
+	return;
+/#
+	println( "Exiting - damage type verbotten." );
+#/
+	return;
+	return;
+	return;
+	eattacker thread maps\_damagefeedback::updatedamagefeedback();
+	self maps\_dds::update_player_damage( eattacker );
+	setdvar( "ui_deadquote", "@SCRIPT_MOVING_VEHICLE_DEATH" );
+	idflags |= level.idflags_no_knockback;
+	self finishplayerdamagewrapper( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x2CC8
+finishplayerdamagewrapper( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime )
+{
+	self finishplayerdamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x2D08
+incrgrenadekillcount()
+{
+	return;
+	self.grenadekillcounter = 0;
+	self.grenadekillcounter++;
+	self giveachievement_wrapper( "SP_GEN_FRAGMASTER" );
+	wait 0.25;
+	self.grenadekillcounter--;
+// SP = 0x0 - check OK
+}
+
+// 0x2D5C
+callback_actordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime, bonename )
+{
+	self endon( "death" );
+/#
+	assert( IsDefined( level.cac_bulletdamage_data ), "this var must have value" );
+#/
+	idamage = int( idamage * ( 100 + level.cac_bulletdamage_data ) / 100 );
+/#
+	println( "Perk--> Player bullet did extra damage" );
+#/
+	idamage = self [[self.overrideactordamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime, bonename );
+	idamage = self [[level.overrideactordamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime, bonename );
+	level thread maps\_friendlyfire::friendly_fire_callback( self, idamage, eattacker, smeansofdeath );
+	self thread [[self.playercausedactordamage]]();
+/#
+	assert( IsDefined( idamage ), "You must return a value from a damage override function." );
+#/
+	self callback( "on_actor_damage" );
+	t = GetTime();
+	enable_pain();
+	self._mbs.last_pain_time = t;
+	self thread turret_ignore_me_timer( self._mbs.turret_ignore_time );
+	self._mbs.allow_pain_old = self.allowpain;
+	disable_pain();
+	self.delayeddeath = 0;
+	maxhealth = self.maxhealth;
+	self.health += idamage;
+	self.maxhealth = maxhealth;
+	self animscripts\balcony::balconydamage( idamage, smeansofdeath );
+	eattacker thread maps\_damagefeedback::updatedamagefeedback();
+	self maps\_dds::update_actor_damage( eattacker, smeansofdeath );
+	self.dofiringdeath = 0;
+/#
+	println( "LDS: Dropped scavenger item for entity " + self getentitynumber() );
+#/
+	eattacker = eattacker.driver;
+	level thread maps\_friendlyfire::friendly_fire_callback( self, -1, eattacker, smeansofdeath );
+/#
+	println( "player killed enemy with " + sweapon + " via " + smeansofdeath );
+#/
+	item = self dropscavengeritem( "scavenger_item_sp" );
+	item thread maps\_weapons::scavenger_think();
+	killedsofar = 1 + getpersistentprofilevar( 0, 0 );
+	eattacker giveachievement_wrapper( "SP_GEN_CROSSBOW" );
+	setpersistentprofilevar( 0, killedsofar );
+	eattacker inc_general_stat( "mechanicalkills" );
+	eattacker inc_general_stat( "kills" );
+	eattacker thread incrgrenadekillcount();
+	eattacker inc_general_stat( "explosivekills" );
+	eattacker inc_general_stat( "meleekills" );
+	eattacker notify( "melee_kill" );
+	eattacker notify( "sword_kill" );
+	eattacker notify( "tazer_kill" );
+	eattacker inc_general_stat( "headshots" );
+	eattacker inc_general_stat( "stunkills" );
+	self finishactordamagewrapper( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x3260
+finishactordamagewrapper( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime )
+{
+	self finishactordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, modelindex, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x32A0
+callback_reviveplayer()
+{
+	self endon( "disconnect" );
+	self reviveplayer();
+// SP = 0x0 - check OK
+}
+
+// 0x32B8
+callback_playerlaststand( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+	self endon( "disconnect" );
+	self callback( "on_player_last_stand" );
+	[[maps\_laststand::playerlaststand]]( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+// SP = 0x0 - check OK
+}
+
+// 0x3304
+callback_playerkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+	self thread [[level.onplayerkilled]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+/#
+	debug_player_death( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+#/
+	self.downs++;
+	dvarname = "player" + self getentitynumber() + "downs";
+	setdvar( dvarname, self.downs );
+	self shellshock( level.player_killed_shellshock, 3 );
+	self shellshock( "death", 3 );
+	self playlocalsound( "evt_player_death" );
+	self setmovespeedscale( 1 );
+	self.ignoreme = 0;
+	self notify( "killed_player" );
+	self callback( "on_player_killed" );
+	wait 1;
+	self [[level.overrideplayerkilled]]();
+	players = get_players();
+	i = 0;
+/#
+	println( "Player #" + i + " is dead" );
+#/
+/#
+	println( "Player #" + i + " is alive" );
+#/
+	i++;
+	missionfailed();
+	return;
+/#
+	waittillframeend;
+	self spawn( self.origin, self.angles );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x34B4
+debug_player_death( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+/#
+	println( "^6[[ Player Killed ]]\n" );
+	println( "--eInflictor--" );
+	println( "^6classname: " + einflictor.classname );
+	println( "^6targetname: " + einflictor.targetname );
+	println( "--attacker--" );
+	println( "^6classname: " + attacker.classname );
+	println( "^6targetname: " + attacker.targetname );
+	println( "--iDamage--" );
+	println( "^6" + idamage );
+	println( "--sMeansOfDeath--" );
+	println( "^6" + smeansofdeath );
+	println( "--sWeapon--" );
+	println( "^6" + sweapon );
+	println( "\n^6[[ /Player Killed ]]" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3600
+callback_actorkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime )
+{
+	self [[self.overrideactorkilled]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+	self [[level.overrideactorkilled]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+	self callback( "on_actor_killed" );
+// SP = 0x0 - check OK
+}
+
+// 0x366C
+should_take_hatchet_damage()
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3698
+callback_vehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname )
+{
+	self endon( "death" );
+	idamage = self [[self.overridevehicledamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname );
+	idamage = self [[level.overridevehicledamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname );
+/#
+	assert( IsDefined( idamage ), "You must return a value from a damage override function." );
+#/
+	self callback( "on_vehicle_damage" );
+	self thread [[level.vehicle_immune_notify_func]]( smeansofdeath, sweapon );
+	return;
+	return;
+	return;
+	self.health += idamage;
+	eattacker thread maps\_damagefeedback::updatevechicledamagefeedback( sweapon );
+	eattacker inc_general_stat( "mechanicalkills" );
+	self [[self.callbackvehiclekilled]]( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+	self [[level.callbackvehiclekilled]]( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+	self.last_damage_mod = smeansofdeath;
+	self finishvehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, damagefromunderneath, modelindex, partname, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x38A0
+spawnclient()
+{
+	self endon( "disconnect" );
+	self endon( "end_respawn" );
+/#
+	println( "*************************spawnClient****" );
+#/
+	self unlink();
+	self.spectate_cam delete();
+	self thread [[level.spawnspectator]]();
+	self thread [[level.spawnplayer]]();
+// SP = 0x0 - check OK
+}
+
+// 0x3904
+spawnplayer( spawnonhost )
+{
+	self endon( "disconnect" );
+	self endon( "spawned_spectator" );
+	self notify( "spawned" );
+	self notify( "end_respawn" );
+	synchronize_players();
+	setspawnvariables();
+	self.sessionstate = "playing";
+	self.spectatorclient = -1;
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+	self.statusicon = "";
+	self.maxhealth = self.health;
+	self.shellshocked = 0;
+	self.inwater = 0;
+	self.friendlydamage = undefined;
+	self.hasspawned = 1;
+	self.spawntime = GetTime();
+	self.afk = 0;
+/#
+	println( "*************************spawnPlayer****" );
+#/
+	self detachall();
+	self [[level.custom_spawnplayer]]();
+	return;
+	self [[level.onspawnplayer]]();
+	wait_for_first_player();
+	self spawn( get_players()[0].origin, get_players()[0].angles );
+	self setplayerspawnpos();
+	self spawn( self.origin, self.angles );
+	self [[level.onpostspawnplayer]]();
+	self thread [[level.onplayerweaponswap]]();
+	self maps\_introscreen::introscreen_player_connect();
+	waittillframeend;
+	wait 0.5;
+	self notify( "spawned_player" );
+// SP = 0x0 - check OK
+}
+
+// 0x3A7C
+synchronize_players()
+{
+/#
+	println( "^1****    ERROR: You must call _load::main() if you don't want bad coop things to happen!    ****" );
+	println( "^1****    ERROR: You must call _load::main() if you don't want bad coop things to happen!    ****" );
+	println( "^1****    ERROR: You must call _load::main() if you don't want bad coop things to happen!    ****" );
+#/
+	return;
+	return;
+	return;
+	background = undefined;
+	self openmenu( "briefing" );
+	background = newhudelem();
+	background.x = 0;
+	background.y = 0;
+	background.horzalign = "fullscreen";
+	background.vertalign = "fullscreen";
+	background.foreground = 1;
+	background setshader( "black", 640, 480 );
+	flag_wait( "all_players_connected" );
+	players = get_players( "all" );
+	i = 0;
+	players[i] closemenu();
+	i++;
+/#
+	assert( IsDefined( background ) );
+#/
+	background destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x3BD8
+spawnspectator()
+{
+	self endon( "disconnect" );
+	self endon( "spawned_spectator" );
+	self notify( "spawned" );
+	self notify( "end_respawn" );
+	setspawnvariables();
+	self.sessionstate = "spectator";
+	self.spectatorclient = -1;
+	self.spectatorclient = level.otherplayersspectateclient getentitynumber();
+	self setclientdvars( "cg_thirdPerson", 0 );
+	self setspectatepermissions();
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+	self.statusicon = "";
+	self.maxhealth = self.health;
+	self.shellshocked = 0;
+	self.inwater = 0;
+	self.friendlydamage = undefined;
+	self.hasspawned = 1;
+	self.spawntime = GetTime();
+	self.afk = 0;
+/#
+	println( "*************************spawnSpectator***" );
+#/
+	self detachall();
+	self [[level.onspawnspectator]]();
+	self spawn( self.origin, self.angles );
+	waittillframeend;
+	flag_wait( "all_players_connected" );
+	self notify( "spawned_spectator" );
+// SP = 0x0 - check OK
+}
+
+// 0x3CDC
+setspectatepermissions()
+{
+	self allowspectateteam( "allies", 1 );
+	self allowspectateteam( "axis", 0 );
+	self allowspectateteam( "freelook", 0 );
+	self allowspectateteam( "none", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3D24
+spawnintermission()
+{
+	self notify( "spawned" );
+	self notify( "end_respawn" );
+	self setspawnvariables();
+	self freezecontrols( 0 );
+	self setclientdvar( "cg_everyoneHearsEveryone", "1" );
+	self.sessionstate = "intermission";
+	self.spectatorclient = -1;
+	self.killcamentity = -1;
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+	self.friendlydamage = undefined;
+	[[level.onspawnintermission]]();
+	self setdepthoffield( 0, 128, 512, 4000, 6, 1.8 );
+// SP = 0x0 - check OK
+}
+
+// 0x3DB4
+default_onspawnplayer()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3DBC
+default_onpostspawnplayer()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3DC4
+default_onspawnspectator()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3DCC
+default_onspawnintermission()
+{
+	spawnpointname = "info_intermission";
+	spawnpoints = getentarray( spawnpointname, "classname" );
+/#
+	println( "NO " + spawnpointname + " SPAWNPOINTS IN MAP" );
+#/
+	return;
+	spawnpoint = spawnpoints[randomint( spawnpoints.size )];
+	self spawn( spawnpoint.origin, spawnpoint.angles );
+// SP = 0x0 - check OK
+}
+
+// 0x3E44
+player_connect()
+{
+	waittillframeend;
+	level notify( "connecting", self );
+	b_first_player = is_first_player();
+	level notify( "connecting_first_player", self );
+	self waittill( "spawned_player" );
+	waittillframeend;
+	level.player = self;
+	flag_set( "level.player" );
+	level notify( "first_player_ready", self );
+	self callback( "on_first_player_connect" );
+	self callback( "on_player_connect" );
+// SP = 0x0 - check OK
+}
+
+// 0x3EBC
+is_first_player()
+{
+	players = get_players();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3EF0
+setspawnvariables()
+{
+	resettimeout();
+	self stopshellshock();
+	self stoprumble( "damage_heavy" );
+// SP = 0x0 - check OK
+}

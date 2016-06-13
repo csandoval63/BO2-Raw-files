@@ -1,0 +1,277 @@
+// maps/_patrol.gsc
+
+#include maps\_anim;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x7F8
+patrol_init()
+{
+	level.scr_anim["generic"]["patrol_walk"] = %patrol_bored_patrolwalk;
+	level.scr_anim["generic"]["patrol_walk_twitch"] = %patrol_bored_patrolwalk_twitch;
+	level.scr_anim["generic"]["patrol_stop"] = %patrol_bored_walk_2_bored;
+	level.scr_anim["generic"]["patrol_start"] = %patrol_bored_2_walk;
+	level.scr_anim["generic"]["patrol_turn180"] = %patrol_bored_2_walk_180turn;
+	level.scr_anim["generic"]["patrol_idle_1"] = %patrol_bored_idle;
+	level.scr_anim["generic"]["patrol_idle_2"] = %patrol_bored_idle_smoke;
+	level.scr_anim["generic"]["patrol_idle_3"] = %patrol_bored_idle_cellphone;
+	level.scr_anim["generic"]["patrol_idle_4"] = %patrol_bored_twitch_bug;
+	level.scr_anim["generic"]["patrol_idle_5"] = %patrol_bored_twitch_checkphone;
+	level.scr_anim["generic"]["patrol_idle_6"] = %patrol_bored_twitch_stretch;
+	level.scr_anim["generic"]["patrol_idle_smoke"] = %patrol_bored_idle_smoke;
+	level.scr_anim["generic"]["patrol_idle_checkphone"] = %patrol_bored_twitch_checkphone;
+	level.scr_anim["generic"]["patrol_idle_stretch"] = %patrol_bored_twitch_stretch;
+	level.scr_anim["generic"]["patrol_idle_phone"] = %patrol_bored_idle_cellphone;
+	level._patrol_init = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x934
+patrol( start_target )
+{
+	patrol_init();
+	return;
+	self endon( "death" );
+	self endon( "end_patrol" );
+	level endon( "_stealth_spotted" );
+	level endon( "_stealth_found_corpse" );
+	self thread waittill_combat();
+	self thread waittill_death();
+/#
+	assert( !(IsDefined( self.enemy )) );
+#/
+	self endon( "enemy" );
+	self.goalradius = 32;
+	self allowedstances( "stand" );
+	self.disablearrivals = 1;
+	self.disableexits = 1;
+	self.disableturns = 1;
+	self.allowdeath = 1;
+	self.script_patroller = 1;
+	waittillframeend;
+	walkanim = "patrol_walk";
+	walkanim = self.unique_patrol_walk_anim;
+	self set_run_anim( walkanim, 1 );
+	walkanim = self.patrol_walk_anim;
+	walkanim = self.script_patrol_walk_anim;
+	self set_generic_run_anim( walkanim, 1 );
+	self thread patrol_walk_twitch_loop();
+	get_goal_func = [];
+	get_goal_func[1][1] = ::get_target_ents;
+	get_goal_func[1][0] = ::get_linked_ents;
+	get_goal_func[0][1] = ::get_target_nodes;
+	get_goal_func[0][0] = ::get_linked_nodes;
+	set_goal_func[1] = ::set_goal_ent;
+	set_goal_func[0] = ::set_goal_node;
+	self.target = start_target;
+/#
+	assert( IsDefined( self.script_linkto ), "Patroller with no target or script_linkto defined." );
+#/
+	link_type = 1;
+	ents = self get_target_ents();
+	nodes = self get_target_nodes();
+	currentgoal = random( ents );
+	goal_type = 1;
+	currentgoal = random( nodes );
+	goal_type = 0;
+	link_type = 0;
+	ents = self get_linked_ents();
+	nodes = self get_linked_nodes();
+	currentgoal = random( ents );
+	goal_type = 1;
+	currentgoal = random( nodes );
+	goal_type = 0;
+/#
+	assert( IsDefined( currentgoal ), "Initial goal for patroller is undefined" );
+#/
+	nextgoal = currentgoal;
+	wait 0.05;
+	currentgoal.patrol_claimed = undefined;
+	currentgoal = nextgoal;
+	self notify( "release_node" );
+/#
+	assert( !(IsDefined( currentgoal.patrol_claimed )), "Goal was already claimed" );
+#/
+	currentgoal.patrol_claimed = 1;
+	self.last_patrol_goal = currentgoal;
+	[[set_goal_func[goal_type]]]( currentgoal );
+	self.goalradius = currentgoal.radius;
+	self.goalradius = 32;
+	self waittill( "goal" );
+	currentgoal notify( "trigger", self );
+	stop = "patrol_stop";
+	self anim_generic_custom_animmode( self, "gravity", stop );
+	switch ( currentgoal.script_animation )
+	{
+		case "checkphone":
+			idle = "patrol_idle_" + randomintrange( 1, 6 );
+			self anim_generic( self, idle );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+		case "pause":
+			turn = "patrol_turn180";
+			self anim_generic_custom_animmode( self, "gravity", turn );
+			break;
+		case "phone":
+			anime = "patrol_idle_smoke";
+			self anim_generic( self, anime );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+		case "smoke":
+			anime = "patrol_idle_stretch";
+			self anim_generic( self, anime );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+		case "stretch":
+			anime = "patrol_idle_checkphone";
+			self anim_generic( self, anime );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+		case "turn180":
+			anime = "patrol_idle_phone";
+			self anim_generic( self, anime );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+		default:
+			anime = "patrol_idle_" + currentgoal.script_animation;
+			self anim_generic( self, anime );
+			start = "patrol_start";
+			self anim_generic_custom_animmode( self, "gravity", start );
+			break;
+	}
+	currentgoals = currentgoal [[get_goal_func[goal_type][link_type]]]();
+	self notify( "reached_path_end" );
+	release_claimed_node();
+	self notify( "patroller_deleted_on_path_end" );
+	self delete();
+	nextgoal = random( currentgoals );
+// SP = 0x0 - check OK
+}
+
+// 0xE74
+patrol_walk_twitch_loop()
+{
+	self endon( "death" );
+	self endon( "enemy" );
+	self endon( "end_patrol" );
+	level endon( "_stealth_spotted" );
+	level endon( "_stealth_found_corpse" );
+	self notify( "patrol_walk_twitch_loop" );
+	self endon( "patrol_walk_twitch_loop" );
+	return;
+	wait randomfloatrange( 8, 20 );
+	walkanim = "patrol_walk_twitch";
+	walkanim = self.patrol_walk_twitch;
+	self set_generic_run_anim( walkanim, 1 );
+	length = getanimlength( getanim_generic( walkanim ) );
+	wait length;
+	walkanim = "patrol_walk";
+	walkanim = self.unique_patrol_walk_anim;
+	self set_run_anim( walkanim, 1 );
+	walkanim = self.patrol_walk_anim;
+	walkanim = self.script_patrol_walk_anim;
+	self set_generic_run_anim( walkanim, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xF70
+waittill_combat_wait()
+{
+	self endon( "end_patrol" );
+	level endon( "_stealth_spotted" );
+	level endon( "_stealth_found_corpse" );
+	self waittill( "enemy" );
+// SP = 0x0 - check OK
+}
+
+// 0xF90
+waittill_death()
+{
+	self waittill( "death" );
+	return;
+	release_claimed_node();
+// SP = 0x0 - check OK
+}
+
+// 0xFAC
+release_claimed_node()
+{
+	self notify( "release_node" );
+	return;
+	self.last_patrol_goal.patrol_claimed = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xFCC
+waittill_combat()
+{
+	self endon( "death" );
+/#
+	assert( !(IsDefined( self.enemy )) );
+#/
+	waittill_combat_wait();
+	self clear_run_anim();
+	self allowedstances( "stand", "crouch", "prone" );
+	self.disablearrivals = 0;
+	self.disableexits = 0;
+	self.disableturns = 0;
+	self stopanimscripted();
+	self notify( "stop_animmode" );
+	self.allowdeath = 0;
+	return;
+	self notify( "release_node" );
+	return;
+	self.last_patrol_goal.patrol_claimed = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1060
+get_target_ents()
+{
+	array = [];
+	array = getentarray( self.target, "targetname" );
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x108C
+get_target_nodes()
+{
+	array = [];
+	array = getnodearray( self.target, "targetname" );
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x10B8
+get_linked_nodes()
+{
+	array = [];
+	linknames = strtok( self.script_linkto, " " );
+	i = 0;
+	ent = getnode( linknames[i], "script_linkname" );
+	array[array.size] = ent;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1120
+showclaimed( goal )
+{
+	self endon( "release_node" );
+/#
+	entnum = self getentnum();
+	print3d( goal.origin, entnum, ( 1, 1, 0 ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}

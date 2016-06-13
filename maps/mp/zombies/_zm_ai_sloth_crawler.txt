@@ -1,0 +1,279 @@
+// maps/mp/zombies/_zm_ai_sloth_crawler.gsc
+
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\animscripts\zm_run;
+#include maps\mp\zombies\_zm_ai_sloth;
+#include maps\mp\zombies\_zm_ai_sloth_utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xB78
+crawler_condition()
+{
+	zombies = get_round_enemy_array();
+	i = 0;
+	zombie = zombies[i];
+	dist = distancesquared( self.origin, zombie.origin );
+	self.crawler = zombie;
+	self.crawler thread [[level.sloth.custom_crawler_pickup_func]]();
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xC0C
+crawler_action()
+{
+	self endon( "death" );
+	self endon( "stop_action" );
+	self maps\mp\zombies\_zm_ai_sloth::common_context_action();
+	self thread watch_sloth_on_exit_side();
+	self thread watch_sloth_on_same_side();
+	self thread crawler_watch_death();
+	self.release_crawler = 0;
+	anim_id = self getanimfromasd( "zm_sloth_pickup_crawler", 0 );
+	sloth_goal = getstartorigin( self.crawler.origin, self.crawler.angles, anim_id );
+	sloth_offset = distance( sloth_goal, self.crawler.origin );
+	wait 0.1;
+	vec_forward = vectornormalize( anglestoforward( self.crawler.angles ) );
+	start_pos = self.crawler.origin - vec_forward * sloth_offset;
+	raised_start_pos = ( start_pos[0], start_pos[1], start_pos[2] + sloth_offset );
+	ground_pos = groundpos( raised_start_pos );
+	height_check = abs( self.crawler.origin[2] - ground_pos[2] );
+	self setanimstatefromasd( "zm_player_idle" );
+	self maps\mp\animscripts\zm_run::needsupdate();
+	self setgoalpos( start_pos );
+	self.context_done = 1;
+	return;
+	dist = distancesquared( self.origin, start_pos );
+	z_dist = abs( self.origin[2] - start_pos[2] );
+	wait 0.1;
+	self orientmode( "face angle", self.crawler.angles[1] );
+	wait 0.25;
+	self.crawler.is_inert = 1;
+	self.crawler.ignoreall = 1;
+	self.crawler notify( "stop_find_flesh" );
+	self.crawler notify( "zombie_acquire_enemy" );
+	self.anchor.origin = self.crawler.origin;
+	self.anchor.angles = self.crawler.angles;
+	sloth_pickup = self append_hunched( "zm_sloth_pickup_crawler" );
+	crawler_pickup = self append_hunched( "zm_crawler_pickup_by_sloth" );
+	self animscripted( self.anchor.origin, self.anchor.angles, sloth_pickup );
+	self.crawler animscripted( self.anchor.origin, self.anchor.angles, crawler_pickup );
+	maps\mp\animscripts\zm_shared::donotetracks( "sloth_pickup_crawler_anim" );
+	self.carrying_crawler = 1;
+	self.crawler.guts_explosion = 1;
+	self.pre_traverse = ::crawler_pre_traverse;
+	self.post_traverse = ::crawler_post_traverse;
+	self.crawler notsolid();
+	self.crawler linkto( self, "tag_weapon_right" );
+	self.ignore_common_run = 1;
+	self set_zombie_run_cycle( "walk_crawlerhold" );
+	self.locomotion = "walk_crawlerhold";
+	self.setanimstatefromspeed = ::slothanimstatefromspeed;
+	self.crawler_end = GetTime() + 5000;
+	self.crawler.actor_damage_func = ::crawler_damage_func;
+	self.sloth_damage_func = ::crawler_damage_func;
+	roam = array_randomize( level.roam_points );
+	roam_index = 0;
+	wait 0.1;
+	dist = distancesquared( self.origin, self.candy_player.origin );
+	self.check_turn = 1;
+	self setgoalpos( self.origin );
+	sloth_idle = self append_hunched( "zm_sloth_crawlerhold_idle" );
+	crawler_idle = self append_hunched( "zm_crawler_crawlerhold_idle" );
+	self animscripted( self.origin, self.angles, sloth_idle );
+	self.crawler animscripted( self.origin, self.angles, crawler_idle );
+	self stopanimscripted();
+	self.crawler stopanimscripted();
+	dist = distancesquared( self.origin, roam[roam_index].origin );
+	roam_index++;
+	roam_index = 0;
+	self maps\mp\zombies\_zm_ai_sloth::sloth_check_turn( roam[roam_index].origin );
+	self setgoalpos( roam[roam_index].origin );
+	self.check_turn = 0;
+	self maps\mp\zombies\_zm_ai_sloth::sloth_check_turn( self.candy_player.origin, -0.965 );
+	self setgoalpos( self.candy_player.origin );
+	self crawler_update_locomotion();
+	wait 0.1;
+	self.setanimstatefromspeed = undefined;
+	self.crawler unlink();
+	sloth_putdown = self append_hunched( "zm_sloth_putdown_crawler" );
+	crawler_putdown = self append_hunched( "zm_crawler_putdown_by_sloth" );
+	self animscripted( self.origin, self.angles, sloth_putdown );
+	self.crawler animscripted( self.origin, self.angles, crawler_putdown );
+	maps\mp\animscripts\zm_shared::donotetracks( "sloth_putdown_crawler_anim" );
+	self.carrying_crawler = 0;
+	self.crawler.deathfunction = ::crawler_death;
+	sloth_kill = self append_hunched( "zm_sloth_kill_crawler_stomp" );
+	crawler_kill = self append_hunched( "zm_crawler_slothkill_stomp" );
+	self notify( "stop_crawler_watch" );
+	self animscripted( self.origin, self.angles, sloth_kill );
+	self.crawler animscripted( self.origin, self.angles, crawler_kill );
+	maps\mp\animscripts\zm_shared::donotetracks( "sloth_kill_crawler_anim" );
+	self.crawler dodamage( self.crawler.health * 10, self.crawler.origin );
+	self.crawler playsound( "zmb_ai_sloth_attack_impact" );
+	self.sloth_damage_func = undefined;
+	self maps\mp\zombies\_zm_ai_sloth::sloth_set_traverse_funcs();
+	self.crawler = undefined;
+	self.context_done = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1270
+watch_sloth_on_exit_side()
+{
+	self endon( "death" );
+	return;
+	self.on_exit_side = 0;
+	player = self.candy_player;
+	name = player.current_ghost_room_name;
+	room = level.ghost_rooms[name];
+	self.on_exit_side = 1;
+	self.on_exit_side = 1;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x1334
+watch_sloth_on_same_side()
+{
+	self endon( "death" );
+	return;
+	self.on_same_side = 0;
+	player = self.candy_player;
+	self.on_same_side = 1;
+	self.on_same_side = 1;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x13B8
+sloth_move_to_same_side()
+{
+	self endon( "death" );
+	return 0;
+	player = self.candy_player;
+	return 0;
+	return 0;
+	self maps\mp\zombies\_zm_ai_sloth::action_navigate_mansion( level.courtyard_depart, level.courtyard_arrive );
+	self maps\mp\zombies\_zm_ai_sloth::action_navigate_mansion( level.maze_depart, level.maze_arrive );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1460
+sloth_is_same_zone( player )
+{
+	zone_sloth = self get_current_zone();
+	zone_player = player get_current_zone();
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x14A4
+append_hunched( asd_name )
+{
+	return asd_name + "_hunched";
+	return asd_name;
+// SP = 0x0 - check OK
+}
+
+// 0x14C0
+crawler_update_locomotion()
+{
+	self set_zombie_run_cycle( "walk_crawlerhold_hunched" );
+	self.locomotion = "walk_crawlerhold_hunched";
+	self set_zombie_run_cycle( "walk_crawlerhold" );
+	self.locomotion = "walk_crawlerhold";
+// SP = 0x0 - check OK
+}
+
+// 0x1520
+crawler_watch_death()
+{
+	self endon( "stop_crawler_watch" );
+	self.crawler waittill( "death" );
+	self stop_action();
+/#
+	sloth_print( "crawler died" );
+#/
+	self.crawler unlink();
+	self.setanimstatefromspeed = undefined;
+	self.sloth_damage_func = undefined;
+	self maps\mp\zombies\_zm_ai_sloth::sloth_set_traverse_funcs();
+	self.crawler = undefined;
+	self.context_done = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1588
+crawler_pre_traverse()
+{
+	sloth_sling = self append_hunched( "zm_sloth_crawlerhold_sling" );
+	crawler_sling = self append_hunched( "zm_crawler_sloth_crawlerhold_sling" );
+	self setanimstatefromasd( sloth_sling );
+	self.crawler setanimstatefromasd( crawler_sling );
+	self maps\mp\animscripts\zm_shared::donotetracks( "sloth_crawlerhold_sling_anim" );
+	self.crawler thread crawler_traverse_idle();
+// SP = 0x0 - check OK
+}
+
+// 0x15F0
+crawler_traverse_idle()
+{
+	self endon( "death" );
+	self endon( "stop_traverse_idle" );
+	self setanimstatefromasd( "zm_crawler_sloth_crawlerhold_slung_idle" );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x1624
+crawler_post_traverse()
+{
+	self.crawler notify( "stop_traverse_idle" );
+	sloth_unsling = self append_hunched( "zm_sloth_crawlerhold_unsling" );
+	crawler_unsling = self append_hunched( "zm_crawler_sloth_crawlerhold_unsling" );
+	self setanimstatefromasd( sloth_unsling );
+	self.crawler setanimstatefromasd( crawler_unsling );
+	self maps\mp\animscripts\zm_shared::donotetracks( "sloth_crawlerhold_unsling_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x1688
+crawler_death()
+{
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1690
+crawler_damage_func( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
+{
+	level.sloth.release_crawler = 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x16BC
+is_crawler_alive()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x16E0
+slothanimstatefromspeed( animstate, substate )
+{
+	crawler_walk = "zm_crawler_crawlerhold_walk";
+	crawler_walk += "_hunched";
+	self.crawler setanimstatefromasd( crawler_walk );
+// SP = 0x0 - check OK
+}

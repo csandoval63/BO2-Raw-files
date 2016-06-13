@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_alcatraz_golden_gate_jump.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x100
+main()
+{
+	dosimpletraverse( "golden_gate_jump_up" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,799 @@
+// maps/mp/gametypes/_class.gsc
+
+#include maps\mp\_challenges;
+#include maps\mp\gametypes\_dev;
+#include maps\mp\teams\_teams;
+#include maps\mp\gametypes\_class;
+#include maps\mp\killstreaks\_killstreak_weapons;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\gametypes\_tweakables;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x1C00
+init()
+{
+	level.classmap["class_smg"] = "CLASS_SMG";
+	level.classmap["class_cqb"] = "CLASS_CQB";
+	level.classmap["class_assault"] = "CLASS_ASSAULT";
+	level.classmap["class_lmg"] = "CLASS_LMG";
+	level.classmap["class_sniper"] = "CLASS_SNIPER";
+	level.classmap["custom0"] = "CLASS_CUSTOM1";
+	level.classmap["custom1"] = "CLASS_CUSTOM2";
+	level.classmap["custom2"] = "CLASS_CUSTOM3";
+	level.classmap["custom3"] = "CLASS_CUSTOM4";
+	level.classmap["custom4"] = "CLASS_CUSTOM5";
+	level.classmap["custom5"] = "CLASS_CUSTOM6";
+	level.classmap["custom6"] = "CLASS_CUSTOM7";
+	level.classmap["custom7"] = "CLASS_CUSTOM8";
+	level.classmap["custom8"] = "CLASS_CUSTOM9";
+	level.classmap["custom9"] = "CLASS_CUSTOM10";
+	level.maxkillstreaks = 4;
+	level.maxspecialties = 6;
+	level.maxbonuscards = 3;
+	level.maxallocation = getgametypesetting( "maxAllocation" );
+	level.loadoutkillstreaksenabled = getgametypesetting( "loadoutKillstreaksEnabled" );
+	level.prestigenumber = 5;
+	level.defaultclass = "CLASS_ASSAULT";
+	level.weapons["frag"] = "frag_grenade_mp";
+	level.weapons["frag"] = "";
+	level.weapons["smoke"] = "smoke_grenade_mp";
+	level.weapons["smoke"] = "";
+	level.weapons["flash"] = "flash_grenade_mp";
+	level.weapons["flash"] = "";
+	level.weapons["concussion"] = "concussion_grenade_mp";
+	level.weapons["satchel_charge"] = "satchel_charge_mp";
+	level.weapons["satchel_charge"] = "";
+	level.weapons["betty"] = "mine_bouncing_betty_mp";
+	level.weapons["betty"] = "";
+	level.weapons["rpg"] = "rpg_mp";
+	level.weapons["rpg"] = "";
+	create_class_exclusion_list();
+	cac_init();
+	load_default_loadout( "CLASS_SMG", 10 );
+	load_default_loadout( "CLASS_CQB", 11 );
+	load_default_loadout( "CLASS_ASSAULT", 12 );
+	load_default_loadout( "CLASS_LMG", 13 );
+	load_default_loadout( "CLASS_SNIPER", 14 );
+	level.primary_weapon_array = [];
+	level.side_arm_array = [];
+	level.grenade_array = [];
+	level.inventory_array = [];
+	max_weapon_num = 99;
+	i = 0;
+	weapon_type = level.tbl_weaponids[i]["group"];
+	weapon = level.tbl_weaponids[i]["reference"];
+	attachment = level.tbl_weaponids[i]["attachment"];
+	weapon_class_register( weapon + "_mp", weapon_type );
+	attachment_tokens = strtok( attachment, " " );
+	weapon_class_register( weapon + "_" + attachment + "_mp", weapon_type );
+	k = 0;
+	weapon_class_register( weapon + "_" + attachment_tokens[k] + "_mp", weapon_type );
+	k++;
+	i++;
+	precacheshader( "waypoint_second_chance" );
+	level thread onplayerconnecting();
+// SP = 0x0 - check OK
+}
+
+// 0x2020
+create_class_exclusion_list()
+{
+	currentdvar = 0;
+	level.itemexclusions = [];
+	level.itemexclusions[currentdvar] = GetDvarInt( #"0x32DF55CC" + currentdvar );
+	currentdvar++;
+	level.attachmentexclusions = [];
+	currentdvar = 0;
+	level.attachmentexclusions[currentdvar] = GetDvar( #"0x7F6F03E6" + currentdvar );
+	currentdvar++;
+// SP = 0x0 - check OK
+}
+
+// 0x2094
+is_item_excluded( itemindex )
+{
+	return 0;
+	numexclusions = level.itemexclusions.size;
+	exclusionindex = 0;
+	return 1;
+	exclusionindex++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x20D8
+is_attachment_excluded( attachment )
+{
+	numexclusions = level.attachmentexclusions.size;
+	exclusionindex = 0;
+	return 1;
+	exclusionindex++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2114
+set_statstable_id()
+{
+	level.statstableid = tablelookupfindcoreasset( "mp/statsTable.csv" );
+// SP = 0x0 - check OK
+}
+
+// 0x2134
+get_item_count( itemreference )
+{
+	set_statstable_id();
+	itemcount = int( tablelookup( level.statstableid, 4, itemreference, 5 ) );
+	itemcount = 1;
+	return itemcount;
+// SP = 0x0 - check OK
+}
+
+// 0x2178
+getdefaultclassslotwithexclusions( classname, slotname )
+{
+	itemreference = getdefaultclassslot( classname, slotname );
+	set_statstable_id();
+	itemindex = int( tablelookup( level.statstableid, 4, itemreference, 0 ) );
+	itemreference = tablelookup( level.statstableid, 0, 0, 4 );
+	return itemreference;
+// SP = 0x0 - check OK
+}
+
+// 0x21E4
+load_default_loadout( class, classnum )
+{
+	level.classtoclassnum[class] = classnum;
+// SP = 0x0 - check OK
+}
+
+// 0x21FC
+weapon_class_register( weapon, weapon_type )
+{
+	level.primary_weapon_array[weapon] = 1;
+	level.side_arm_array[weapon] = 1;
+	level.grenade_array[weapon] = 1;
+	level.inventory_array[weapon] = 1;
+	level.inventory_array[weapon] = 1;
+/#
+	assert( 0, "Weapon group info is missing from statsTable for: " + weapon_type );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x22A4
+cac_init()
+{
+	level.tbl_weaponids = [];
+	set_statstable_id();
+	i = 0;
+	itemrow = tablelookuprownum( level.statstableid, 0, i );
+	group_s = tablelookupcolumnforrow( level.statstableid, itemrow, 2 );
+	reference_s = tablelookupcolumnforrow( level.statstableid, itemrow, 4 );
+	level.tbl_weaponids[i]["reference"] = reference_s;
+	level.tbl_weaponids[i]["group"] = group_s;
+	level.tbl_weaponids[i]["count"] = int( tablelookupcolumnforrow( level.statstableid, itemrow, 5 ) );
+	level.tbl_weaponids[i]["attachment"] = tablelookupcolumnforrow( level.statstableid, itemrow, 8 );
+	i++;
+	level.perknames = [];
+	i = 0;
+	itemrow = tablelookuprownum( level.statstableid, 0, i );
+	group_s = tablelookupcolumnforrow( level.statstableid, itemrow, 2 );
+	reference_s = tablelookupcolumnforrow( level.statstableid, itemrow, 4 );
+	perkicon = tablelookupcolumnforrow( level.statstableid, itemrow, 6 );
+	perkname = tablelookupistring( level.statstableid, 0, i, 3 );
+	precachestring( perkname );
+	precacheshader( perkicon );
+	level.perknames[perkicon] = perkname;
+	i++;
+	level.killstreaknames = [];
+	level.killstreakicons = [];
+	level.killstreakindices = [];
+	i = 0;
+	itemrow = tablelookuprownum( level.statstableid, 0, i );
+	group_s = tablelookupcolumnforrow( level.statstableid, itemrow, 2 );
+	reference_s = tablelookupcolumnforrow( level.statstableid, itemrow, 4 );
+	level.tbl_killstreakdata[i] = reference_s;
+	level.killstreakindices[reference_s] = i;
+	icon = tablelookupcolumnforrow( level.statstableid, itemrow, 6 );
+	name = tablelookupistring( level.statstableid, 0, i, 3 );
+	precachestring( name );
+	level.killstreaknames[reference_s] = name;
+	level.killstreakicons[reference_s] = icon;
+	level.killstreakindices[reference_s] = i;
+	precacheshader( icon );
+	precacheshader( icon + "_drop" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x254C
+getclasschoice( response )
+{
+/#
+	assert( IsDefined( level.classmap[response] ) );
+#/
+	return level.classmap[response];
+// SP = 0x0 - check OK
+}
+
+// 0x2574
+getloadoutitemfromddlstats( customclassnum, loadoutslot )
+{
+	itemindex = self getloadoutitem( customclassnum, loadoutslot );
+	return 0;
+	return itemindex;
+// SP = 0x0 - check OK
+}
+
+// 0x25B4
+getattachmentstring( weaponnum, attachmentnum )
+{
+	attachmentstring = getitemattachment( weaponnum, attachmentnum );
+	attachmentstring += "_";
+	attachmentstring = "";
+	return attachmentstring;
+// SP = 0x0 - check OK
+}
+
+// 0x2600
+getattachmentsdisabled()
+{
+	return 0;
+	return level.attachmentsdisabled;
+// SP = 0x0 - check OK
+}
+
+// 0x2618
+getkillstreakindex( class, killstreaknum )
+{
+	killstreaknum++;
+	killstreakstring = "killstreak" + killstreaknum;
+	return GetDvarInt( #"0xE1D3321F" + killstreakstring );
+	return self getloadoutitem( class, killstreakstring );
+// SP = 0x0 - check OK
+}
+
+// 0x2660
+givekillstreaks( classnum )
+{
+	self.killstreak = [];
+	return;
+	sortedkillstreaks = [];
+	currentkillstreak = 0;
+	killstreaknum = 0;
+	killstreakindex = getkillstreakindex( classnum, killstreaknum );
+/#
+	assert( IsDefined( level.tbl_killstreakdata[killstreakindex] ), "KillStreak #:" + killstreakindex + "'s data is undefined" );
+#/
+	self.killstreak[currentkillstreak] = level.tbl_killstreakdata[killstreakindex];
+	killstreaktype = maps\mp\killstreaks\_killstreaks::getkillstreakbymenuname( self.killstreak[currentkillstreak] );
+	weapon = maps\mp\killstreaks\_killstreaks::getkillstreakweapon( killstreaktype );
+	self giveweapon( weapon );
+	self.pers["held_killstreak_ammo_count"][weapon] = 0;
+	self.pers["held_killstreak_clip_count"][weapon] = 0;
+	self setweaponammoclip( weapon, self.pers["held_killstreak_clip_count"][weapon] );
+	self setweaponammostock( weapon, self.pers["held_killstreak_ammo_count"][weapon] - self.pers["held_killstreak_clip_count"][weapon] );
+	self maps\mp\gametypes\_class::setweaponammooverall( weapon, 0 );
+	quantity = self.pers["killstreak_quantity"][weapon];
+	quantity = 0;
+	self setweaponammoclip( weapon, quantity );
+	sortdata = spawnstruct();
+	sortdata.cost = level.killstreaks[killstreaktype].momentumcost;
+	sortdata.weapon = weapon;
+	sortindex = 0;
+	sortindex = 0;
+	sortindex++;
+	i = sortedkillstreaks.size;
+	sortedkillstreaks[i] = sortedkillstreaks[i - 1];
+	i--;
+	sortedkillstreaks[sortindex] = sortdata;
+	currentkillstreak++;
+	killstreaknum++;
+	actionslotorder = [];
+	actionslotorder[0] = 4;
+	actionslotorder[1] = 2;
+	actionslotorder[2] = 1;
+	sortindex = 0;
+	self setactionslot( actionslotorder[sortindex], "weapon", sortedkillstreaks[sortindex].weapon );
+	sortindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x2920
+is_warlord_perk( itemindex )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2944
+isperkgroup( perkname )
+{
+	return isstring( perkname );
+// SP = 0x0 - check OK
+}
+
+// 0x2960
+logclasschoice( class, primaryweapon, specialtype, perks )
+{
+	return;
+	self logstring( "choseclass: " + class + " weapon: " + primaryweapon + " special: " + specialtype );
+	i = 0;
+	self logstring( "perk" + i + ": " + perks[i] );
+	i++;
+	self.lastclass = class;
+// SP = 0x0 - check OK
+}
+
+// 0x29D4
+reset_specialty_slots( class_num )
+{
+	self.specialty = [];
+// SP = 0x0 - check OK
+}
+
+// 0x29E4
+initstaticweaponstime()
+{
+	self.staticweaponsstarttime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x29F0
+initweaponattachments( weaponname )
+{
+	self.currentweaponstarttime = GetTime();
+	self.currentweapon = weaponname;
+// SP = 0x0 - check OK
+}
+
+// 0x2A08
+isequipmentallowed( equipment )
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2A44
+isleagueitemrestricted( item )
+{
+	return isitemrestricted( item );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2A64
+giveloadoutlevelspecific( team, class )
+{
+	pixbeginevent( "giveLoadoutLevelSpecific" );
+	self [[level.givecustomcharacters]]();
+	self [[level.givecustomloadout]]();
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x2AA8
+removeduplicateattachments( weapon )
+{
+	return undefined;
+	attachments = strtok( weapon, "+" );
+	attachmentindex = 1;
+	attachmentindex2 = attachmentindex + 1;
+	attachments[attachmentindex2] = "none";
+	attachmentindex2++;
+	attachmentindex++;
+	uniqueattachmentsweapon = attachments[0];
+	attachmentindex = 1;
+	uniqueattachmentsweapon = uniqueattachmentsweapon + "+" + attachments[attachmentindex];
+	attachmentindex++;
+	return uniqueattachmentsweapon;
+// SP = 0x0 - check OK
+}
+
+// 0x2B50
+giveloadout( team, class )
+{
+	pixbeginevent( "giveLoadout" );
+	self takeallweapons();
+	primaryindex = 0;
+	self.specialty = [];
+	self.killstreak = [];
+	primaryweapon = undefined;
+	self notify( "give_map" );
+	class_num_for_killstreaks = 0;
+	primaryweaponoptions = 0;
+	secondaryweaponoptions = 0;
+	playerrenderoptions = 0;
+	primarygrenadecount = 0;
+	iscustomclass = 0;
+	pixbeginevent( "custom class" );
+	class_num = int( class[class.size - 1] ) - 1;
+	class_num = 9;
+	self.class_num = class_num;
+	self reset_specialty_slots( class_num );
+	playerrenderoptions = self calcplayeroptions( class_num );
+	class_num_for_killstreaks = class_num;
+	iscustomclass = 1;
+	pixendevent();
+	pixbeginevent( "default class" );
+/#
+	assert( IsDefined( self.pers["class"] ), "Player during spawn and loadout got no class!" );
+#/
+	class_num = level.classtoclassnum[class];
+	self.class_num = class_num;
+	pixendevent();
+	knifeweaponoptions = self calcweaponoptions( class_num, 2 );
+	self giveweapon( "knife_mp", 0, knifeweaponoptions );
+	self.specialty = self getloadoutperks( class_num );
+	i = 0;
+	arrayremoveindex( self.specialty, i );
+	i--;
+	i++;
+	self register_perks();
+	self setactionslot( 3, "altMode" );
+	self setactionslot( 4, "" );
+	givekillstreaks( class_num_for_killstreaks );
+	spawnweapon = "";
+	initialweaponcount = 0;
+	weapon = self.pers["weapon"];
+	weapon = self getloadoutweapon( class_num, "primary" );
+	weapon = removeduplicateattachments( weapon );
+	weapon = "weapon_null_mp";
+	sidearm = self getloadoutweapon( class_num, "secondary" );
+	sidearm = removeduplicateattachments( sidearm );
+	sidearm = "weapon_null_mp";
+	self.primaryweaponkill = 0;
+	self.secondaryweaponkill = 0;
+	self.primaryloadoutweapon = weapon;
+	self.primaryloadoutaltweapon = weaponaltweaponname( weapon );
+	self.secondaryloadoutweapon = sidearm;
+	self.secondaryloadoutaltweapon = weaponaltweaponname( sidearm );
+	self.primaryloadoutweapon = weapon;
+	self.secondaryloadoutweapon = sidearm;
+	secondaryweaponoptions = self calcweaponoptions( class_num, 1 );
+	primaryweapon = weapon;
+	primaryweaponoptions = self calcweaponoptions( class_num, 0 );
+	self giveweapon( sidearm, 0, secondaryweaponoptions );
+	self givemaxammo( sidearm );
+	spawnweapon = sidearm;
+	initialweaponcount++;
+	primaryweapon = weapon;
+	primarytokens = strtok( primaryweapon, "_" );
+	self.pers["primaryWeapon"] = primarytokens[0];
+/#
+	println( "^5GiveWeapon( " + weapon + " ) -- weapon" );
+#/
+	self givemaxammo( primaryweapon );
+	self giveweapon( primaryweapon, 0, primaryweaponoptions );
+	spawnweapon = primaryweapon;
+	initialweaponcount++;
+	self giveweapon( "knife_held_mp", 0, knifeweaponoptions );
+	spawnweapon = "knife_held_mp";
+	self.spawnweapon = self.pers["spawnWeapon"];
+	spawnweapon = self.spawnweapon;
+	self.pers["changed_class"] = 0;
+/#
+	assert( spawnweapon != "" );
+#/
+	self.spawnweapon = spawnweapon;
+	self.pers["spawnWeapon"] = self.spawnweapon;
+	self setspawnweapon( spawnweapon );
+	grenadetypeprimary = self getloadoutitemref( class_num, "primarygrenade" );
+	grenadetypeprimary = "";
+	grenadetypesecondary = self getloadoutitemref( class_num, "specialgrenade" );
+	grenadetypesecondary = "";
+	grenadetypeprimary += "_mp";
+	primarygrenadecount = self getloadoutitem( class_num, "primarygrenadecount" );
+	grenadetypesecondary += "_mp";
+	grenadesecondarycount = self getloadoutitem( class_num, "specialgrenadecount" );
+	grenadetypeprimary = level.weapons["frag"];
+	grenadetypeprimary = level.weapons["flash"];
+/#
+	println( "^5GiveWeapon( " + grenadetypeprimary + " ) -- grenadeTypePrimary" );
+#/
+	self giveweapon( grenadetypeprimary );
+	self setweaponammoclip( grenadetypeprimary, primarygrenadecount );
+	self switchtooffhand( grenadetypeprimary );
+	self.grenadetypeprimary = grenadetypeprimary;
+	self.grenadetypeprimarycount = primarygrenadecount;
+	self dualgrenadesactive();
+	self setoffhandsecondaryclass( grenadetypesecondary );
+/#
+	println( "^5GiveWeapon( " + grenadetypesecondary + " ) -- grenadeTypeSecondary" );
+#/
+	self giveweapon( grenadetypesecondary );
+	self setweaponammoclip( grenadetypesecondary, grenadesecondarycount );
+	self.grenadetypesecondary = grenadetypesecondary;
+	self.grenadetypesecondarycount = grenadesecondarycount;
+	self bbclasschoice( class_num, primaryweapon, sidearm );
+	i = 0;
+	killstreaks[i] = level.killstreakindices[self.killstreak[i]];
+	killstreaks[i] = 0;
+	i++;
+	self recordloadoutperksandkillstreaks( primaryweapon, sidearm, grenadetypeprimary, grenadetypesecondary, killstreaks[0], killstreaks[1], killstreaks[2] );
+	self maps\mp\teams\_teams::set_player_model( team, weapon );
+	self initstaticweaponstime();
+	self thread initweaponattachments( spawnweapon );
+	self setplayerrenderoptions( playerrenderoptions );
+	self setmovespeedscale( self.movementspeedmodifier * self getmovespeedscale() );
+	spawnweapon = self [[level.givecustomloadout]]();
+	self thread initweaponattachments( spawnweapon );
+	self cac_selector();
+	self initialweaponraise( spawnweapon );
+	self initialweaponraise( weapon );
+	self seteverhadweaponall( 1 );
+	self.firstspawn = 0;
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x33B0
+setweaponammooverall( weaponname, amount )
+{
+	self setweaponammoclip( weaponname, amount );
+	self setweaponammoclip( weaponname, amount );
+	diff = amount - self getweaponammoclip( weaponname );
+/#
+	assert( diff >= 0 );
+#/
+	self setweaponammostock( weaponname, diff );
+// SP = 0x0 - check OK
+}
+
+// 0x3420
+onplayerconnecting()
+{
+	level waittill( "connecting", player );
+	player.pers["class"] = "";
+	player.class = player.pers["class"];
+	player.lastclass = "";
+	player.detectexplosives = 0;
+	player.bombsquadicons = [];
+	player.bombsquadids = [];
+	player.reviveicons = [];
+	player.reviveids = [];
+// SP = 0x0 - check OK
+}
+
+// 0x34A4
+fadeaway( waitdelay, fadedelay )
+{
+	wait waitdelay;
+	self fadeovertime( fadedelay );
+	self.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x34C4
+setclass( newclass )
+{
+	self.curclass = newclass;
+// SP = 0x0 - check OK
+}
+
+// 0x34D4
+initperkdvars()
+{
+	level.cac_armorpiercing_data = cac_get_dvar_int( "perk_armorpiercing", "40" ) / 100;
+	level.cac_bulletdamage_data = cac_get_dvar_int( "perk_bulletDamage", "35" );
+	level.cac_fireproof_data = cac_get_dvar_int( "perk_fireproof", "95" );
+	level.cac_armorvest_data = cac_get_dvar_int( "perk_armorVest", "80" );
+	level.cac_explosivedamage_data = cac_get_dvar_int( "perk_explosiveDamage", "25" );
+	level.cac_flakjacket_data = cac_get_dvar_int( "perk_flakJacket", "35" );
+	level.cac_flakjacket_hardcore_data = cac_get_dvar_int( "perk_flakJacket_hardcore", "9" );
+// SP = 0x0 - check OK
+}
+
+// 0x356C
+cac_selector()
+{
+	perks = self.specialty;
+	self.detectexplosives = 0;
+	i = 0;
+	perk = perks[i];
+	self.detectexplosives = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x35B4
+register_perks()
+{
+	perks = self.specialty;
+	self clearperks();
+	i = 0;
+	perk = perks[i];
+	self setperk( perk );
+	i++;
+/#
+	maps\mp\gametypes\_dev::giveextraperks();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x363C
+cac_get_dvar_int( dvar, def )
+{
+	return int( cac_get_dvar( dvar, def ) );
+// SP = 0x0 - check OK
+}
+
+// 0x3660
+cac_get_dvar( dvar, def )
+{
+	return GetDvarFloat( dvar );
+	setdvar( dvar, def );
+	return def;
+// SP = 0x0 - check OK
+}
+
+// 0x3690
+cac_modified_vehicle_damage( victim, attacker, damage, meansofdeath, weapon, inflictor )
+{
+	return damage;
+	return damage;
+	old_damage = damage;
+	final_damage = damage;
+	final_damage = damage * ( 100 + level.cac_bulletdamage_data ) / 100;
+/#
+	println( "Perk/> " + attacker.name + "'s bullet damage did extra damage to vehicle" );
+#/
+	final_damage = damage * ( 100 + level.cac_explosivedamage_data ) / 100;
+/#
+	println( "Perk/> " + attacker.name + "'s explosive damage did extra damage to vehicle" );
+#/
+	final_damage = old_damage;
+/#
+	println( "Perk/> Damage Factor: " + final_damage / old_damage + " - Pre Damage: " + old_damage + " - Post Damage: " + final_damage );
+#/
+	return int( final_damage );
+// SP = 0x0 - check OK
+}
+
+// 0x37E8
+cac_modified_damage( victim, attacker, damage, mod, weapon, inflictor, hitloc )
+{
+/#
+	assert( IsDefined( victim ) );
+#/
+/#
+	assert( IsDefined( attacker ) );
+#/
+/#
+	assert( isplayer( victim ) );
+#/
+	return damage;
+	return damage;
+	return damage;
+/#
+	debug = 0;
+	debug = 1;
+#/
+	final_damage = damage;
+/#
+	println( "Perk/> " + victim.name + "'s armor countered " + attacker.name + "'s increased bullet damage" );
+#/
+	final_damage = damage * ( 100 + level.cac_bulletdamage_data ) / 100;
+/#
+	println( "Perk/> " + attacker.name + "'s bullet damage did extra damage to " + victim.name );
+#/
+	final_damage = damage * ( level.cac_armorvest_data * 0.01 );
+/#
+	println( "Perk/> " + attacker.name + "'s bullet damage did less damage to " + victim.name );
+#/
+	final_damage = damage * 100 - ( level.cac_fireproof_data / 100 );
+/#
+	println( "Perk/> " + attacker.name + "'s flames did less damage to " + victim.name );
+#/
+	final_damage = damage * ( 100 + level.cac_explosivedamage_data ) / 100;
+/#
+	println( "Perk/> " + attacker.name + "'s explosive damage did extra damage to " + victim.name );
+#/
+	cac_data = level.cac_flakjacket_data;
+	victim thread maps\mp\_challenges::flakjacketprotected( weapon, attacker );
+	victim thread maps\mp\_challenges::flakjacketprotected( weapon, attacker );
+	final_damage = int( damage * ( cac_data / 100 ) );
+/#
+	println( "Perk/> " + victim.name + "'s flak jacket decreased " + attacker.name + "'s grenade damage" );
+#/
+/#
+	victim.cac_debug_damage_type = tolower( mod );
+	victim.cac_debug_original_damage = damage;
+	victim.cac_debug_final_damage = final_damage;
+	victim.cac_debug_location = tolower( hitloc );
+	victim.cac_debug_weapon = tolower( weapon );
+	victim.cac_debug_range = int( distance( attacker.origin, victim.origin ) );
+	println( "Perk/> Damage Factor: " + final_damage / damage + " - Pre Damage: " + damage + " - Post Damage: " + final_damage );
+#/
+	final_damage = int( final_damage );
+	final_damage = 1;
+	return final_damage;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x3BD0
+isexplosivedamage( weapon, meansofdeath )
+{
+	switch ( weapon )
+	{
+		case "briefcase_bomb_mp":
+		case "concussion_grenade_mp":
+		case "emp_grenade_mp":
+		case "flash_grenade_mp":
+		case "proximity_grenade_mp":
+		case "tabun_gas_mp":
+		case "willy_pete_mp":
+			return 0;
+	}
+	switch ( meansofdeath )
+	{
+		case "MOD_EXPLOSIVE":
+		case "MOD_GRENADE":
+		case "MOD_GRENADE_SPLASH":
+		case "MOD_PROJECTILE_SPLASH":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3C5C
+hastacticalmask( player )
+{
+	return player hasperk( "specialty_proximityprotection" );
+// SP = 0x0 - check OK
+}
+
+// 0x3C94
+isprimarydamage( meansofdeath )
+{
+	return meansofdeath == "MOD_PISTOL_BULLET";
+// SP = 0x0 - check OK
+}
+
+// 0x3CB0
+isfiredamage( weapon, meansofdeath )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3D2C
+isplayerexplosiveweapon( weapon, meansofdeath )
+{
+	return 0;
+	switch ( weapon )
+	{
+		case "airstrike_mp":
+		case "artillery_mp":
+		case "cobra_ffar_mp":
+		case "hind_ffar_mp":
+		case "mortar_mp":
+		case "napalm_mp":
+			return 1;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3D90
+isheaddamage( hitloc )
+{
+	return hitloc == "neck";
+// SP = 0x0 - check OK
+}
+
+// 0x3DB4
+grenadestuck( inflictor )
+{
+	return inflictor.stucktoplayer == self;
+// SP = 0x0 - check OK
+}

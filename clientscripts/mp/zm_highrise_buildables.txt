@@ -1,0 +1,22 @@
+// clientscripts/mp/zm_highrise_buildables.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+
+
+// 0x13C
+init_buildables()
+{
+	level.buildable_piece_count = 13;
+	add_zombie_buildable( "springpad_zm" );
+	add_zombie_buildable( "keys_zm" );
+	level thread set_clientfield_buildables_code_callbacks();
+// SP = 0x0 - check OK
+}
+
+// 0x170
+include_buildables()
+{
+	include_buildable( "springpad_zm" );
+	include_buildable( "keys_zm" );
+// SP = 0x0 - check OK
+}

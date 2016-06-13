@@ -1,0 +1,432 @@
+// clientscripts/_fx.csc
+
+#include clientscripts\_destructibles;
+#include clientscripts\_lights;
+#include clientscripts\_music;
+#include clientscripts\_utility;
+
+
+// 0x780
+createloopsound()
+{
+	ent = spawnstruct();
+	level.createfxent = [];
+	level.createfxent[level.createfxent.size] = ent;
+	ent.v = [];
+	ent.v["type"] = "soundfx";
+	ent.v["fxid"] = "No FX";
+	ent.v["soundalias"] = "nil";
+	ent.v["angles"] = ( 0, 0, 0 );
+	ent.v["origin"] = ( 0, 0, 0 );
+	ent.drawn = 1;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x814
+createeffect( type, fxid )
+{
+	ent = spawnstruct();
+	level.createfxent = [];
+	level.createfxent[level.createfxent.size] = ent;
+	ent.v = [];
+	ent.v["type"] = type;
+	ent.v["fxid"] = fxid;
+	ent.v["angles"] = ( 0, 0, 0 );
+	ent.v["origin"] = ( 0, 0, 0 );
+	ent.drawn = 1;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x898
+exploder_delay()
+{
+	self.v["delay"] = 0;
+	min_delay = self.v["delay"];
+	max_delay = self.v["delay"] + 0.001;
+	min_delay = self.v["delay_min"];
+	max_delay = self.v["delay_max"];
+	realwait( randomfloatrange( min_delay, max_delay ) );
+// SP = 0x0 - check OK
+}
+
+// 0x924
+fire_effect()
+{
+	forward = self.v["forward"];
+	up = self.v["up"];
+	firefxsound = self.v["firefxsound"];
+	origin = self.v["origin"];
+	firefx = self.v["firefx"];
+	ender = self.v["ender"];
+	ender = "createfx_effectStopper";
+	timeout = self.v["firefxtimeout"];
+	firefxdelay = 0.5;
+	firefxdelay = self.v["firefxdelay"];
+	self exploder_delay();
+	level thread clientscripts\_utility::loop_fx_sound( firefxsound, origin, ender, timeout );
+	players = level.localplayers;
+	i = 0;
+	playfx( i, level._effect[firefx], self.v["origin"], forward, up, 0, self.v["primlightfrac"], self.v["lightoriginoffs"] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA34
+exploder_playsound()
+{
+	return;
+	play_sound_in_space( 0, self.v["soundalias"], self.v["origin"] );
+// SP = 0x0 - check OK
+}
+
+// 0xA74
+cannon_effect()
+{
+	i = 0;
+	players = level.localplayers;
+	player = 0;
+	playfx( player, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"] );
+	player++;
+	self exploder_delay();
+	i++;
+	return;
+	self exploder_delay();
+	players = level.localplayers;
+	i = 0;
+	stopfx( i, self.loopfx[i] );
+	i++;
+	self.loopfx = [];
+	self.loopfx = [];
+/#
+	assertmsg( "*** Client : Effect " + self.v["fxid"] + " not precached in level_fx.csc." );
+#/
+	return;
+	i = 0;
+	self.loopfx[i] = playfx( i, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"] );
+	i++;
+	self exploder_playsound();
+// SP = 0x0 - check OK
+}
+
+// 0xBFC
+exploder_earthquake()
+{
+	self exploder_delay();
+	eq = level.earthquake[self.v["earthquake"]];
+	level.localplayers[0] earthquake( eq["magnitude"], eq["duration"], self.v["origin"], eq["radius"] );
+// SP = 0x0 - check OK
+}
+
+// 0xC50
+activate_individual_exploder()
+{
+	self.v["angles"] = ( 0, 0, 0 );
+	self set_forward_and_up_vectors();
+	self thread fire_effect();
+	self thread cannon_effect();
+	self thread exploder_earthquake();
+// SP = 0x0 - check OK
+}
+
+// 0xCD4
+deactivate_exploder( num )
+{
+	num = int( num );
+	i = 0;
+	ent = level.createfxexploders[num][i];
+	deletefakeent( 0, ent.soundent );
+	ent.soundent = undefined;
+	j = 0;
+	stopfx( j, ent.loopfx[j] );
+	ent.loopfx[j] = undefined;
+	j++;
+	ent.loopfx = [];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xDA4
+lightning( normalfunc, flashfunc )
+{
+	[[flashfunc]]();
+	realwait( randomfloatrange( 0.05, 0.1 ) );
+	[[normalfunc]]();
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+exploder_is_lightning_exploder( num )
+{
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE10
+glass_exploder_watcher( num, dist, alias )
+{
+	ents = [];
+	i = 0;
+	ent = level.createfxent[i];
+	ents[ents.size] = ent;
+	i++;
+	return;
+	dist_squared = dist * dist;
+	level waittill( "glass_smash", pos, vec );
+	i = 0;
+	ds = distancesquared( pos, ents[i].v["origin"] );
+	exploder( num );
+	sound_ent = spawn( 0, pos, "script_origin" );
+	sound_ent playloopsound( alias, 0.25 );
+	sound_ent thread delete_window_sound_ent();
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xF50
+exploder_is_glass_exploder( num, dist, alias )
+{
+	dist = 24;
+	level thread glass_exploder_watcher( num, dist, alias );
+// SP = 0x0 - check OK
+}
+
+// 0xF7C
+delete_window_sound_ent()
+{
+	wait 30;
+	self stoploopsound( 2 );
+	wait 2;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+activate_exploder( num )
+{
+	num = int( num );
+	i = 0;
+	level.createfxexploders[num][i] activate_individual_exploder();
+	i++;
+	thread lightning( level.lightningnormalfunc, level.lightningflashfunc );
+// SP = 0x0 - check OK
+}
+
+// 0x1024
+exploder( num )
+{
+	activate_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0x103C
+createoneshoteffect( fxid )
+{
+	ent = createeffect( "oneshotfx", fxid );
+	ent.v["delay"] = -15;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x1068
+createloopeffect( fxid )
+{
+	ent = createeffect( "loopfx", fxid );
+	ent.v["delay"] = 0.5;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x1098
+createexploder( fxid )
+{
+	ent = createeffect( "exploder", fxid );
+	ent.v["delay"] = 0;
+	ent.v["exploder_type"] = "normal";
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x10D4
+set_forward_and_up_vectors()
+{
+	self.v["up"] = anglestoup( self.v["angles"] );
+	self.v["forward"] = anglestoforward( self.v["angles"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1104
+create_triggerfx( clientnum )
+{
+	self.looperfx = playfx( clientnum, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"], self.v["delay"], self.v["primlightfrac"], self.v["lightoriginoffs"] );
+	create_loopsound( clientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1168
+create_looper( clientnum )
+{
+	self thread loopfx( clientnum );
+	create_loopsound( clientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x118C
+loopfx( clientnum )
+{
+	self.looperfx = playfx( clientnum, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"], self.v["delay"], self.v["primlightfrac"], self.v["lightoriginoffs"] );
+	realwait( self.v["delay"] );
+	wait 0.1;
+	self.looperfx = playfx( clientnum, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"], 0, self.v["primlightfrac"], self.v["lightoriginoffs"] );
+// SP = 0x0 - check OK
+}
+
+// 0x126C
+loopfxstop( clientnum, timeout )
+{
+	self endon( "death" );
+	realwait( timeout );
+	self.looper delete();
+	deletefx( clientnum, self.looperfx );
+// SP = 0x0 - check OK
+}
+
+// 0x12B0
+loopfxthread( clientnum )
+{
+	level waittill( "start fx" + self.fxstart );
+	create_looper( clientnum );
+	thread loopfxstop( clientnum, self.timeout );
+	level waittill( "stop fx" + self.fxstop );
+	return;
+	deletefx( clientnum, self.looperfx );
+	level waittill( "start fx" + self.fxstart );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1348
+oneshotfxthread( clientnum )
+{
+	realwait( self.v["delay"] );
+	create_triggerfx( clientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1378
+create_loopsound( clientnum )
+{
+	return;
+	self notify( "stop_loop" );
+	thread clientscripts\_utility::loop_fx_sound( clientnum, self.v["soundalias"], self.v["origin"], "stop_loop" );
+	thread clientscripts\_utility::loop_fx_sound( clientnum, self.v["soundalias"], self.v["origin"] );
+// SP = 0x0 - check OK
+}
+
+// 0x140C
+fx_init( clientnum )
+{
+	clientscripts\_lights::init_lights( clientnum );
+	return;
+	clientscripts\_destructibles::init( clientnum );
+	clientscripts\_utility::init_exploders();
+	return;
+	return;
+	i = 0;
+	ent = level.createfxent[i];
+	ent set_forward_and_up_vectors();
+	ent thread loopfxthread( clientnum );
+	ent thread oneshotfxthread( clientnum );
+	ent thread create_loopsound( clientnum );
+	i++;
+	level._createfxforwardandupset = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1514
+reportnumeffects()
+{
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1520
+playlightloopexploder( exploderindex )
+{
+	num = int( exploderindex );
+	i = 0;
+	ent = level.createfxexploders[num][i];
+	ent.looperfx = [];
+	clientnum = 0;
+	ent.looperfx[clientnum] = [];
+	ent.looperfx[clientnum][ent.looperfx[clientnum].size] = ent playexploderfx( clientnum );
+	clientnum++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x15E8
+playexploderfx( clientnum )
+{
+/#
+#/
+	return playfx( clientnum, level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"], 0, self.v["primlightfrac"], self.v["lightoriginoffs"] );
+// SP = 0x0 - check OK
+}
+
+// 0x1668
+stoplightloopexploder( exploderindex )
+{
+	num = int( exploderindex );
+	i = 0;
+	ent = level.createfxexploders[num][i];
+	ent.looperfx = [];
+	clientnum = 0;
+	looperfxcount = 0;
+	deletefx( clientnum, ent.looperfx[clientnum][looperfxcount] );
+	looperfxcount++;
+	ent.looperfx[clientnum] = [];
+	clientnum++;
+	ent.looperfx = [];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1748
+blinky_light( localclientnum, tagname, fx )
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_blinky_light" );
+	self.lighttagname = tagname;
+	self thread blinky_emp_wait( localclientnum );
+	wait 0.1;
+	self.blinkylightfx = playfxontag( localclientnum, fx, self, self.lighttagname );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x17BC
+stop_blinky_light( localclientnum )
+{
+	self notify( "stop_blinky_light" );
+	return;
+	stopfx( localclientnum, self.blinkylightfx );
+	self.blinkylightfx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x17E8
+blinky_emp_wait( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_blinky_light" );
+	self waittill( "emp" );
+	self stop_blinky_light( localclientnum );
+// SP = 0x0 - check OK
+}

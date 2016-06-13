@@ -1,0 +1,2175 @@
+// maps/mp/_utility.gsc
+
+#include maps\mp\_utility;
+#include maps\mp\_createfx;
+#include maps\mp\gametypes\_hud_util;
+#include common_scripts\utility;
+
+
+// 0x2180
+addcallback( event, func )
+{
+/#
+	assert( IsDefined( event ), "Trying to set a callback on an undefined event." );
+#/
+	level._callbacks[event] = [];
+	level._callbacks[event] = add_to_array( level._callbacks[event], func, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x21DC
+callback( event )
+{
+	i = 0;
+	callback = level._callbacks[event][i];
+	self thread [[callback]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2234
+onfinalizeinitialization_callback( func )
+{
+	addcallback( "on_finalize_initialization", func );
+// SP = 0x0 - check OK
+}
+
+// 0x224C
+triggeroff()
+{
+	self.realorigin = self.origin;
+	self.origin += vector_scale( ( 0, 0, -1 ), 10000 );
+// SP = 0x0 - check OK
+}
+
+// 0x2288
+triggeron()
+{
+	self.origin = self.realorigin;
+// SP = 0x0 - check OK
+}
+
+// 0x22A0
+error( msg )
+{
+/#
+	println( "^c*ERROR* ", msg );
+	wait 0.05;
+/#
+	assertmsg( "This is a forced error - attach the log file" );
+#/
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x22E4
+warning( msg )
+{
+/#
+	println( "^1WARNING: " + msg );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2304
+spawn_array_struct()
+{
+	s = spawnstruct();
+	s.a = [];
+	return s;
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+within_fov( start_origin, start_angles, end_origin, fov )
+{
+	normal = vectornormalize( end_origin - start_origin );
+	forward = anglestoforward( start_angles );
+	dot = vectordot( forward, normal );
+	return dot >= fov;
+// SP = 0x0 - check OK
+}
+
+// 0x2364
+append_array_struct( dst_s, src_s )
+{
+	i = 0;
+	dst_s.a[dst_s.a.size] = src_s.a[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x23A4
+exploder( num )
+{
+	[[level.exploderfunction]]( num );
+// SP = 0x0 - check OK
+}
+
+// 0x23B8
+exploder_stop( num )
+{
+	stop_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0x23D0
+exploder_sound()
+{
+	wait self.script_delay;
+	self playsound( level.scr_sound[self.script_sound] );
+// SP = 0x0 - check OK
+}
+
+// 0x23F8
+cannon_effect()
+{
+	i = 0;
+	playfx( level._effect[self.v["fxid"]], self.v["origin"], self.v["forward"], self.v["up"] );
+	self exploder_delay();
+	i++;
+	return;
+	self exploder_delay();
+	self.looper delete();
+	self.looper = spawnfx( getfx( self.v["fxid"] ), self.v["origin"], self.v["forward"], self.v["up"] );
+	triggerfx( self.looper );
+	exploder_playsound();
+// SP = 0x0 - check OK
+}
+
+// 0x24D8
+exploder_delay()
+{
+	self.v["delay"] = 0;
+	min_delay = self.v["delay"];
+	max_delay = self.v["delay"] + 0.001;
+	min_delay = self.v["delay_min"];
+	max_delay = self.v["delay_max"];
+	wait randomfloatrange( min_delay, max_delay );
+// SP = 0x0 - check OK
+}
+
+// 0x2564
+exploder_playsound()
+{
+	return;
+	play_sound_in_space( self.v["soundalias"], self.v["origin"] );
+// SP = 0x0 - check OK
+}
+
+// 0x25A4
+brush_delete()
+{
+	num = self.v["exploder"];
+	wait self.v["delay"];
+	wait 0.05;
+	return;
+/#
+	assert( IsDefined( self.model ) );
+#/
+	return;
+	self.exploded = 1;
+	self.model hide();
+	self.model notsolid();
+	wait 3;
+	self.exploded = undefined;
+	self.model show();
+	self.model solid();
+	return;
+	self.v["exploder"] = undefined;
+	waittillframeend;
+	self.model delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2688
+brush_show()
+{
+	wait self.v["delay"];
+/#
+	assert( IsDefined( self.model ) );
+#/
+	self.model show();
+	self.model solid();
+	return;
+	self.exploded = 1;
+	wait 3;
+	self.exploded = undefined;
+	self.model hide();
+	self.model notsolid();
+// SP = 0x0 - check OK
+}
+
+// 0x2710
+brush_throw()
+{
+	wait self.v["delay"];
+	ent = undefined;
+	ent = getent( self.v["target"], "targetname" );
+	self.model delete();
+	return;
+	self.model show();
+	startorg = self.v["origin"];
+	startang = self.v["angles"];
+	org = ent.origin;
+	temp_vec = org - self.v["origin"];
+	x = temp_vec[0];
+	y = temp_vec[1];
+	z = temp_vec[2];
+	self.model rotatevelocity( ( x, y, z ), 12 );
+	self.model movegravity( ( x, y, z ), 12 );
+	return;
+	self.exploded = 1;
+	wait 3;
+	self.exploded = undefined;
+	self.v["origin"] = startorg;
+	self.v["angles"] = startang;
+	self.model hide();
+	return;
+	self.v["exploder"] = undefined;
+	wait 6;
+	self.model delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2868
+getplant()
+{
+	start = self.origin + vector_scale( ( 0, 0, 1 ), 10 );
+	range = 11;
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, range );
+	traceorigins[0] = start + forward;
+	traceorigins[1] = start;
+	trace = bullettrace( traceorigins[0], traceorigins[0] + vector_scale( ( 0, 0, -1 ), 18 ), 0, undefined );
+	temp = spawnstruct();
+	temp.origin = trace["position"];
+	temp.angles = orienttonormal( trace["normal"] );
+	return temp;
+	trace = bullettrace( traceorigins[1], traceorigins[1] + vector_scale( ( 0, 0, -1 ), 18 ), 0, undefined );
+	temp = spawnstruct();
+	temp.origin = trace["position"];
+	temp.angles = orienttonormal( trace["normal"] );
+	return temp;
+	traceorigins[2] = start + vector_scale( ( 1, 1, 0 ), 16 );
+	traceorigins[3] = start + vector_scale( ( 1, -1, 0 ), 16 );
+	traceorigins[4] = start + vector_scale( ( -1, -1, 0 ), 16 );
+	traceorigins[5] = start + vector_scale( ( -1, 1, 0 ), 16 );
+	besttracefraction = undefined;
+	besttraceposition = undefined;
+	i = 0;
+	trace = bullettrace( traceorigins[i], traceorigins[i] + vector_scale( ( 0, 0, -1 ), 1000 ), 0, undefined );
+	besttracefraction = trace["fraction"];
+	besttraceposition = trace["position"];
+	i++;
+	besttraceposition = self.origin;
+	temp = spawnstruct();
+	temp.origin = besttraceposition;
+	temp.angles = orienttonormal( trace["normal"] );
+	return temp;
+// SP = 0x0 - check OK
+}
+
+// 0x2A70
+orienttonormal( normal )
+{
+	hor_normal = ( normal[0], normal[1], 0 );
+	hor_length = length( hor_normal );
+	return ( 0, 0, 0 );
+	hor_dir = vectornormalize( hor_normal );
+	neg_height = normal[2] * -1;
+	tangent = ( hor_dir[0] * neg_height, hor_dir[1] * neg_height, hor_length );
+	plant_angle = vectortoangles( tangent );
+	return plant_angle;
+// SP = 0x0 - check OK
+}
+
+// 0x2ADC
+array_levelthread( ents, process, var, excluders )
+{
+	exclude = [];
+	i = 0;
+	exclude[i] = 0;
+	i++;
+	i = 0;
+	p = 0;
+	exclude[i] = 1;
+	p++;
+	i++;
+	i = 0;
+	level thread [[process]]( ents[i], var );
+	level thread [[process]]( ents[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2B98
+deleteplacedentity( entity )
+{
+	entities = getentarray( entity, "classname" );
+	i = 0;
+	entities[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2BD8
+playsoundonplayers( sound, team )
+{
+/#
+	assert( IsDefined( level.players ) );
+#/
+	level.players[0] playlocalsound( sound );
+	i = 0;
+	player = level.players[i];
+	player playlocalsound( sound );
+	i++;
+	i = 0;
+	level.players[i] playlocalsound( sound );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2CB0
+get_player_height()
+{
+	return 70;
+// SP = 0x0 - check OK
+}
+
+// 0x2CC0
+isbulletimpactmod( smeansofdeath )
+{
+	return smeansofdeath == "MOD_HEAD_SHOT";
+// SP = 0x0 - check OK
+}
+
+// 0x2CE0
+get_team_alive_players_s( teamname )
+{
+	teamplayers_s = spawn_array_struct();
+	i = 0;
+	teamplayers_s.a[teamplayers_s.a.size] = level.aliveplayers[teamname][i];
+	i++;
+	return teamplayers_s;
+// SP = 0x0 - check OK
+}
+
+// 0x2D48
+get_all_alive_players_s()
+{
+	allplayers_s = spawn_array_struct();
+	keys = getarraykeys( level.aliveplayers );
+	i = 0;
+	team = keys[i];
+	j = 0;
+	allplayers_s.a[allplayers_s.a.size] = level.aliveplayers[team][j];
+	j++;
+	i++;
+	return allplayers_s;
+// SP = 0x0 - check OK
+}
+
+// 0x2DCC
+waitrespawnbutton()
+{
+	self endon( "disconnect" );
+	self endon( "end_respawn" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2DF8
+setlowermessage( text, time, combinemessageandtimer )
+{
+	return;
+	text = self.lowermessageoverride;
+	time = undefined;
+	self notify( "lower_message_set" );
+	self.lowermessage settext( text );
+	self.lowertimer.label = &"";
+	self.lowermessage settext( "" );
+	self.lowertimer.label = text;
+	self.lowertimer settimer( time );
+	self.lowertimer settext( "" );
+	self.lowertimer.label = &"";
+	self.lowermessage.fontscale = 1.4;
+	self.lowermessage fadeovertime( 0.05 );
+	self.lowermessage.alpha = 1;
+	self.lowertimer fadeovertime( 0.05 );
+	self.lowertimer.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2F1C
+setlowermessagevalue( text, value, combinemessage )
+{
+	return;
+	text = self.lowermessageoverride;
+	time = undefined;
+	self notify( "lower_message_set" );
+	self.lowermessage settext( text );
+	self.lowermessage settext( "" );
+	self.lowertimer.label = &"";
+	self.lowertimer.label = text;
+	self.lowertimer setvalue( value );
+	self.lowertimer settext( "" );
+	self.lowertimer.label = &"";
+	self.lowermessage.fontscale = 1.4;
+	self.lowermessage fadeovertime( 0.05 );
+	self.lowermessage.alpha = 1;
+	self.lowertimer fadeovertime( 0.05 );
+	self.lowertimer.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3054
+clearlowermessage( fadetime )
+{
+	return;
+	self notify( "lower_message_set" );
+	setlowermessage( &"" );
+	self endon( "disconnect" );
+	self endon( "lower_message_set" );
+	self.lowermessage fadeovertime( fadetime );
+	self.lowermessage.alpha = 0;
+	self.lowertimer fadeovertime( fadetime );
+	self.lowertimer.alpha = 0;
+	wait fadetime;
+	self setlowermessage( "" );
+// SP = 0x0 - check OK
+}
+
+// 0x30E0
+printonteam( text, team )
+{
+/#
+	assert( IsDefined( level.players ) );
+#/
+	i = 0;
+	player = level.players[i];
+	player iprintln( text );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3158
+printboldonteam( text, team )
+{
+/#
+	assert( IsDefined( level.players ) );
+#/
+	i = 0;
+	player = level.players[i];
+	player iprintlnbold( text );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x31D0
+printboldonteamarg( text, team, arg )
+{
+/#
+	assert( IsDefined( level.players ) );
+#/
+	i = 0;
+	player = level.players[i];
+	player iprintlnbold( text, arg );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x324C
+printonteamarg( text, team, arg )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x325C
+printonplayers( text, team )
+{
+	players = level.players;
+	i = 0;
+	players[i] iprintln( text );
+	players[i] iprintln( text );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x32DC
+printandsoundoneveryone( team, enemyteam, printfriendly, printenemy, soundfriendly, soundenemy, printarg )
+{
+	shoulddosounds = IsDefined( soundfriendly );
+	shoulddoenemysounds = 0;
+/#
+	assert( shoulddosounds );
+#/
+	shoulddoenemysounds = 1;
+	printarg = "";
+	i = 0;
+	player = level.players[i];
+	playerteam = player.pers["team"];
+	player iprintln( printfriendly, printarg );
+	player iprintln( printenemy, printarg );
+	player iprintln( printenemy, printarg );
+	i++;
+/#
+	assert( level.splitscreen );
+#/
+	level.players[0] playlocalsound( soundfriendly );
+/#
+	assert( shoulddosounds );
+#/
+	i = 0;
+	player = level.players[i];
+	playerteam = player.pers["team"];
+	player iprintln( printfriendly, printarg );
+	player playlocalsound( soundfriendly );
+	player iprintln( printenemy, printarg );
+	player playlocalsound( soundenemy );
+	i++;
+	i = 0;
+	player = level.players[i];
+	playerteam = player.pers["team"];
+	player iprintln( printfriendly, printarg );
+	player playlocalsound( soundfriendly );
+	player iprintln( printenemy, printarg );
+	player iprintln( printenemy, printarg );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x35AC
+_playlocalsound( soundalias )
+{
+	return;
+	self playlocalsound( soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x35D8
+dvarintvalue( dvar, defval, minval, maxval )
+{
+	dvar = "scr_" + level.gametype + "_" + dvar;
+	setdvar( dvar, defval );
+	return defval;
+	value = GetDvarInt( dvar );
+	value = maxval;
+	value = minval;
+	return value;
+	setdvar( dvar, value );
+	return value;
+// SP = 0x0 - check OK
+}
+
+// 0x3650
+dvarfloatvalue( dvar, defval, minval, maxval )
+{
+	dvar = "scr_" + level.gametype + "_" + dvar;
+	setdvar( dvar, defval );
+	return defval;
+	value = GetDvarFloat( dvar );
+	value = maxval;
+	value = minval;
+	return value;
+	setdvar( dvar, value );
+	return value;
+// SP = 0x0 - check OK
+}
+
+// 0x36C8
+play_sound_on_tag( alias, tag )
+{
+	org = spawn( "script_origin", self gettagorigin( tag ) );
+	org linkto( self, tag, ( 0, 0, 0 ), ( 0, 0, 0 ) );
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	org.origin = self.origin;
+	org.angles = self.angles;
+	org linkto( self );
+	org playsound( alias );
+	wait 5;
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3764
+createloopeffect( fxid )
+{
+	ent = maps\mp\_createfx::createeffect( "loopfx", fxid );
+	ent.v["delay"] = 0.5;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x3794
+createoneshoteffect( fxid )
+{
+	ent = maps\mp\_createfx::createeffect( "oneshotfx", fxid );
+	ent.v["delay"] = -15;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x37C0
+loop_fx_sound( alias, origin, ender, timeout )
+{
+	org = spawn( "script_origin", ( 0, 0, 0 ) );
+	thread loop_sound_delete( ender, org );
+	self endon( ender );
+	org.origin = origin;
+	org playloopsound( alias );
+	return;
+	wait timeout;
+// SP = 0x0 - check OK
+}
+
+// 0x3820
+exploder_damage()
+{
+	delay = self.v["delay"];
+	delay = 0;
+	radius = self.v["damage_radius"];
+	radius = 128;
+	damage = self.v["damage"];
+	origin = self.v["origin"];
+	wait delay;
+	radiusdamage( origin, radius, damage, damage );
+// SP = 0x0 - check OK
+}
+
+// 0x38A0
+exploder_before_load( num )
+{
+	waittillframeend;
+	waittillframeend;
+	activate_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0x38B8
+exploder_after_load( num )
+{
+	activate_exploder( num );
+// SP = 0x0 - check OK
+}
+
+// 0x38D0
+getexploderid( ent )
+{
+	level._exploder_ids = [];
+	level._exploder_id = 1;
+	level._exploder_ids[ent.v["exploder"]] = level._exploder_id;
+	level._exploder_id++;
+	return level._exploder_ids[ent.v["exploder"]];
+// SP = 0x0 - check OK
+}
+
+// 0x3930
+activate_exploder_on_clients( num )
+{
+	return;
+	level._client_exploders[num] = 1;
+	level._client_exploder_ids[num] = 1;
+	activateclientexploder( level._exploder_ids[num] );
+// SP = 0x0 - check OK
+}
+
+// 0x3988
+delete_exploder_on_clients( num )
+{
+	return;
+	return;
+	level._client_exploders[num] = undefined;
+	level._client_exploder_ids[num] = undefined;
+	deactivateclientexploder( level._exploder_ids[num] );
+// SP = 0x0 - check OK
+}
+
+// 0x39D0
+activate_individual_exploder()
+{
+	level notify( "exploder" + self.v["exploder"] );
+/#
+	println( "Exploder " + self.v["exploder"] + " created on server." );
+#/
+	self thread fire_effect();
+	self thread cannon_effect();
+	self thread sound_effect();
+	self thread trail_effect();
+	self thread exploder_damage();
+	self thread brush_show();
+	self thread brush_throw();
+	self thread brush_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3B20
+trail_effect()
+{
+	self exploder_delay();
+	self.v["trailfxtag"] = "tag_origin";
+	temp_ent = undefined;
+	playfxontag( level._effect[self.v["trailfx"]], self.model, self.v["trailfxtag"] );
+	temp_ent = spawn( "script_model", self.model.origin );
+	temp_ent setmodel( "tag_origin" );
+	temp_ent linkto( self.model, self.v["trailfxtag"] );
+	playfxontag( level._effect[self.v["trailfx"]], temp_ent, "tag_origin" );
+	self.model playloopsound( self.v["trailfxsound"] );
+	temp_ent playloopsound( self.v["trailfxsound"] );
+	level thread trail_effect_ender( temp_ent, self.v["ender"] );
+	return;
+	wait self.v["trailfxtimeout"];
+	temp_ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3C78
+trail_effect_ender( ent, ender )
+{
+	ent endon( "death" );
+	self waittill( ender );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3C9C
+activate_exploder( num )
+{
+	num = int( num );
+/#
+	i = 0;
+	ent = level.createfxent[i];
+	client_send = 0;
+	ent activate_individual_exploder();
+	i++;
+#/
+	client_send = 1;
+	i = 0;
+	client_send = 0;
+	level.createfxexploders[num][i] activate_individual_exploder();
+	i++;
+	activate_exploder_on_clients( num );
+// SP = 0x0 - check OK
+}
+
+// 0x3DD4
+stop_exploder( num )
+{
+	num = int( num );
+	delete_exploder_on_clients( num );
+	i = 0;
+	level.createfxexploders[num][i].looper delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3E60
+sound_effect()
+{
+	self effect_soundalias();
+// SP = 0x0 - check OK
+}
+
+// 0x3E74
+effect_soundalias()
+{
+	self.v["delay"] = 0;
+	origin = self.v["origin"];
+	alias = self.v["soundalias"];
+	wait self.v["delay"];
+	play_sound_in_space( alias, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x3EC8
+play_sound_in_space( alias, origin, master )
+{
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	origin = self.origin;
+	org.origin = origin;
+	org playsoundasmaster( alias );
+	org playsound( alias );
+	wait 10;
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3F40
+loop_sound_in_space( alias, origin, ender )
+{
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	origin = self.origin;
+	org.origin = origin;
+	org playloopsound( alias );
+	level waittill( ender );
+	org stoploopsound();
+	wait 0.1;
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3FAC
+fire_effect()
+{
+	self.v["delay"] = 0;
+	delay = self.v["delay"];
+	delay = self.v["delay_min"] + randomfloat( self.v["delay_max"] - self.v["delay_min"] );
+	forward = self.v["forward"];
+	up = self.v["up"];
+	org = undefined;
+	firefxsound = self.v["firefxsound"];
+	origin = self.v["origin"];
+	firefx = self.v["firefx"];
+	ender = self.v["ender"];
+	ender = "createfx_effectStopper";
+	timeout = self.v["firefxtimeout"];
+	firefxdelay = 0.5;
+	firefxdelay = self.v["firefxdelay"];
+	wait delay;
+	level thread loop_fx_sound( firefxsound, origin, ender, timeout );
+	playfx( level._effect[firefx], self.v["origin"], forward, up );
+// SP = 0x0 - check OK
+}
+
+// 0x40F4
+loop_sound_delete( ender, ent )
+{
+	ent endon( "death" );
+	self waittill( ender );
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x4118
+createexploder( fxid )
+{
+	ent = maps\mp\_createfx::createeffect( "exploder", fxid );
+	ent.v["delay"] = 0;
+	ent.v["exploder"] = 1;
+	ent.v["exploder_type"] = "normal";
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x4164
+getotherteam( team )
+{
+	return "axis";
+	return "allies";
+	return "allies";
+/#
+	assertmsg( "getOtherTeam: invalid team " + team );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x41AC
+getteammask( team )
+{
+	return level.spawnsystem.ispawn_teammask_free;
+	return level.spawnsystem.ispawn_teammask[team];
+// SP = 0x0 - check OK
+}
+
+// 0x41EC
+getotherteamsmask( skip_team )
+{
+	mask = 0;
+	foreach ( team in level.teams )
+	{
+		mask |= getteammask( team );
+	}
+	return mask;
+// SP = 0x0 - check OK
+}
+
+// 0x4248
+wait_endon( waittime, endonstring, endonstring2, endonstring3, endonstring4 )
+{
+	self endon( endonstring );
+	self endon( endonstring2 );
+	self endon( endonstring3 );
+	self endon( endonstring4 );
+	wait waittime;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4280
+ismg( weapon )
+{
+	return issubstr( weapon, "_bipod_" );
+// SP = 0x0 - check OK
+}
+
+// 0x4298
+plot_points( plotpoints, r, g, b, timer )
+{
+/#
+	lastpoint = plotpoints[0];
+	r = 1;
+	g = 1;
+	b = 1;
+	timer = 0.05;
+	i = 1;
+	line( lastpoint, plotpoints[i], ( r, g, b ), 1, timer );
+	lastpoint = plotpoints[i];
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4328
+player_flag_wait( msg )
+{
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x4344
+player_flag_wait_either( flag1, flag2 )
+{
+	return;
+	return;
+	self waittill_either( flag1, flag2 );
+// SP = 0x0 - check OK
+}
+
+// 0x4384
+player_flag_waitopen( msg )
+{
+	self waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x43A0
+player_flag_init( message, trigger )
+{
+	self.flag = [];
+	self.flags_lock = [];
+/#
+	assert( !(IsDefined( self.flag[message] )), "Attempt to reinitialize existing message: " + message );
+#/
+	self.flag[message] = 0;
+/#
+	self.flags_lock[message] = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x43F8
+player_flag_set_delayed( message, delay )
+{
+	wait delay;
+	player_flag_set( message );
+// SP = 0x0 - check OK
+}
+
+// 0x4414
+player_flag_set( message )
+{
+/#
+/#
+	assert( IsDefined( self.flag[message] ), "Attempt to set a flag before calling flag_init: " + message );
+#/
+/#
+	assert( self.flag[message] == self.flags_lock[message] );
+#/
+	self.flags_lock[message] = 1;
+#/
+	self.flag[message] = 1;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0x4474
+player_flag_clear( message )
+{
+/#
+/#
+	assert( IsDefined( self.flag[message] ), "Attempt to set a flag before calling flag_init: " + message );
+#/
+/#
+	assert( self.flag[message] == self.flags_lock[message] );
+#/
+	self.flags_lock[message] = 0;
+#/
+	self.flag[message] = 0;
+	self notify( message );
+// SP = 0x0 - check OK
+}
+
+// 0x44D4
+player_flag( message )
+{
+/#
+	assert( IsDefined( message ), "Tried to check flag but the flag was not defined." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4504
+registerclientsys( ssysname )
+{
+	level._clientsys = [];
+/#
+	error( "Max num client systems exceeded." );
+#/
+	return;
+/#
+	error( "Attempt to re-register client system : " + ssysname );
+#/
+	return;
+	level._clientsys[ssysname] = spawnstruct();
+	level._clientsys[ssysname].sysid = clientsysregister( ssysname );
+// SP = 0x0 - check OK
+}
+
+// 0x458C
+setclientsysstate( ssysname, ssysstate, player )
+{
+/#
+	error( "setClientSysState called before registration of any systems." );
+#/
+	return;
+/#
+	error( "setClientSysState called on unregistered system " + ssysname );
+#/
+	return;
+	player clientsyssetstate( level._clientsys[ssysname].sysid, ssysstate );
+	clientsyssetstate( level._clientsys[ssysname].sysid, ssysstate );
+	level._clientsys[ssysname].sysstate = ssysstate;
+// SP = 0x0 - check OK
+}
+
+// 0x4620
+getclientsysstate( ssysname )
+{
+/#
+	error( "Cannot getClientSysState before registering any client systems." );
+#/
+	return "";
+/#
+	error( "Client system " + ssysname + " cannot return state, as it is unregistered." );
+#/
+	return "";
+	return level._clientsys[ssysname].sysstate;
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x4690
+clientnotify( event )
+{
+	maps\mp\_utility::setclientsysstate( "levelNotify", event, self );
+	maps\mp\_utility::setclientsysstate( "levelNotify", event );
+// SP = 0x0 - check OK
+}
+
+// 0x46D0
+alphabet_compare( a, b )
+{
+	list = [];
+	val = 1;
+	list["0"] = val;
+	val++;
+	list["1"] = val;
+	val++;
+	list["2"] = val;
+	val++;
+	list["3"] = val;
+	val++;
+	list["4"] = val;
+	val++;
+	list["5"] = val;
+	val++;
+	list["6"] = val;
+	val++;
+	list["7"] = val;
+	val++;
+	list["8"] = val;
+	val++;
+	list["9"] = val;
+	val++;
+	list["_"] = val;
+	val++;
+	list["a"] = val;
+	val++;
+	list["b"] = val;
+	val++;
+	list["c"] = val;
+	val++;
+	list["d"] = val;
+	val++;
+	list["e"] = val;
+	val++;
+	list["f"] = val;
+	val++;
+	list["g"] = val;
+	val++;
+	list["h"] = val;
+	val++;
+	list["i"] = val;
+	val++;
+	list["j"] = val;
+	val++;
+	list["k"] = val;
+	val++;
+	list["l"] = val;
+	val++;
+	list["m"] = val;
+	val++;
+	list["n"] = val;
+	val++;
+	list["o"] = val;
+	val++;
+	list["p"] = val;
+	val++;
+	list["q"] = val;
+	val++;
+	list["r"] = val;
+	val++;
+	list["s"] = val;
+	val++;
+	list["t"] = val;
+	val++;
+	list["u"] = val;
+	val++;
+	list["v"] = val;
+	val++;
+	list["w"] = val;
+	val++;
+	list["x"] = val;
+	val++;
+	list["y"] = val;
+	val++;
+	list["z"] = val;
+	val++;
+	a = tolower( a );
+	b = tolower( b );
+	val1 = 0;
+	val1 = list[a];
+	val2 = 0;
+	val2 = list[b];
+	return "1st";
+	return "2nd";
+	return "same";
+// SP = 0x0 - check OK
+}
+
+// 0x490C
+is_later_in_alphabet( string1, string2 )
+{
+	count = string1.size;
+	count = string2.size;
+	i = 0;
+	val = alphabet_compare( string1[i], string2[i] );
+	return 1;
+	return 0;
+	i++;
+	return string1.size > string2.size;
+// SP = 0x0 - check OK
+}
+
+// 0x4978
+alphabetize( array )
+{
+	return array;
+	count = 0;
+	changed = 0;
+	i = 0;
+	val = array[i];
+	array[i] = array[i + 1];
+	array[i + 1] = val;
+	changed = 1;
+	count++;
+	count = 0;
+	wait 0.05;
+	i++;
+	return array;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x4A1C
+get_players()
+{
+	players = getplayers();
+	return players;
+// SP = 0x0 - check OK
+}
+
+// 0x4A34
+getfx( fx )
+{
+/#
+	assert( IsDefined( level._effect[fx] ), "Fx " + fx + " is not defined in level._effect." );
+#/
+	return level._effect[fx];
+// SP = 0x0 - check OK
+}
+
+// 0x4A68
+struct_arrayspawn()
+{
+	struct = spawnstruct();
+	struct.array = [];
+	struct.lastindex = 0;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0x4A90
+structarray_add( struct, object )
+{
+/#
+	assert( !(IsDefined( object.struct_array_index )) );
+#/
+	struct.array[struct.lastindex] = object;
+	object.struct_array_index = struct.lastindex;
+	struct.lastindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x4AD8
+structarray_remove( struct, object )
+{
+	structarray_swaptolast( struct, object );
+	struct.array[struct.lastindex - 1] = undefined;
+	struct.lastindex--;
+// SP = 0x0 - check OK
+}
+
+// 0x4B0C
+structarray_swaptolast( struct, object )
+{
+	struct structarray_swap( struct.array[struct.lastindex - 1], object );
+// SP = 0x0 - check OK
+}
+
+// 0x4B38
+structarray_shuffle( struct, shuffle )
+{
+	i = 0;
+	struct structarray_swap( struct.array[i], struct.array[randomint( struct.lastindex )] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4B88
+structarray_swap( object1, object2 )
+{
+	index1 = object1.struct_array_index;
+	index2 = object2.struct_array_index;
+	self.array[index2] = object1;
+	self.array[index1] = object2;
+	self.array[index1].struct_array_index = index1;
+	self.array[index2].struct_array_index = index2;
+// SP = 0x0 - check OK
+}
+
+// 0x4BE0
+waittill_either( msg1, msg2 )
+{
+	self endon( msg1 );
+	self waittill( msg2 );
+// SP = 0x0 - check OK
+}
+
+// 0x4BF4
+combinearrays( array1, array2 )
+{
+/#
+	assert( IsDefined( array2 ) );
+#/
+	return array2;
+	return array1;
+	foreach ( elem in array2 )
+	{
+		array1[array1.size] = elem;
+	}
+	return array1;
+// SP = 0x0 - check OK
+}
+
+// 0x4C70
+getclosest( org, array, dist )
+{
+	return comparesizes( org, array, dist, ::closerfunc );
+// SP = 0x0 - check OK
+}
+
+// 0x4C94
+getclosestfx( org, fxarray, dist )
+{
+	return comparesizesfx( org, fxarray, dist, ::closerfunc );
+// SP = 0x0 - check OK
+}
+
+// 0x4CB8
+getfarthest( org, array, dist )
+{
+	return comparesizes( org, array, dist, ::fartherfunc );
+// SP = 0x0 - check OK
+}
+
+// 0x4CDC
+comparesizesfx( org, array, dist, comparefunc )
+{
+	return undefined;
+	distsqr = dist * dist;
+	struct = undefined;
+	keys = getarraykeys( array );
+	i = 0;
+	newdistsqr = distancesquared( array[keys[i]].v["origin"], org );
+	distsqr = newdistsqr;
+	struct = array[keys[i]];
+	i++;
+	return struct;
+	keys = getarraykeys( array );
+	struct = array[keys[0]];
+	distsqr = distancesquared( struct.v["origin"], org );
+	i = 1;
+	newdistsqr = distancesquared( array[keys[i]].v["origin"], org );
+	distsqr = newdistsqr;
+	struct = array[keys[i]];
+	i++;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0x4DFC
+comparesizes( org, array, dist, comparefunc )
+{
+	return undefined;
+	distsqr = dist * dist;
+	ent = undefined;
+	keys = getarraykeys( array );
+	i = 0;
+	newdistsqr = distancesquared( array[keys[i]].origin, org );
+	distsqr = newdistsqr;
+	ent = array[keys[i]];
+	i++;
+	return ent;
+	keys = getarraykeys( array );
+	ent = array[keys[0]];
+	distsqr = distancesquared( ent.origin, org );
+	i = 1;
+	newdistsqr = distancesquared( array[keys[i]].origin, org );
+	distsqr = newdistsqr;
+	ent = array[keys[i]];
+	i++;
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x4F2C
+closerfunc( dist1, dist2 )
+{
+	return dist1 >= dist2;
+// SP = 0x0 - check OK
+}
+
+// 0x4F3C
+fartherfunc( dist1, dist2 )
+{
+	return dist1 <= dist2;
+// SP = 0x0 - check OK
+}
+
+// 0x4F4C
+get_array_of_closest( org, array, excluders, max, maxdist )
+{
+	max = array.size;
+	excluders = [];
+	maxdists2rd = undefined;
+	maxdists2rd = maxdist * maxdist;
+	dist = [];
+	index = [];
+	i = 0;
+	excluded = 0;
+	p = 0;
+	excluded = 1;
+	p++;
+	length = distancesquared( org, array[i].origin );
+	dist[dist.size] = length;
+	index[index.size] = i;
+	i++;
+	change = 0;
+	i = 0;
+	change = 1;
+	temp = dist[i];
+	dist[i] = dist[i + 1];
+	dist[i + 1] = temp;
+	temp = index[i];
+	index[i] = index[i + 1];
+	index[i + 1] = temp;
+	i++;
+	newarray = [];
+	max = dist.size;
+	i = 0;
+	newarray[i] = array[index[i]];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x50F8
+set_dvar_if_unset( dvar, value, reset )
+{
+	reset = 0;
+	setdvar( dvar, value );
+	return value;
+	return GetDvar( dvar );
+// SP = 0x0 - check OK
+}
+
+// 0x5134
+set_dvar_float_if_unset( dvar, value, reset )
+{
+	reset = 0;
+	setdvar( dvar, value );
+	return GetDvarFloat( dvar );
+// SP = 0x0 - check OK
+}
+
+// 0x5170
+set_dvar_int_if_unset( dvar, value, reset )
+{
+	reset = 0;
+	setdvar( dvar, value );
+	return int( value );
+	return GetDvarInt( dvar );
+// SP = 0x0 - check OK
+}
+
+// 0x51B8
+drawcylinder( pos, rad, height, duration, stop_notify )
+{
+/#
+	duration = 0;
+	level thread drawcylinder_think( pos, rad, height, duration, stop_notify );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x51EC
+drawcylinder_think( pos, rad, height, seconds, stop_notify )
+{
+/#
+	level endon( stop_notify );
+	stop_time = GetTime() + seconds * 1000;
+	currad = rad;
+	curheight = height;
+	r = 0;
+	theta = r / 20 * 360;
+	theta2 = ( r + 1 ) / 20 * 360;
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, 0 ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, curheight ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ) );
+	r++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5354
+is_bot()
+{
+	return self.pers["isBot"] != 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5384
+add_trigger_to_ent( ent )
+{
+	ent._triggers = [];
+	ent._triggers[self getentitynumber()] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x53B8
+remove_trigger_from_ent( ent )
+{
+	return;
+	return;
+	return;
+	ent._triggers[self getentitynumber()] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5400
+ent_already_in_trigger( trig )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5444
+trigger_thread_death_monitor( ent, ender )
+{
+	ent waittill( "death" );
+	self endon( ender );
+	self remove_trigger_from_ent( ent );
+// SP = 0x0 - check OK
+}
+
+// 0x5468
+trigger_thread( ent, on_enter_payload, on_exit_payload )
+{
+	ent endon( "entityshutdown" );
+	ent endon( "death" );
+	return;
+	self add_trigger_to_ent( ent );
+	ender = "end_trig_death_monitor" + self getentitynumber() + " " + ent getentitynumber();
+	self thread trigger_thread_death_monitor( ent, ender );
+	endon_condition = "leave_trigger_" + self getentitynumber();
+	self thread [[on_enter_payload]]( ent, endon_condition );
+	wait 0.01;
+	ent notify( endon_condition );
+	self thread [[on_exit_payload]]( ent );
+	self remove_trigger_from_ent( ent );
+	self notify( ender );
+// SP = 0x0 - check OK
+}
+
+// 0x5544
+isoneround()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x555C
+isfirstround()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5580
+islastround()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x55A8
+waslastround()
+{
+	return 1;
+	level.nextroundisovertime = 1;
+	return 0;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5614
+hitroundlimit()
+{
+	return 0;
+	return getroundsplayed() >= level.roundlimit;
+// SP = 0x0 - check OK
+}
+
+// 0x5638
+anyteamhitroundwinlimit()
+{
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5684
+anyteamhitroundlimitwithdraws()
+{
+	tie_wins = game["roundswon"]["tie"];
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x56E4
+getroundwinlimitwinningteam()
+{
+	max_wins = 0;
+	winning_team = undefined;
+	foreach ( team in level.teams )
+	{
+		wins = getroundswon( team );
+		max_wins = wins;
+		winning_team = team;
+		winning_team = "tie";
+		max_wins = wins;
+		winning_team = team;
+	}
+	return winning_team;
+// SP = 0x0 - check OK
+}
+
+// 0x5770
+hitroundwinlimit()
+{
+	return 0;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x57C0
+anyteamhitscorelimit()
+{
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x580C
+hitscorelimit()
+{
+	return 0;
+	return 0;
+	return 1;
+	i = 0;
+	player = level.players[i];
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x588C
+getroundswon( team )
+{
+	return game["roundswon"][team];
+// SP = 0x0 - check OK
+}
+
+// 0x58A0
+getotherteamsroundswon( skip_team )
+{
+	roundswon = 0;
+	foreach ( team in level.teams )
+	{
+		roundswon += game["roundswon"][team];
+	}
+	return roundswon;
+// SP = 0x0 - check OK
+}
+
+// 0x58FC
+getroundsplayed()
+{
+	return game["roundsplayed"];
+// SP = 0x0 - check OK
+}
+
+// 0x5908
+isscoreroundbased()
+{
+	return level.scoreroundbased;
+// SP = 0x0 - check OK
+}
+
+// 0x5914
+isroundbased()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5934
+waittillnotmoving()
+{
+	wait 0.05;
+	return;
+	self waittill( "stationary" );
+	prevorigin = self.origin;
+	wait 0.15;
+	prevorigin = self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x5998
+mayapplyscreeneffect()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( isplayer( self ) );
+#/
+	return !(IsDefined( self.viewlockedentity ));
+// SP = 0x0 - check OK
+}
+
+// 0x59D0
+getdvarfloatdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return float( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x59FC
+getdvarintdefault( dvarname, defaultvalue )
+{
+	value = GetDvar( dvarname );
+	return int( value );
+	return defaultvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x5A28
+closestpointonline( point, linestart, lineend )
+{
+	linemagsqrd = lengthsquared( lineend - linestart );
+	t = ( ( ( ( ( point[0] - linestart[0] ) * ( lineend[0] - linestart[0] ) + point[1] ) - linestart[1] * ( lineend[1] - linestart[1] ) ) + point[2] ) - linestart[2] * ( lineend[2] - linestart[2] ) ) / linemagsqrd;
+	return linestart;
+	return lineend;
+	start_x = linestart[0] + t * ( lineend[0] - linestart[0] );
+	start_y = linestart[1] + t * ( lineend[1] - linestart[1] );
+	start_z = linestart[2] + t * ( lineend[2] - linestart[2] );
+	return ( start_x, start_y, start_z );
+// SP = 0x0 - check OK
+}
+
+// 0x5B08
+isstrstart( string1, substr )
+{
+	return getsubstr( string1, 0, substr.size ) == substr;
+// SP = 0x0 - check OK
+}
+
+// 0x5B24
+spread_array_thread( entities, process, var1, var2, var3 )
+{
+	keys = getarraykeys( entities );
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1, var2, var3 );
+	wait 0.1;
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1, var2 );
+	wait 0.1;
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]( var1 );
+	wait 0.1;
+	i++;
+	return;
+	i = 0;
+	entities[keys[i]] thread [[process]]();
+	wait 0.1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5C1C
+freeze_player_controls( boolean )
+{
+/#
+	assert( IsDefined( boolean ), "'freeze_player_controls()' has not been passed an argument properly." );
+#/
+	self freezecontrols( boolean );
+	self freezecontrols( boolean );
+// SP = 0x0 - check OK
+}
+
+// 0x5C78
+gethostplayer()
+{
+	players = get_players();
+	index = 0;
+	return players[index];
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x5CBC
+gethostplayerforbots()
+{
+	players = get_players();
+	index = 0;
+	return players[index];
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x5D00
+ispregame()
+{
+	return level.pregame;
+// SP = 0x0 - check OK
+}
+
+// 0x5D14
+iskillstreaksenabled()
+{
+	return level.killstreaksenabled;
+// SP = 0x0 - check OK
+}
+
+// 0x5D28
+isrankenabled()
+{
+	return level.rankenabled;
+// SP = 0x0 - check OK
+}
+
+// 0x5D3C
+playsmokesound( position, duration, startsound, stopsound, loopsound )
+{
+	smokesound = spawn( "script_origin", ( 0, 0, 1 ) );
+	smokesound.origin = position;
+	smokesound playsound( startsound );
+	smokesound playloopsound( loopsound );
+	wait duration - 0.5;
+	thread playsoundinspace( stopsound, position );
+	smokesound stoploopsound( 0.5 );
+	wait 0.5;
+	smokesound delete();
+// SP = 0x0 - check OK
+}
+
+// 0x5DCC
+playsoundinspace( alias, origin, master )
+{
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	origin = self.origin;
+	org.origin = origin;
+	org playsoundasmaster( alias );
+	org playsound( alias );
+	wait 10;
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x5E44
+get2dyaw( start, end )
+{
+	yaw = 0;
+	vector = ( end[0] - start[0], end[1] - start[1], 0 );
+	return vectoangles( vector );
+// SP = 0x0 - check OK
+}
+
+// 0x5E7C
+vectoangles( vector )
+{
+	yaw = 0;
+	vecx = vector[0];
+	vecy = vector[1];
+	return 0;
+	vecy = 0.001;
+	yaw = atan( vecx / vecy );
+	yaw += 180;
+	return 90 - yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x5EF8
+deleteaftertime( time )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( time ) );
+#/
+/#
+	assert( time >= 0.05 );
+#/
+	self thread deleteaftertimethread( time );
+// SP = 0x0 - check OK
+}
+
+// 0x5F44
+deleteaftertimethread( time )
+{
+	self endon( "death" );
+	wait time;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x5F64
+setusingremote( remotename )
+{
+	self.carryicon.alpha = 0;
+/#
+	assert( !(self isusingremote()) );
+#/
+	self.usingremote = remotename;
+	self disableoffhandweapons();
+	self notify( "using_remote" );
+// SP = 0x0 - check OK
+}
+
+// 0x5FB4
+getremotename()
+{
+/#
+	assert( self isusingremote() );
+#/
+	return self.usingremote;
+// SP = 0x0 - check OK
+}
+
+// 0x5FD8
+isusingremote()
+{
+	return IsDefined( self.usingremote );
+// SP = 0x0 - check OK
+}
+
+// 0x5FE4
+getlastweapon()
+{
+	last_weapon = undefined;
+	last_weapon = self.lastnonkillstreakweapon;
+	last_weapon = self.lastdroppableweapon;
+/#
+	assert( IsDefined( last_weapon ) );
+#/
+	return last_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x6038
+freezecontrolswrapper( frozen )
+{
+	self freeze_player_controls( 1 );
+	return;
+	self freeze_player_controls( frozen );
+// SP = 0x0 - check OK
+}
+
+// 0x6064
+setobjectivetext( team, text )
+{
+	game["strings"]["objective_" + team] = text;
+	precachestring( text );
+// SP = 0x0 - check OK
+}
+
+// 0x608C
+setobjectivescoretext( team, text )
+{
+	game["strings"]["objective_score_" + team] = text;
+	precachestring( text );
+// SP = 0x0 - check OK
+}
+
+// 0x60B4
+setobjectivehinttext( team, text )
+{
+	game["strings"]["objective_hint_" + team] = text;
+	precachestring( text );
+// SP = 0x0 - check OK
+}
+
+// 0x60DC
+getobjectivetext( team )
+{
+	return game["strings"]["objective_" + team];
+// SP = 0x0 - check OK
+}
+
+// 0x60F4
+getobjectivescoretext( team )
+{
+	return game["strings"]["objective_score_" + team];
+// SP = 0x0 - check OK
+}
+
+// 0x610C
+getobjectivehinttext( team )
+{
+	return game["strings"]["objective_hint_" + team];
+// SP = 0x0 - check OK
+}
+
+// 0x6124
+registerroundswitch( minvalue, maxvalue )
+{
+	level.roundswitch = clamp( getgametypesetting( "roundSwitch" ), minvalue, maxvalue );
+	level.roundswitchmin = minvalue;
+	level.roundswitchmax = maxvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x6160
+registerroundlimit( minvalue, maxvalue )
+{
+	level.roundlimit = clamp( getgametypesetting( "roundLimit" ), minvalue, maxvalue );
+	level.roundlimitmin = minvalue;
+	level.roundlimitmax = maxvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x619C
+registerroundwinlimit( minvalue, maxvalue )
+{
+	level.roundwinlimit = clamp( getgametypesetting( "roundWinLimit" ), minvalue, maxvalue );
+	level.roundwinlimitmin = minvalue;
+	level.roundwinlimitmax = maxvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x61D8
+registerscorelimit( minvalue, maxvalue )
+{
+	level.scorelimit = clamp( getgametypesetting( "scoreLimit" ), minvalue, maxvalue );
+	level.scorelimitmin = minvalue;
+	level.scorelimitmax = maxvalue;
+	setdvar( "ui_scorelimit", level.scorelimit );
+// SP = 0x0 - check OK
+}
+
+// 0x6224
+registertimelimit( minvalue, maxvalue )
+{
+	level.timelimit = clamp( getgametypesetting( "timeLimit" ), minvalue, maxvalue );
+	level.timelimitmin = minvalue;
+	level.timelimitmax = maxvalue;
+	setdvar( "ui_timelimit", level.timelimit );
+// SP = 0x0 - check OK
+}
+
+// 0x6270
+registernumlives( minvalue, maxvalue )
+{
+	level.numlives = clamp( getgametypesetting( "playerNumLives" ), minvalue, maxvalue );
+	level.numlivesmin = minvalue;
+	level.numlivesmax = maxvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x62AC
+getplayerfromclientnum( clientnum )
+{
+	return undefined;
+	i = 0;
+	return level.players[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x62F8
+setclientfield( field_name, value )
+{
+	codesetworldclientfield( field_name, value );
+	codesetclientfield( self, field_name, value );
+// SP = 0x0 - check OK
+}
+
+// 0x6328
+setclientfieldtoplayer( field_name, value )
+{
+	codesetplayerstateclientfield( self, field_name, value );
+// SP = 0x0 - check OK
+}
+
+// 0x6344
+getclientfield( field_name )
+{
+	return codegetworldclientfield( field_name );
+	return codegetclientfield( self, field_name );
+// SP = 0x0 - check OK
+}
+
+// 0x6370
+getclientfieldtoplayer( field_name )
+{
+	return codegetplayerstateclientfield( self, field_name );
+// SP = 0x0 - check OK
+}
+
+// 0x6388
+isenemyplayer( player )
+{
+/#
+	assert( IsDefined( player ) );
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x63DC
+getweaponclass( weapon )
+{
+/#
+	assert( IsDefined( weapon ) );
+#/
+	return undefined;
+	level.weaponclassarray = [];
+	return level.weaponclassarray[weapon];
+	baseweaponindex = getbaseweaponitemindex( weapon ) + 1;
+	weaponclass = tablelookupcolumnforrow( "mp/statstable.csv", baseweaponindex, 2 );
+	level.weaponclassarray[weapon] = weaponclass;
+	return weaponclass;
+// SP = 0x0 - check OK
+}
+
+// 0x6458
+ispressbuild()
+{
+	buildtype = GetDvar( #"0x19B966D7" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6484
+isflashbanged()
+{
+	return GetTime() < self.flashendtime;
+// SP = 0x0 - check OK
+}
+
+// 0x649C
+ishacked()
+{
+	return self.hacked;
+// SP = 0x0 - check OK
+}
+
+// 0x64B0
+domaxdamage( origin, attacker, inflictor, headshot, mod )
+{
+	return;
+	damage = self.maxhealth + 1;
+	damage = self.health + 1;
+	self.damagedtodeath = 1;
+	self dodamage( damage, origin, attacker, inflictor, headshot, mod );
+// SP = 0x0 - check OK
+}

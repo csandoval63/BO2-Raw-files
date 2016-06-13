@@ -1,0 +1,156 @@
+// maps/_avenger.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x6F0
+_get_avenger_death_model_array()
+{
+	a_models = array( "veh_t6_drone_avenger_dead_nose", "veh_t6_drone_avenger_dead_wing_r", "veh_t6_drone_avenger_dead_wing_l", "veh_t6_drone_avenger_dead_tail_r", "veh_t6_drone_avenger_dead_tail_l" );
+	return a_models;
+// SP = 0x0 - check OK
+}
+
+// 0x71C
+_get_avenger_death_model_2x_array()
+{
+	a_models = array( "veh_t6_drone_avenger_dead_nose_x2", "veh_t6_drone_avenger_dead_wing_r_x2", "veh_t6_drone_avenger_dead_wing_l_x2", "veh_t6_drone_avenger_dead_tail_r_x2", "veh_t6_drone_avenger_dead_tail_l_x2" );
+	return a_models;
+// SP = 0x0 - check OK
+}
+
+// 0x748
+_get_avenger_death_model_tag_array()
+{
+	a_model_tags = array( "tag_dead_body_front", "tag_dead_wing_right", "tag_dead_wing_left", "tag_dead_tail_right", "tag_dead_tail_left" );
+	return a_model_tags;
+// SP = 0x0 - check OK
+}
+
+// 0x774
+_get_avenger_death_model_fx_tag_array()
+{
+	a_fx_tags = array( "tag_fx_dead_body_front", "tag_fx_dead_wing_right", "tag_fx_dead_wing_left", "tag_fx_dead_tail_right", "tag_fx_dead_tail_left" );
+	return a_fx_tags;
+// SP = 0x0 - check OK
+}
+
+// 0x7A0
+precache_extra_models( is_2x )
+{
+	is_2x = 0;
+	a_models = _get_avenger_death_model_2x_array();
+	a_models = _get_avenger_death_model_array();
+	i = 0;
+	str_model = a_models[i];
+	precachemodel( str_model );
+	i++;
+	self._vehicle_load_fx = ::precache_crash_fx;
+// SP = 0x0 - check OK
+}
+
+// 0x814
+precache_crash_fx()
+{
+	self.fx_crash_effects = [];
+	self.fx_crash_effects["fire_trail_lg"] = loadfx( "trail/fx_trail_drone_piece_damage_smoke" );
+// SP = 0x0 - check OK
+}
+
+// 0x840
+set_deathmodel( v_point, v_dir )
+{
+	a_models = _get_avenger_death_model_array();
+	a_model_tags = _get_avenger_death_model_tag_array();
+	a_fx_tags = _get_avenger_death_model_fx_tag_array();
+	str_deathmodel = self.deathmodel;
+	str_deathmodel = self.deathmodel;
+	self setmodel( str_deathmodel );
+	playfxontag( self.fx_crash_effects["fire_trail_lg"], self, "tag_origin" );
+	self playsound( "evt_avenger_explo" );
+	self playsound( "evt_drone_explo_close" );
+	playsoundatposition( "evt_debris_flythrough", self.origin );
+	deathmodel_pieces = [];
+	i = 0;
+	str_model = a_models[i];
+	str_model_tag = a_model_tags[i];
+	str_fx_tag = a_fx_tags[i];
+	deathmodel_pieces[i] = spawn( "script_model", self gettagorigin( str_model_tag ) );
+	deathmodel_pieces[i].angles = self gettagangles( str_model_tag );
+	deathmodel_pieces[i] setmodel( str_model );
+	deathmodel_pieces[i] linkto( self, str_model_tag );
+	deathmodel_pieces[i] thread delete_deathmodel_piece();
+	i++;
+	deathmodel_pieces = get_array_of_closest( v_point, deathmodel_pieces );
+	num_pieces = 1;
+	num_pieces = randomintrange( 2, deathmodel_pieces.size );
+	i = 0;
+	vel_dir = vectornormalize( self gettagorigin( str_model_tag ) - self.origin );
+	vel_dir += vectornormalize( self.velocity );
+	deathmodel_pieces[i] unlink();
+	deathmodel_pieces[i] movegravity( vel_dir * 2500 + vector_scale( ( 0, 0, 1 ), 100 ), 5 );
+	deathmodel_pieces[i] thread rotate_dead_piece();
+	deathmodel_pieces[i].b_launched = 1;
+	playfxontag( self.fx_crash_effects["fire_trail_lg"], deathmodel_pieces[i], "tag_origin" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA90
+update_objective_model()
+{
+	self endon( "death" );
+	self thread clear_objective_model_on_death();
+	self waittill( "missileLockTurret_locked" );
+	return;
+	level.f35_lockon_target = self;
+	self setclientflag( 15 );
+	self waittill( "missileLockTurret_cleared" );
+	level.f35_lockon_target = undefined;
+	self clearclientflag( 15 );
+// SP = 0x0 - check OK
+}
+
+// 0xAF4
+update_damage_states()
+{
+	self endon( "death" );
+	is_damaged = 0;
+	self waittill( "damage" );
+	playfxontag( self.fx_crash_effects["fire_trail_lg"], self, "tag_origin" );
+	is_damaged = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB4C
+clear_objective_model_on_death()
+{
+	self waittill( "death" );
+	self clearclientflag( 15 );
+	level.f35_lockon_target = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xB84
+rotate_dead_piece()
+{
+	self endon( "death" );
+	torque = ( 0, randomintrange( -90, 90 ), randomintrange( 90, 720 ) );
+	torque = ( torque[0], torque[1], torque[2] * -1 );
+	ang_vel = ( 0, 0, 0 );
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 * -1 );
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 );
+	self.angles += ang_vel * 0.05;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xC5C
+delete_deathmodel_piece()
+{
+	wait 5;
+	self delete();
+// SP = 0x0 - check OK
+}

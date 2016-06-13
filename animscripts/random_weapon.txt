@@ -1,0 +1,314 @@
+// animscripts/random_weapon.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+#include animscripts\utility;
+
+
+// 0x764
+create_weapon_drop_array()
+{
+	flag_init( "weapon_drop_arrays_built" );
+	level thread override_weapon_drop_weights_by_level();
+	primary_weapons = array( "spectre", "uzi", "mp5k", "mac11", "skorpion", "kiparis", "mpl", "pm63", "ak74u", "aug", "galil", "enfield", "m14", "ak47", "famas", "commando", "g11", "m16", "fnfal", "m60", "stoner63", "hk21", "rpk" );
+	primary_weapons_2 = array( "asp", "cz75", "m1911", "makarov", "python", "psg1", "wa2000", "dragunov", "l96a1", "ithaca", "hs10", "spas", "rottweil71" );
+	primary_weapons = arraycombine( primary_weapons, primary_weapons_2, 1, 0 );
+	primary_weapon_attachments = [];
+	primary_weapon_attachments["sites"] = array( "acog", "elbit", "ir", "reflex" );
+	primary_weapon_attachments["ammo"] = array( "extclip", "dualclip" );
+	primary_weapon_attachments["barrel"] = array( "silencer" );
+	primary_weapon_attachments["auto"] = array( "auto" );
+	primary_weapon_alts = array( "ft", "gl", "mk" );
+	_sp = "_sp";
+	anim.droppable_weapons = [];
+	attachment_categories = array( "sites", "ammo", "barrel", "auto" );
+	i = 0;
+	base_weapon = primary_weapons[i] + _sp;
+	anim.droppable_weapons[base_weapon] = [];
+	l = 0;
+	anim.droppable_weapons[base_weapon][attachment_categories[l]] = [];
+	j = 0;
+	new_weapon = primary_weapons[i] + "_" + primary_weapon_attachments[attachment_categories[l]][j] + _sp;
+	anim.droppable_weapons[base_weapon][attachment_categories[l]][anim.droppable_weapons[base_weapon][attachment_categories[l]].size] = new_weapon;
+	j++;
+	l++;
+	anim.droppable_weapons[base_weapon]["alt_weapon"] = [];
+	j = 0;
+	new_weapon = primary_weapon_alts[j] + "_" + primary_weapons[i] + _sp;
+	new_weapon = primary_weapons[i] + "_" + primary_weapon_alts[j] + _sp;
+	anim.droppable_weapons[base_weapon]["alt_weapon"][anim.droppable_weapons[base_weapon]["alt_weapon"].size] = new_weapon;
+	j++;
+	i++;
+	build_weight_arrays_by_ai_class( "VC", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "NVA", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Spetsnaz", 0, 50, 25, 25, 25 );
+	build_weight_arrays_by_ai_class( "RU", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "CU", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Marines", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Blackops", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Specops", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "UWB", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Rebels", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "Prisoners", 0, 50, 25, 25, 10 );
+	build_weight_arrays_by_ai_class( "hazmat", 0, 50, 25, 25, 10 );
+	level.rw_enabled = 1;
+	level.rw_attachments_allowed = 0;
+	level.rw_gl_allowed = 1;
+	level.rw_mk_allowed = 1;
+	level.rw_ft_allowed = 1;
+	flag_set( "weapon_drop_arrays_built" );
+// SP = 0x0 - check OK
+}
+
+// 0xB6C
+build_weight_arrays_by_ai_class( _ai_class, _overwrite, _base_weapon, _scoped_attachment, _ammo_attachment, _alt_weapon )
+{
+	return;
+	anim.droppable_weapons[_ai_class] = [];
+	anim.droppable_weapons[_ai_class]["base"] = _base_weapon;
+	anim.droppable_weapons[_ai_class]["sites"] = _scoped_attachment;
+	anim.droppable_weapons[_ai_class]["ammo"] = _ammo_attachment;
+	anim.droppable_weapons[_ai_class]["alt_weapon"] = _alt_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0xBD4
+get_weapon_name_with_attachments( weapon_name )
+{
+	return weapon_name;
+	return weapon_name;
+	return weapon_name;
+	ai_class = get_ai_class_for_weapon_drop( self.classname );
+	return weapon_name;
+	keys = array( "base", "sites", "ammo", "alt_weapon" );
+	total_weight = 0;
+	i = 0;
+	total_weight += anim.droppable_weapons[ai_class][keys[i]];
+	total_weight += anim.droppable_weapons[ai_class][keys[i]];
+	i++;
+	return weapon_name;
+	random_choice = randomint( total_weight );
+	current_key = "none";
+	current_weight = 0;
+	i = 0;
+	current_key = keys[i];
+	current_weight += anim.droppable_weapons[ai_class][keys[i]];
+	i++;
+	return weapon_name;
+	return weapon_name;
+	random_weap_int = randomint( anim.droppable_weapons[weapon_name][current_key].size );
+	return anim.droppable_weapons[weapon_name][current_key][random_weap_int];
+/#
+	assert( level.rw_attachments_allowed, "Trying to give an attachment that is not valid.  Talk to GLocke if you hit this assert." );
+#/
+	possible_alt_weapons = anim.droppable_weapons[weapon_name][current_key];
+	x = 0;
+	arrayremovevalue( possible_alt_weapons, possible_alt_weapons[x] );
+	x++;
+	x = 0;
+	arrayremovevalue( possible_alt_weapons, possible_alt_weapons[x] );
+	x++;
+	x = 0;
+	arrayremovevalue( possible_alt_weapons, possible_alt_weapons[x] );
+	x++;
+	return weapon_name;
+	random_weapon_int = randomint( possible_alt_weapons.size );
+	return possible_alt_weapons[random_weapon_int];
+// SP = 0x0 - check OK
+}
+
+// 0xE8C
+get_ai_class_for_weapon_drop( _classname )
+{
+	return "Spetsnaz";
+	return "NVA";
+	return "VC";
+	return "RU";
+	return "CU";
+	return "Marines";
+	return "Blackops";
+	return "Specops";
+	return "UWB";
+	return "Rebels";
+	return "Prisoners";
+	return "hazmat";
+	return "not_defined";
+// SP = 0x0 - check OK
+}
+
+// 0xFB8
+override_weapon_drop_weights_by_level()
+{
+	wait 0.1;
+	switch ( level.script )
+	{
+		case "creek_1":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "CU", 1, 50, 20, 75, 20 );
+			build_weight_arrays_by_ai_class( "Rebels", 1, 50, 10, 50, 15 );
+			break;
+		case "cuba":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 50, 0, 60, 40 );
+			build_weight_arrays_by_ai_class( "Prisoners", 1, 50, 0, 60, 40 );
+			break;
+		case "default":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 50, 30, 40, 10 );
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 50, 30, 40, 10 );
+			break;
+		case "flashpoint":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "NVA", 1, 40, 20, 50, 20 );
+			build_weight_arrays_by_ai_class( "Marines", 1, 40, 60, 40, 30 );
+			break;
+		case "fullahead":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "Marines", 1, 40, 25, 25, 15 );
+			build_weight_arrays_by_ai_class( "NVA", 1, 50, 25, 25, 40 );
+			break;
+		case "hue_city":
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 50, 40, 60, 15 );
+			build_weight_arrays_by_ai_class( "Blackops", 1, 50, 40, 60, 15 );
+			break;
+		case "khe_sanh":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "Marines", 1, 40, 45, 40, 10 );
+			build_weight_arrays_by_ai_class( "VC", 1, 40, 20, 70, 15 );
+			break;
+		case "kowloon":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "Marines", 1, 40, 35, 15, 10 );
+			build_weight_arrays_by_ai_class( "VC", 1, 60, 15, 15, 15 );
+			break;
+		case "pow":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 40, 35, 20, 10 );
+			build_weight_arrays_by_ai_class( "VC", 1, 40, 35, 20, 10 );
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 30, 50, 35, 10 );
+			build_weight_arrays_by_ai_class( "Marines", 1, 40, 35, 20, 10 );
+			break;
+		case "rebirth":
+		case "river":
+		case "underwaterbase":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 50, 20, 15, 10 );
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 50, 20, 15, 10 );
+			build_weight_arrays_by_ai_class( "Blackops", 1, 0, 100, 15, 10 );
+			break;
+		case "vorkuta":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 30, 40, 30, 20 );
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 30, 40, 20, 15 );
+			build_weight_arrays_by_ai_class( "hazmat", 1, 0, 100, 100, 10 );
+			break;
+		case "wmd":
+			level.rw_attachments_allowed = 1;
+			build_weight_arrays_by_ai_class( "RU", 1, 30, 50, 50, 20 );
+			build_weight_arrays_by_ai_class( "Spetsnaz", 1, 40, 30, 50, 20 );
+			build_weight_arrays_by_ai_class( "UWB", 1, 30, 50, 50, 20 );
+			break;
+		case "wmd_sr71":
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1380
+set_random_cammo_drop()
+{
+	self waittill( "dropweapon", weapon );
+	weapon_class = get_weapon_type( weapon.classname );
+	return;
+	name = tolower( weapon.classname );
+	switch ( level.script )
+	{
+		case "creek_1":
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 14 );
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 14 );
+			break;
+		case "cuba":
+			weapon itemweaponsetoptions( 12 );
+			break;
+		case "default":
+			weapon itemweaponsetoptions( 14 );
+			weapon itemweaponsetoptions( 1 );
+			weapon itemweaponsetoptions( 5 );
+			weapon itemweaponsetoptions( 5 );
+			weapon itemweaponsetoptions( 6 );
+			break;
+		case "flashpoint":
+			weapon itemweaponsetoptions( 1 );
+			weapon itemweaponsetoptions( 1 );
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 6 );
+			weapon itemweaponsetoptions( 6 );
+			weapon itemweaponsetoptions( 1 );
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 1 );
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 1 );
+			break;
+		case "fullahead":
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 7 );
+			break;
+		case "hue_city":
+		case "khe_sanh":
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 8 );
+			weapon itemweaponsetoptions( 13 );
+			break;
+		case "kowloon":
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 13 );
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 13 );
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 13 );
+			weapon itemweaponsetoptions( 13 );
+			break;
+		case "pow":
+			weapon itemweaponsetoptions( 14 );
+			weapon itemweaponsetoptions( 14 );
+			weapon itemweaponsetoptions( 9 );
+			weapon itemweaponsetoptions( 13 );
+			break;
+		case "rebirth":
+			weapon itemweaponsetoptions( 2 );
+			break;
+		case "river":
+		case "underwaterbase":
+			weapon itemweaponsetoptions( 2 );
+			weapon itemweaponsetoptions( 11 );
+			weapon itemweaponsetoptions( 11 );
+			weapon itemweaponsetoptions( 2 );
+			break;
+		case "vorkuta":
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 7 );
+			weapon itemweaponsetoptions( 7 );
+			break;
+		case "wmd":
+			weapon itemweaponsetoptions( 7 );
+			break;
+		case "wmd_sr71":
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1D30
+get_weapon_type( weapon_name )
+{
+	_classname = tolower( weapon_name );
+	return "shotgun";
+	return "assault";
+	return "smg";
+	return "lmg";
+	return "sniper";
+	return "launcher";
+// SP = 0x0 - check OK
+}

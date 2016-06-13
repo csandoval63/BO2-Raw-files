@@ -1,0 +1,70 @@
+// clientscripts/mp/zombies/_zm_ai_brutus.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0x374
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x37C
+init()
+{
+	registerclientfield( "actor", "helmet_off", 9000, 1, "int", ::brutus_helmet_launch_cb );
+	registerclientfield( "actor", "brutus_lock_down", 9000, 1, "int", ::brutus_lock_down_effects_cb );
+	registerbrutusfootstepcb( "zm_alcatraz_brutus", ::brutusfootstepcbfunc );
+// SP = 0x0 - check OK
+}
+
+// 0x3D8
+brutus_helmet_launch_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+	self.helmet_launched = 1;
+	createdynentandlaunch( localclientnum, "c_zom_cellbreaker_helmet", self.origin + vector_scale( ( 0, 0, 1 ), 85 ), self.angles, self.origin + vector_scale( ( 0, 0, 1 ), 85 ), anglestoforward( self.angles ) );
+// SP = 0x0 - check OK
+}
+
+// 0x444
+brutus_lock_down_effects_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+/#
+	println( "LDS: NewEnt!" );
+#/
+/#
+	println( "LDS: InitialSnap!" );
+#/
+	player = getlocalplayer( localclientnum );
+	player earthquake( 0.7, 1, self.origin, 1500 );
+	playrumbleonposition( localclientnum, "explosion_generic", self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x4C8
+brutusfootstepcbfunc( localclientnum, pos, surface, notetrack, bone )
+{
+	players = getlocalplayers();
+	i = 0;
+	players[i] earthquake( 0.5, 0.1, self.origin, 1500 );
+	playerlocalclientnum = players[i] getlocalclientnumber();
+	playrumbleonposition( playerlocalclientnum, "brutus_footsteps", self.origin );
+	i++;
+	footstepdoeverything();
+// SP = 0x0 - check OK
+}
+
+// 0x578
+registerbrutusfootstepcb( aitype, func )
+{
+	level._footstepcbfuncs = [];
+/#
+	println( "Attempting to register footstep callback function for ai type " + aitype + " multiple times." );
+#/
+	return;
+	level._footstepcbfuncs[aitype] = func;
+// SP = 0x0 - check OK
+}

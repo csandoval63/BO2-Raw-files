@@ -1,0 +1,13 @@
+// maps/mp/gametypes/_scoreboard.gsc
+
+
+// 0xEC
+init()
+{
+	return;
+	setdvar( "g_TeamIcon_Axis", "faction_cia" );
+	setdvar( "g_TeamIcon_Allies", "faction_cdc" );
+	setdvar( "g_TeamIcon_Axis", game["icons"]["axis"] );
+	setdvar( "g_TeamIcon_Allies", game["icons"]["allies"] );
+// SP = 0x0 - check OK
+}

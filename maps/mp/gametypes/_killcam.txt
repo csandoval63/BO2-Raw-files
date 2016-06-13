@@ -1,0 +1,619 @@
+// maps/mp/gametypes/_killcam.gsc
+
+#include maps\mp\gametypes\_globallogic_spawn;
+#include maps\mp\gametypes\_spectating;
+#include maps\mp\_tacticalinsertion;
+#include maps\mp\_challenges;
+#include maps\mp\gametypes\_globallogic;
+#include maps\mp\gametypes\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0xB90
+init()
+{
+	precachestring( &"PLATFORM_PRESS_TO_SKIP" );
+	precachestring( &"PLATFORM_PRESS_TO_RESPAWN" );
+	precacheshader( "white" );
+	level.killcam = getgametypesetting( "allowKillcam" );
+	level.finalkillcam = getgametypesetting( "allowFinalKillcam" );
+	initfinalkillcam();
+// SP = 0x0 - check OK
+}
+
+// 0xBE4
+initfinalkillcam()
+{
+	level.finalkillcamsettings = [];
+	initfinalkillcamteam( "none" );
+	foreach ( team in level.teams )
+	{
+		initfinalkillcamteam( team );
+	}
+	level.finalkillcam_winner = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xC40
+initfinalkillcamteam( team )
+{
+	level.finalkillcamsettings[team] = spawnstruct();
+	clearfinalkillcamteam( team );
+// SP = 0x0 - check OK
+}
+
+// 0xC68
+clearfinalkillcamteam( team )
+{
+	level.finalkillcamsettings[team].spectatorclient = undefined;
+	level.finalkillcamsettings[team].weapon = undefined;
+	level.finalkillcamsettings[team].deathtime = undefined;
+	level.finalkillcamsettings[team].deathtimeoffset = undefined;
+	level.finalkillcamsettings[team].offsettime = undefined;
+	level.finalkillcamsettings[team].entityindex = undefined;
+	level.finalkillcamsettings[team].targetentityindex = undefined;
+	level.finalkillcamsettings[team].entitystarttime = undefined;
+	level.finalkillcamsettings[team].perks = undefined;
+	level.finalkillcamsettings[team].killstreaks = undefined;
+	level.finalkillcamsettings[team].attacker = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xCF8
+recordkillcamsettings( spectatorclient, targetentityindex, sweapon, deathtime, deathtimeoffset, offsettime, entityindex, entitystarttime, perks, killstreaks, attacker )
+{
+	team = attacker.team;
+	level.finalkillcamsettings[team].spectatorclient = spectatorclient;
+	level.finalkillcamsettings[team].weapon = sweapon;
+	level.finalkillcamsettings[team].deathtime = deathtime;
+	level.finalkillcamsettings[team].deathtimeoffset = deathtimeoffset;
+	level.finalkillcamsettings[team].offsettime = offsettime;
+	level.finalkillcamsettings[team].entityindex = entityindex;
+	level.finalkillcamsettings[team].targetentityindex = targetentityindex;
+	level.finalkillcamsettings[team].entitystarttime = entitystarttime;
+	level.finalkillcamsettings[team].perks = perks;
+	level.finalkillcamsettings[team].killstreaks = killstreaks;
+	level.finalkillcamsettings[team].attacker = attacker;
+	level.finalkillcamsettings["none"].spectatorclient = spectatorclient;
+	level.finalkillcamsettings["none"].weapon = sweapon;
+	level.finalkillcamsettings["none"].deathtime = deathtime;
+	level.finalkillcamsettings["none"].deathtimeoffset = deathtimeoffset;
+	level.finalkillcamsettings["none"].offsettime = offsettime;
+	level.finalkillcamsettings["none"].entityindex = entityindex;
+	level.finalkillcamsettings["none"].targetentityindex = targetentityindex;
+	level.finalkillcamsettings["none"].entitystarttime = entitystarttime;
+	level.finalkillcamsettings["none"].perks = perks;
+	level.finalkillcamsettings["none"].killstreaks = killstreaks;
+	level.finalkillcamsettings["none"].attacker = attacker;
+// SP = 0x0 - check OK
+}
+
+// 0xEA4
+erasefinalkillcam()
+{
+	clearfinalkillcamteam( "none" );
+	foreach ( team in level.teams )
+	{
+		clearfinalkillcamteam( team );
+	}
+	level.finalkillcam_winner = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xEF8
+finalkillcamwaiter()
+{
+	return 0;
+	level waittill( "final_killcam_done" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xF14
+postroundfinalkillcam()
+{
+	return;
+	level notify( "play_final_killcam" );
+	maps\mp\gametypes\_globallogic::resetoutcomeforallplayers();
+	finalkillcamwaiter();
+// SP = 0x0 - check OK
+}
+
+// 0xF48
+dofinalkillcam()
+{
+	level waittill( "play_final_killcam" );
+	level.infinalkillcam = 1;
+	winner = "none";
+	winner = level.finalkillcam_winner;
+	level.infinalkillcam = 0;
+	level notify( "final_killcam_done" );
+	return;
+	maps\mp\_challenges::getfinalkill( level.finalkillcamsettings[winner].attacker );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 0 );
+	players = level.players;
+	index = 0;
+	player = players[index];
+	player closemenu();
+	player closeingamemenu();
+	player thread finalkillcam( winner );
+	index++;
+	wait 0.1;
+	wait 0.05;
+	level notify( "final_killcam_done" );
+	level.infinalkillcam = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1050
+startlastkillcam()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1058
+areanyplayerswatchingthekillcam()
+{
+	players = level.players;
+	index = 0;
+	player = players[index];
+	return 1;
+	index++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1098
+killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentitystarttime, sweapon, deathtime, deathtimeoffset, offsettime, respawn, maxtime, perks, killstreaks, attacker )
+{
+	self endon( "disconnect" );
+	self endon( "spawned" );
+	level endon( "game_ended" );
+	return;
+	postdeathdelay = ( GetTime() - deathtime ) / 1000;
+	predelay = postdeathdelay + deathtimeoffset;
+	camtime = calckillcamtime( sweapon, killcamentitystarttime, predelay, respawn, maxtime );
+	postdelay = calcpostdelay();
+	killcamlength = camtime + postdelay;
+	return;
+	postdelay = maxtime - camtime;
+	postdelay = 1;
+	camtime = maxtime - 1;
+	killcamlength = camtime + postdelay;
+	killcamoffset = camtime + predelay;
+	self notify( "begin_killcam", GetTime() );
+	killcamstarttime = GetTime() - killcamoffset * 1000;
+	self.sessionstate = "spectator";
+	self.spectatorclient = attackernum;
+	self.killcamentity = -1;
+	self thread setkillcamentity( killcamentityindex, killcamentitystarttime - killcamstarttime - 100 );
+	self.killcamtargetentity = targetnum;
+	self.archivetime = killcamoffset;
+	self.killcamlength = killcamlength;
+	self.psoffsettime = offsettime;
+	recordkillcamsettings( attackernum, targetnum, sweapon, deathtime, deathtimeoffset, offsettime, killcamentityindex, killcamentitystarttime, perks, killstreaks, attacker );
+	foreach ( team in level.teams )
+	{
+		self allowspectateteam( team, 1 );
+	}
+	self allowspectateteam( "freelook", 1 );
+	self allowspectateteam( "none", 1 );
+	self thread endedkillcamcleanup();
+	wait 0.05;
+	self.sessionstate = "dead";
+	self.spectatorclient = -1;
+	self.killcamentity = -1;
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+	self notify( "end_killcam" );
+	return;
+	self thread checkforabruptkillcamend();
+	self.killcam = 1;
+	self addkillcamskiptext( respawn );
+	self addkillcamtimer( camtime );
+	self maps\mp\gametypes\_hud_util::showperks();
+	self thread spawnedkillcamcleanup();
+	self thread waitskipkillcambutton();
+	self thread waitteamchangeendkillcam();
+	self thread waitkillcamtime();
+	self thread maps\mp\_tacticalinsertion::cancel_button_think();
+	self waittill( "end_killcam" );
+	self endkillcam( 0 );
+	self.sessionstate = "dead";
+	self.spectatorclient = -1;
+	self.killcamentity = -1;
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1360
+setkillcamentity( killcamentityindex, delayms )
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	self endon( "spawned" );
+	wait delayms / 1000;
+	self.killcamentity = killcamentityindex;
+// SP = 0x0 - check OK
+}
+
+// 0x1394
+waitkillcamtime()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	wait self.killcamlength - 0.05;
+	self notify( "end_killcam" );
+// SP = 0x0 - check OK
+}
+
+// 0x13BC
+waitfinalkillcamslowdown( deathtime, starttime )
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	secondsuntildeath = ( deathtime - starttime ) / 1000;
+	deathtime = GetTime() + secondsuntildeath * 1000;
+	waitbeforedeath = 2;
+	maps\mp\_utility::setclientsysstate( "levelNotify", "fkcb" );
+	wait max( 0, secondsuntildeath - waitbeforedeath );
+	setslowmotion( 1, 0.25, waitbeforedeath );
+	wait waitbeforedeath + 0.5;
+	setslowmotion( 0.25, 1, 1 );
+	wait 0.5;
+	maps\mp\_utility::setclientsysstate( "levelNotify", "fkce" );
+// SP = 0x0 - check OK
+}
+
+// 0x1468
+waitskipkillcambutton()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	wait 0.05;
+	wait 0.05;
+	self notify( "end_killcam" );
+	self clientnotify( "fkce" );
+// SP = 0x0 - check OK
+}
+
+// 0x14C0
+waitteamchangeendkillcam()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	self waittill( "changed_class" );
+	endkillcam( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x14E4
+waitskipkillcamsafespawnbutton()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	wait 0.05;
+	wait 0.05;
+	self.wantsafespawn = 1;
+	self notify( "end_killcam" );
+// SP = 0x0 - check OK
+}
+
+// 0x1534
+endkillcam( final )
+{
+	self.kc_skiptext.alpha = 0;
+	self.kc_timer.alpha = 0;
+	self.killcam = undefined;
+	self hideallperks();
+	self thread maps\mp\gametypes\_spectating::setspectatepermissions();
+// SP = 0x0 - check OK
+}
+
+// 0x158C
+checkforabruptkillcamend()
+{
+	self endon( "disconnect" );
+	self endon( "end_killcam" );
+	wait 0.05;
+	self notify( "end_killcam" );
+// SP = 0x0 - check OK
+}
+
+// 0x15C4
+spawnedkillcamcleanup()
+{
+	self endon( "end_killcam" );
+	self endon( "disconnect" );
+	self waittill( "spawned" );
+	self endkillcam( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x15E8
+spectatorkillcamcleanup( attacker )
+{
+	self endon( "end_killcam" );
+	self endon( "disconnect" );
+	attacker endon( "disconnect" );
+	attacker waittill( "begin_killcam", attackerkcstarttime );
+	waittime = max( 0, attackerkcstarttime - self.deathtime - 50 );
+	wait waittime;
+	self endkillcam( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1638
+endedkillcamcleanup()
+{
+	self endon( "end_killcam" );
+	self endon( "disconnect" );
+	level waittill( "game_ended" );
+	self endkillcam( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x165C
+endedfinalkillcamcleanup()
+{
+	self endon( "end_killcam" );
+	self endon( "disconnect" );
+	level waittill( "game_ended" );
+	self endkillcam( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1684
+cancelkillcamusebutton()
+{
+	return self usebuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x1698
+cancelkillcamsafespawnbutton()
+{
+	return self fragbuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x16AC
+cancelkillcamcallback()
+{
+	self.cancelkillcam = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x16BC
+cancelkillcamsafespawncallback()
+{
+	self.cancelkillcam = 1;
+	self.wantsafespawn = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x16D4
+cancelkillcamonuse()
+{
+	self thread cancelkillcamonuse_specificbutton( ::cancelkillcamusebutton, ::cancelkillcamcallback );
+// SP = 0x0 - check OK
+}
+
+// 0x16F4
+cancelkillcamonuse_specificbutton( pressingbuttonfunc, finishedfunc )
+{
+	self endon( "death_delay_finished" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	wait 0.05;
+	buttontime = 0;
+	buttontime += 0.05;
+	wait 0.05;
+	buttontime = 0;
+	buttontime += 0.05;
+	wait 0.05;
+	self [[finishedfunc]]();
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x17B4
+finalkillcam( winner )
+{
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	setmatchflag( "final_killcam", 1 );
+	setmatchflag( "round_end_killcam", 0 );
+	setmatchflag( "final_killcam", 0 );
+	setmatchflag( "round_end_killcam", 1 );
+/#
+	setmatchflag( "final_killcam", 1 );
+	setmatchflag( "round_end_killcam", 0 );
+#/
+	self maps\mp\gametypes\_globallogic_spawn::setthirdperson( 0 );
+	killcamsettings = level.finalkillcamsettings[winner];
+	postdeathdelay = ( GetTime() - killcamsettings.deathtime ) / 1000;
+	predelay = postdeathdelay + killcamsettings.deathtimeoffset;
+	camtime = calckillcamtime( killcamsettings.weapon, killcamsettings.entitystarttime, predelay, 0, undefined );
+	postdelay = calcpostdelay();
+	killcamoffset = camtime + predelay;
+	killcamlength = camtime + postdelay - 0.05;
+	killcamstarttime = GetTime() - killcamoffset * 1000;
+	self notify( "begin_killcam", GetTime() );
+	self.sessionstate = "spectator";
+	self.spectatorclient = killcamsettings.spectatorclient;
+	self.killcamentity = -1;
+	self thread setkillcamentity( killcamsettings.entityindex, killcamsettings.entitystarttime - killcamstarttime - 100 );
+	self.killcamtargetentity = killcamsettings.targetentityindex;
+	self.archivetime = killcamoffset;
+	self.killcamlength = killcamlength;
+	self.psoffsettime = killcamsettings.offsettime;
+	foreach ( team in level.teams )
+	{
+		self allowspectateteam( team, 1 );
+	}
+	self allowspectateteam( "freelook", 1 );
+	self allowspectateteam( "none", 1 );
+	self thread endedfinalkillcamcleanup();
+	wait 0.05;
+	self.sessionstate = "dead";
+	self.spectatorclient = -1;
+	self.killcamentity = -1;
+	self.archivetime = 0;
+	self.psoffsettime = 0;
+	self notify( "end_killcam" );
+	return;
+	self thread checkforabruptkillcamend();
+	self.killcam = 1;
+	self addkillcamtimer( camtime );
+	self thread waitkillcamtime();
+	self thread waitfinalkillcamslowdown( level.finalkillcamsettings[winner].deathtime, killcamstarttime );
+	self waittill( "end_killcam" );
+	self endkillcam( 1 );
+	setmatchflag( "final_killcam", 0 );
+	setmatchflag( "round_end_killcam", 0 );
+	self spawnendoffinalkillcam();
+// SP = 0x0 - check OK
+}
+
+// 0x1A80
+spawnendoffinalkillcam()
+{
+	[[level.spawnspectator]]();
+	self freezecontrols( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A9C
+iskillcamentityweapon( sweapon )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1AB4
+iskillcamgrenadeweapon( sweapon )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1AFC
+calckillcamtime( sweapon, entitystarttime, predelay, respawn, maxtime )
+{
+	camtime = 0;
+	camtime = ( GetTime() - entitystarttime ) / 1000 - predelay - 0.1;
+	camtime = 5;
+	camtime = 4.25;
+	camtime = 2.5;
+	camtime = GetDvarFloat( #"0xC45D9077" );
+	camtime = maxtime;
+	camtime = 0.05;
+	return camtime;
+// SP = 0x0 - check OK
+}
+
+// 0x1BC4
+calcpostdelay()
+{
+	postdelay = 0;
+	postdelay = 2;
+	postdelay = GetDvarFloat( #"0xD34D95D" );
+	postdelay = 0.05;
+	return postdelay;
+// SP = 0x0 - check OK
+}
+
+// 0x1C10
+addkillcamskiptext( respawn )
+{
+	self.kc_skiptext = newclienthudelem( self );
+	self.kc_skiptext.archived = 0;
+	self.kc_skiptext.x = 0;
+	self.kc_skiptext.alignx = "center";
+	self.kc_skiptext.aligny = "middle";
+	self.kc_skiptext.horzalign = "center";
+	self.kc_skiptext.vertalign = "bottom";
+	self.kc_skiptext.sort = 1;
+	self.kc_skiptext.font = "objective";
+	self.kc_skiptext.y = -100;
+	self.kc_skiptext.fontscale = 1.4;
+	self.kc_skiptext.y = -120;
+	self.kc_skiptext.fontscale = 2;
+	self.kc_skiptext settext( &"PLATFORM_PRESS_TO_RESPAWN" );
+	self.kc_skiptext settext( &"PLATFORM_PRESS_TO_SKIP" );
+	self.kc_skiptext.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1D04
+addkillcamtimer( camtime )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1D10
+initkcelements()
+{
+	self.kc_skiptext = newclienthudelem( self );
+	self.kc_skiptext.archived = 0;
+	self.kc_skiptext.x = 0;
+	self.kc_skiptext.alignx = "center";
+	self.kc_skiptext.aligny = "top";
+	self.kc_skiptext.horzalign = "center_adjustable";
+	self.kc_skiptext.vertalign = "top_adjustable";
+	self.kc_skiptext.sort = 1;
+	self.kc_skiptext.font = "default";
+	self.kc_skiptext.foreground = 1;
+	self.kc_skiptext.hidewheninmenu = 1;
+	self.kc_skiptext.y = 20;
+	self.kc_skiptext.fontscale = 1.2;
+	self.kc_skiptext.y = 32;
+	self.kc_skiptext.fontscale = 1.8;
+	self.kc_othertext = newclienthudelem( self );
+	self.kc_othertext.archived = 0;
+	self.kc_othertext.y = 48;
+	self.kc_othertext.alignx = "left";
+	self.kc_othertext.aligny = "top";
+	self.kc_othertext.horzalign = "center";
+	self.kc_othertext.vertalign = "middle";
+	self.kc_othertext.sort = 10;
+	self.kc_othertext.font = "small";
+	self.kc_othertext.foreground = 1;
+	self.kc_othertext.hidewheninmenu = 1;
+	self.kc_othertext.x = 16;
+	self.kc_othertext.fontscale = 1.2;
+	self.kc_othertext.x = 32;
+	self.kc_othertext.fontscale = 1.6;
+	self.kc_icon = newclienthudelem( self );
+	self.kc_icon.archived = 0;
+	self.kc_icon.x = 16;
+	self.kc_icon.y = 16;
+	self.kc_icon.alignx = "left";
+	self.kc_icon.aligny = "top";
+	self.kc_icon.horzalign = "center";
+	self.kc_icon.vertalign = "middle";
+	self.kc_icon.sort = 1;
+	self.kc_icon.foreground = 1;
+	self.kc_icon.hidewheninmenu = 1;
+	self.kc_timer = createfontstring( "hudbig", 1 );
+	self.kc_timer.archived = 0;
+	self.kc_timer.x = 0;
+	self.kc_timer.alignx = "center";
+	self.kc_timer.aligny = "middle";
+	self.kc_timer.horzalign = "center_safearea";
+	self.kc_timer.vertalign = "top_adjustable";
+	self.kc_timer.y = 42;
+	self.kc_timer.sort = 1;
+	self.kc_timer.font = "hudbig";
+	self.kc_timer.foreground = 1;
+	self.kc_timer.color = vector_scale( ( 1, 1, 1 ), 0.85 );
+	self.kc_timer.hidewheninmenu = 1;
+// SP = 0x0 - check OK
+}

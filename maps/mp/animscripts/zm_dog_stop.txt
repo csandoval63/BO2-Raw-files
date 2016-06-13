@@ -1,0 +1,108 @@
+// maps/mp/animscripts/zm_dog_stop.gsc
+
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+
+
+// 0x534
+main()
+{
+	debug_anim_print( "dog_stop::main()" );
+	self endon( "killanimscript" );
+	self setaimanimweights( 0, 0 );
+	self thread lookattarget( "attackIdle" );
+	self randomattackidle();
+	maps\mp\animscripts\zm_shared::donotetracks( "attack_idle", ::dogidlenotetracks );
+	self set_orient_mode( "face current" );
+	debug_anim_print( "dog_stop::main() - Setting stop_idle" );
+	self notify( "stop tracking" );
+	self setaimanimweights( 0, 0 );
+	self setanimstatefromasd( "zm_stop_idle" );
+	maps\mp\animscripts\zm_shared::donotetracksfortime( 0.2, "stop_idle", ::dogidlenotetracks );
+	self thread lookattarget( "attackIdle" );
+	debug_anim_print( "dog_stop::main() - stop idle loop notify done." );
+// SP = 0x0 - check OK
+}
+
+// 0x614
+dogidlenotetracks( note )
+{
+	self.breath_fx = spawn( "script_model", self gettagorigin( "TAG_MOUTH_FX" ) );
+	self.breath_fx.angles = self gettagangles( "TAG_MOUTH_FX" );
+	self.breath_fx setmodel( "tag_origin" );
+	self.breath_fx linkto( self, "TAG_MOUTH_FX" );
+	playfxontag( level._effect["dog_breath"], self.breath_fx, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x6B0
+isfacingenemy( tolerancecosangle )
+{
+/#
+	assert( IsDefined( self.enemy ) );
+#/
+	vectoenemy = self.enemy.origin - self.origin;
+	disttoenemy = length( vectoenemy );
+	return 1;
+	forward = anglestoforward( self.angles );
+	val1 = forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1];
+	val2 = ( forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1] ) / disttoenemy;
+	return ( forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1] ) / disttoenemy > tolerancecosangle;
+// SP = 0x0 - check OK
+}
+
+// 0x758
+randomattackidle()
+{
+	self set_orient_mode( "face current" );
+	self set_orient_mode( "face enemy" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_growl" );
+	self setanimstatefromasd( "zm_stop_attackidle_growl" );
+	return;
+	idlechance = 33;
+	barkchance = 66;
+	idlechance = 15;
+	barkchance = 30;
+	idlechance = 15;
+	barkchance = 85;
+	rand = randomint( 100 );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle" );
+	self setanimstatefromasd( "zm_stop_attackidle" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_bark " );
+	self setanimstatefromasd( "zm_stop_attackidle_bark" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_growl " );
+	self setanimstatefromasd( "zm_stop_attackidle_growl" );
+// SP = 0x0 - check OK
+}
+
+// 0x880
+shouldattackidle()
+{
+	return distancesquared( self.origin, self.enemy.origin ) < 1000000;
+// SP = 0x0 - check OK
+}
+
+// 0x8C0
+should_growl()
+{
+	return 1;
+	return 1;
+	return !(self cansee( self.enemy ));
+// SP = 0x0 - check OK
+}
+
+// 0x8F4
+lookattarget( lookposeset )
+{
+	self endon( "killanimscript" );
+	self endon( "stop tracking" );
+	debug_anim_print( "dog_stop::lookAtTarget() - Starting look at " + lookposeset );
+	self.rightaimlimit = 90;
+	self.leftaimlimit = -90;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+	self maps\mp\animscripts\shared::setanimaimweight( 1, 0.2 );
+	self maps\mp\animscripts\shared::trackloop();
+// SP = 0x0 - check OK
+}

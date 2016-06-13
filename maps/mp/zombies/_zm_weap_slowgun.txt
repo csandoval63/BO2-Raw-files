@@ -1,0 +1,520 @@
+// maps/mp/zombies/_zm_weap_slowgun.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_powerups;
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x1074
+init()
+{
+	return;
+	registerclientfield( "actor", "slowgun_fx", 12000, 3, "int" );
+	registerclientfield( "actor", "anim_rate", 7000, 5, "float" );
+	registerclientfield( "allplayers", "anim_rate", 7000, 5, "float" );
+	registerclientfield( "toplayer", "sndParalyzerLoop", 12000, 1, "int" );
+	registerclientfield( "toplayer", "slowgun_fx", 12000, 1, "int" );
+	level.sliquifier_distance_checks = 0;
+	maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::slowgun_on_zombie_spawned );
+	maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::slowgun_zombie_damage_response );
+	maps\mp\zombies\_zm_spawner::register_zombie_death_animscript_callback( ::slowgun_zombie_death_response );
+	level._effect["zombie_slowgun_explosion"] = loadfx( "weapon/paralyzer/fx_paralyzer_body_disintegrate" );
+	level._effect["zombie_slowgun_explosion_ug"] = loadfx( "weapon/paralyzer/fx_paralyzer_body_disintegrate_ug" );
+	level._effect["zombie_slowgun_sizzle"] = loadfx( "weapon/paralyzer/fx_paralyzer_hit_dmg" );
+	level._effect["zombie_slowgun_sizzle_ug"] = loadfx( "weapon/paralyzer/fx_paralyzer_hit_dmg_ug" );
+	level._effect["player_slowgun_sizzle"] = loadfx( "weapon/paralyzer/fx_paralyzer_hit_noharm" );
+	level._effect["player_slowgun_sizzle_ug"] = loadfx( "weapon/paralyzer/fx_paralyzer_hit_noharm" );
+	level._effect["player_slowgun_sizzle_1st"] = loadfx( "weapon/paralyzer/fx_paralyzer_hit_noharm_view" );
+	onplayerconnect_callback( ::slowgun_player_connect );
+	level.slowgun_damage = 40;
+	level.slowgun_damage_ug = 60;
+	level.slowgun_damage_mod = "MOD_PROJECTILE_SPLASH";
+	precacherumble( "damage_heavy" );
+/#
+	level thread show_anim_rates();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x121C
+slowgun_player_connect()
+{
+	self thread watch_reset_anim_rate();
+	self thread watch_slowgun_fired();
+	self thread sndwatchforweapswitch();
+// SP = 0x0 - check OK
+}
+
+// 0x1248
+sndwatchforweapswitch()
+{
+	self endon( "disconnect" );
+	self waittill( "weapon_change", weapon );
+	self setclientfieldtoplayer( "sndParalyzerLoop", 1 );
+	self waittill( "weapon_change" );
+	self setclientfieldtoplayer( "sndParalyzerLoop", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x12A4
+watch_reset_anim_rate()
+{
+	self set_anim_rate( 1 );
+	self setclientfieldtoplayer( "slowgun_fx", 0 );
+	self waittill_any( "spawned", "entering_last_stand", "player_revived", "player_suicide", "respawned" );
+	self setclientfieldtoplayer( "slowgun_fx", 0 );
+	self set_anim_rate( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1314
+watch_slowgun_fired()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self waittill( "weapon_fired", weapon );
+	self slowgun_fired( 0 );
+	self slowgun_fired( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1364
+slowgun_fired( upgraded )
+{
+	origin = self getweaponmuzzlepoint();
+	forward = self getweaponforwarddir();
+/#
+	show_muzzle( origin, forward );
+#/
+	targets = self get_targets_in_range( upgraded, origin, forward );
+	foreach ( target in targets )
+	{
+		target thread player_paralyzed( self, upgraded );
+		target thread [[target.paralyzer_hit_callback]]( self, upgraded );
+		target thread zombie_paralyzed( self, upgraded );
+	}
+	dot = vectordot( forward, ( 0, 0, -1 ) );
+	self thread player_paralyzed( self, upgraded );
+// SP = 0x0 - check OK
+}
+
+// 0x1470
+slowgun_get_enemies_in_range( upgraded, position, forward, possible_targets )
+{
+	inner_range = 12;
+	outer_range = 660;
+	cylinder_radius = 48;
+	level.slowgun_enemies = [];
+	view_pos = position;
+	return level.slowgun_enemies;
+	slowgun_inner_range_squared = inner_range * inner_range;
+	slowgun_outer_range_squared = outer_range * outer_range;
+	cylinder_radius_squared = cylinder_radius * cylinder_radius;
+	forward_view_angles = forward;
+	end_pos = view_pos + vector_scale( forward_view_angles, outer_range );
+/#
+	near_circle_pos = view_pos + vector_scale( forward_view_angles, 2 );
+	circle( near_circle_pos, cylinder_radius, ( 1, 0, 0 ), 0, 0, 100 );
+	line( near_circle_pos, end_pos, ( 0, 0, 1 ), 1, 0, 100 );
+	circle( end_pos, cylinder_radius, ( 1, 0, 0 ), 0, 0, 100 );
+#/
+	i = 0;
+	test_origin = possible_targets[i] getcentroid();
+	test_range_squared = distancesquared( view_pos, test_origin );
+	possible_targets[i] slowgun_debug_print( "range", ( 1, 0, 0 ) );
+	normal = vectornormalize( test_origin - view_pos );
+	dot = vectordot( forward_view_angles, normal );
+	possible_targets[i] slowgun_debug_print( "dot", ( 1, 0, 0 ) );
+	radial_origin = pointonsegmentnearesttopoint( view_pos, end_pos, test_origin );
+	possible_targets[i] slowgun_debug_print( "cylinder", ( 1, 0, 0 ) );
+	possible_targets[i] slowgun_debug_print( "cone", ( 1, 0, 0 ) );
+	level.slowgun_enemies[level.slowgun_enemies.size] = possible_targets[i];
+	i++;
+	return level.slowgun_enemies;
+// SP = 0x0 - check OK
+}
+
+// 0x1674
+get_targets_in_range( upgraded, position, forward )
+{
+	targets = [];
+	possible_targets = getaispeciesarray( level.zombie_team, "all" );
+	possible_targets = arraycombine( possible_targets, get_players(), 1, 0 );
+	possible_targets = arraycombine( possible_targets, level.possible_slowgun_targets, 1, 0 );
+	targets = slowgun_get_enemies_in_range( 0, position, forward, possible_targets );
+	self.slowgun_targets = targets;
+	self.slowgun_target_time = GetTime();
+	return self.slowgun_targets;
+// SP = 0x0 - check OK
+}
+
+// 0x171C
+slowgun_on_zombie_spawned()
+{
+	self set_anim_rate( 1 );
+	self.paralyzer_hit_callback = ::zombie_paralyzed;
+	self.paralyzer_damaged_multiplier = 1;
+	self.paralyzer_score_time_ms = GetTime();
+	self.paralyzer_slowtime = 0;
+	self setclientfield( "slowgun_fx", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1764
+can_be_paralyzed( zombie )
+{
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x17B0
+set_anim_rate( rate )
+{
+	self.slowgun_anim_rate = rate;
+	self setclientfield( "anim_rate", rate );
+	qrate = self getclientfield( "anim_rate" );
+	self setentityanimrate( qrate );
+	self [[self.set_anim_rate]]( rate );
+// SP = 0x0 - check OK
+}
+
+// 0x1830
+reset_anim()
+{
+	wait_network_frame();
+	return;
+	animstate = self getanimstatefromasd();
+	self.no_restart = 1;
+	animstate += "_no_restart";
+	substate = self getanimsubstatefromasd();
+	self setanimstatefromasd( animstate, substate );
+	self.needs_run_update = 1;
+	self notify( "needs_run_update" );
+// SP = 0x0 - check OK
+}
+
+// 0x18B4
+zombie_change_rate( time, newrate )
+{
+	self set_anim_rate( newrate );
+	self thread [[self.reset_anim]]();
+	self thread reset_anim();
+	wait time;
+// SP = 0x0 - check OK
+}
+
+// 0x18F4
+zombie_slow_for_time( time, multiplier )
+{
+	multiplier = 2;
+	paralyzer_time_per_frame = 0.1 * ( 1 + multiplier );
+	self.paralyzer_slowtime = time + paralyzer_time_per_frame;
+	self.paralyzer_slowtime += paralyzer_time_per_frame;
+	self.slowgun_anim_rate = 1;
+	self.slowgun_desired_anim_rate = 1;
+	self.slowgun_desired_anim_rate -= 0.2;
+	self.slowgun_desired_anim_rate = 0.05;
+	return;
+	self.slowing = 1;
+	self.preserve_asd_substates = 1;
+	self playloopsound( "wpn_paralyzer_slowed_loop", 0.1 );
+	self.slowgun_desired_anim_rate = 1;
+	self.slowgun_desired_anim_rate = max( self.slowgun_desired_anim_rate, 0.8 );
+	self.slowgun_desired_anim_rate = max( self.slowgun_desired_anim_rate, 0.6 );
+	self.slowgun_desired_anim_rate = max( self.slowgun_desired_anim_rate, 0.4 );
+	self.slowgun_desired_anim_rate = max( self.slowgun_desired_anim_rate, 0.2 );
+	self.paralyzer_slowtime -= 0.1;
+	wait 0.1;
+	new_rate = self.slowgun_desired_anim_rate;
+	new_rate = self.slowgun_anim_rate + 0.2;
+	self.paralyzer_slowtime -= 0.1;
+	zombie_change_rate( 0.1, new_rate );
+	self.paralyzer_damaged_multiplier = 1;
+	new_rate = self.slowgun_desired_anim_rate;
+	new_rate = self.slowgun_anim_rate - 0.2;
+	self.paralyzer_slowtime -= 0.25;
+	zombie_change_rate( 0.25, new_rate );
+	self zombie_change_rate( 0, 1 );
+	self.preserve_asd_substates = 0;
+	self.slowing = 0;
+	self.paralyzer_damaged_multiplier = 1;
+	self setclientfield( "slowgun_fx", 0 );
+	self stoploopsound( 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1BF0
+zombie_paralyzed( player, upgraded )
+{
+	return;
+	insta = player maps\mp\zombies\_zm_powerups::is_insta_kill_active();
+	self setclientfield( "slowgun_fx", 5 );
+	self setclientfield( "slowgun_fx", 1 );
+	damage = level.slowgun_damage_ug;
+	damage = level.slowgun_damage;
+	damage *= randomfloatrange( 0.667, 1.5 );
+	damage *= self.paralyzer_damaged_multiplier;
+	damage = self.health + 666;
+	self dodamage( damage, player.origin, player, player, "none", level.slowgun_damage_mod, 0, "slowgun_zm" );
+	self.paralyzer_damaged_multiplier *= 1.15;
+	self.paralyzer_damaged_multiplier = 1;
+	self zombie_slow_for_time( 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x1D18
+get_extra_damage( amount, mod, slow )
+{
+	mult = 1 - slow;
+	return amount * slow;
+// SP = 0x0 - check OK
+}
+
+// 0x1D38
+slowgun_zombie_damage_response( mod, hit_location, hit_origin, player, amount )
+{
+	extra_damage = get_extra_damage( amount, mod, self.slowgun_anim_rate );
+	self dodamage( extra_damage, hit_origin, player, player, hit_location, level.slowgun_damage_mod, 0, "slowgun_zm" );
+	return 1;
+	return 0;
+	self.paralyzer_score_time_ms = GetTime();
+	player maps\mp\zombies\_zm_score::player_add_points( "damage", mod, hit_location, self.isdog, level.zombie_team );
+	amount = self.health + 666;
+	self dodamage( amount, hit_origin, player, player, hit_location, mod, 0, "slowgun_zm" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E50
+explosion_choke()
+{
+	level.slowgun_explosion_time = 0;
+	level.slowgun_explosion_count = 0;
+	level.slowgun_explosion_time = GetTime();
+	wait 0.05;
+	level.slowgun_explosion_count = 0;
+	level.slowgun_explosion_time = GetTime();
+	level.slowgun_explosion_count++;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1EB4
+explode_into_dust( player, upgraded )
+{
+	return;
+	explosion_choke();
+	self setclientfield( "slowgun_fx", 6 );
+	self setclientfield( "slowgun_fx", 2 );
+	self.guts_explosion = 1;
+	self ghost();
+// SP = 0x0 - check OK
+}
+
+// 0x1F10
+slowgun_zombie_death_response()
+{
+	return 0;
+	level maps\mp\zombies\_zm_spawner::zombie_death_points( self.origin, self.damagemod, self.damagelocation, self.attacker, self );
+	self thread explode_into_dust( self.attacker, self.damageweapon == "slowgun_upgraded_zm" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1F64
+is_slowgun_damage( mod, weapon )
+{
+	return weapon == "slowgun_upgraded_zm";
+// SP = 0x0 - check OK
+}
+
+// 0x1F88
+setjumpenabled( onoff )
+{
+	self allowjump( self.jump_was_enabled );
+	self.jump_was_enabled = undefined;
+	self allowjump( 1 );
+	self.jump_was_enabled = self allowjump( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1FE0
+get_ahead_ent()
+{
+	velocity = self getvelocity();
+	return undefined;
+	start = self geteyeapprox();
+	end = start + velocity * 0.25;
+	mins = ( 0, 0, 0 );
+	maxs = ( 0, 0, 0 );
+	trace = physicstrace( start, end, vector_scale( ( -1, -1, 0 ), 15 ), vector_scale( ( 1, 1, 0 ), 15 ), self, level.physicstracemaskclip );
+	return trace["entity"];
+	return level;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2098
+bump()
+{
+	self playrumbleonentity( "damage_heavy" );
+	earthquake( 0.5, 0.15, self.origin, 1000, self );
+// SP = 0x0 - check OK
+}
+
+// 0x20D0
+player_fly_rumble()
+{
+	self endon( "player_slow_stop_flying" );
+	self endon( "disconnect" );
+	self endon( "platform_collapse" );
+	self.slowgun_flying = 1;
+	last_ground = self getgroundent();
+	last_ahead = undefined;
+	ground = self getgroundent();
+	self bump();
+	self thread dont_tread_on_z();
+	return;
+	last_ground = ground;
+	last_ahead = undefined;
+	ahead = self get_ahead_ent();
+	self playsoundtoplayer( "zmb_invis_barrier_hit", self );
+	chance = get_response_chance( "invisible_collision" );
+	self thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "invisible_collision" );
+	self bump();
+	last_ahead = ahead;
+	wait 0.15;
+// SP = 0x0 - check OK
+}
+
+// 0x21F0
+dont_tread_on_z()
+{
+	level.ghost_head_damage = 30;
+	ground = self getgroundent();
+	first_ground = ground;
+	return;
+	self dodamage( level.ghost_head_damage, ground.origin, ground );
+	level.ghost_head_damage *= 1.5;
+	self.score -= 4000;
+	self.score = 0;
+	self dodamage( level.ghost_head_damage, first_ground.origin, first_ground );
+	wait 0.25;
+	ground = self getgroundent();
+// SP = 0x0 - check OK
+}
+
+// 0x2310
+player_slow_for_time( time )
+{
+	self notify( "player_slow_for_time" );
+	self endon( "player_slow_for_time" );
+	self endon( "disconnect" );
+	self thread player_fly_rumble();
+	self setclientfieldtoplayer( "slowgun_fx", 1 );
+	self set_anim_rate( 0.05 );
+	wait time;
+	self set_anim_rate( 1 );
+	self setclientfieldtoplayer( "slowgun_fx", 0 );
+	self.slowgun_flying = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2390
+player_paralyzed( byplayer, upgraded )
+{
+	self notify( "player_paralyzed" );
+	self endon( "player_paralyzed" );
+	self endon( "death" );
+	return;
+	sizzle = "player_slowgun_sizzle";
+	sizzle = "player_slowgun_sizzle_ug";
+	playfxontag( level._effect[sizzle], self, "J_SpineLower" );
+	self thread player_slow_for_time( 0.25 );
+// SP = 0x0 - check OK
+}
+
+// 0x2414
+slowgun_debug_print( msg, color )
+{
+/#
+	color = ( 1, 1, 1 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 60 ), msg, color, 1, 1, 40 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2464
+show_anim_rate( pos, dsquared )
+{
+/#
+	rate = self getentityanimrate();
+	color = ( 1 - rate, rate, 0 );
+	text = "" + int( rate * 100 ) + " S";
+	print3d( self.origin + ( 0, 0, 0 ), text, color, 1, 0.5, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x24E0
+show_slow_time( pos, dsquared, insta )
+{
+/#
+	rate = self.paralyzer_slowtime;
+	color = ( 1, 0, 0 );
+	color = ( 0, 1, 0 );
+	text = "" + rate + "";
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 50 ), text, color, 1, 0.5, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x25A0
+show_anim_rates()
+{
+/#
+	lp = get_players()[0];
+	insta = lp maps\mp\zombies\_zm_powerups::is_insta_kill_active();
+	zombies = getaispeciesarray( "all", "all" );
+	foreach ( zombie in zombies )
+	{
+		zombie show_slow_time( lp.origin, 360000, insta );
+	}
+	level.sloth show_slow_time( lp.origin, 360000, 0 );
+	lp = get_players()[0];
+	foreach ( player in get_players() )
+	{
+		player show_anim_rate( lp.origin, 360000 );
+	}
+	zombies = getaispeciesarray( "all", "all" );
+	foreach ( zombie in zombies )
+	{
+		zombie show_anim_rate( lp.origin, 360000 );
+	}
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2730
+show_muzzle( origin, forward )
+{
+/#
+	seconds = 0.25;
+	grey = vector_scale( ( 1, 1, 1 ), 0.3 );
+	green = ( 0, 1, 0 );
+	start = origin;
+	end = origin + 12 * forward;
+	frames = int( 20 * seconds );
+	line( start, end, green, 1, 0, frames );
+#/
+// SP = 0x0 - check OK
+}

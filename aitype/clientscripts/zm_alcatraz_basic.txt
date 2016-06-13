@@ -1,0 +1,39 @@
+// aitype/clientscripts/zm_alcatraz_basic.csc
+
+#include character\clientscripts\c_zom_inmate2;
+#include character\clientscripts\c_zom_inmate1;
+#include character\clientscripts\c_zom_guard;
+
+#using_animtree ( "zm_prison_basic" );
+
+
+// 0x184
+main()
+{
+	switch ( self getcharacterindex() )
+	{
+		case 0:
+			character\clientscripts\c_zom_guard::main();
+			break;
+		case 1:
+			character\clientscripts\c_zom_inmate1::main();
+			break;
+		case 2:
+			character\clientscripts\c_zom_inmate2::main();
+			break;
+	}
+	self._aitype = "zm_alcatraz_basic";
+// SP = 0x0 - check OK
+}
+
+// 0x1EC
+precache( ai_index )
+{
+	character\clientscripts\c_zom_guard::precache();
+	character\clientscripts\c_zom_inmate1::precache();
+	character\clientscripts\c_zom_inmate2::precache();
+	usefootsteptable( ai_index, "default_ai" );
+	precacheanimstatedef( ai_index, -1, "zm_prison_basic" );
+	setdemolockonvalues( ai_index, 100, 60, -15, 60, 30, -5, 60 );
+// SP = 0x0 - check OK
+}

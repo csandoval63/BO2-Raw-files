@@ -1,0 +1,666 @@
+// maps/_lockonmissileturret.gsc
+
+#include maps\_dds;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0xF54
+init( buseadslockon, func_getbestmissileturrettarget, maxtargets, bmanualtargetset )
+{
+	game["locking_on_sound"] = "wpn_sam_locking";
+	game["locked_on_sound"] = "wpn_sam_lockon";
+	game["locked_on_loop"] = "wpn_f35_lockon";
+	game["acquired_sound"] = "wpn_sam_acquired";
+	game["killshot_sound"] = "wpn_sam_hit";
+	game["tracking_sound"] = "wpn_sam_tracking";
+	game["lost_target_sound"] = "wpn_sam_target_lost";
+	game["tracking_loop_sound"] = "wpn_sam_tracking_loop";
+	precachestring( &"hud_weapon_locking" );
+	precachestring( &"hud_weapon_locked" );
+	precachestring( &"hud_missile_fire" );
+	precachestring( &"hud_turret_zoom" );
+	buseadslockon = 0;
+	game["missileTurret_useadslockon"] = buseadslockon;
+	thread onplayerconnect();
+	level.func_getbestmissileturrettarget = ::getbestmissileturrettarget;
+	level.func_getbestmissileturrettarget = func_getbestmissileturrettarget;
+	level.missileturretmaxtargets = 1;
+	level.missileturretmaxtargets = maxtargets;
+	level.bmanualtargetset = 0;
+	level.bmanualtargetset = bmanualtargetset;
+// SP = 0x0 - check OK
+}
+
+// 0x1050
+main()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self.lockonmissilezoom = 0;
+	self waittill_any( "turretownerchange", "enter_vehicle" );
+	self.lockonmissileturret = self.viewlockedentity;
+	self notify( "missileTurret_on" );
+	self thread missileturretmultilockloop();
+	self thread missilefirednotify( 1 );
+	self thread missileturretloop();
+	self thread missilefirednotify( 0 );
+	self waittill_any( "turretownerchange", "exit_vehicle" );
+	self notify( "missileTurret_off" );
+	self clearlockontarget();
+	self clearviewlockent();
+	self.lockonmissileturret cleartargetentity( self.seat - 1 );
+	self.seat = undefined;
+	self.lockonmissileturret cleartargetentity();
+	self.lockonmissileturret = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1148
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x116C
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self clearlockontarget();
+	thread main();
+// SP = 0x0 - check OK
+}
+
+// 0x1198
+clearlockontarget()
+{
+	self notify( "stinger_irt_cleartarget" );
+	self notify( "stop_lockon_sound" );
+	self notify( "stop_locked_sound" );
+	self notify( "stop_tracking_sound" );
+	self.missileturretlocksound = undefined;
+	self.missileturretkillshotsound = undefined;
+	target_clearreticlelockon();
+	luinotifyevent( &"hud_weapon_locking", 1, 0 );
+	luinotifyevent( &"hud_weapon_locked", 1, 0 );
+	level notify( "missile_turret_lock_off" );
+	self.missileturretlockstarttime = 0;
+	self.missileturretlockstarted = 0;
+	self.missileturretlockfinalized = 0;
+	self.missileturretlockloststarttime = 0;
+	self.missileturrettarget notify( "missileLockTurret_cleared" );
+	self.missileturrettarget.locked_on = 0;
+	level notify( "lock_on_reset" );
+	self.missileturrettarget = undefined;
+	turret = self getturretweapon();
+	turret cleartargetentity( self.seat - 1 );
+	self.seat = undefined;
+	turret cleartargetentity();
+	self weaponlockfree();
+	self weaponlocktargettooclose( 0 );
+	self weaponlocknoclearance( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x12A4
+missilefirednotify( b_multi_target_turret )
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "missileTurret_off" );
+	self.missileturretfiring = 0;
+	turret = self getturretweapon();
+	level.player waittill( "missile_fire", missile );
+	return;
+	self.missileturrettarget notify( "missileTurret_fired_at_me", missile );
+	self.missileturrettarget thread missiletargetdeath();
+	self.missileturrettarget.locked_on = 1;
+	self.missileturrettargetlist[self.missileturrettargetlist.size] = self.missileturrettarget;
+	self.missileturrettarget setclientflag( 0 );
+	self.missileturrettarget thread missileturrettargetdeathtread( self );
+	self clearlockontarget();
+	luinotifyevent( &"hud_weapon_locked", 1, 2 );
+	self thread multilockmissilefire();
+	missile missile_settarget( undefined );
+	luinotifyevent( &"hud_missile_fire", 2, 1, int( weaponfiretime( self getturretweaponname() ) * 1000 ) );
+	self notify( "missileTurret_fired" );
+// SP = 0x0 - check OK
+}
+
+// 0x140C
+multilockmissilefire()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "missileTurret_off" );
+	self.missileturretfiring = 1;
+	wait 0.1;
+	turret = self getturretweapon();
+	seat = turret getoccupantseat( level.player );
+	turret cleargunnertarget( seat );
+	i = 1;
+	turret fireweapon( self.missileturrettargetlist[i] );
+	turret setgunnertargetent( self.missileturrettargetlist[i], ( 0, 0, 0 ), seat - 1 );
+	missile = turret firegunnerweapon( seat - 1 );
+	missile setforcenocull();
+	luinotifyevent( &"hud_missile_fire", 2, i + 1, int( weaponfiretime( self getturretweaponname() ) * 1000 ) );
+	self.missileturrettargetlist[i] notify( "missileTurret_fired_at_me", missile );
+	self.missileturrettargetlist[i].locked_on = 0;
+	earthquake( 0.25, 0.25, self.origin, 512, self );
+	wait 0.1;
+	i++;
+	turret cleargunnertarget( seat );
+	self notify( "missile_turret_firing_done" );
+	wait 0.05;
+	i = 0;
+	self.missileturrettargetlist[i].locked_on = 0;
+	self.missileturrettargetlist[i] clearclientflag( 0 );
+	i++;
+	self.missileturrettargetlist = [];
+	self.missileturretfiring = 0;
+	vehicles = getvehiclearray( "axis" );
+	foreach ( vehicle in vehicles )
+	{
+		vehicle.locked_on = 0;
+	}
+	self thread missileturretclientflags();
+// SP = 0x0 - check OK
+}
+
+// 0x1640
+missileturretclientflags()
+{
+	self endon( "damage" );
+	rpc( "clientscripts/_vehicle", "damage_filter_light" );
+	wait 0.25;
+	rpc( "clientscripts/_vehicle", "damage_filter_off" );
+// SP = 0x0 - check OK
+}
+
+// 0x1674
+missiletargetdeath()
+{
+	self waittill( "death", attacker, damagefromunderneath, weaponname );
+	luinotifyevent( &"hud_weapon_locked", 1, 3 );
+// SP = 0x0 - check OK
+}
+
+// 0x16A0
+missledeath()
+{
+	self endon( "missile_hit" );
+	self waittill( "death" );
+	luinotifyevent( &"hud_weapon_locked", 1, 4 );
+// SP = 0x0 - check OK
+}
+
+// 0x16C4
+missileturretloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "missileTurret_off" );
+	locklength = weaponlockonspeed( self getturretweaponname() );
+	lock_lost_time = 1000;
+	self thread oneshot_lockon_sound();
+	lock_lost_time = self.missile_turret_lock_lost_time;
+	wait 0.05;
+	self clearlockontarget();
+	self.missileturretlockloststarttime = GetTime();
+	timepassed = GetTime() - self.missileturretlockloststarttime;
+	self clearlockontarget();
+	self playlocalsound( game["lost_target_sound"] );
+	thread looplocallocksound( game["locked_on_loop"], 0.5 );
+	thread looplocaltrackingsoundrealloop( game["tracking_loop_sound"], self.missileturrettarget );
+	thread playlocalkillshotsound( game["killshot_sound"], self.missileturrettarget );
+	self.missileturrettarget notify( "missileLockTurret_locked" );
+	self.missileturrettarget.locked_on = 1;
+	level notify( "lock_on_acquired" );
+	turret = self getturretweapon();
+	turret settargetentity( self.missileturrettarget );
+	self settargettooclose( self.missileturrettarget );
+	self clearlockontarget();
+	timepassed = GetTime() - self.missileturretlockstarttime;
+	luinotifyevent( &"hud_weapon_locking", 3, 1, int( timepassed ), int( locklength ) );
+/#
+	assert( IsDefined( self.missileturrettarget ) );
+#/
+	self notify( "stop_lockon_sound" );
+	self.missileturretlockfinalized = 1;
+	self weaponlockfinalize( self.missileturrettarget );
+	self settargettooclose( self.missileturrettarget );
+	luinotifyevent( &"hud_weapon_locking", 1, 0 );
+	luinotifyevent( &"hud_weapon_locked", 1, 1 );
+	level notify( "missile_turret_locked" );
+	besttarget = self [[level.func_getbestmissileturrettarget]]();
+	self.missileturrettarget = besttarget;
+	self.missileturretlockstarttime = GetTime();
+	self.missileturretlockstarted = 1;
+	self weaponlockstart( besttarget );
+	target_startreticlelockon( besttarget, 2 );
+	luinotifyevent( &"hud_weapon_locking", 1, 1 );
+	self thread looplocalseeksound( game["locking_on_sound"], 0.8 );
+	self notify( "lock_on_missile_turret_start" );
+// SP = 0x0 - check OK
+}
+
+// 0x19CC
+missileturretmultilockloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "missileTurret_off" );
+	locklength = weaponlockonspeed( self getturretweaponname() );
+	self.missileturrettargetlist = [];
+	i = 0;
+	self.missileturrettargetlist[i] = undefined;
+	i++;
+	arrayremovevalue( self.missileturrettargetlist, undefined );
+	wait 0.05;
+	i = 0;
+	self.missileturrettargetlist[i].locked_on = 0;
+	self.missileturrettargetlist[i] clearclientflag( 0 );
+	arrayremovevalue( self.missileturrettargetlist, self.missileturrettargetlist[i] );
+	i++;
+	arrayremovevalue( self.missileturrettargetlist, undefined );
+	self clearlockontarget();
+	self.missileturretlockloststarttime = GetTime();
+	timepassed = GetTime() - self.missileturretlockloststarttime;
+	self clearlockontarget();
+	self playlocalsound( game["lost_target_sound"] );
+	thread looplocallocksound( game["locked_on_loop"], 0.5 );
+	thread looplocaltrackingsoundrealloop( game["tracking_loop_sound"], self.missileturrettarget );
+	thread playlocalkillshotsound( game["killshot_sound"], self.missileturrettarget );
+	self.missileturrettarget notify( "missileLockTurret_locked" );
+	self settargettooclose( self.missileturrettarget );
+	self.missileturrettarget.locked_on = 1;
+	self.missileturrettargetlist[self.missileturrettargetlist.size] = self.missileturrettarget;
+	self.missileturrettarget setclientflag( 0 );
+	self.missileturrettarget thread missileturrettargetdeathtread( self );
+	self clearlockontarget();
+	turret = self getturretweapon();
+	turret cleartargetentity();
+	self.seat = turret getoccupantseat( level.player );
+	turret settargetentity( self.missileturrettargetlist[0] );
+	turret settargetentity( self.missileturrettargetlist[0], ( 0, 0, 0 ), self.seat - 1 );
+	self clearlockontarget();
+	timepassed = GetTime() - self.missileturretlockstarttime;
+	locktime = locklength - locklength * ( self.missileturrettargetlist.size * 0.1 );
+	luinotifyevent( &"hud_weapon_locking", 3, 1, int( timepassed ), int( locklength ) );
+/#
+	assert( IsDefined( self.missileturrettarget ) );
+#/
+	self notify( "stop_lockon_sound" );
+	self.missileturretlockfinalized = 1;
+	self weaponlockfinalize( self.missileturrettarget );
+	self settargettooclose( self.missileturrettarget );
+	luinotifyevent( &"hud_weapon_locking", 1, 0 );
+	luinotifyevent( &"hud_weapon_locked", 1, 1 );
+	besttarget = self [[level.func_getbestmissileturrettarget]]();
+	self.missileturrettarget = besttarget;
+	self.missileturretlockstarttime = GetTime();
+	self.missileturretlockstarted = 1;
+	self weaponlockstart( besttarget );
+	target_startreticlelockon( besttarget, 2 );
+	luinotifyevent( &"hud_weapon_locking", 1, 1 );
+	self thread looplocalseeksound( game["locking_on_sound"], 0.8 );
+	self notify( "lock_on_missile_turret_start" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E20
+missileturrettargetdeathtread( player )
+{
+	self waittill( "death" );
+	player waittill( "missile_turret_firing_done" );
+	i = 0;
+	player.missileturrettargetlist[i] = undefined;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1E90
+locksighttest( target )
+{
+	eyepos = self geteye();
+	return 0;
+	passed = bullettracepassed( eyepos, target.origin, 0, target );
+	return 0;
+	front = target getpointinbounds( 1, 0, 0 );
+	bullettracepassed( eyepos, front, 0, target );
+	return 0;
+	back = target getpointinbounds( -1, 0, 0 );
+	passed = bullettracepassed( eyepos, back, 0, target );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1F30
+softsighttest()
+{
+	self.missileturretlostsightlinetime = 0;
+	return 1;
+	self.missileturretlostsightlinetime = GetTime();
+	timepassed = GetTime() - self.missileturretlostsightlinetime;
+	self clearlockontarget();
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1F8C
+getbestmissileturrettarget()
+{
+	targetsall = target_getarray();
+	targetsvalid = [];
+	idx = 0;
+	targetsvalid[targetsvalid.size] = targetsall[idx];
+	idx++;
+	return undefined;
+	chosenent = targetsvalid[0];
+	bestdot = -999;
+	chosenindex = -1;
+	forward = anglestoforward( self getplayerangles() );
+	i = 0;
+	vec_to_target = vectornormalize( targetsvalid[i].origin - self get_eye() );
+	dot = vectordot( vec_to_target, forward );
+	bestdot = dot;
+	chosenindex = i;
+	i++;
+	chosenent = targetsvalid[chosenindex];
+	return chosenent;
+// SP = 0x0 - check OK
+}
+
+// 0x20B8
+getbestmissileturrettargetlist()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x20C0
+insidemissileturretreticlenolock( target )
+{
+	weaponname = self getturretweaponname();
+	return 0;
+	fov = GetDvarFloat( #"0xF64B6F99" );
+	radius = weaponlockonradius( weaponname );
+	return target_isincircle( target, self, fov, radius );
+// SP = 0x0 - check OK
+}
+
+// 0x2114
+insidemissileturretreticlelocked( target, falloff )
+{
+	weaponname = self getturretweaponname();
+	return 0;
+	fov = GetDvarFloat( #"0xF64B6F99" );
+	radius = weaponlockonradius( weaponname );
+	return target_isincircle( target, self, fov, radius );
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x217C
+isstillvalidtarget( ent )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x21E0
+isstillbesttarget( ent )
+{
+	besttarget = [[level.func_getbestmissileturrettarget]]();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x220C
+setnoclearance()
+{
+	color_passed = ( 0, 1, 0 );
+	color_failed = ( 1, 0, 0 );
+	checks = [];
+	checks[0] = vector_scale( ( 0, 0, 1 ), 80 );
+	checks[1] = ( -40, 0, 120 );
+	checks[2] = ( 40, 0, 120 );
+	checks[3] = vector_scale( ( -1, 0, 1 ), 40 );
+	checks[4] = vector_scale( ( 1, 0, 1 ), 40 );
+	debug = 0;
+/#
+	debug = 1;
+#/
+	playerangles = self getplayerangles();
+	forward = anglestoforward( playerangles );
+	right = anglestoright( playerangles );
+	up = anglestoup( playerangles );
+	origin = ( self.origin + ( 0, 0, 60 ) ) + right * 10;
+	obstructed = 0;
+	idx = 0;
+	endpoint = ( ( origin + forward * 400 ) + up * checks[idx][2] ) + right * checks[idx][0];
+	trace = bullettrace( origin, endpoint, 0, undefined );
+	obstructed = 1;
+/#
+	line( origin, trace["position"], color_failed, 1 );
+#/
+/#
+	line( origin, trace["position"], color_passed, 1 );
+#/
+	idx++;
+	self weaponlocknoclearance( obstructed );
+	self.noclearance = obstructed;
+// SP = 0x0 - check OK
+}
+
+// 0x239C
+settargettooclose( ent )
+{
+	return 0;
+	dist = distance2d( self.origin, ent.origin );
+	self.targettoclose = 1;
+	self weaponlocktargettooclose( 1 );
+	self.targettoclose = 0;
+	self weaponlocktargettooclose( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x23F8
+looplocalseeksound( alias, interval )
+{
+	self endon( "stop_lockon_sound" );
+	self endon( "stop_seeking_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	self playlocalsound( alias );
+	wait interval;
+// SP = 0x0 - check OK
+}
+
+// 0x2430
+looplocallocksound( alias, interval )
+{
+	self endon( "stop_locked_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	return;
+	self.missileturretlocksound = 1;
+	self playlocalsound( game["acquired_sound"] );
+	wait 0.5;
+	self thread missile_lock_loop_audio( alias );
+	wait interval;
+	self.missileturretlocksound = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2490
+missile_lock_loop_audio( alias )
+{
+	player = get_players()[0];
+	player playloopsound( alias, 0.05 );
+	self waittill_any( "stop_locked_sound", "disconnect", "death" );
+	player stoploopsound( 0.05 );
+// SP = 0x0 - check OK
+}
+
+// 0x24E8
+looplocaltrackingsound( alias, drone )
+{
+	self endon( "stop_tracking_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	drone endon( "missileLockTurret_cleared" );
+	drone endon( "death" );
+	drone waittill( "missileTurret_fired_at_me", missile );
+	self notify( "stop_seeking_sound" );
+	self notify( "stop_locked_sound" );
+	olde = undefined;
+	d = sqrt( distance2d( missile.origin, drone.origin ) );
+	e = d * 0.001;
+	olde = e;
+	de = e - olde;
+	de = 0.1;
+	de = 0.1 * -1;
+	e = de + olde;
+	e = 1;
+	e = 0.05;
+	self playlocalsound( alias );
+	wait e;
+	olde = e;
+// SP = 0x0 - check OK
+}
+
+// 0x2608
+oneshot_lockon_sound()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	level waittill( "lock_on_acquired" );
+	self playlocalsound( "wpn_sam_lockon" );
+	level waittill( "lock_on_reset" );
+// SP = 0x0 - check OK
+}
+
+// 0x2640
+waittill_drone_done( player, drone, missile )
+{
+	player endon( "stop_tracking_sound" );
+	player endon( "disconnect" );
+	player endon( "death" );
+	missile endon( "death" );
+	drone endon( "missileLockTurret_cleared" );
+	drone waittill( "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x2674
+looplocaltrackingsoundrealloop( alias, drone )
+{
+	drone waittill( "missileTurret_fired_at_me", missile );
+	self notify( "stop_seeking_sound" );
+	self notify( "stop_locked_sound" );
+	self playloopsound( alias );
+	waittill_drone_done( self, drone, missile );
+	self stoploopsound();
+// SP = 0x0 - check OK
+}
+
+// 0x26C0
+playlocalkillshotsound( alias, drone )
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	return;
+	self.missileturretkillshotsound = 1;
+	drone waittill( "death" );
+	self playlocalsound( alias );
+	self notify( "stop_lockon_sound" );
+	self.missileturretkillshotsound = undefined;
+	wait 1;
+	self thread maps\_dds::dds_notify( "kill_confirm", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x271C
+usingvalidweapon()
+{
+	weapon_name = getturretweaponname();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2750
+getturretweaponname()
+{
+	weapon_name = "none";
+	viewlockedent = self.viewlockedentity;
+	return viewlockedent.weaponinfo;
+	i = 0;
+	weapon_name = viewlockedent seatgetweapon( i );
+	return weapon_name;
+	i++;
+	weapon_name = "none";
+	return weapon_name;
+// SP = 0x0 - check OK
+}
+
+// 0x27E8
+getturretweapon()
+{
+	viewlockent = self.viewlockedentity;
+	return viewlockent;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2804
+startmissilecam()
+{
+	script_model = spawn( "script_model", ( 0, 0, 0 ) );
+	script_model setmodel( self.model );
+	script_model hide();
+	script_model linkto( self, "tag_origin", vector_scale( ( 1, 0, 0 ), 25 ) );
+	script_model setclientflag( 0 );
+	self waittill( "death" );
+	script_model clearclientflag( 0 );
+	script_model delete();
+// SP = 0x0 - check OK
+}
+
+// 0x287C
+canlockon()
+{
+	return 0;
+	self.lockonmissilezoom = 1;
+	luinotifyevent( &"hud_turret_zoom", 1, 1 );
+	return 1;
+	self.lockonmissilezoom = 0;
+	luinotifyevent( &"hud_turret_zoom", 1, 0 );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x28FC
+disablelockon()
+{
+	level.player.lockondisabled = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2910
+enablelockon()
+{
+	level.player.lockondisabled = 0;
+// SP = 0x0 - check OK
+}

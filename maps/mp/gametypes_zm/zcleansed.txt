@@ -1,0 +1,1544 @@
+// maps/mp/gametypes_zm/zcleansed.gsc
+
+#include maps\mp\_visionset_mgr;
+#include maps\mp\zombies\_zm_weap_cymbal_monkey;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zombies\_zm_blockers;
+#include maps\mp\gametypes_zm\_globallogic_utils;
+#include maps\mp\zombies\_zm_audio_announcer;
+#include maps\mp\zombies\_zm;
+#include maps\mp\gametypes_zm\_weapons;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_powerups;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\gametypes_zm\_zm_gametype;
+#include maps\mp\zombies\_zm_turned;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\gametypes_zm\_hud;
+#include maps\mp\_utility;
+
+
+// 0x29DC
+main()
+{
+	level.using_zombie_powerups = 1;
+	level._game_mode_powerup_zombie_grab = ::zcleansed_zombie_powerup_grab;
+	level._zombiemode_powerup_grab = ::zcleansed_powerup_grab;
+	level._powerup_timeout_custom_time = ::zcleansed_powerup_custom_time_logic;
+	level._powerup_grab_check = ::powerup_can_player_grab;
+	setdvar( "aim_target_player_enabled", 1 );
+	maps\mp\gametypes_zm\_zm_gametype::main();
+	setscoreboardcolumns( "none", "score", "kills", "downs", "headshots" );
+	level.cymbal_monkey_dual_view = 1;
+	level.onprecachegametype = ::onprecachegametype;
+	level.onstartgametype = ::onstartgametype;
+	level.custom_end_screen = ::custom_end_screen;
+	level._game_module_custom_spawn_init_func = maps\mp\gametypes_zm\_zm_gametype::custom_spawn_init_func;
+	level._game_module_state_update_func = maps\mp\zombies\_zm_stats::survival_classic_custom_stat_update;
+	level._effect["human_disappears"] = loadfx( "maps/zombie/fx_zmb_returned_spawn_puff" );
+	level._effect["zombie_disappears"] = loadfx( "maps/zombie/fx_zmb_returned_spawn_puff" );
+	level.human_finish_bonus_points = 250;
+	level.human_bonus_points = 10;
+	level.zombie_penalty_points = 5;
+	level.human_bonus_period = 1;
+	level.zombie_penalty_period = 10;
+	level.zombie_player_kill_points = 50;
+	level.human_player_kill_points = 50;
+	level.human_player_suicide_penalty = 0;
+	level.score_rank_bonus = array( 1.5, 0.75, 0.5, 0.25 );
+	level.characterindex = 0;
+	level.characterindex = 1;
+	level.graceperiodfunc = ::waitforhumanselection;
+	level.customalivecheck = ::cleansed_alive_check;
+	level thread onplayerconnect();
+	maps\mp\gametypes_zm\_zm_gametype::post_gametype_main( "zcleansed" );
+	init_cleansed_powerup_fx();
+// SP = 0x0 - check OK
+}
+
+// 0x2B80
+onprecachegametype()
+{
+	level.playersuicideallowed = 1;
+	level.canplayersuicide = ::canplayersuicide;
+	level.suicide_weapon = "death_self_zm";
+	precacheitem( "death_self_zm" );
+	precachemodel( "zombie_pickup_perk_bottle" );
+	precache_trophy();
+	precacheshader( "faction_cdc" );
+	precacheshader( "faction_cia" );
+	init_default_zcleansed_powerups();
+	maps\mp\zombies\_zm_turned::init();
+	level thread maps\mp\gametypes_zm\_zm_gametype::init();
+	maps\mp\gametypes_zm\_zm_gametype::rungametypeprecache( "zcleansed" );
+	init_cleansed_powerups();
+// SP = 0x0 - check OK
+}
+
+// 0x2C0C
+init_default_zcleansed_powerups()
+{
+	maps\mp\zombies\_zm_powerups::include_zombie_powerup( "the_cure" );
+	maps\mp\zombies\_zm_powerups::include_zombie_powerup( "blue_monkey" );
+	maps\mp\zombies\_zm_powerups::add_zombie_powerup( "the_cure", "zombie_pickup_perk_bottle", &"ZOMBIE_POWERUP_MAX_AMMO", maps\mp\zombies\_zm_powerups::func_should_never_drop, 0, 0, 1 );
+	maps\mp\zombies\_zm_powerups::add_zombie_powerup( "blue_monkey", level.cymbal_monkey_model, &"ZOMBIE_POWERUP_MAX_AMMO", maps\mp\zombies\_zm_powerups::func_should_never_drop, 1, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2C6C
+init_cleansed_powerup_fx()
+{
+	level._effect["powerup_on_caution"] = loadfx( "misc/fx_zombie_powerup_on_blue" );
+// SP = 0x0 - check OK
+}
+
+// 0x2C88
+onstartgametype()
+{
+	maps\mp\gametypes_zm\_zm_gametype::setup_classic_gametype();
+	level thread makefindfleshstructs();
+	flag_init( "start_supersprint" );
+	level.custom_player_fake_death = ::empty;
+	level.custom_player_fake_death_cleanup = ::empty;
+	level.overrideplayerdamage = ::cleanseddamagechecks;
+	level.playerlaststand_func = ::cleansed_player_laststand;
+	level.onendgame = ::cleansedonendgame;
+	level.ontimelimit = ::cleansedontimelimit;
+	level.powerup_player_valid = ::cleansed_alive_check;
+	level.nml_zombie_spawners = level.zombie_spawners;
+	level.dodge_score_highlight = 1;
+	level.dodge_show_revive_icon = 1;
+	level.custom_max_zombies = 6;
+	level.custom_zombie_health = 200;
+	level.nml_dogs_enabled = 0;
+	level.timercountdown = 1;
+	level.initial_spawn = 1;
+	level.nml_reaction_interval = 2000;
+	level.nml_min_reaction_dist_sq = 1024;
+	level.nml_max_reaction_dist_sq = 5760000;
+	level.min_humans = 1;
+	level.no_end_game_check = 1;
+	level.zombie_health = level.zombie_vars["zombie_health_start"];
+	level._get_game_module_players = undefined;
+	level.powerup_drop_count = 0;
+	level.is_zombie_level = 1;
+	level.player_becomes_zombie = ::onzombifyplayer;
+	level.player_kills_player = ::player_kills_player;
+	set_zombie_var( "zombify_player", 1 );
+	set_zombie_var( "penalty_died", 1 );
+	set_zombie_var( "penalty_downed", 1 );
+	i = 0;
+	addguntoprogression( level._zcleansed_weapon_progression[i] );
+	i++;
+	maps\mp\gametypes_zm\_zm_gametype::rungametypemain( "zcleansed", ::zcleansed_logic );
+// SP = 0x0 - check OK
+}
+
+// 0x2E2C
+turnedlog( text )
+{
+/#
+	println( "TURNEDLOG: " + text + "\n" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2E50
+cleansed_player_laststand( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+/#
+#/
+	self maps\mp\zombies\_zm_score::player_downed_penalty();
+	attacker notify( "invisible_player_killed" );
+	self stopsounds();
+// SP = 0x0 - check OK
+}
+
+// 0x2ED0
+cleansed_alive_check( player )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2F2C
+cleanseddamagechecks( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	level notify( "killed_by_decoy", eattacker, self );
+	idamage = self.health + 666;
+	self.last_player_attacker = eattacker;
+/#
+#/
+	eattacker thread maps\mp\gametypes_zm\_weapons::checkhit( sweapon );
+	idamage = self.health + 666;
+	self playsoundtoplayer( "evt_player_swiped", self );
+	return self maps\mp\zombies\_zm::player_damage_override( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime );
+// SP = 0x0 - check OK
+}
+
+// 0x30E4
+custom_end_screen()
+{
+	players = get_players();
+	winner = players[0];
+	foreach ( player in players )
+	{
+		winner = player;
+	}
+	i = 0;
+	players[i].bonus_msg_hud = newclienthudelem( players[i] );
+	players[i].bonus_msg_hud.alignx = "center";
+	players[i].bonus_msg_hud.aligny = "middle";
+	players[i].bonus_msg_hud.horzalign = "center";
+	players[i].bonus_msg_hud.vertalign = "middle";
+	players[i].bonus_msg_hud.y -= 130;
+	players[i].bonus_msg_hud.y += 70;
+	players[i].bonus_msg_hud.foreground = 1;
+	players[i].bonus_msg_hud.fontscale = 5;
+	players[i].bonus_msg_hud.alpha = 0;
+	players[i].bonus_msg_hud.color = ( 1, 1, 1 );
+	players[i].bonus_msg_hud.hidewheninmenu = 1;
+	players[i].bonus_msg_hud.font = "default";
+	players[i].bonus_msg_hud settext( &"ZOMBIE_CLEANSED_SURVIVING_HUMAN_BONUS", level.last_human_standing.name );
+	players[i].bonus_msg_hud changefontscaleovertime( 0.25 );
+	players[i].bonus_msg_hud fadeovertime( 0.25 );
+	players[i].bonus_msg_hud.alpha = 1;
+	players[i].bonus_msg_hud.fontscale = 2;
+	i++;
+	wait 3.25;
+	players = get_players();
+	i = 0;
+	players[i].bonus_msg_hud changefontscaleovertime( 0.5 );
+	players[i].bonus_msg_hud fadeovertime( 0.5 );
+	players[i].bonus_msg_hud.alpha = 0;
+	players[i].bonus_msg_hud.fontscale = 5;
+	i++;
+	wait 0.5;
+	players = get_players();
+	i = 0;
+	players[i].bonus_msg_hud destroy();
+	players[i].game_over_hud = newclienthudelem( players[i] );
+	players[i].game_over_hud.alignx = "center";
+	players[i].game_over_hud.aligny = "middle";
+	players[i].game_over_hud.horzalign = "center";
+	players[i].game_over_hud.vertalign = "middle";
+	players[i].game_over_hud.y -= 130;
+	players[i].game_over_hud.foreground = 1;
+	players[i].game_over_hud.fontscale = 3;
+	players[i].game_over_hud.alpha = 0;
+	players[i].game_over_hud.color = ( 1, 1, 1 );
+	players[i].game_over_hud.hidewheninmenu = 1;
+	players[i].game_over_hud settext( &"ZOMBIE_GAME_OVER" );
+	players[i].game_over_hud fadeovertime( 1 );
+	players[i].game_over_hud.alpha = 1;
+	players[i].game_over_hud.fontscale = 2;
+	players[i].game_over_hud.y += 40;
+	players[i].survived_hud = newclienthudelem( players[i] );
+	players[i].survived_hud.alignx = "center";
+	players[i].survived_hud.aligny = "middle";
+	players[i].survived_hud.horzalign = "center";
+	players[i].survived_hud.vertalign = "middle";
+	players[i].survived_hud.y -= 100;
+	players[i].survived_hud.foreground = 1;
+	players[i].survived_hud.fontscale = 2;
+	players[i].survived_hud.alpha = 0;
+	players[i].survived_hud.color = ( 1, 1, 1 );
+	players[i].survived_hud.hidewheninmenu = 1;
+	players[i].survived_hud.fontscale = 1.5;
+	players[i].survived_hud.y += 40;
+	winner_text = &"ZOMBIE_CLEANSED_WIN";
+	loser_text = &"ZOMBIE_CLEANSED_LOSE";
+	players[i].survived_hud settext( &"MP_HOST_ENDED_GAME" );
+	players[i].survived_hud settext( winner_text );
+	players[i].survived_hud settext( loser_text );
+	players[i].survived_hud fadeovertime( 1 );
+	players[i].survived_hud.alpha = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x36B4
+allow_player_movement( allowed )
+{
+	level.player_movement_suppressed = !(allowed);
+	foreach ( player in get_players() )
+	{
+		player freezecontrolswrapper( level.player_movement_suppressed );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3720
+watch_game_start()
+{
+	level.start_audio_allowed = 1;
+	level waittill( "cleansed_game_started" );
+	level.start_audio_allowed = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x373C
+listen_to_the_doctor_pregame()
+{
+	thread watch_game_start();
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_start_single_0", undefined, undefined, 1, 4 );
+	wait 4;
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_start_2", undefined, undefined, 1, 8 );
+	wait 8;
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_start_3", undefined, undefined, 1, 8 );
+	wait 4;
+	level waittill( "cleansed_game_started" );
+// SP = 0x0 - check OK
+}
+
+// 0x37B0
+listen_to_the_doctor_started()
+{
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_cure_found_line", undefined, undefined, 1, 8 );
+	wait 8;
+// SP = 0x0 - check OK
+}
+
+// 0x37D0
+listen_to_the_doctor_monkeys()
+{
+	level endon( "end_game" );
+	level waittill( "killed_by_decoy", killer, killee );
+	level.playing_turned_kill_vo = 1;
+	killer.heard_dr_monkey_killer = 1;
+	killer thread maps\mp\zombies\_zm_audio_announcer::leaderdialogonplayer( "dr_monkey_killer", undefined, undefined, 0 );
+	level.playing_turned_kill_vo = 1;
+	killee.heard_dr_monkey_killee = 1;
+	wait 0.25;
+	killee thread maps\mp\zombies\_zm_audio_announcer::leaderdialogonplayer( "dr_monkey_killee", undefined, undefined, 0 );
+	wait 8;
+	level.playing_turned_kill_vo = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x38A8
+listen_to_the_doctor_human_deaths()
+{
+	level endon( "end_game" );
+	level waittill( "killed_by_zombie", killer, killee );
+	wait 0.05;
+	killee.vo_human_killed_chance = 24;
+	level.playing_turned_kill_vo = 1;
+	killee thread maps\mp\zombies\_zm_audio_announcer::leaderdialogonplayer( "dr_human_killed", undefined, undefined, 0 );
+	killee.vo_human_killed_chance = int( killee.vo_human_killed_chance * 0.5 );
+	wait 4;
+	level.playing_turned_kill_vo = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3964
+listen_to_the_doctor_zombie_deaths()
+{
+	level endon( "end_game" );
+	level waittill( "killed_by_human", killer, killee );
+	wait 0.05;
+	killer.vo_human_killer_chance = 24;
+	killer.vo_human_killer_chance = int( killer.vo_human_killer_chance * 0.5 );
+	level.playing_turned_kill_vo = 1;
+	killer thread maps\mp\zombies\_zm_audio_announcer::leaderdialogonplayer( "dr_human_killer", undefined, undefined, 0 );
+	wait 4;
+	level.playing_turned_kill_vo = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3A20
+listen_to_the_doctor_endgame()
+{
+	wait 5;
+	wait 1;
+	r = randomint( 3 );
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_countdown0", undefined, undefined, 1, 4 );
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_countdown1", undefined, undefined, 1, 4 );
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_countdown2", undefined, undefined, 1, 4 );
+	wait 1;
+	level maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_ending", undefined, undefined, 1, 4 );
+// SP = 0x0 - check OK
+}
+
+// 0x3ACC
+anysplitscreen()
+{
+	foreach ( player in get_players() )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3B18
+listen_to_the_doctor()
+{
+	listen_to_the_doctor_pregame();
+	listen_to_the_doctor_started();
+	thread listen_to_the_doctor_human_deaths();
+	thread listen_to_the_doctor_zombie_deaths();
+	thread listen_to_the_doctor_monkeys();
+	thread listen_to_the_doctor_endgame();
+// SP = 0x0 - check OK
+}
+
+// 0x3B5C
+watch_survival_time()
+{
+	level endon( "end_game" );
+	level notify( "new_human_suviving" );
+	level endon( "new_human_suviving" );
+	self endon( "zombify" );
+	wait 10;
+	self.vo_human_survival_chance = 24;
+	self.vo_human_survival_chance = int( self.vo_human_survival_chance * 0.25 );
+	level.playing_turned_kill_vo = 1;
+	self thread maps\mp\zombies\_zm_audio_announcer::leaderdialogonplayer( "dr_survival", undefined, undefined, 0 );
+	wait 4;
+	level.playing_turned_kill_vo = 0;
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0x3BF8
+zcleansed_logic()
+{
+	setdvar( "player_lastStandBleedoutTime", "0.05" );
+	setmatchtalkflag( "DeadChatWithDead", 1 );
+	setmatchtalkflag( "DeadChatWithTeam", 1 );
+	setmatchtalkflag( "DeadHearTeamLiving", 1 );
+	setmatchtalkflag( "DeadHearAllLiving", 1 );
+	setmatchtalkflag( "EveryoneHearsEveryone", 1 );
+	level.zombie_include_powerups["carpenter"] = 0;
+	level.noroundnumber = 1;
+	level._supress_survived_screen = 1;
+	doors = getentarray( "zombie_door", "targetname" );
+	foreach ( door in doors )
+	{
+		door setinvisibletoall();
+	}
+	level thread maps\mp\zombies\_zm_blockers::open_all_zbarriers();
+	level thread delay_box_hide();
+	flag_wait( "initial_players_connected" );
+	level.gamestarttime = GetTime();
+	level.gamelengthtime = undefined;
+	level.custom_spawnplayer = ::respawn_cleansed_player;
+	allow_player_movement( 0 );
+	setup_players();
+	flag_wait( "initial_blackscreen_passed" );
+	level thread listen_to_the_doctor();
+	level thread playturnedmusic();
+	level notify( "start_fullscreen_fade_out" );
+	wait 1.5;
+	players = get_players();
+	i = 0;
+	players[i] thread create_match_start_message( &"ZOMBIE_FIND_THE_CURE", 3 );
+	i++;
+	allow_player_movement( 1 );
+	spawn_initial_cure_powerup();
+	waitforhumanselection();
+	level notify( "cleansed_game_started" );
+	level thread leaderwatch();
+	players = get_players();
+	i = 0;
+	players[i] thread create_match_start_message( &"ZOMBIE_MOST_TIME_AS_HUMAN_TO_WIN", 3 );
+	i++;
+	wait 1.2;
+	flag_clear( "pregame" );
+	players = get_players();
+	i = 0;
+	players[i] thread destroystartmsghud();
+	i++;
+	registertimelimit( 0, 1440 );
+	level.discardtime = GetTime() - level.starttime;
+	level thread watch_for_end_game();
+	wait_for_round_end();
+	allow_player_movement( 0 );
+	wait_network_frame();
+	award_round_end_bonus();
+	level notify( "end_game" );
+// SP = 0x0 - check OK
+}
+
+// 0x3E78
+wait_for_round_end()
+{
+	level endon( "early_game_end" );
+	level endon( "normal_game_end" );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3EA0
+end_game_early()
+{
+/#
+	iprintlnbold( "SOLO GAME - RELEASE ONLY" );
+#/
+	level.forcedend = 1;
+	level notify( "early_game_end" );
+	level notify( "end_game" );
+// SP = 0x0 - check OK
+}
+
+// 0x3ECC
+watch_for_end_game()
+{
+	level waittill( "end_game" );
+	registertimelimit( 0, 0 );
+	setgameendtime( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3EF0
+cleansedontimelimit()
+{
+	level notify( "normal_game_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x3F00
+cleansedonendgame( winningteam )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3F0C
+create_match_start_message( text, duration )
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self notify( "kill_match_start_message" );
+	self endon( "kill_match_start_message" );
+	self.match_start_msg_hud = newclienthudelem( self );
+	self.match_start_msg_hud.alignx = "center";
+	self.match_start_msg_hud.aligny = "middle";
+	self.match_start_msg_hud.horzalign = "center";
+	self.match_start_msg_hud.vertalign = "middle";
+	self.match_start_msg_hud.y -= 130;
+	self.match_start_msg_hud.fontscale = 5;
+	self.match_start_msg_hud.foreground = 1;
+	self.match_start_msg_hud.y += 70;
+	self.match_start_msg_hud.color = ( 1, 1, 1 );
+	self.match_start_msg_hud.hidewheninmenu = 1;
+	self.match_start_msg_hud.font = "default";
+	self.match_start_msg_hud settext( text );
+	self.match_start_msg_hud changefontscaleovertime( 0.25 );
+	self.match_start_msg_hud fadeovertime( 0.25 );
+	self.match_start_msg_hud.alpha = 1;
+	self.match_start_msg_hud.fontscale = 2;
+	self.match_start_msg_hud.fontscale = 1.5;
+	wait duration;
+	return;
+	self.match_start_msg_hud changefontscaleovertime( 0.5 );
+	self.match_start_msg_hud fadeovertime( 0.5 );
+	self.match_start_msg_hud.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4098
+destroystartmsghud()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	return;
+	self.match_start_msg_hud destroy();
+	self.match_start_msg_hud = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x40C4
+delay_box_hide()
+{
+	wait 2;
+	start_chest = getstruct( "start_chest", "script_noteworthy" );
+	start_chest maps\mp\zombies\_zm_magicbox::hide_chest();
+// SP = 0x0 - check OK
+}
+
+// 0x40FC
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player thread onplayerlaststand();
+	player thread onplayerdisconnect();
+	player thread setup_player();
+	player thread rewardsthink();
+// SP = 0x0 - check OK
+}
+
+// 0x4144
+onplayerlaststand()
+{
+	self endon( "disconnect" );
+	self waittill( "player_downed" );
+	self takeallweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x416C
+onplayerdisconnect()
+{
+	level endon( "end_game" );
+	self waittill( "disconnect" );
+	end_game_early();
+	thread checkzombiehumanratio();
+	wait 2;
+	players = get_players();
+	foreach ( player in players )
+	{
+		player.nuked = undefined;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x41F8
+zombie_ramp_up()
+{
+	self notify( "zombie_ramp_up" );
+	self endon( "zombie_ramp_up" );
+	self endon( "death_or_disconnect" );
+	self endon( "humanify" );
+	self.maxhealth = maps\mp\zombies\_zm::ai_zombie_health( level.cleansed_zombie_round );
+	self.maxhealth = maps\mp\zombies\_zm::ai_zombie_health( 2 );
+	self.health = self.maxhealth;
+// SP = 0x0 - check OK
+}
+
+// 0x4250
+precache_trophy()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x4258
+create_trophy()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x4260
+give_trophy()
+{
+	self setclientfield( "player_eyes_special", 1 );
+	self setclientfield( "player_has_eyes", 0 );
+	wait_network_frame();
+	self setclientfield( "player_has_eyes", self.is_zombie );
+	self.has_trophy = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x42C4
+remove_trophy()
+{
+	self setclientfield( "player_eyes_special", 0 );
+	self setclientfield( "player_has_eyes", 0 );
+	wait_network_frame();
+	self setclientfield( "player_has_eyes", self.is_zombie );
+	self.has_trophy = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4324
+enthrone( player )
+{
+	player endon( "dethrone" );
+	player endon( "disconnect" );
+	player give_trophy();
+	player remove_trophy();
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x4394
+dethrone( player )
+{
+	player notify( "dethrone" );
+	player remove_trophy();
+// SP = 0x0 - check OK
+}
+
+// 0x43B0
+cleansed_set_leader( leader )
+{
+	dethrone( level.cleansed_leader );
+	level.cleansed_leader = leader;
+	level thread enthrone( level.cleansed_leader );
+	return;
+	level.cleansed_leader = leader;
+	level thread enthrone( level.cleansed_leader );
+	return;
+	dethrone( level.cleansed_leader );
+	level.cleansed_leader = leader;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x4450
+leaderwatch()
+{
+	level endon( "early_game_end" );
+	level endon( "normal_game_end" );
+	create_trophy();
+	cleansed_set_leader( undefined );
+	hiscore = -1;
+	leader = undefined;
+	players = get_players();
+	foreach ( player in players )
+	{
+		hiscore = player.score;
+	}
+	foreach ( player in players )
+	{
+		leader = undefined;
+		leader = player;
+	}
+	cleansed_set_leader( leader );
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x453C
+cover_transition()
+{
+	self thread fadetoblackforxsec( 0, 0.15, 0.05, 0.1 );
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x456C
+disappear_in_flash( washuman )
+{
+	playsoundatposition( "zmb_bolt", self.origin );
+	playfx( level._effect["human_disappears"], self.origin );
+	playfx( level._effect["zombie_disappears"], self.origin );
+	self ghost();
+// SP = 0x0 - check OK
+}
+
+// 0x45CC
+humanifyplayer( for_killing )
+{
+/#
+#/
+	self freezecontrolswrapper( 1 );
+	self thread cover_transition();
+	self disappear_in_flash( 1 );
+	self.team = self.prevteam;
+	self.pers["team"] = self.prevteam;
+	self.sessionteam = self.prevteam;
+	self turnedhuman();
+	for_killing waittill_notify_or_timeout( "respawned", 0.75 );
+	wait_network_frame();
+	checkzombiehumanratio( self );
+	self.last_player_attacker = undefined;
+	self freezecontrolswrapper( level.player_movement_suppressed );
+	self thread watch_survival_time();
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4678
+onzombifyplayer()
+{
+/#
+#/
+	return;
+	self.in_zombify_call = 1;
+	wait 0.1;
+	level.in_zombify_call = 1;
+	self freezecontrolswrapper( 1 );
+/#
+#/
+	self check_for_drops( 0 );
+/#
+#/
+	self check_for_drops( 1 );
+	self.team = level.zombie_team;
+	self.pers["team"] = level.zombie_team;
+	self.sessionteam = level.zombie_team;
+	self.last_player_attacker thread humanifyplayer( self );
+	self.player_was_turned_by = self.last_player_attacker;
+/#
+#/
+	self check_for_drops( 1 );
+	self player_suicide();
+	checkzombiehumanratio( undefined, self );
+	self setclientfield( "player_has_eyes", 0 );
+	self notify( "zombified" );
+	self disappear_in_flash( 0 );
+	self cover_transition();
+	self notify( "clear_red_flashing_overlay" );
+	self.zombification_time = GetTime() / 1000;
+	self.last_player_attacker = undefined;
+	self maps\mp\zombies\_zm_laststand::laststand_enable_player_weapons();
+	self.ignoreme = 1;
+	self.revivetrigger delete();
+	self.revivetrigger = undefined;
+	self reviveplayer();
+	self maps\mp\zombies\_zm_turned::turn_to_zombie();
+	self freezecontrolswrapper( level.player_movement_suppressed );
+	self thread zombie_ramp_up();
+	level.in_zombify_call = 0;
+	self.in_zombify_call = 0;
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4890
+playerfakedeath( vdir )
+{
+	self endon( "disconnect" );
+	level endon( "game_module_ended" );
+	level notify( "fake_death" );
+	self notify( "fake_death" );
+	self enableinvulnerability();
+	self takeallweapons();
+	self freezecontrolswrapper( 1 );
+	self.ignoreme = 1;
+	origin = self.origin;
+	xyspeed = ( 0, 0, 0 );
+	angles = self getplayerangles();
+	angles = ( angles[0], angles[1], angles[2] + randomfloatrange( -5, 5 ) );
+	xyspeedmag = 40 + randomint( 12 ) + randomint( 12 );
+	xyspeed = xyspeedmag * vectornormalize( ( vdir[0], vdir[1], 0 ) );
+	linker = spawn( "script_origin", ( 0, 0, 0 ) );
+	linker.origin = origin;
+	linker.angles = angles;
+	self._fall_down_anchor = linker;
+	self playerlinkto( linker );
+	self playsoundtoplayer( "zmb_player_death_fall", self );
+	origin = playerphysicstrace( origin, origin + xyspeed );
+	origin += vector_scale( ( 0, 0, -1 ), 52 );
+	lerptime = 0.5;
+	linker moveto( origin, lerptime, lerptime );
+	linker rotateto( angles, lerptime, lerptime );
+	self freezecontrolswrapper( 1 );
+	linker waittill( "movedone" );
+	self giveweapon( "death_throe_zm" );
+	self switchtoweapon( "death_throe_zm" );
+	bounce = randomint( 4 ) + 8;
+	origin = ( origin + ( 0, 0, bounce ) ) - xyspeed * 0.1;
+	lerptime = bounce / 50;
+	linker moveto( origin, lerptime, 0, lerptime );
+	linker waittill( "movedone" );
+	origin = ( origin + ( 0, 0, bounce * -1 ) ) + xyspeed * 0.1;
+	lerptime /= 2;
+	linker moveto( origin, lerptime, lerptime );
+	linker waittill( "movedone" );
+	linker moveto( origin, 5, 0 );
+	wait 5;
+	linker delete();
+	self.ignoreme = 0;
+	self takeweapon( "death_throe_zm" );
+	self disableinvulnerability();
+	self freezecontrolswrapper( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x4B1C
+onspawnzombie()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x4B24
+makefindfleshstructs()
+{
+	structs = getstructarray( "spawn_location", "script_noteworthy" );
+	foreach ( struct in structs )
+	{
+		struct.script_string = "find_flesh";
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4B74
+setup_players()
+{
+/#
+	foreach ( spawnpoint in level._turned_zombie_respawnpoints )
+	{
+		text = "";
+		color = ( 0, 1, 0 );
+		text = "No Angles Defined";
+		color = ( 1, 0, 0 );
+		spawnpoint.angles = ( 0, 0, 0 );
+	}
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4BEC
+setup_player()
+{
+	hotjoined = flag( "initial_players_connected" );
+	flag_wait( "initial_players_connected" );
+	wait 0.05;
+	self ghost();
+	self freezecontrolswrapper( 1 );
+	self.ignoreme = 0;
+	self.score = 0;
+	self.characterindex = level.characterindex;
+	self takeallweapons();
+	self giveweapon( "knife_zm" );
+	self give_start_weapon( 1 );
+	self.prevteam = self.team;
+	self.no_revive_trigger = 1;
+	self.human_score = 0;
+	self thread player_score_update();
+	self.is_zombie = 0;
+	self.has_trophy = 0;
+	self.home_team = self.team;
+	self.home_team = "team3";
+	self thread wait_turn_to_zombie( hotjoined );
+// SP = 0x0 - check OK
+}
+
+// 0x4CCC
+wait_turn_to_zombie( hot )
+{
+	self thread fadetoblackforxsec( 0, 1.25, 0.05, 0.25 );
+	wait 1;
+	self.is_zombie = 0;
+	self turn_to_zombie();
+	self freezecontrolswrapper( level.player_movement_suppressed );
+// SP = 0x0 - check OK
+}
+
+// 0x4D20
+addguntoprogression( gunname )
+{
+	level.gunprogression = [];
+	level.gunprogression[level.gunprogression.size] = gunname;
+// SP = 0x0 - check OK
+}
+
+// 0x4D48
+check_spawn_cymbal_monkey( origin, weapon )
+{
+	chance = -0.05;
+	self notify( "awarded_cymbal_monkey" );
+	level.spawned_cymbal_monkey = spawn_cymbalmonkey( origin );
+	level.spawned_cymbal_monkey thread delete_spawned_monkey_on_turned( self );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4DCC
+delete_spawned_monkey_on_turned( player )
+{
+	wait 1;
+	wait_network_frame();
+	self maps\mp\zombies\_zm_powerups::powerup_delete();
+	self notify( "powerup_timedout" );
+// SP = 0x0 - check OK
+}
+
+// 0x4E18
+rewardsthink()
+{
+	self endon( "_zombie_game_over" );
+	self endon( "disconnect" );
+	self waittill( "killed_a_zombie_player", einflictor, target, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+	target.suppress_drops = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4E94
+shotgunloadout()
+{
+	self endon( "_zombie_game_over" );
+	self endon( "disconnect" );
+	self endon( "bled_out" );
+	self endon( "zombify" );
+	level.cymbal_monkey_clone_weapon = "rottweil72_zm";
+	self giveweapon( "rottweil72_zm" );
+	self switchtoweapon( "rottweil72_zm" );
+	self giveweapon( "knife_zm" );
+	self give_start_weapon( 0 );
+	self setweaponammoclip( "rottweil72_zm", 2 );
+	self setweaponammostock( "rottweil72_zm", 0 );
+	self givemaxammo( level.start_weapon );
+	self getweaponammoclip( self get_player_lethal_grenade() );
+	self giveweapon( self get_player_lethal_grenade() );
+	self setweaponammoclip( self get_player_lethal_grenade(), 2 );
+// SP = 0x0 - check OK
+}
+
+// 0x4FF8
+gunprogressionthink()
+{
+	self endon( "_zombie_game_over" );
+	self endon( "disconnect" );
+	self endon( "bled_out" );
+	self endon( "zombify" );
+	counter = 0;
+	level.cymbal_monkey_clone_weapon = level.gunprogression[0];
+	last = level.start_weapon;
+	self giveweapon( self get_player_lethal_grenade() );
+	self setweaponammoclip( self get_player_lethal_grenade(), 2 );
+	self disableweaponcycling();
+	self disableweaponcycling();
+	self giveweapon( level.gunprogression[counter] );
+	self switchtoweapon( level.gunprogression[counter] );
+	self waittill_notify_or_timeout( "weapon_change_complete", 0.5 );
+	self takeweapon( last );
+	last = level.gunprogression[counter];
+	self waittill( "killed_a_zombie_player", einflictor, target, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+	counter++;
+	self giveweapon( level.start_weapon );
+	self switchtoweapon( level.start_weapon );
+	self waittill( "weapon_change_complete" );
+	self takeweapon( last );
+	self waittill( "killed_a_zombie_player", einflictor, target, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+	self notify( "gun_game_achievement" );
+// SP = 0x0 - check OK
+}
+
+// 0x5208
+waitforhumanselection()
+{
+	level waittill( "initial_human_selected" );
+// SP = 0x0 - check OK
+}
+
+// 0x5214
+checkzombiehumanratio( playertomove, playertoignore )
+{
+	zombiecount = 0;
+	humancount = 0;
+	zombieexist = 0;
+	humanexist = 0;
+	earliestzombie = undefined;
+	earliestzombietime = 99999999;
+	end_game_early();
+	wait 0.05;
+	level.checking_human_zombie_ratio = 1;
+	someonebecominghuman = 0;
+	players = get_players();
+	foreach ( player in players )
+	{
+		someonebecominghuman = 1;
+	}
+	playertomove turn_to_human();
+	level.checking_human_zombie_ratio = 0;
+	return;
+	players = get_players();
+	foreach ( player in players )
+	{
+		humancount++;
+		humanexist = 1;
+		zombiecount++;
+		zombieexist = 1;
+		earliestzombie = player;
+		earliestzombietime = player.zombification_time;
+	}
+	players = get_players( "allies" );
+	player = random( players );
+	player thread cover_transition();
+	player disappear_in_flash( 1 );
+/#
+#/
+	player turn_to_zombie();
+	zombiecount++;
+	players = get_players( level.zombie_team );
+	player = random( players );
+	player thread cover_transition();
+	player disappear_in_flash( 0 );
+	player.random_human = 1;
+/#
+#/
+	player turn_to_human();
+	player.random_human = 0;
+	zombiecount--;
+	level.checking_human_zombie_ratio = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5478
+get_player_rank()
+{
+	level.player_score_sort = [];
+	players = get_players();
+	foreach ( player in players )
+	{
+		index = 0;
+		index++;
+		arrayinsert( level.player_score_sort, player, index );
+	}
+	index = 0;
+	return index;
+	index++;
+/#
+/#
+	assertmsg( "This should not happen" );
+#/
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x553C
+player_add_score( bonus )
+{
+	mult = 1;
+	mult = level.zombie_vars[level.zombie_team]["zombie_point_scalar"];
+	mult = level.zombie_vars["allies"]["zombie_point_scalar"];
+	self maps\mp\zombies\_zm_score::add_to_player_score( bonus * mult );
+// SP = 0x0 - check OK
+}
+
+// 0x5594
+player_sub_score( penalty )
+{
+	penalty = int( min( self.score, penalty ) );
+	self maps\mp\zombies\_zm_score::add_to_player_score( penalty * -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x55C8
+player_suicide()
+{
+	self player_sub_score( level.human_player_suicide_penalty );
+/#
+	self.intermission = 0;
+	thread spawn_initial_cure_powerup();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5604
+player_kills_player( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime )
+{
+	score_multiplier = 1;
+	level notify( "killed_by_human", eattacker, self );
+	eattacker player_add_score( int( score_multiplier * level.zombie_player_kill_points ) );
+	eattacker maps\mp\zombies\_zm_stats::add_global_stat( "PLAYER_KILLS", 1 );
+	eattacker maps\mp\zombies\_zm_stats::increment_client_stat( "grenade_kills" );
+	eattacker maps\mp\zombies\_zm_stats::increment_player_stat( "grenade_kills" );
+	level notify( "killed_by_zombie", eattacker, self );
+	eattacker player_add_score( int( score_multiplier * level.human_player_kill_points ) );
+	eattacker maps\mp\zombies\_zm_stats::add_global_stat( "PLAYER_RETURNS", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x56F8
+award_round_end_bonus()
+{
+	level notify( "stop_player_scores" );
+	wait 0.25;
+	level thread maps\mp\zombies\_zm_audio_announcer::leaderdialog( "dr_time_line", undefined, undefined, 1 );
+	wait 0.25;
+	hiscore = -1;
+	foreach ( player in get_players() )
+	{
+		player player_add_score( level.human_finish_bonus_points );
+		level.last_human_standing = player;
+		hiscore = player.score;
+	}
+	foreach ( player in get_players() )
+	{
+		player.team = player.prevteam;
+		player.pers["team"] = player.prevteam;
+		player.sessionteam = player.prevteam;
+		player maps\mp\zombies\_zm_stats::increment_client_stat( "wins" );
+		player maps\mp\zombies\_zm_stats::add_client_stat( "losses", -1 );
+		player adddstat( "skill_rating", 1 );
+		player setdstat( "skill_variance", 1 );
+		player maps\mp\zombies\_zm_stats::add_location_gametype_stat( level.scr_zm_map_start_location, level.scr_zm_ui_gametype, "wins", 1 );
+		player maps\mp\zombies\_zm_stats::add_location_gametype_stat( level.scr_zm_map_start_location, level.scr_zm_ui_gametype, "losses", -1 );
+		player.team = level.zombie_team;
+		player.pers["team"] = level.zombie_team;
+		player.sessionteam = level.zombie_team;
+		player setdstat( "skill_rating", 0 );
+		player setdstat( "skill_variance", 1 );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x590C
+player_score_update()
+{
+	self endon( "_zombie_game_over" );
+	self endon( "disconnect" );
+	level endon( "stop_player_scores" );
+	waittime = 0.05;
+	self waittill_any_or_timeout( waittime, "zombify", "humanify" );
+	waittime = 0.05;
+	waittime = level.zombie_penalty_period;
+	self player_sub_score( level.zombie_penalty_points );
+	waittime = level.human_bonus_period;
+	self player_add_score( level.human_bonus_points );
+// SP = 0x0 - check OK
+}
+
+// 0x59E4
+respawn_cleansed_player()
+{
+	spawnpoint = self maps\mp\zombies\_zm_turned::getspawnpoint();
+	self.sessionstate = "playing";
+	self allowspectateteam( "freelook", 0 );
+	self spawn( spawnpoint.origin, spawnpoint.angles );
+	self notify( "stop_flame_damage" );
+	self reviveplayer();
+	self.nuked = 0;
+	self.nuker = undefined;
+	self.suppress_drops = 0;
+	self.is_burning = 0;
+	self.is_zombie = 0;
+	self.ignoreme = 0;
+	self freezecontrolswrapper( level.player_movement_suppressed );
+	self notify( "respawned" );
+// SP = 0x0 - check OK
+}
+
+// 0x5A74
+zcleansed_zombie_powerup_grab( powerup, zombie_player )
+{
+	return 0;
+	switch ( powerup.powerup_name )
+	{
+		case "the_cure":
+			level notify( "initial_human_selected" );
+			zombie_player freezecontrolswrapper( 1 );
+			zombie_player disappear_in_flash( 0 );
+			zombie_player turn_to_human();
+			players = get_players();
+			foreach ( player in players )
+			{
+				player thread zombie_ramp_up();
+			}
+			break;
+		default:
+			powerup thread [[level.cleansed_powerups[powerup.powerup_name].callback]]( zombie_player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x5B70
+zcleansed_powerup_grab( powerup, player )
+{
+	return 0;
+	switch ( powerup.powerup_name )
+	{
+		case "blue_monkey":
+			player maps\mp\zombies\_zm_weap_cymbal_monkey::player_give_cymbal_monkey();
+			player setweaponammoclip( "cymbal_monkey_zm", 1 );
+			player notify( "powerup_blue_monkey" );
+			break;
+		default:
+			powerup thread [[level.cleansed_powerups[powerup.powerup_name].callback]]( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x5C18
+zcleansed_powerup_custom_time_logic( powerup )
+{
+	return 0;
+	return 15;
+// SP = 0x0 - check OK
+}
+
+// 0x5C34
+spawn_initial_cure_powerup()
+{
+	struct = random( level._turned_powerup_spawnpoints );
+	maps\mp\zombies\_zm_powerups::specific_powerup_drop( "the_cure", struct.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x5C60
+spawn_cymbalmonkey( origin )
+{
+	monkey = maps\mp\zombies\_zm_powerups::specific_powerup_drop( "blue_monkey", origin );
+	return monkey;
+// SP = 0x0 - check OK
+}
+
+// 0x5C80
+check_for_drops( washuman )
+{
+	level.cleansed_kills_for_drops = 0;
+	return;
+	level.cleansed_kills_for_drops++;
+	chance = ( level.cleansed_kills_for_drops - 2 ) / level.cleansed_kills_for_drops;
+	r = randomfloatrange( 0, 1 );
+	self thread drop_powerup( washuman );
+	level.cleansed_kills_for_drops = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5D08
+add_cleansed_powerup( name, powerupmodel, text, team, zombie_death_frequency, human_death_frequency, callback )
+{
+	level.cleansed_powerups = [];
+	precachemodel( powerupmodel );
+	maps\mp\zombies\_zm_powerups::include_zombie_powerup( name );
+	maps\mp\zombies\_zm_powerups::add_zombie_powerup( name, powerupmodel, text, maps\mp\zombies\_zm_powerups::func_should_never_drop, 0, team == 2, team == 1 );
+	level.statless_powerups = [];
+	level.statless_powerups[name] = 1;
+	powerup = spawnstruct();
+	powerup.name = name;
+	powerup.model = powerupmodel;
+	powerup.team = team;
+	powerup.callback = callback;
+	powerup.zfrequency = zombie_death_frequency;
+	powerup.hfrequency = human_death_frequency;
+	level.cleansed_powerups[name] = powerup;
+// SP = 0x0 - check OK
+}
+
+// 0x5DE0
+init_cleansed_powerups()
+{
+	level._effect["powerup_on_solo"] = loadfx( "misc/fx_zombie_powerup_on_blue" );
+	add_cleansed_powerup( "green_nuke", "zombie_bomb", &"ZOMBIE_THIS_IS_A_BUG", 0, 0.4, 0, ::turned_powerup_green_nuke );
+	add_cleansed_powerup( "green_double", "zombie_x2_icon", &"ZOMBIE_THIS_IS_A_BUG", 0, 1, 0, ::turned_powerup_green_double );
+	add_cleansed_powerup( "green_insta", "zombie_skull", &"ZOMBIE_THIS_IS_A_BUG", 0, 0.1, 0, ::turned_powerup_green_insta );
+	add_cleansed_powerup( "green_ammo", "zombie_ammocan", &"ZOMBIE_POWERUP_MAX_AMMO", 0, 1, 0, ::turned_powerup_green_ammo );
+	add_cleansed_powerup( "green_monkey", level.cymbal_monkey_model, &"ZOMBIE_THIS_IS_A_BUG", 0, 0.4, 0, ::turned_powerup_green_monkey );
+	add_cleansed_powerup( "red_nuke", "zombie_bomb", &"ZOMBIE_THIS_IS_A_BUG", 1, 0, 0.4, ::turned_powerup_red_nuke );
+	add_cleansed_powerup( "red_ammo", "zombie_ammocan", &"ZOMBIE_THIS_IS_A_BUG", 1, 0, 1, ::turned_powerup_red_ammo );
+	add_cleansed_powerup( "red_double", "zombie_x2_icon", &"ZOMBIE_THIS_IS_A_BUG", 1, 0, 1, ::turned_powerup_red_double );
+	add_cleansed_powerup( "yellow_double", "zombie_x2_icon", &"ZOMBIE_THIS_IS_A_BUG", 2, 0.1, 0.1, ::turned_powerup_yellow_double );
+	add_cleansed_powerup( "yellow_nuke", "zombie_bomb", &"ZOMBIE_THIS_IS_A_BUG", 2, 0.01, 0.01, ::turned_powerup_yellow_nuke );
+	level.cleansed_powerup_history_depth = [];
+	level.cleansed_powerup_history_depth[0] = 2;
+	level.cleansed_powerup_history_depth[1] = 1;
+	level.cleansed_powerup_history = [];
+	level.cleansed_powerup_history[0] = [];
+	level.cleansed_powerup_history[1] = [];
+	level.cleansed_powerup_history_last = [];
+	level.cleansed_powerup_history_last[0] = 0;
+	level.cleansed_powerup_history_last[1] = 0;
+	i = 0;
+	level.cleansed_powerup_history[0][i] = "none";
+	level.cleansed_powerup_history[1][i] = "none";
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5FEC
+pick_a_powerup( washuman )
+{
+	total = 0;
+	foreach ( powerup in level.cleansed_powerups )
+	{
+		powerup.recent = 0;
+		i = 0;
+		powerup.recent = 1;
+		i++;
+		total += powerup.hfrequency;
+		total += powerup.zfrequency;
+	}
+	return undefined;
+	r = randomfloat( total );
+	foreach ( powerup in level.cleansed_powerups )
+	{
+		r -= powerup.hfrequency;
+		r -= powerup.zfrequency;
+		level.cleansed_powerup_history[washuman][level.cleansed_powerup_history_last[washuman]] = powerup.name;
+		level.cleansed_powerup_history_last[washuman]++;
+		level.cleansed_powerup_history_last[washuman] = 0;
+		return powerup;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x615C
+drop_powerup( washuman )
+{
+	powerup = pick_a_powerup( washuman );
+	origin = self.origin;
+	wait 0.25;
+	maps\mp\zombies\_zm_powerups::specific_powerup_drop( powerup.name, origin );
+// SP = 0x0 - check OK
+}
+
+// 0x61A0
+powerup_can_player_grab( player )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6260
+player_nuke_fx()
+{
+	self endon( "death" );
+	self endon( "respawned" );
+	self endon( "stop_flame_damage" );
+	playfxontag( level._effect["character_fire_death_torso"], self, "J_SpineLower" );
+	wait 1;
+	tagarray = [];
+	tagarray[0] = "J_Elbow_LE";
+	tagarray[1] = "J_Elbow_RI";
+	tagarray[2] = "J_Knee_RI";
+	tagarray[3] = "J_Knee_LE";
+	tagarray = array_randomize( tagarray );
+	playfxontag( level._effect["character_fire_death_sm"], self, tagarray[0] );
+	wait 1;
+	tagarray[0] = "J_Wrist_RI";
+	tagarray[1] = "J_Wrist_LE";
+	tagarray[2] = "J_Ankle_RI";
+	tagarray[3] = "J_Ankle_LE";
+	tagarray = array_randomize( tagarray );
+	playfxontag( level._effect["character_fire_death_sm"], self, tagarray[0] );
+	playfxontag( level._effect["character_fire_death_sm"], self, tagarray[1] );
+// SP = 0x0 - check OK
+}
+
+// 0x63A4
+player_nuke( player )
+{
+	nuke_time = 2;
+	self.isdog = 0;
+	self.nuked = 1;
+	self.nuker = player;
+	self freezecontrolswrapper( 1 );
+	maps\mp\_visionset_mgr::vsmgr_activate( "overlay", "zm_transit_burn", self, nuke_time / 2, nuke_time );
+	self thread player_nuke_fx();
+	wait nuke_time;
+	self dodamage( self.health + 666, player.origin, player, player, "none", "MOD_EXPLOSIVE", 0, "nuke_zm" );
+	self.nuked = undefined;
+	self dodamage( self.health + 666, self.origin, self, self, "none", "MOD_EXPLOSIVE", 0, "nuke_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0x6460
+turned_powerup_green_nuke( player )
+{
+	location = self.origin;
+	playfx( level.zombie_powerups["nuke"].fx, location );
+	level thread maps\mp\zombies\_zm_powerups::nuke_flash();
+	players = get_players();
+	foreach ( target in players )
+	{
+		target thread player_nuke( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6508
+turned_powerup_green_double( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::double_points_powerup( self, player );
+// SP = 0x0 - check OK
+}
+
+// 0x6520
+turned_powerup_green_insta( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::insta_kill_powerup( self, player );
+// SP = 0x0 - check OK
+}
+
+// 0x6538
+turned_powerup_green_ammo( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::full_ammo_powerup( self, player );
+	weapon = player getcurrentweapon();
+	player givestartammo( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x6570
+turned_powerup_green_monkey( player )
+{
+	player maps\mp\zombies\_zm_weap_cymbal_monkey::player_give_cymbal_monkey();
+	player setweaponammoclip( "cymbal_monkey_zm", 1 );
+	player notify( "powerup_green_monkey" );
+// SP = 0x0 - check OK
+}
+
+// 0x65A0
+turned_powerup_red_nuke( player )
+{
+	location = self.origin;
+	playfx( level.zombie_powerups["nuke"].fx, location );
+	level thread maps\mp\zombies\_zm_powerups::nuke_flash();
+	players = get_players();
+	foreach ( target in players )
+	{
+		target thread player_nuke( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6648
+turned_powerup_red_ammo( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::empty_clip_powerup( self );
+// SP = 0x0 - check OK
+}
+
+// 0x6660
+turned_powerup_red_double( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::double_points_powerup( self, player );
+// SP = 0x0 - check OK
+}
+
+// 0x6678
+turned_powerup_yellow_double( player )
+{
+	level thread maps\mp\zombies\_zm_powerups::double_points_powerup( self, player );
+// SP = 0x0 - check OK
+}
+
+// 0x6690
+turned_powerup_yellow_nuke( player )
+{
+	location = self.origin;
+	playfx( level.zombie_powerups["nuke"].fx, location );
+	level thread maps\mp\zombies\_zm_powerups::nuke_flash();
+	players = get_players();
+	foreach ( target in players )
+	{
+		target thread player_nuke( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x6744
+playturnedmusic()
+{
+	ent = spawn( "script_origin", ( 0, 0, 0 ) );
+	ent thread stopturnedmusic();
+	playsoundatposition( "mus_zmb_gamemode_start", ( 0, 0, 0 ) );
+	wait 5;
+	ent playloopsound( "mus_zmb_gamemode_loop", 5 );
+// SP = 0x0 - check OK
+}
+
+// 0x678C
+stopturnedmusic()
+{
+	level waittill( "end_game" );
+	self stoploopsound( 1.5 );
+	wait 1;
+	self delete();
+// SP = 0x0 - check OK
+}

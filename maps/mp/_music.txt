@@ -1,0 +1,25 @@
+// maps/mp/_music.gsc
+
+#include maps\mp\_utility;
+
+
+// 0xE0
+music_init()
+{
+/#
+	assert( level.clientscripts );
+#/
+	level.musicstate = "";
+	registerclientsys( "musicCmd" );
+// SP = 0x0 - check OK
+}
+
+// 0x10C
+setmusicstate( state, player )
+{
+	setclientsysstate( "musicCmd", state, player );
+	return;
+	setclientsysstate( "musicCmd", state );
+	level.musicstate = state;
+// SP = 0x0 - check OK
+}

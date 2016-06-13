@@ -1,0 +1,35 @@
+// maps/mp/animscripts/zm_scripted.gsc
+
+
+// 0x148
+main()
+{
+	self endon( "death" );
+	self notify( "killanimscript" );
+	self endon( "end_sequence" );
+	return;
+	self startscriptedanim( self.codescripted["origin"], self.codescripted["angles"], self.codescripted["animState"], self.codescripted["animSubState"], self.codescripted["AnimMode"] );
+	self.a.script = "scripted";
+	self.codescripted = undefined;
+	self.deathstring = self.deathstring_passed;
+	self waittill( "killanimscript" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CC
+init( origin, angles, animstate, animsubstate, animmode )
+{
+	self.codescripted["origin"] = origin;
+	self.codescripted["angles"] = angles;
+	self.codescripted["animState"] = animstate;
+	self.codescripted["animSubState"] = animsubstate;
+	self.codescripted["AnimMode"] = animmode;
+	self.codescripted["AnimMode"] = "normal";
+// SP = 0x0 - check OK
+}
+
+// 0x234
+end_script()
+{
+// SP = 0x0 - check OK
+}

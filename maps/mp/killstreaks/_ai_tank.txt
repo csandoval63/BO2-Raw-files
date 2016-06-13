@@ -1,0 +1,982 @@
+// maps/mp/killstreaks/_ai_tank.gsc
+
+#include maps\mp\gametypes\_dev;
+#include maps\mp\gametypes\_hud;
+#include maps\mp\killstreaks\_radar;
+#include maps\mp\killstreaks\_dogs;
+#include maps\mp\_scoreevents;
+#include maps\mp\_challenges;
+#include maps\mp\killstreaks\_remote_weapons;
+#include maps\mp\gametypes\_spawning;
+#include maps\mp\_entityheadicons;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\killstreaks\_killstreakrules;
+#include maps\mp\gametypes\_spawnlogic;
+#include maps\mp\killstreaks\_airsupport;
+#include maps\mp\killstreaks\_supplydrop;
+#include maps\mp\killstreaks\_killstreaks;
+#include common_scripts\utility;
+#include maps\mp\gametypes\_weapons;
+#include maps\mp\_utility;
+
+#using_animtree ( "mp_vehicles" );
+
+
+// 0x1BEC
+init()
+{
+	precachevehicle( "ai_tank_drone_mp" );
+	precachemodel( "veh_t6_drone_tank" );
+	precachemodel( "veh_t6_drone_tank_alt" );
+	precacheitem( "ai_tank_drone_rocket_mp" );
+	precacheitem( "killstreak_ai_tank_mp" );
+	precacheshader( "mech_check_line" );
+	precacheshader( "mech_check_fill" );
+	precacheshader( "mech_flame_bar" );
+	precacheshader( "mech_flame_arrow_flipped" );
+	loadfx( "vehicle/treadfx/fx_treadfx_talon_dirt" );
+	loadfx( "vehicle/treadfx/fx_treadfx_talon_concrete" );
+	loadfx( "light/fx_vlight_talon_eye_grn" );
+	loadfx( "light/fx_vlight_talon_eye_red" );
+	loadfx( "weapon/talon/fx_talon_emp_stun" );
+	level.ai_tank_minigun_flash_3p = loadfx( "weapon/talon/fx_muz_talon_rocket_flash_1p" );
+	registerkillstreak( "inventory_ai_tank_drop_mp", "inventory_ai_tank_drop_mp", "killstreak_ai_tank_drop", "ai_tank_drop_used", ::usekillstreakaitankdrop );
+	registerkillstreakaltweapon( "inventory_ai_tank_drop_mp", "ai_tank_drone_gun_mp" );
+	registerkillstreakaltweapon( "inventory_ai_tank_drop_mp", "ai_tank_drone_rocket_mp" );
+	registerkillstreakremoteoverrideweapon( "inventory_ai_tank_drop_mp", "killstreak_ai_tank_mp" );
+	registerkillstreakstrings( "inventory_ai_tank_drop_mp", &"KILLSTREAK_EARNED_AI_TANK_DROP", &"KILLSTREAK_AI_TANK_NOT_AVAILABLE", &"KILLSTREAK_AI_TANK_INBOUND" );
+	registerkillstreakdialog( "inventory_ai_tank_drop_mp", "mpl_killstreak_ai_tank", "kls_aitank_used", "", "kls_aitank_enemy", "", "kls_aitank_ready" );
+	registerkillstreakdevdvar( "inventory_ai_tank_drop_mp", "scr_giveaitankdrop" );
+	registerkillstreak( "ai_tank_drop_mp", "ai_tank_drop_mp", "killstreak_ai_tank_drop", "ai_tank_drop_used", ::usekillstreakaitankdrop );
+	registerkillstreakaltweapon( "ai_tank_drop_mp", "ai_tank_drone_gun_mp" );
+	registerkillstreakaltweapon( "ai_tank_drop_mp", "ai_tank_drone_rocket_mp" );
+	registerkillstreakremoteoverrideweapon( "ai_tank_drop_mp", "killstreak_ai_tank_mp" );
+	registerkillstreakstrings( "ai_tank_drop_mp", &"KILLSTREAK_EARNED_AI_TANK_DROP", &"KILLSTREAK_AI_TANK_NOT_AVAILABLE", &"KILLSTREAK_AI_TANK_INBOUND" );
+	registerkillstreakdialog( "ai_tank_drop_mp", "mpl_killstreak_ai_tank", "kls_aitank_used", "", "kls_aitank_enemy", "", "kls_aitank_ready" );
+	level.ai_tank_fov = cos( 160 );
+	level.ai_tank_turret_fire_rate = weaponfiretime( "ai_tank_drone_gun_mp" );
+	level.ai_tank_valid_locations = [];
+	spawns = maps\mp\gametypes\_spawnlogic::getspawnpointarray( "mp_tdm_spawn" );
+	level.ai_tank_damage_fx = loadfx( "weapon/talon/fx_talon_damage_state" );
+	level.ai_tank_explode_fx = loadfx( "weapon/talon/fx_talon_exp" );
+	level.ai_tank_crate_explode_fx = loadfx( "weapon/talon/fx_talon_drop_box" );
+	foreach ( spawn in spawns )
+	{
+		level.ai_tank_valid_locations[level.ai_tank_valid_locations.size] = spawn.origin;
+	}
+	anims = [];
+	anims[anims.size] = %o_drone_tank_missile1_fire;
+	anims[anims.size] = %o_drone_tank_missile2_fire;
+	anims[anims.size] = %o_drone_tank_missile3_fire;
+	anims[anims.size] = %o_drone_tank_missile_full_reload;
+	setdvar( "scr_ai_tank_no_timeout", 0 );
+/#
+	level thread tank_devgui_think();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1ED0
+register()
+{
+	registerclientfield( "vehicle", "ai_tank_death", 1, 1, "int" );
+	registerclientfield( "vehicle", "ai_tank_hack_spawned", 1, 1, "int" );
+	registerclientfield( "vehicle", "ai_tank_hack_rebooting", 1, 1, "int" );
+	registerclientfield( "vehicle", "ai_tank_missile_fire", 1, 3, "int" );
+// SP = 0x0 - check OK
+}
+
+// 0x1F38
+usekillstreakaitankdrop( hardpointtype )
+{
+	team = self.team;
+	return 0;
+	killstreak_id = self maps\mp\killstreaks\_killstreakrules::killstreakstart( hardpointtype, team, 0, 0 );
+	return 0;
+	result = self maps\mp\killstreaks\_supplydrop::usesupplydropmarker( killstreak_id );
+	self notify( "supply_drop_marker_done" );
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( hardpointtype, team, killstreak_id );
+	return 0;
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x1FB4
+crateland( crate, weaponname, owner, team )
+{
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( weaponname, team, crate.package_contents_id );
+	wait 10;
+	crate delete();
+	return;
+	origin = crate.origin;
+	cratebottom = bullettrace( origin, origin + vector_scale( ( 0, 0, -1 ), 50 ), 0, crate );
+	origin = cratebottom["position"] + ( 0, 0, 1 );
+	playfx( level.ai_tank_crate_explode_fx, origin, ( 1, 0, 0 ), ( 0, 0, 1 ) );
+	playsoundatposition( "veh_talon_crate_exp", crate.origin );
+	level thread ai_tank_killstreak_start( owner, origin, crate.package_contents_id, weaponname );
+	crate delete();
+// SP = 0x0 - check OK
+}
+
+// 0x20A4
+valid_location()
+{
+	node = getnearestnode( self.origin );
+	return 0;
+	start = self getcentroid();
+	end = node.origin + vector_scale( ( 0, 0, 1 ), 8 );
+	trace = physicstrace( start, end, ( 0, 0, 0 ), ( 0, 0, 0 ), self, level.physicstracecontentsvehicleclip );
+	return 0;
+	origin = self.origin + vector_scale( ( 0, 0, 1 ), 32 );
+	level.ai_tank_valid_locations = array_randomize( level.ai_tank_valid_locations );
+	count = min( level.ai_tank_valid_locations.size, 5 );
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2180
+ai_tank_killstreak_start( owner, origin, killstreak_id, weaponname )
+{
+	waittillframeend;
+	drone = spawnvehicle( "veh_t6_drone_tank", "talon", "ai_tank_drone_mp", origin, ( 0, 0, 0 ) );
+	drone setenemymodel( "veh_t6_drone_tank_alt" );
+	drone playloopsound( "veh_talon_idle_npc", 0.2 );
+	drone setvehicleavoidance( 1 );
+	drone setclientfield( "ai_tank_missile_fire", 4 );
+	drone setowner( owner );
+	drone.owner = owner;
+	drone.team = owner.team;
+	drone.aiteam = owner.team;
+	drone.killstreak_id = killstreak_id;
+	drone.type = "tank_drone";
+	drone setteam( owner.team );
+	drone setteam( "free" );
+	drone maps\mp\_entityheadicons::setentityheadicon( drone.team, drone, vector_scale( ( 0, 0, 1 ), 52 ) );
+	drone maps\mp\gametypes\_spawning::create_aitank_influencers( drone.team );
+	drone.controlled = 0;
+	drone makevehicleunusable();
+	drone.numberrockets = 3;
+	drone.warningshots = 3;
+	drone setdrawinfrared( 1 );
+	drone.owner.numtankdrones = 1;
+	drone.owner.numtankdrones++;
+	drone.ownernumber = drone.owner.numtankdrones;
+	target_set( drone, vector_scale( ( 0, 0, 1 ), 20 ) );
+	target_setturretaquire( drone, 0 );
+	drone thread tank_move_think();
+	drone thread tank_aim_think();
+	drone thread tank_combat_think();
+	drone thread tank_death_think( weaponname );
+	drone thread tank_damage_think();
+	drone thread tank_abort_think();
+	drone thread tank_team_kill();
+	drone thread tank_ground_abort_think();
+	drone thread tank_riotshield_think();
+	drone thread tank_rocket_think();
+	owner maps\mp\killstreaks\_remote_weapons::initremoteweapon( drone, "killstreak_ai_tank_mp" );
+	drone thread deleteonkillbrush( drone.owner );
+	level thread tank_game_end_think( drone );
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x23C0
+tank_team_kill()
+{
+	self endon( "death" );
+	self.owner waittill( "teamKillKicked" );
+	self notify( "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x23DC
+tank_abort_think()
+{
+	self endon( "death" );
+	self.owner wait_endon( 120, "disconnect", "joined_team", "joined_spectators", "emp_jammed" );
+	shouldtimeout = GetDvar( #"0xF549D4C5" );
+	return;
+	self notify( "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x2428
+tank_game_end_think( drone )
+{
+	drone endon( "death" );
+	level waittill( "game_ended" );
+	drone notify( "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x2448
+stop_remote()
+{
+	return;
+	self clearusingremote();
+	self.killstreak_waitamount = undefined;
+	self destroy_remote_hud();
+	self clientnotify( "nofutz" );
+// SP = 0x0 - check OK
+}
+
+// 0x2480
+tank_damage_think()
+{
+	self endon( "death" );
+	self.maxhealth = 999999;
+	self.health = self.maxhealth;
+	self.isstunned = 0;
+	low_health = 0;
+	damage_taken = 0;
+	self waittill( "damage", damage, attacker, dir, point, mod, model, tag, part, weapon, flags );
+	self.maxhealth = 999999;
+	self.health = self.maxhealth;
+/#
+	self.damage_debug = damage + " (" + weapon + ")";
+#/
+	damage_taken += 400;
+	damage = 0;
+	maps\mp\_challenges::stunnedtankwithempgrenade( attacker );
+	self thread tank_stun( 4 );
+	self.isstunned = 1;
+	self thread tank_stun( 1.5 );
+	self.isstunned = 1;
+	damage += int( damage * level.cac_armorpiercing_data );
+	damage *= 4.5;
+	damage *= 0.3;
+	damage *= 1.5;
+	self.owner sendkillstreakdamageevent( int( damage ) );
+	damage_taken += damage;
+	self notify( "death", attacker, mod, weapon );
+	return;
+	self thread tank_low_health_fx();
+	low_health = 1;
+	self.aim_entity.origin = attacker getcentroid();
+	self.aim_entity.delay = 8;
+	self notify( "aim_updated" );
+// SP = 0x0 - check OK
+}
+
+// 0x2748
+tank_low_health_fx()
+{
+	self endon( "death" );
+	self.damage_fx = spawn( "script_model", self gettagorigin( "tag_origin" ) + vector_scale( ( 0, 0, -1 ), 14 ) );
+	self.damage_fx setmodel( "tag_origin" );
+	self.damage_fx linkto( self, "tag_turret", vector_scale( ( 0, 0, -1 ), 14 ), ( 0, 0, 0 ) );
+	wait 0.1;
+	playfxontag( level.ai_tank_damage_fx, self.damage_fx, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x27CC
+deleteonkillbrush( player )
+{
+	player endon( "disconnect" );
+	self endon( "death" );
+	killbrushes = getentarray( "trigger_hurt", "classname" );
+	i = 0;
+	self notify( "death", self.owner );
+	return;
+	i++;
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x2844
+tank_stun( duration )
+{
+	self endon( "death" );
+	self notify( "stunned" );
+	self clearvehgoalpos();
+	forward = anglestoforward( self.angles );
+	forward = self.origin + forward * 128;
+	forward -= vector_scale( ( 0, 0, 1 ), 64 );
+	self setturrettargetvec( forward );
+	self disablegunnerfiring( 0, 1 );
+	self laseroff();
+	self.owner freezecontrols( 1 );
+	self.owner sendkillstreakdamageevent( 400 );
+	self.owner thread maps\mp\killstreaks\_remote_weapons::stunstaticfx( duration );
+	self setclientflag( 3 );
+	wait duration;
+	self clearclientflag( 3 );
+	self.owner freezecontrols( 0 );
+	self thread tank_move_think();
+	self thread tank_aim_think();
+	self thread tank_combat_think();
+	self disablegunnerfiring( 0, 0 );
+	self.isstunned = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2968
+emp_crazy_death()
+{
+	self setclientflag( 3 );
+	wait 1;
+	self notify( "death" );
+	time = 0;
+	randomangle = randomint( 360 );
+	self setturrettargetvec( self.origin + anglestoforward( ( randomintrange( 305, 315 ), int( randomangle + time * 180 ), 0 ) ) * 100 );
+	self fireweapon();
+	rocket = self firegunnerweapon( 0 );
+	rocket.from_ai = 1;
+	time += 0.05;
+	wait 0.05;
+	self setclientfield( "ai_tank_death", 1 );
+	playfx( level.ai_tank_explode_fx, self.origin, ( 0, 0, 1 ) );
+	playsoundatposition( "wpn_agr_explode", self.origin );
+	wait 0.05;
+	self hide();
+// SP = 0x0 - check OK
+}
+
+// 0x2A88
+tank_death_think( hardpointname )
+{
+	team = self.team;
+	self waittill( "death", attacker, type, weapon );
+	self.dead = 1;
+	self laseroff();
+	self clearvehgoalpos();
+	self.owner sendkillstreakdamageevent( 600 );
+	self.owner destroy_remote_hud();
+	stunned = 1;
+	self thread emp_crazy_death();
+	wait 1.55;
+	self setclientfield( "ai_tank_death", 1 );
+	stunned = 0;
+	playfx( level.ai_tank_explode_fx, self.origin, ( 0, 0, 1 ) );
+	playsoundatposition( "wpn_agr_explode", self.origin );
+	wait 0.05;
+	self hide();
+	self.damage_fx delete();
+	maps\mp\_scoreevents::processscoreevent( "destroyed_aitank", attacker, self.owner, weapon );
+	attacker addweaponstat( weapon, "destroyed_aitank", 1 );
+	attacker addweaponstat( weapon, "destroyed_controlled_killstreak", 1 );
+	wait 2;
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( hardpointname, team, self.killstreak_id );
+	self.aim_entity delete();
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2C40
+tank_move_think()
+{
+	self endon( "death" );
+	self endon( "stunned" );
+	self endon( "remote_start" );
+	level endon( "game_ended" );
+/#
+	self endon( "debug_patrol" );
+#/
+	do_wait = 1;
+	wait randomfloatrange( 1, 4 );
+	do_wait = 1;
+	enemy = tank_get_target();
+	self clearvehgoalpos();
+	wait 1;
+	self setvehgoalpos( enemy.origin, 1, 2 );
+	self wait_endon( 3, "reached_end_node" );
+	self clearvehgoalpos();
+	wait 1;
+	do_wait = 0;
+	avg_position = tank_compute_enemy_position();
+	nodes = getnodesinradiussorted( avg_position, 256, 0 );
+	nodes = getnodesinradiussorted( self.owner.origin, 1024, 256, 128 );
+	node = nodes[0];
+	event = self waittill_any_timeout( 45, "reached_end_node", "force_movement_wake" );
+	do_wait = 0;
+	self clearvehgoalpos();
+// SP = 0x0 - check OK
+}
+
+// 0x2E08
+tank_riotshield_think()
+{
+	self endon( "death" );
+	self endon( "remote_start" );
+	level waittill( "riotshield_planted", owner );
+	self clearvehgoalpos();
+	self notify( "force_movement_wake" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E78
+tank_ground_abort_think()
+{
+	self endon( "death" );
+	ground_trace_fail = 0;
+	wait 1;
+	nodes = getnodesinradius( self.origin, 256, 0, 128, "Path" );
+	ground_trace_fail++;
+	ground_trace_fail = 0;
+	self notify( "death" );
+// SP = 0x0 - check OK
+}
+
+// 0x2ED0
+tank_aim_think()
+{
+	self endon( "death" );
+	self endon( "stunned" );
+	self endon( "remote_start" );
+	self.aim_entity = spawn( "script_model", ( 0, 0, 0 ) );
+	self.aim_entity.delay = 0;
+	self tank_idle();
+	self wait_endon( randomfloatrange( 1, 3 ), "aim_updated" );
+	wait self.aim_entity.delay;
+	self.aim_entity.delay = 0;
+	enemies = tank_get_player_enemies( 0 );
+	enemy = enemies[0];
+	node = getvisiblenode( self.origin, enemy.origin, self );
+	self.aim_entity.origin = node.origin + vector_scale( ( 0, 0, 1 ), 16 );
+	yaw = ( 0, self.angles[1] + randomintrange( -75, 75 ), 0 );
+	forward = anglestoforward( yaw );
+	origin = self.origin + forward * 1024;
+	self.aim_entity.origin = ( origin[0], origin[1], origin[2] + 20 );
+// SP = 0x0 - check OK
+}
+
+// 0x3028
+tank_combat_think()
+{
+	self endon( "death" );
+	self endon( "stunned" );
+	self endon( "remote_start" );
+	level endon( "game_ended" );
+	wait 0.5;
+	self laseroff();
+	origin = self.origin + vector_scale( ( 0, 0, 1 ), 32 );
+	forward = vectornormalize( self.target_entity.origin - self.origin );
+	players = tank_get_player_enemies( 0 );
+	self tank_target_evaluate( players, origin, forward );
+	dogs = maps\mp\killstreaks\_dogs::dog_manager_get_dogs();
+	self tank_target_evaluate( dogs, origin, forward );
+	tanks = getentarray( "talon", "targetname" );
+	self tank_target_evaluate( tanks, origin, forward );
+	rcbombs = getentarray( "rcbomb", "targetname" );
+	self tank_target_evaluate( rcbombs, origin, forward );
+	turrets = getentarray( "auto_turret", "classname" );
+	self tank_target_evaluate( turrets, origin, forward );
+	shields = getentarray( "riotshield_mp", "targetname" );
+	self tank_target_evaluate( shields, origin, forward );
+// SP = 0x0 - check OK
+}
+
+// 0x3174
+tank_target_evaluate( targets, origin, forward )
+{
+	foreach ( target in targets )
+	{
+		delta = target.origin - origin;
+		delta = vectornormalize( delta );
+		dot = vectordot( forward, delta );
+		self tank_engage( target );
+	}
+	self tank_idle();
+// SP = 0x0 - check OK
+}
+
+// 0x3240
+tank_engage( enemy )
+{
+	do_fire_delay = 1;
+	warning_shots = self.warningshots;
+	self laseron();
+	return;
+	fire_rocket = self tank_should_fire_rocket( enemy );
+	self tank_set_target( enemy, fire_rocket );
+	self clearvehgoalpos();
+	event = self waittill_any_return( "turret_on_vistarget", "turret_no_vis" );
+	return;
+	self.aim_entity.origin = enemy getcentroid();
+	distsq = distancesquared( self.origin, enemy.origin );
+	self tank_target_lost();
+	return;
+	self notify( "force_movement_wake" );
+	warning_shots = self.warningshots;
+	self playsound( "wpn_metalstorm_lock_on" );
+	wait randomfloatrange( 0.4, 0.8 );
+	do_fire_delay = 0;
+	return;
+	rocket = self firegunnerweapon( 0, self.owner );
+	self notify( "missile_fire" );
+	rocket.from_ai = 1;
+	rocket.killcament = self;
+	rocket wait_endon( randomfloatrange( 0.5, 1 ), "death" );
+	self fireweapon();
+	warning_shots--;
+	wait level.ai_tank_turret_fire_rate;
+	bullets = randomintrange( 8, 15 );
+	i = 0;
+	self fireweapon();
+	wait level.ai_tank_turret_fire_rate;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x345C
+tank_target_lost()
+{
+	self endon( "turret_on_vistarget" );
+	wait 5;
+	self tank_idle();
+// SP = 0x0 - check OK
+}
+
+// 0x3478
+tank_should_fire_rocket( enemy )
+{
+	return 0;
+	return 0;
+	origin = self gettagorigin( "tag_flash_gunner1" );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x34E8
+tank_rocket_think()
+{
+	self endon( "death" );
+	self endon( "remote_start" );
+	self disablegunnerfiring( 0, 1 );
+	wait 2;
+	self setclientfield( "ai_tank_missile_fire", 4 );
+	self.numberrockets = 3;
+	wait 0.4;
+	self disablegunnerfiring( 0, 0 );
+	self waittill( "missile_fire" );
+	self.numberrockets--;
+	self setclientfield( "ai_tank_missile_fire", self.numberrockets );
+	angles = self gettagangles( "tag_flash_gunner1" );
+	dir = anglestoforward( angles );
+	self launchvehicle( dir * -30, self.origin + vector_scale( ( 0, 0, 1 ), 50 ), 0 );
+	earthquake( 0.4, 0.5, self.origin, 200 );
+	self disablegunnerfiring( 0, 1 );
+	wait 2;
+	self setclientfield( "ai_tank_missile_fire", 4 );
+	self.numberrockets = 3;
+	wait 0.4;
+	self disablegunnerfiring( 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x3620
+tank_set_target( entity, use_rocket )
+{
+	use_rocket = 0;
+	self.target_entity = entity;
+	angles = self gettagangles( "tag_barrel" );
+	right = anglestoright( angles );
+	offset = vector_scale( right, 8 );
+	velocity = entity getvelocity();
+	speed = length( velocity );
+	forward = anglestoforward( entity.angles );
+	origin = offset + vector_scale( forward, speed );
+	self setturrettargetent( entity, origin );
+	self setturrettargetent( entity );
+// SP = 0x0 - check OK
+}
+
+// 0x36C0
+tank_get_target()
+{
+	return self.target_entity;
+// SP = 0x0 - check OK
+}
+
+// 0x36CC
+tank_idle()
+{
+	tank_set_target( self.aim_entity );
+// SP = 0x0 - check OK
+}
+
+// 0x36E0
+tank_is_idle()
+{
+	return tank_get_target() == self.aim_entity;
+// SP = 0x0 - check OK
+}
+
+// 0x36F4
+tank_has_radar()
+{
+	return maps\mp\killstreaks\_radar::teamhassatellite( self.team );
+	return self.owner.hassatellite;
+// SP = 0x0 - check OK
+}
+
+// 0x3750
+tank_get_player_enemies( on_radar )
+{
+	enemies = [];
+	on_radar = 0;
+	time = GetTime();
+	foreach ( team in level.aliveplayers )
+	{
+		foreach ( player in team )
+		{
+			enemies[enemies.size] = player;
+		}
+	}
+	return enemies;
+// SP = 0x0 - check OK
+}
+
+// 0x3834
+tank_compute_enemy_position()
+{
+	enemies = tank_get_player_enemies( 0 );
+	position = undefined;
+	x = 0;
+	y = 0;
+	z = 0;
+	foreach ( enemy in enemies )
+	{
+		x += enemy.origin[0];
+		y += enemy.origin[1];
+		z += enemy.origin[2];
+	}
+	x /= enemies.size;
+	y /= enemies.size;
+	z /= enemies.size;
+	position = ( x, y, z );
+	return position;
+// SP = 0x0 - check OK
+}
+
+// 0x38EC
+valid_target( target, team, owner )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+/#
+	return 0;
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3A2C
+starttankremotecontrol( drone )
+{
+	self.killstreak_waitamount = 120000;
+	drone makevehicleusable();
+	drone clearvehgoalpos();
+	drone clearturrettarget();
+	drone laseroff();
+	drone usevehicle( self, 0 );
+	drone makevehicleunusable();
+	drone setbrake( 0 );
+	self create_weapon_hud();
+	drone update_weapon_hud( self );
+	self thread tank_fire_watch( drone );
+	drone thread tank_rocket_watch( self );
+// SP = 0x0 - check OK
+}
+
+// 0x3AC8
+endtankremotecontrol( drone, isdead )
+{
+	drone makevehicleunusable();
+	drone thread tank_move_think();
+	drone thread tank_riotshield_think();
+	drone thread tank_aim_think();
+	drone thread tank_combat_think();
+	drone thread tank_rocket_think();
+// SP = 0x0 - check OK
+}
+
+// 0x3B20
+end_remote_control_ai_tank( drone )
+{
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0.25, 0.1, 0.25 );
+	wait 0.3;
+	wait 0.75;
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0.25, 0.1, 0.25 );
+	wait 0.3;
+	drone makevehicleusable();
+	drone.controlled = 0;
+	drone notify( "remote_stop" );
+	self unlink();
+	drone makevehicleunusable();
+	self stop_remote();
+	drone showpart( "tag_pov_hide" );
+	self.hud_prompt_control settext( "HOLD [{+activate}] TO CONTROL A.G.R." );
+	self.hud_prompt_exit settext( "" );
+	self switchtolastnonkillstreakweapon();
+	wait 0.5;
+	self takeweapon( "killstreak_ai_tank_mp" );
+	drone thread tank_move_think();
+	drone thread tank_riotshield_think();
+	drone thread tank_aim_think();
+	drone thread tank_combat_think();
+// SP = 0x0 - check OK
+}
+
+// 0x3C98
+tank_fire_watch( drone )
+{
+	self endon( "disconnect" );
+	self endon( "stopped_using_remote" );
+	drone endon( "death" );
+	level endon( "game_ended" );
+	drone waittill( "turret_fire" );
+	drone fireweapon();
+	earthquake( 0.2, 0.2, drone.origin, 200 );
+	angles = drone gettagangles( "tag_barrel" );
+	dir = anglestoforward( angles );
+	drone launchvehicle( dir * -5, drone.origin + vector_scale( ( 0, 0, 1 ), 10 ), 0 );
+	wait level.ai_tank_turret_fire_rate;
+// SP = 0x0 - check OK
+}
+
+// 0x3D4C
+tank_rocket_watch( player )
+{
+	self endon( "death" );
+	player endon( "stopped_using_remote" );
+	self disablegunnerfiring( 0, 1 );
+	wait 2;
+	self setclientfield( "ai_tank_missile_fire", 4 );
+	self.numberrockets = 3;
+	wait 0.4;
+	self disablegunnerfiring( 0, 0 );
+	self update_weapon_hud( player );
+	self disablegunnerfiring( 0, 0 );
+	player waittill( "missile_fire" );
+	self.numberrockets--;
+	self setclientfield( "ai_tank_missile_fire", self.numberrockets );
+	angles = self gettagangles( "tag_flash_gunner1" );
+	dir = anglestoforward( angles );
+	self launchvehicle( dir * -30, self.origin + vector_scale( ( 0, 0, 1 ), 50 ), 0 );
+	self launchvehicle( dir * -30, self.origin + vector_scale( ( 0, 0, 1 ), 50 ), 0 );
+	player playrumbleonentity( "sniper_fire" );
+	earthquake( 0.4, 0.5, self.origin, 200 );
+	self update_weapon_hud( player );
+	self disablegunnerfiring( 0, 1 );
+	wait 2;
+	self setclientfield( "ai_tank_missile_fire", 4 );
+	self.numberrockets = 3;
+	wait 0.4;
+	self disablegunnerfiring( 0, 0 );
+	self update_weapon_hud( player );
+// SP = 0x0 - check OK
+}
+
+// 0x3EF8
+create_weapon_hud()
+{
+	self.tank_rocket_1 = newclienthudelem( self );
+	self.tank_rocket_1.alignx = "right";
+	self.tank_rocket_1.aligny = "bottom";
+	self.tank_rocket_1.horzalign = "user_center";
+	self.tank_rocket_1.vertalign = "user_bottom";
+	self.tank_rocket_1.font = "small";
+	self.tank_rocket_1 setshader( "mech_check_fill", 32, 16 );
+	self.tank_rocket_1.hidewheninmenu = 0;
+	self.tank_rocket_1.immunetodemogamehudsettings = 1;
+	self.tank_rocket_1.x = -250;
+	self.tank_rocket_1.y = -75;
+	self.tank_rocket_1.fontscale = 1.25;
+	self.tank_rocket_2 = newclienthudelem( self );
+	self.tank_rocket_2.alignx = "right";
+	self.tank_rocket_2.aligny = "bottom";
+	self.tank_rocket_2.horzalign = "user_center";
+	self.tank_rocket_2.vertalign = "user_bottom";
+	self.tank_rocket_2.font = "small";
+	self.tank_rocket_2 setshader( "mech_check_fill", 32, 16 );
+	self.tank_rocket_2.hidewheninmenu = 0;
+	self.tank_rocket_2.immunetodemogamehudsettings = 1;
+	self.tank_rocket_2.x = -250;
+	self.tank_rocket_2.y = -65;
+	self.tank_rocket_2.fontscale = 1.25;
+	self.tank_rocket_3 = newclienthudelem( self );
+	self.tank_rocket_3.alignx = "right";
+	self.tank_rocket_3.aligny = "bottom";
+	self.tank_rocket_3.horzalign = "user_center";
+	self.tank_rocket_3.vertalign = "user_bottom";
+	self.tank_rocket_3.font = "small";
+	self.tank_rocket_3 setshader( "mech_check_fill", 32, 16 );
+	self.tank_rocket_3.hidewheninmenu = 0;
+	self.tank_rocket_3.immunetodemogamehudsettings = 1;
+	self.tank_rocket_3.x = -250;
+	self.tank_rocket_3.y = -55;
+	self.tank_rocket_3.fontscale = 1.25;
+	self thread fade_out_weapon_hud();
+// SP = 0x0 - check OK
+}
+
+// 0x40E0
+fade_out_weapon_hud()
+{
+	self endon( "death" );
+	wait 8;
+	time = 0;
+	return;
+	self.tank_rocket_hint.alpha -= 0.025;
+	self.tank_mg_hint.alpha -= 0.025;
+	time += 0.05;
+	wait 0.05;
+	self.tank_rocket_hint.alpha = 0;
+	self.tank_mg_hint.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4170
+update_weapon_hud( player )
+{
+	player.tank_rocket_3 setshader( "mech_check_fill", 32, 16 );
+	player.tank_rocket_2 setshader( "mech_check_fill", 32, 16 );
+	player.tank_rocket_1 setshader( "mech_check_fill", 32, 16 );
+	switch ( self.numberrockets )
+	{
+		case 0:
+			player.tank_rocket_3 setshader( "mech_check_line", 32, 16 );
+		case 1:
+			player.tank_rocket_2 setshader( "mech_check_line", 32, 16 );
+		case 2:
+			player.tank_rocket_1 setshader( "mech_check_line", 32, 16 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4240
+destroy_remote_hud()
+{
+	self useservervisionset( 0 );
+	self setinfraredvision( 0 );
+	self.fullscreen_static destroy();
+	self.remote_hud_reticle destroy();
+	self.remote_hud_bracket_right destroy();
+	self.remote_hud_bracket_left destroy();
+	self.remote_hud_arrow_right destroy();
+	self.remote_hud_arrow_left destroy();
+	self.tank_rocket_1 destroy();
+	self.tank_rocket_2 destroy();
+	self.tank_rocket_3 destroy();
+	self.tank_rocket_hint destroy();
+	self.tank_mg_bar destroy();
+	self.tank_mg_arrow destroy();
+	self.tank_mg_hint destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x4398
+tank_devgui_think()
+{
+/#
+	setdvar( "devgui_tank", "" );
+	wait 0.25;
+	level.ai_tank_turret_fire_rate = weaponfiretime( "ai_tank_drone_gun_mp" );
+	devgui_debug_route();
+	setdvar( "devgui_tank", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x43F8
+tank_debug_patrol( node1, node2 )
+{
+/#
+	self endon( "death" );
+	self endon( "debug_patrol" );
+	self setvehgoalpos( node1.origin, 1, 2 );
+	self waittill( "reached_end_node" );
+	wait 1;
+	self setvehgoalpos( node2.origin, 1, 2 );
+	self waittill( "reached_end_node" );
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4458
+devgui_debug_route()
+{
+/#
+	iprintln( "Choose nodes with 'A' or press 'B' to cancel" );
+	nodes = maps\mp\gametypes\_dev::dev_get_node_pair();
+	iprintln( "Route Debug Cancelled" );
+	iprintln( "Sending talons to chosen nodes" );
+	tanks = getentarray( "talon", "targetname" );
+	foreach ( tank in tanks )
+	{
+		tank notify( "debug_patrol" );
+		tank thread tank_debug_patrol( nodes[0], nodes[1] );
+	}
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x44F8
+tank_debug_hud_init()
+{
+/#
+	host = gethostplayer();
+	wait 0.25;
+	host = gethostplayer();
+	x = 80;
+	y = 40;
+	level.ai_tank_bar = newclienthudelem( host );
+	level.ai_tank_bar.x = x + 80;
+	level.ai_tank_bar.y = y + 2;
+	level.ai_tank_bar.alignx = "left";
+	level.ai_tank_bar.aligny = "top";
+	level.ai_tank_bar.horzalign = "fullscreen";
+	level.ai_tank_bar.vertalign = "fullscreen";
+	level.ai_tank_bar.alpha = 0;
+	level.ai_tank_bar.foreground = 0;
+	level.ai_tank_bar setshader( "black", 1, 8 );
+	level.ai_tank_text = newclienthudelem( host );
+	level.ai_tank_text.x = x + 80;
+	level.ai_tank_text.y = y;
+	level.ai_tank_text.alignx = "left";
+	level.ai_tank_text.aligny = "top";
+	level.ai_tank_text.horzalign = "fullscreen";
+	level.ai_tank_text.vertalign = "fullscreen";
+	level.ai_tank_text.alpha = 0;
+	level.ai_tank_text.fontscale = 1;
+	level.ai_tank_text.foreground = 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x463C
+tank_debug_health()
+{
+/#
+	self.damage_debug = "";
+	level.ai_tank_bar.alpha = 1;
+	level.ai_tank_text.alpha = 1;
+	wait 0.05;
+	level.ai_tank_bar.alpha = 0;
+	level.ai_tank_text.alpha = 0;
+	width = self.health / self.maxhealth * 300;
+	width = int( max( width, 1 ) );
+	level.ai_tank_bar setshader( "black", width, 8 );
+	str = self.health + "  Last Damage: " + self.damage_debug;
+	level.ai_tank_text settext( str );
+#/
+// SP = 0x0 - check OK
+}

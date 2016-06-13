@@ -1,0 +1,19 @@
+// clientscripts/_network_intruder.csc
+
+#include clientscripts\_fx;
+
+
+// 0x130
+init( localclientnum )
+{
+	level._effect["networkintruder_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["networkintruder_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+// SP = 0x0 - check OK
+}
+
+// 0x164
+spawned( localclientnum )
+{
+	self thread clientscripts\_fx::blinky_light( localclientnum, "tag_light", level._effect["networkintruder_friendly_light"] );
+// SP = 0x0 - check OK
+}

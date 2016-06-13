@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_alcatraz_cellblock_climbup.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x100
+main()
+{
+	dosimpletraverse( "jump_up_cellblock" );
+// SP = 0x0 - check OK
+}

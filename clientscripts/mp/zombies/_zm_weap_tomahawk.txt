@@ -1,0 +1,56 @@
+// clientscripts/mp/zombies/_zm_weap_tomahawk.csc
+
+#include clientscripts\mp\_music;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x330
+init()
+{
+	return;
+	registerclientfield( "toplayer", "tomahawk_in_use", 9000, 2, "int", ::tomahawk_in_use, 0, 1 );
+	setupclientfieldcodecallbacks( "toplayer", 1, "tomahawk_in_use" );
+	registerclientfield( "toplayer", "upgraded_tomahawk_in_use", 9000, 1, "int", ::tomahawk_in_use, 0, 1 );
+	setupclientfieldcodecallbacks( "toplayer", 1, "upgraded_tomahawk_in_use" );
+	registerclientfield( "scriptmover", "play_tomahawk_fx", 9000, 2, "int", ::play_tomahawk_pickup_fx );
+	registerclientfield( "actor", "play_tomahawk_hit_sound", 9000, 1, "int", ::play_sound_on_zombies );
+// SP = 0x0 - check OK
+}
+
+// 0x3F8
+tomahawk_in_use( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+/#
+	println( "tomahawk - IN USE" );
+	println( "tomahawk - AVAILABLE" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x438
+play_tomahawk_pickup_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self waittill_dobj( localclientnum );
+	e_pickup_fx = getent( localclientnum, "tomahawk_pickup_fx_origin", "targetname" );
+	e_pickup_fx = spawn( localclientnum, self.origin, "script_model" );
+	e_pickup_fx.angles = self.angles;
+	e_pickup_fx.targetname = "tomahawk_pickup_fx_origin";
+	e_pickup_fx setmodel( "tag_origin" );
+	playfxontag( localclientnum, level._effect["tomahawk_pickup"], e_pickup_fx, "tag_origin" );
+	e_pickup_fx = getent( localclientnum, "tomahawk_pickup_fx_origin", "targetname" );
+	e_pickup_upgrade_fx = spawn( localclientnum, e_pickup_fx.origin, "script_model" );
+	e_pickup_upgrade_fx.angles = e_pickup_fx.angles;
+	e_pickup_upgrade_fx.targetname = "tomahawk_pickup_upgrade_fx_origin";
+	e_pickup_upgrade_fx setmodel( "tag_origin" );
+	playfxontag( localclientnum, level._effect["tomahawk_pickup_upgrade"], e_pickup_upgrade_fx, "tag_origin" );
+	e_pickup_fx delete();
+// SP = 0x0 - check OK
+}
+
+// 0x564
+play_sound_on_zombies( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self playsound( localclientnum, "wpn_tomahawk_imp_zombie" );
+// SP = 0x0 - check OK
+}

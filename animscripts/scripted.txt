@@ -1,0 +1,52 @@
+// animscripts/scripted.gsc
+
+#include animscripts\face;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x220
+main()
+{
+	self endon( "death" );
+	self notify( "killanimscript" );
+	self notify( "clearSuppressionAttack" );
+	self.a.suppressingenemy = 0;
+	self.codescripted["root"] = %body;
+	self trackscriptstate( "Scripted Main", "code" );
+	self endon( "end_sequence" );
+	self startscriptedanim( self.codescripted["notifyName"], self.codescripted["origin"], self.codescripted["angles"], self.codescripted["anim"], self.codescripted["AnimMode"], self.codescripted["root"], self.codescripted["rate"], self.codescripted["goalTime"], self.codescripted["lerpTime"] );
+	self.a.script = "scripted";
+	self.codescripted = undefined;
+	self animscripts\face::sayspecificdialogue( self.facial_animation, self.scripted_dialogue, 0.9, "scripted_anim_facedone" );
+	self.facial_animation = undefined;
+	self.scripted_dialogue = undefined;
+	self.deathstring = self.deathstring_passed;
+	self waittill( "killanimscript" );
+// SP = 0x0 - check OK
+}
+
+// 0x31C
+init( notifyname, origin, angles, theanim, animmode, root, rate, goaltime, lerptime )
+{
+	self.codescripted["notifyName"] = notifyname;
+	self.codescripted["origin"] = origin;
+	self.codescripted["angles"] = angles;
+	self.codescripted["anim"] = theanim;
+	self.codescripted["AnimMode"] = animmode;
+	self.codescripted["AnimMode"] = "normal";
+	self.codescripted["root"] = root;
+	self.codescripted["root"] = %body;
+	self.codescripted["rate"] = rate;
+	self.codescripted["goalTime"] = goaltime;
+	self.codescripted["goalTime"] = 0.2;
+	self.codescripted["lerpTime"] = lerptime;
+	self.codescripted["lerpTime"] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x40C
+end_script()
+{
+// SP = 0x0 - check OK
+}

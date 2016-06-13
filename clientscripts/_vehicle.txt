@@ -1,0 +1,570 @@
+// clientscripts/_vehicle.csc
+
+#include clientscripts\_helicopter_sounds;
+#include clientscripts\_filter;
+#include clientscripts\_utility;
+
+
+// 0xE98
+init_vehicles()
+{
+	level.vehicles_inited = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xEA8
+vehicle_rumble( localclientnum )
+{
+	self endon( "entityshutdown" );
+	return;
+	self.rumbleon = 1;
+	height = self.rumbleradius * 2;
+	zoffset = -1 * self.rumbleradius;
+	self.player_touching = 0;
+	radius_squared = self.rumbleradius * self.rumbleradius;
+	wait 2;
+	wait 0.2;
+	wait 0.2;
+	self playrumblelooponentity( localclientnum, self.rumbletype );
+	self earthquake( self.rumblescale, self.rumbleduration, self.origin, self.rumbleradius );
+	wait self.rumblebasetime + randomfloat( self.rumbleadditionaltime );
+	self stoprumble( localclientnum, self.rumbletype );
+// SP = 0x0 - check OK
+}
+
+// 0xFF4
+vehicle_treads( localclientnum )
+{
+	waittillframeend;
+	return;
+	return;
+	return;
+	tag = "tag_wake";
+	self thread wake( localclientnum, tag );
+	self thread splash( localclientnum );
+	self thread splash_small();
+	self thread boat_tread( localclientnum, "tag_wheel_back_left", "back_left" );
+	self thread boat_tread( localclientnum, "tag_wheel_back_right", "back_right" );
+	self thread tread( localclientnum, "tag_wheel_back", "back_left" );
+	self thread tread( localclientnum, "tag_wheel_back_left", "back_left" );
+	self thread tread( localclientnum, "tag_wheel_back_right", "back_right" );
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x1120
+vehicle_kill_treads_forever()
+{
+	self notify( "kill_treads_forever" );
+// SP = 0x0 - check OK
+}
+
+// 0x1130
+get_throttle_effect( throttle )
+{
+	return self.throttlefx[0];
+	return self.throttlefx[1];
+	return self.throttlefx[2];
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x117C
+wake_mon( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill( "kill_treads_forever" );
+	deletefx( localclientnum, self.wake_fxhandle, 0 );
+	self.wake_fxhandle = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x11B0
+wake( localclientnum, tagname )
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	treadfx = treadget( self, "back_left" );
+	return;
+	offset = vector_scale( ( 0, 0, -1 ), 10 );
+	self thread wake_mon( localclientnum );
+	deletefx( localclientnum, self.wake_fxhandle, 0 );
+	self.wake_fxhandle = undefined;
+	wakestate = -1;
+	speed = self getspeed();
+	deletefx( localclientnum, self.wake_fxhandle, 0 );
+	self.wake_fxhandle = undefined;
+	self.wake_fxhandle = playfxontag( localclientnum, treadfx, self, tagname );
+	newstate = 0;
+	newstate = 0;
+	newstate = 1;
+	newstate = 2;
+	newstate = 3;
+	newstate = 4;
+	deletefx( localclientnum, self.wake_fxhandle, 0 );
+	self.wake_fxhandle = undefined;
+	wakestate = newstate;
+	fx = self.wakefx[wakestate];
+	self.wake_fxhandle = playfxontag( localclientnum, fx, self, tagname );
+	throttle = self getthrottle();
+	throttleeffect = self get_throttle_effect( throttle );
+	effectorigin = self gettagorigin( tagname );
+	fwd = self gettagforwardvector( tagname );
+	playfx( localclientnum, throttleeffect, effectorigin, fwd );
+	wakestate = -1;
+	deletefx( localclientnum, self.wake_fxhandle, 0 );
+	self.wake_fxhandle = undefined;
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x13E4
+splash( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	return;
+	wasinwater = 1;
+	offset = vector_scale( ( 0, 0, -1 ), 10 );
+	last_water_check_pos = self.origin + anglestoforward( self.angles ) * 100 + offset;
+	wait 0.5;
+	water_check_pos = self.origin + anglestoforward( self.angles ) * 100 + offset;
+	water_height = getwaterheight( water_check_pos );
+	isinwater = water_check_pos[2] < water_height;
+	vertical_speed = water_check_pos[2] - last_water_check_pos[2];
+	vertical_speed = water_check_pos[2] - last_water_check_pos[2];
+	splashorigin = self gettagorigin( "snd_bow_center" );
+	effectorigin = self gettagorigin( "tag_wake" );
+	fwd = self gettagforwardvector( "tag_wake" );
+	playfx( localclientnum, self.splashfx, effectorigin, fwd );
+	id = playsound( 0, "veh_boat_splash", splashorigin );
+	wasinwater = isinwater;
+	last_water_check_pos = water_check_pos;
+// SP = 0x0 - check OK
+}
+
+// 0x151C
+splash_small()
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	offset = vector_scale( ( 0, 0, -1 ), 10 );
+	wait randomfloat( 0.5 );
+	water_check_pos = self.origin + anglestoforward( self.angles ) * 100 + offset;
+	wait 0.5;
+	water_check_pos_2 = self.origin + anglestoforward( self.angles ) * 100 + offset;
+	water_height = getwaterheight( water_check_pos );
+	isinwater = water_check_pos[2] < water_height;
+	vertical_speed = water_check_pos[2] - water_check_pos_2[2];
+	vertical_speed = water_check_pos_2[2] - water_check_pos[2];
+	splashorigin = self gettagorigin( "snd_bow_center" );
+	splashorigin = self gettagorigin( "tag_origin" );
+	id = playsound( 0, "veh_boat_splash_small", splashorigin );
+	wait 1.6;
+// SP = 0x0 - check OK
+}
+
+// 0x1630
+tread( localclientnum, tagname, side )
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	treadfx = treadget( self, side );
+	return;
+	wait randomfloat( 0.5 );
+	speed = self getspeed();
+	wait 0.11;
+	waittime = 0.1;
+	waittime = 0.3;
+	waittime = 35 / speed;
+	wait waittime;
+	treadfx = treadget( self, side );
+	forwardvec = self gettagforwardvector( tagname );
+	return;
+	effectorigin = self gettagorigin( tagname );
+	forwardvec = vector_scale( forwardvec, waittime );
+	playfx( localclientnum, treadfx, effectorigin, ( 0, 0, 0 ) - forwardvec );
+// SP = 0x0 - check OK
+}
+
+// 0x1748
+treadget( vehicle, side )
+{
+/#
+	println( "clientside treadfx not setup for boat type( only needs water ): ", vehicle.vehicletype );
+#/
+	wait 10;
+	return -1;
+	return vehicle.treadfx["water"];
+	surface = self getwheelsurface( side );
+	treadfx = -1;
+	return treadfx;
+	wait 10;
+	return -1;
+	treadfx = vehicle.treadfx[surface];
+	return treadfx;
+// SP = 0x0 - check OK
+}
+
+// 0x17E4
+boat_tread( localclientnum, tagname, side )
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	treadfx = treadgetboat( self, side );
+	return;
+	wait randomfloat( 0.5 );
+	speed = self getspeed();
+	wait 0.11;
+	waittime = 0.1;
+	waittime = 0.3;
+	waittime = 35 / speed;
+	wait waittime;
+	treadfx = treadgetboat( self, side );
+	forwardvec = self gettagforwardvector( tagname );
+	return;
+	effectorigin = self gettagorigin( tagname );
+	forwardvec = vector_scale( forwardvec, waittime );
+	playfx( localclientnum, treadfx, effectorigin, ( 0, 0, 0 ) - forwardvec );
+// SP = 0x0 - check OK
+}
+
+// 0x18FC
+treadgetboat( vehicle, side )
+{
+	surface = self getwheelsurface( side );
+	return -1;
+	wait 10;
+	return -1;
+	return vehicle.treadfx[surface];
+// SP = 0x0 - check OK
+}
+
+// 0x1950
+play_exhaust( localclientnum, tag_left, tag_right )
+{
+	tag_left = "tag_engine_left";
+	tag_right = "tag_engine_right";
+	return;
+	level._effect[self.exhaustfxname] = loadfx( self.exhaustfxname );
+	self.exhaust_fx = level._effect[self.exhaustfxname];
+	self.exhaust_id_left = playfxontag( localclientnum, self.exhaust_fx, self, tag_left );
+	self.exhaust_id_right = playfxontag( localclientnum, self.exhaust_fx, self, tag_right );
+	self thread kill_exhaust_watcher( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1A60
+kill_exhaust_watcher( localclientnum )
+{
+	self waittill( "stop_exhaust_fx" );
+	stopfx( localclientnum, self.exhaust_id_left );
+	self.exhaust_id_left = undefined;
+	stopfx( localclientnum, self.exhaust_id_right );
+	self.exhaust_id_right = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1AAC
+stop_exhaust( localclientnum )
+{
+	self notify( "stop_exhaust_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x1ABC
+build_gear( vehicletype, model, tag )
+{
+	index = 0;
+	index = level.vehiclegearmodels[vehicletype].size;
+	level.vehiclegearmodels[vehicletype][index] = model;
+	level.vehiclegeartags[vehicletype][index] = tag;
+// SP = 0x0 - check OK
+}
+
+// 0x1B0C
+vehicle_variants( localclientnum )
+{
+	numgear = level.vehiclegearmodels[self.vehicletype].size;
+	maxgear = 2;
+	maxgear = numgear;
+	randomconstantnumber = self getentitynumber();
+	i = 0;
+	alreadychosen = 1;
+	gearchoices[i] = -1;
+	alreadychosen = 0;
+	gearchoices[i] = randomconstantnumber % numgear;
+	j = 0;
+	alreadychosen = 1;
+	j++;
+	self attach( level.vehiclegearmodels[self.vehicletype][gearchoices[i]], level.vehiclegeartags[self.vehicletype][gearchoices[i]] );
+	randomconstantnumber++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1C08
+aircraft_dustkick()
+{
+	waittillframeend;
+	self endon( "kill_treads_forever" );
+	self endon( "entityshutdown" );
+	return;
+	numframespertrace = 1;
+	numframespertrace = 3;
+	dotracethisframe = numframespertrace;
+	repeatrate = 1;
+	trace = undefined;
+	d = undefined;
+	trace_ent = self;
+	repeatrate = 1;
+	repeatrate = 0.02;
+	realwait( repeatrate );
+	return;
+	dotracethisframe--;
+	dotracethisframe = numframespertrace;
+	trace = tracepoint( trace_ent.origin, trace_ent.origin - vector_scale( ( 0, 0, 1 ), 100000 ) );
+	d = distance( trace_ent.origin, trace["position"] );
+	repeatrate = ( d - 350 ) / ( 1200 - 350 ) * ( 0.2 - 0.1 ) + 0.1;
+	repeatrate = 0.1;
+	repeatrate = 1;
+	trace["surfacetype"] = "dirt";
+	playfx( 0, self.treadfx[trace["surfacetype"]], trace["position"] );
+/#
+	println( "SCRIPT PRINT: Unknown surface type " + trace["surfacetype"] + " for vehicle type " + self.vehicletype );
+#/
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1DD4
+vehicle_weapon_fired()
+{
+	self endon( "entityshutdown" );
+	self waittill( "weapon_fired" );
+	players = level.localplayers;
+	i = 0;
+	player_distance = distancesquared( self.origin, players[i].origin );
+	playrumbleonposition( i, self.shootrumble, self.origin + vector_scale( ( 0, 0, 1 ), 32 ) );
+	fraction = player_distance / 160000;
+	time = 4 - 3 * fraction;
+	players[i] shellshock( i, self.shootshock, time );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1ECC
+lights_on( localclientnum )
+{
+	lights_off( localclientnum );
+	wait 0.1;
+	self.light_fx_handles = [];
+	i = 0;
+	self.light_fx_handles[i] = playfxontag( localclientnum, self.light_fx[i], self, self.lightfxtagarray[i] );
+	i++;
+	self.team_light_fx_handle = playfxontag( localclientnum, self.friendly_light_fx, self, self.enemylightfxtag );
+	self.team_light_fx_handle = playfxontag( localclientnum, self.enemy_light_fx, self, self.friendlylightfxtag );
+// SP = 0x0 - check OK
+}
+
+// 0x1FB0
+lights_off( localclientnum )
+{
+	i = 0;
+	deletefx( localclientnum, self.light_fx_handles[i] );
+	i++;
+	self.light_fx_handles = undefined;
+	deletefx( localclientnum, self.team_light_fx_handle );
+	self.team_light_fx_handle = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2010
+vehicle_flag_toggle_sounds( localclientnum, set, newent )
+{
+	self notify( "stop_heli_sounds" );
+	self.should_not_play_sounds = 1;
+	self notify( "play_heli_sounds" );
+	self.should_not_play_sounds = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2050
+vehicle_flag_turn_off_treadfx( localclientnum, set, newent )
+{
+/#
+	println( "****CLIENT:: Vehicle Flag Plane" );
+#/
+	self.csf_no_tread = 1;
+	self vehicle_kill_treads_forever();
+	self.csf_no_tread = 0;
+	self vehicle_kill_treads_forever();
+	self thread aircraft_dustkick();
+/#
+	println( "****CLIENT:: Vehicle Flag Tread FX Set" );
+#/
+/#
+	println( "****CLIENT:: TreadFX NewEnt: " + self getentitynumber() );
+#/
+	self.csf_no_tread = 1;
+/#
+	println( "****CLIENT:: TreadFX OldEnt" + self getentitynumber() );
+#/
+	self vehicle_kill_treads_forever();
+/#
+	println( "****CLIENT:: Vehicle Flag Tread FX Clear" );
+#/
+	self.csf_no_tread = 0;
+	self vehicle_kill_treads_forever();
+	self thread vehicle_treads( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x2180
+vehicle_flag_start_use_engine_damage_low_sounds( localclientnum, set, newent )
+{
+	self.engine_damage_low = 1;
+	self clientscripts\_helicopter_sounds::update_helicopter_sounds();
+	self.engine_damage_low = 0;
+	self clientscripts\_helicopter_sounds::update_helicopter_sounds();
+// SP = 0x0 - check OK
+}
+
+// 0x21BC
+vehicle_flag_3_handler( localclientnum, set, newent )
+{
+	vehicle_flag_start_use_engine_damage_low_sounds( localclientnum, set, newent );
+// SP = 0x0 - check OK
+}
+
+// 0x21EC
+vehicle_flag_start_use_engine_damage_high_sounds( localclientnum, set, newent )
+{
+	self.engine_damage_high = 1;
+	self clientscripts\_helicopter_sounds::update_helicopter_sounds();
+	self.engine_damage_high = 0;
+	self clientscripts\_helicopter_sounds::update_helicopter_sounds();
+// SP = 0x0 - check OK
+}
+
+// 0x2228
+vehicle_flag_4_handler( localclientnum, set, newent )
+{
+	vehicle_flag_start_use_engine_damage_high_sounds( localclientnum, set, newent );
+// SP = 0x0 - check OK
+}
+
+// 0x2258
+vehicle_flag_toggle_exhaustfx_handler( localclientnum, set, newent )
+{
+	self.csf_no_exhaust = 1;
+	self stop_exhaust( localclientnum );
+	self.csf_no_exhaust = 0;
+	self stop_exhaust( localclientnum );
+	exhaust_tag_left = "tag_engine_left";
+	exhaust_tag_right = "tag_engine_right";
+	self play_exhaust( localclientnum, exhaust_tag_left, exhaust_tag_right );
+// SP = 0x8 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x2334
+vehicle_flag_toggle_lights_handler( localclientnum, set, newent )
+{
+	self lights_off( localclientnum );
+	self lights_on( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x2364
+vehicle_flag_toggle_lockon_handler( localclientnum, set, newent )
+{
+	self setvehiclelockedon( 1 );
+	self setvehiclelockedon( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2394
+build_damage_filter_list()
+{
+	level.vehicle_damage_filters = [];
+	level.vehicle_damage_filters[0] = "generic_filter_vehicle_damage";
+	level.vehicle_damage_filters[1] = "generic_filter_sam_damage";
+	level.vehicle_damage_filters[2] = "generic_filter_f35_damage";
+	level.vehicle_damage_filters[3] = "generic_filter_vehicle_damage_sonar";
+	level.vehicle_damage_filters[4] = "generic_filter_rts_vehicle_damage";
+// SP = 0x0 - check OK
+}
+
+// 0x23E8
+init_damage_filter( materialid )
+{
+	level.localplayers[0].damage_filter_intensity = 0;
+	materialname = level.vehicle_damage_filters[materialid];
+	init_filter_vehicle_damage( level.localplayers[0], materialname );
+	enable_filter_vehicle_damage( level.localplayers[0], 3, materialname );
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, 0 );
+	set_filter_vehicle_sun_position( level.localplayers[0], 3, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x245C
+damage_filter_enable( localclientnum, materialid )
+{
+	enable_filter_vehicle_damage( level.localplayers[0], 3, level.vehicle_damage_filters[materialid] );
+	level.localplayers[0].damage_filter_intensity = 0;
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, level.localplayers[0].damage_filter_intensity );
+// SP = 0x0 - check OK
+}
+
+// 0x24B0
+damage_filter_disable( localclientnum )
+{
+	level notify( "damage_filter_off" );
+	level.localplayers[0].damage_filter_intensity = 0;
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, level.localplayers[0].damage_filter_intensity );
+	disable_filter_vehicle_damage( level.localplayers[0], 3 );
+// SP = 0x0 - check OK
+}
+
+// 0x2500
+damage_filter_off( localclientnum )
+{
+	level endon( "damage_filter" );
+	level endon( "damage_filter_off" );
+	level endon( "damage_filter_heavy" );
+	return;
+	level.localplayers[0].damage_filter_intensity -= 0.0505061;
+	level.localplayers[0].damage_filter_intensity = 0;
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, level.localplayers[0].damage_filter_intensity );
+	wait 0.016667;
+// SP = 0x0 - check OK
+}
+
+// 0x25A8
+damage_filter_light( localclientnum )
+{
+	level endon( "damage_filter_off" );
+	level endon( "damage_filter_heavy" );
+	level notify( "damage_filter" );
+	level.localplayers[0].damage_filter_intensity += 0.083335;
+	level.localplayers[0].damage_filter_intensity = 0.5;
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, level.localplayers[0].damage_filter_intensity );
+	wait 0.016667;
+// SP = 0x0 - check OK
+}
+
+// 0x2654
+damage_filter_heavy( localclientnum )
+{
+	level endon( "damage_filter_off" );
+	level notify( "damage_filter_heavy" );
+	level.localplayers[0].damage_filter_intensity += 0.083335;
+	level.localplayers[0].damage_filter_intensity = 1;
+	set_filter_vehicle_damage_amount( level.localplayers[0], 3, level.localplayers[0].damage_filter_intensity );
+	wait 0.016667;
+// SP = 0x0 - check OK
+}

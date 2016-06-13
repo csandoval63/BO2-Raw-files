@@ -1,0 +1,78 @@
+// clientscripts/mp/_turret.csc
+
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "mp_microwaveturret" );
+
+
+// 0x2E8
+init()
+{
+	level._client_flag_callbacks["turret"][2] = ::microwave_open_anim;
+	level._client_flag_callbacks["turret"][3] = ::microwave_close_anim;
+	level._client_flag_callbacks["turret"][4] = ::microwave_destroy_anim;
+	registerclientfield( "turret", "turret_microwave_sounds", 1000, 1, "int", ::turret_microwave_sounds, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x34C
+turret_microwave_sounds( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self thread turret_microwave_sound_start( localclientnum );
+	self notify( "sound_stop" );
+// SP = 0x0 - check OK
+}
+
+// 0x388
+turret_microwave_sound_start( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "sound_stop" );
+	origin = self gettagorigin( "tag_flash" );
+	angles = self gettagangles( "tag_flash" );
+	forward = anglestoforward( angles );
+	forward = vector_scale( forward, 750 );
+	trace = bullettrace( origin, origin + forward, 0, self );
+	start = origin;
+	end = trace["position"];
+	self thread turret_microwave_sound_off_waiter( localclientnum, start, end );
+	self playsound( 0, "wpn_micro_turret_start" );
+	soundlineemitter( "wpn_micro_turret_loop", start, end );
+// SP = 0x0 - check OK
+}
+
+// 0x42C
+turret_microwave_sound_off_waiter( localclientnum, start, end )
+{
+	self waittill_any( "sound_stop", "entityshutdown" );
+	playsound( 0, "wpn_micro_turret_stop", start );
+	soundstoplineemitter( "wpn_micro_turret_loop", start, end );
+// SP = 0x0 - check OK
+}
+
+// 0x46C
+microwave_open_anim( localclientnum, set )
+{
+	self endon( "entityshutdown" );
+	return;
+	self useanimtree( -1 );
+	self setanim( %o_hpm_open, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4C0
+microwave_close_anim( localclientnum, set )
+{
+	return;
+	self useanimtree( -1 );
+	self setanim( %o_hpm_close, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x50C
+microwave_destroy_anim( localclientnum, set )
+{
+	self useanimtree( -1 );
+	self setanim( %o_hpm_destroyed, 1, 0, 1 );
+// SP = 0x0 - check OK
+}

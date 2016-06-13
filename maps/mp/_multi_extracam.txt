@@ -1,0 +1,8 @@
+// maps/mp/_multi_extracam.gsc
+
+
+// 0x68
+init()
+{
+// SP = 0x0 - check OK
+}

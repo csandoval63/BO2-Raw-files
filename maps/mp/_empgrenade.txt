@@ -1,0 +1,137 @@
+// maps/mp/_empgrenade.gsc
+
+#include maps\mp\killstreaks\_emp;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x3B0
+init()
+{
+	precacheshellshock( "flashbang" );
+	thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x3CC
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x3F0
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self thread monitorempgrenade();
+// SP = 0x0 - check OK
+}
+
+// 0x414
+monitorempgrenade()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self.empendtime = 0;
+	self waittill( "emp_grenaded", attacker );
+	hurtvictim = 1;
+	hurtattacker = 0;
+/#
+	assert( IsDefined( self.team ) );
+#/
+	hurtattacker = 0;
+	hurtvictim = 1;
+	hurtvictim = 0;
+	hurtattacker = 1;
+	hurtattacker = 1;
+	hurtvictim = 1;
+	self thread applyemp( attacker );
+	attacker thread applyemp( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x538
+applyemp( attacker )
+{
+	self notify( "applyEmp" );
+	self endon( "applyEmp" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	wait 0.05;
+	emp_time_left_ms = self.empendtime - GetTime();
+	self.empduration = emp_time_left_ms / 1000;
+	self.empduration = 1;
+	self.empduration = 1;
+	self.empduration = 12;
+	self.empgrenaded = 1;
+	self shellshock( "flashbang", 1 );
+	self.empendtime = GetTime() + self.empduration * 1000;
+	self thread emprumbleloop( 0.75 );
+	self setempjammed( 1 );
+	self thread empgrenadedeathwaiter();
+	wait self.empduration;
+	self notify( "empGrenadeTimedOut" );
+	self checktoturnoffemp();
+// SP = 0x0 - check OK
+}
+
+// 0x618
+empgrenadedeathwaiter()
+{
+	self notify( "empGrenadeDeathWaiter" );
+	self endon( "empGrenadeDeathWaiter" );
+	self endon( "empGrenadeTimedOut" );
+	self waittill( "death" );
+	self checktoturnoffemp();
+// SP = 0x0 - check OK
+}
+
+// 0x644
+checktoturnoffemp()
+{
+	self.empgrenaded = 0;
+	return;
+	self setempjammed( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x690
+emprumbleloop( duration )
+{
+	self endon( "emp_rumble_loop" );
+	self notify( "emp_rumble_loop" );
+	goaltime = GetTime() + duration * 1000;
+	self playrumbleonentity( "damage_heavy" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x6D4
+watchempexplosion( owner, weaponname )
+{
+	owner endon( "disconnect" );
+	owner endon( "team_changed" );
+	self endon( "shutdown_empgrenade" );
+	self thread watchempgrenadeshutdown();
+	owner addweaponstat( weaponname, "used", 1 );
+	self waittill( "explode", origin, surface );
+	ents = getdamageableentarray( origin, 512 );
+	foreach ( ent in ents )
+	{
+		ent dodamage( 1, origin, owner, owner, "none", "MOD_GRENADE_SPLASH", 0, weaponname );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x778
+watchempgrenadeshutdown()
+{
+	self endon( "explode" );
+	self waittill( "death" );
+	wait 0.05;
+	self notify( "shutdown_empgrenade" );
+// SP = 0x0 - check OK
+}

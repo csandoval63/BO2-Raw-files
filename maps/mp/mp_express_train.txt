@@ -1,0 +1,345 @@
+// maps/mp/mp_express_train.gsc
+
+#include maps\mp\killstreaks\_supplydrop;
+#include maps\mp\gametypes\_gameobjects;
+#include maps\mp\gametypes\ctf;
+#include maps\mp\gametypes\_weaponobjects;
+#include maps\mp\killstreaks\_rcbomb;
+#include maps\mp\_tacticalinsertion;
+#include maps\mp\_events;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xAC4
+init()
+{
+	precachevehicle( "express_train_engine_mp" );
+	precachemodel( "p6_bullet_train_car_phys" );
+	precachemodel( "p6_bullet_train_engine_rev" );
+	precacheshader( "compass_train_carriage" );
+	precachestring( &"traincar" );
+	precachestring( &"trainengine" );
+	gates = getentarray( "train_gate_rail", "targetname" );
+	brushes = getentarray( "train_gate_rail_brush", "targetname" );
+	triggers = getentarray( "train_gate_kill_trigger", "targetname" );
+	traintriggers = getentarray( "train_kill_trigger", "targetname" );
+	foreach ( brush in brushes )
+	{
+		brush disconnectpaths();
+	}
+	waittime = 0.05;
+	foreach ( gate in gates )
+	{
+		gate.waittime = waittime;
+		waittime += 0.05;
+		gate.og_origin = gate.origin;
+		brush = getclosest( gate.origin, brushes );
+		brush linkto( gate );
+		gate.kill_trigger = getclosest( gate.origin, triggers );
+		gate.kill_trigger enablelinkto();
+		gate.kill_trigger linkto( gate );
+	}
+	start = getvehiclenode( "train_start", "targetname" );
+	endgates = getentarray( "train_gate_rail_end", "targetname" );
+	entrygate = getclosest( start.origin, endgates );
+	i = 0;
+	exitgate = endgates[i];
+	i++;
+	cars = [];
+	cars[0] = spawnvehicle( "p6_bullet_train_engine_phys", "train", "express_train_engine_mp", start.origin, ( 0, 0, 0 ) );
+	cars[0] ghost();
+	cars[0] setcheapflag( 1 );
+	cars[0].ismagicbullet = 1;
+	killcam = spawn( "script_model", cars[0].origin + vector_scale( ( 0, 0, 1 ), 25 ) );
+	killcam.angles = cars[0].angles + vector_scale( ( 0, -1, 0 ), 10 );
+	killcam linkto( cars[0] );
+	foreach ( traintrigger in traintriggers )
+	{
+		cars[0].trainkilltrigger = traintrigger;
+		traintrigger.origin = start.origin;
+		traintrigger enablelinkto();
+		traintrigger linkto( cars[0] );
+	}
+	i = 1;
+	cars[i] = spawn( "script_model", start.origin );
+	cars[i] setmodel( "p6_bullet_train_car_phys" );
+	cars[i] ghost();
+	cars[i] setcheapflag( 1 );
+	i++;
+	cars[20] = spawn( "script_model", start.origin );
+	cars[20] setmodel( "p6_bullet_train_engine_rev" );
+	cars[20] ghost();
+	cars[20] setcheapflag( 1 );
+	waittillframeend;
+	seconds = level.timelimit * 60;
+	add_timed_event( int( seconds * 0.25 ), "train_start" );
+	add_timed_event( int( seconds * 0.75 ), "train_start" );
+	add_score_event( int( level.scorelimit * 0.25 ), "train_start" );
+	add_score_event( int( level.scorelimit * 0.75 ), "train_start" );
+	level thread train_think( gates, entrygate, exitgate, cars, start, killcam );
+// SP = 0x0 - check OK
+}
+
+// 0xF30
+showaftertime( time )
+{
+	wait time;
+	self show();
+// SP = 0x0 - check OK
+}
+
+// 0xF48
+train_think( gates, entrygate, exitgate, cars, start, killcam )
+{
+	level endon( "game_ended" );
+	level waittill( "train_start" );
+	entrygate gate_move( -172 );
+	traintiming = getdvarfloatdefault( "scr_express_trainTiming", 4 );
+	exitgate thread waitthenmove( traintiming, -172 );
+	array_func( gates, ::gate_move, -172 );
+	foreach ( gate in gates )
+	{
+		gate playloopsound( "amb_train_incomming_beep" );
+		gate playsound( "amb_gate_move" );
+	}
+	gatedownwait = getdvarintdefault( "scr_express_gateDownWait", 2 );
+	wait gatedownwait;
+	foreach ( gate in gates )
+	{
+		gate stoploopsound( 2 );
+	}
+	wait 2;
+	cars[0] attachpath( start );
+	cars[0].killcament = undefined;
+	cars[0] thread train_move_think( cars[0].trainkilltrigger );
+	cars[0] startpath();
+	cars[0] showaftertime( 0.2 );
+	cars[0] thread record_positions();
+	cars[0] thread watch_end();
+	cars[0] playloopsound( "amb_train_lp" );
+	cars[0] setclientfield( "train_moving", 1 );
+	cars[0] thread watch_player_touch();
+	killcam.starttime = GetTime();
+	cars[0].killcament = killcam;
+	next = "_b";
+	i = 1;
+	wait 0.4;
+	wait 0.35;
+	cars[i] playloopsound( "amb_train_lp" + next );
+	switch ( next )
+	{
+		case "_b":
+			next = "_c";
+			break;
+		case "_c":
+			next = "_d";
+			break;
+		case "_d":
+			next = "";
+			break;
+		default:
+			next = "_b";
+			break;
+	}
+	cars[i] thread watch_player_touch();
+	cars[i] thread car_move();
+	cars[i] thread car_move();
+	i++;
+	traintiming = getdvarfloatdefault( "scr_express_trainTiming2", 2 );
+	entrygate thread waitthenmove( traintiming );
+	gateupwait = getdvarfloatdefault( "scr_express_gateUpWait", 6.5 );
+	wait gateupwait;
+	exitgate gate_move();
+	array_func( gates, ::gate_move );
+	foreach ( gate in gates )
+	{
+		gate playsound( "amb_gate_move" );
+	}
+	wait 6;
+// SP = 0x0 - check OK
+}
+
+// 0x1288
+waitthenmove( time, distance )
+{
+	wait time;
+	self gate_move( distance );
+// SP = 0x0 - check OK
+}
+
+// 0x12A4
+record_positions()
+{
+	self endon( "reached_end_node" );
+	return;
+	level.train_positions = [];
+	level.train_angles = [];
+	level.train_positions[level.train_positions.size] = self.origin;
+	level.train_angles[level.train_angles.size] = self.angles;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x12F4
+watch_player_touch()
+{
+	self endon( "end_of_track" );
+	self endon( "delete" );
+	self endon( "death" );
+	self.disablefinalkillcam = 1;
+	self waittill( "touch", entity );
+	entity dodamage( entity.health * 2, self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+// SP = 0x0 - check OK
+}
+
+// 0x1358
+watch_end()
+{
+	self waittill( "reached_end_node" );
+	self ghost();
+	self setclientfield( "train_moving", 0 );
+	self stoploopsound( 0.2 );
+	self playsound( "amb_train_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x13A0
+car_move()
+{
+	self setclientfield( "train_moving", 1 );
+	i = 0;
+	self.origin = level.train_positions[i];
+	self.angles = level.train_angles[i];
+	wait 0.05;
+	self show();
+	i++;
+	self notify( "end_of_track" );
+	self ghost();
+	self setclientfield( "train_moving", 0 );
+	self stoploopsound( 0.2 );
+	self playsound( "amb_train_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x144C
+gate_rotate( yaw )
+{
+	self rotateyaw( yaw, 5 );
+// SP = 0x0 - check OK
+}
+
+// 0x1464
+gate_move( z_dist )
+{
+	self thread gate_move_think( IsDefined( z_dist ) );
+	self moveto( self.og_origin, 5 );
+	self.og_origin = self.origin;
+	self movez( z_dist, 5 );
+// SP = 0x0 - check OK
+}
+
+// 0x14B8
+train_move_think( kill_trigger )
+{
+	self endon( "movedone" );
+	self endon( "reached_end_node" );
+	wait 0.05;
+	pixbeginevent( "train_move_think" );
+	entities = getdamageableentarray( self.origin, 200 );
+	foreach ( entity in entities )
+	{
+		entity maps\mp\_tacticalinsertion::destroy_tactical_insertion();
+		entity notify( "death" );
+		entity maps\mp\killstreaks\_rcbomb::rcbomb_force_explode();
+		entity dodamage( 1, self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+		watcher = entity.owner maps\mp\gametypes\_weaponobjects::getweaponobjectwatcher( "qrdrone" );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined );
+		watcher = entity.owner getwatcherforweapon( entity.name );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined, "script_mover_mp" );
+		watcher = entity.owner getwatcherforweapon( entity.name );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined, "script_mover_mp" );
+		entity domaxdamage( self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+		entity dodamage( entity.health * 2, self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+	}
+	self destroy_supply_crates();
+	foreach ( flag in level.flags )
+	{
+		flag maps\mp\gametypes\ctf::returnflag();
+	}
+	level.sdbomb maps\mp\gametypes\_gameobjects::returnhome();
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x1860
+gate_move_think( ignoreplayers )
+{
+	self endon( "movedone" );
+	self.disablefinalkillcam = 1;
+	corpse_delay = 0;
+	wait self.waittime;
+	wait 0.4;
+	pixbeginevent( "gate_move_think" );
+	entities = getdamageableentarray( self.origin, 100 );
+	foreach ( entity in entities )
+	{
+		entity maps\mp\_tacticalinsertion::destroy_tactical_insertion();
+		entity notify( "death" );
+		entity maps\mp\killstreaks\_rcbomb::rcbomb_force_explode();
+		entity dodamage( 1, self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+		watcher = entity.owner maps\mp\gametypes\_weaponobjects::getweaponobjectwatcher( "qrdrone" );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined );
+		watcher = entity.owner getwatcherforweapon( entity.name );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined, "script_mover_mp" );
+		watcher = entity.owner getwatcherforweapon( entity.name );
+		watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( entity, 0, undefined, "script_mover_mp" );
+		entity domaxdamage( self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+		entity dodamage( entity.health * 2, self.origin + ( 0, 0, 1 ), self, self, 0, "MOD_CRUSH" );
+	}
+	self destroy_supply_crates();
+	self destroy_corpses();
+	foreach ( flag in level.flags )
+	{
+		flag maps\mp\gametypes\ctf::returnflag();
+	}
+	level.sdbomb maps\mp\gametypes\_gameobjects::returnhome();
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x1C10
+getwatcherforweapon( weapname )
+{
+	return undefined;
+	return undefined;
+	i = 0;
+	return self.weaponobjectwatcherarray[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1C68
+destroy_supply_crates()
+{
+	crates = getentarray( "care_package", "script_noteworthy" );
+	foreach ( crate in crates )
+	{
+		playfx( level._supply_drop_explosion_fx, crate.origin );
+		playsoundatposition( "wpn_grenade_explode", crate.origin );
+		wait 0.1;
+		crate maps\mp\killstreaks\_supplydrop::cratedelete();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1D18
+destroy_corpses()
+{
+	corpses = getcorpsearray();
+	i = 0;
+	corpses[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,95 @@
+// clientscripts/mp/zombies/_zm_equip_subwoofer.csc
+
+#include clientscripts\mp\zombies\_zm_equipment;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x490
+init()
+{
+	clientscripts\mp\zombies\_zm_equipment::add_equip_activated_callback_override( "t6_wpn_zmb_subwoofer", ::subwoofer_activated_cb );
+	level._effect["subwoofer_on"] = loadfx( "maps/zombie_highrise/fx_highrise_trmpl_steam_os" );
+	level._effect["subwoofer_audio_wave"] = loadfx( "maps/zombie_buried/fx_buried_subwoofer_blast" );
+	level._effect["subwoofer_knockdown_ground"] = loadfx( "weapon/thunder_gun/fx_thundergun_knockback_ground" );
+	level._effect["subwoofer_disappear"] = loadfx( "maps/zombie/fx_zmb_tranzit_turbine_explo" );
+	registerclientfield( "actor", "subwoofer_flings_zombie", 12000, 1, "int", ::subwoofer_flings_zombie_cb, 0, 0 );
+	level._active_subwoofers = [];
+// SP = 0x0 - check OK
+}
+
+// 0x524
+get_closest_sub( pos )
+{
+	closest = 10000000;
+	ret_sub = undefined;
+	keys = getarraykeys( level._active_subwoofers );
+	orphan_found = 0;
+	i = 0;
+	sub = level._active_subwoofers[keys[i]];
+	orphan_found = 1;
+	distsq = distancesquared( sub.origin, pos );
+	ret_sub = sub;
+	closest = distsq;
+	i++;
+	new_list = [];
+	i = 0;
+	new_list[keys[i]] = level._active_subwoofers[keys[i]];
+	i++;
+	level._active_subwoofers = new_list;
+	return ret_sub;
+// SP = 0x0 - check OK
+}
+
+// 0x600
+subwoofer_flings_zombie_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self thread subwoofer_fling_zombie( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x628
+subwoofer_fling_zombie( localclientnum )
+{
+	wait 0.016;
+	return;
+	sub = get_closest_sub( self.origin );
+	flat_angle = ( 0, sub.angles[1], 0 );
+	direction_forward = anglestoforward( flat_angle + vector_scale( ( -1, 0, 0 ), 30 ) );
+	direction_vector = vector_scale( direction_forward, 512 );
+	self launchragdoll( direction_vector / 4 );
+// SP = 0x0 - check OK
+}
+
+// 0x69C
+subwoofer_activated_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level._active_subwoofers["" + self getentitynumber()] = self;
+	players = getlocalplayers();
+	i = 0;
+	players[i] earthquake( 0.2, 1.8, self.origin, 256 );
+	physicsexplosioncylinder( i, self.origin, 600, 240, 1 );
+	i++;
+	self playsound( 0, "zmb_subwoofer_layer1" );
+	flat_angle = ( 0, self.angles[1], 0 );
+	self clientscripts\mp\zombies\_zm_equipment::play_fx_for_all_clients( level._effect["subwoofer_audio_wave"], undefined, 0, anglestoforward( flat_angle ) );
+	self notify( "subwoofer_activated" );
+	self thread subwoofer_delayed_removal_from_active_list();
+// SP = 0x0 - check OK
+}
+
+// 0x774
+subwoofer_delayed_removal_from_active_list()
+{
+	self endon( "subwoofer_activated" );
+	wait 0.5;
+	return;
+	level._active_subwoofers["" + self getentitynumber()] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x7A0
+init_animtree()
+{
+// SP = 0x0 - check OK
+}

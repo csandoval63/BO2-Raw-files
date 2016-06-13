@@ -1,0 +1,131 @@
+// maps/mp/_teargrenades.gsc
+
+#include maps\mp\gametypes\_perplayer;
+
+
+// 0x374
+main()
+{
+	level.tearradius = 170;
+	level.tearheight = 128;
+	level.teargasfillduration = 7;
+	level.teargasduration = 23;
+	level.tearsufferingduration = 3;
+	level.teargrenadetimer = 4;
+	precacheshellshock( "teargas" );
+	fgmonitor = maps\mp\gametypes\_perplayer::init( "tear_grenade_monitor", ::startmonitoringtearusage, ::stopmonitoringtearusage );
+	maps\mp\gametypes\_perplayer::enable( fgmonitor );
+// SP = 0x0 - check OK
+}
+
+// 0x3E4
+startmonitoringtearusage()
+{
+	self thread monitortearusage();
+// SP = 0x0 - check OK
+}
+
+// 0x3F8
+stopmonitoringtearusage( disconnected )
+{
+	self notify( "stop_monitoring_tear_usage" );
+// SP = 0x0 - check OK
+}
+
+// 0x408
+monitortearusage()
+{
+	self endon( "stop_monitoring_tear_usage" );
+	wait 0.05;
+	return;
+	prevammo = self getammocount( "tear_grenade_mp" );
+	ammo = self getammocount( "tear_grenade_mp" );
+	num = prevammo - ammo;
+/#
+#/
+	i = 0;
+	grenades = getentarray( "grenade", "classname" );
+	bestdist = undefined;
+	bestg = undefined;
+	g = 0;
+	dist = distance( grenades[g].origin, self.origin + vector_scale( ( 0, 0, 1 ), 48 ) );
+	bestdist = dist;
+	bestg = g;
+	g++;
+	grenades[bestg].teargrenade = 1;
+	grenades[bestg] thread teargrenade_think( self.team );
+	i++;
+	prevammo = ammo;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x544
+teargrenade_think( team )
+{
+	wait level.teargrenadetimer;
+	ent = spawnstruct();
+	ent thread tear( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x570
+tear( pos )
+{
+	trig = spawn( "trigger_radius", pos, 0, level.tearradius, level.tearheight );
+	starttime = GetTime();
+	self thread teartimer();
+	self endon( "tear_timeout" );
+	trig waittill( "trigger", player );
+	time = ( GetTime() - starttime ) / 1000;
+	currad = level.tearradius;
+	curheight = level.tearheight;
+	currad *= time / level.teargasfillduration;
+	curheight *= time / level.teargasfillduration;
+	offset = player.origin + vector_scale( ( 0, 0, 1 ), 32 ) - pos;
+	offset2d = ( offset[0], offset[1], 0 );
+	player.teargasstarttime = GetTime();
+	player thread teargassuffering();
+// SP = 0x0 - check OK
+}
+
+// 0x69C
+teartimer()
+{
+	wait level.teargasduration;
+	self notify( "tear_timeout" );
+// SP = 0x0 - check OK
+}
+
+// 0x6B0
+teargassuffering()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self.teargassuffering = 1;
+	self shellshock( "teargas", 60 );
+	wait 1;
+	self shellshock( "teargas", 1 );
+	self.teargassuffering = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x730
+drawcylinder( pos, rad, height )
+{
+	time = 0;
+	currad = rad;
+	curheight = height;
+	currad *= time / level.teargasfillduration;
+	curheight *= time / level.teargasfillduration;
+	r = 0;
+	theta = r / 20 * 360;
+	theta2 = ( r + 1 ) / 20 * 360;
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, 0 ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, curheight ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ) );
+	r++;
+	time += 0.05;
+	wait 0.05;
+// SP = 0x0 - check OK
+}

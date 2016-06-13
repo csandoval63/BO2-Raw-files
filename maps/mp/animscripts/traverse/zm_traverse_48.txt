@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_traverse_48.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xEC
+main()
+{
+	dosimpletraverse( "traverse_48" );
+// SP = 0x0 - check OK
+}

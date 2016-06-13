@@ -1,0 +1,21 @@
+// character/clientscripts/c_zom_zombie_buried_saloongirl_mp.csc
+
+
+// 0xA0
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xA8
+precache()
+{
+	register_gibs();
+// SP = 0x0 - check OK
+}
+
+// 0xB8
+register_gibs()
+{
+// SP = 0x0 - check OK
+}

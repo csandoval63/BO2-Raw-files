@@ -1,0 +1,297 @@
+// maps/_heatseekingmissile.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x764
+init()
+{
+	game["locking_on_sound"] = "wpn_sam_locking";
+	game["locked_on_sound"] = "wpn_f35_lockon";
+	game["acquired_sound"] = "wpn_sam_acquired";
+	game["killshot_sound"] = "wpn_sam_hit";
+	game["tracking_sound"] = "wpn_sam_tracking";
+	level.minimum_sti_distance = 0;
+	thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x7AC
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x7D0
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self clearirtarget();
+	thread stingertoggleloop();
+	self thread stingerfirednotify();
+// SP = 0x0 - check OK
+}
+
+// 0x808
+clearirtarget()
+{
+	self notify( "stinger_irt_cleartarget" );
+	self notify( "stop_lockon_sound" );
+	self notify( "stop_locked_sound" );
+	self.stingerlocksound = undefined;
+	self.stingerlockstarttime = 0;
+	self.stingerlockstarted = 0;
+	self.stingerlockfinalized = 0;
+	self.stingertarget.no_lock = 0;
+	self.stingertarget.locked_on = 0;
+	self.stingertarget = undefined;
+	self weaponlockfree();
+	self weaponlocktargettooclose( 0 );
+	self weaponlocknoclearance( 0 );
+	self stoplocalsound( game["locking_on_sound"] );
+	self stoplocalsound( game["locked_on_sound"] );
+// SP = 0x0 - check OK
+}
+
+// 0x8A0
+stingerfirednotify()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "weapon_fired" );
+	weap = self getcurrentweapon();
+	self.stingertarget notify( "stinger_fired_at_me" );
+	self notify( "stinger_fired" );
+// SP = 0x0 - check OK
+}
+
+// 0x92C
+stingertoggleloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	wait 0.05;
+	self thread stingerirtloop();
+	wait 0.05;
+	self notify( "stinger_IRT_off" );
+	self clearirtarget();
+// SP = 0x0 - check OK
+}
+
+// 0x990
+stingerirtloop()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "stinger_IRT_off" );
+	locklength = self getlockonspeed();
+	wait 0.05;
+	passed = softsighttest();
+	self clearirtarget();
+	self.stingertarget.no_lock = 0;
+	self.stingertarget.locked_on = 1;
+	thread looplocallocksound( game["locked_on_sound"], 0.75 );
+	self settargettooclose( self.stingertarget );
+	self setnoclearance();
+	self clearirtarget();
+	self.stingertarget.no_lock = 1;
+	self.stingertarget.locked_on = 0;
+	passed = softsighttest();
+	timepassed = GetTime() - self.stingerlockstarttime;
+/#
+	assert( IsDefined( self.stingertarget ) );
+#/
+	self notify( "stop_lockon_sound" );
+	self.stingerlockfinalized = 1;
+	self weaponlockfinalize( self.stingertarget );
+	self settargettooclose( self.stingertarget );
+	self setnoclearance();
+	besttarget = self getbeststingertarget();
+	self.stingertarget = besttarget;
+	self.stingerlockstarttime = GetTime();
+	self.stingerlockstarted = 1;
+	screen_message_create( &"SCRIPT_AFGHANSTINGER_SWITCHTO_LOCKON" );
+	self thread kill_lockon_screen_message( 3 );
+	wait 0.05;
+	level thread screen_message_delete( 1 );
+	self notify( "lockon_msg_killed" );
+	return;
+	self thread looplocalseeksound( game["locking_on_sound"], 0.6 );
+// SP = 0x0 - check OK
+}
+
+// 0xBB8
+kill_lockon_screen_message( n_time )
+{
+	self endon( "lockon_msg_killed" );
+	count = 0;
+	count++;
+	wait 0.05;
+	screen_message_delete();
+// SP = 0x0 - check OK
+}
+
+// 0xBF0
+locksighttest( target )
+{
+	eyepos = self geteye();
+	return 0;
+	passed = 0;
+	passed = bullettracepassed( eyepos, target.origin, 0, target );
+	return 0;
+	front = target getpointinbounds( 1, 0, 0 );
+	bullettracepassed( eyepos, front, 0, target );
+	return 0;
+	back = target getpointinbounds( -1, 0, 0 );
+	passed = bullettracepassed( eyepos, back, 0, target );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xC94
+softsighttest()
+{
+	self.stingerlostsightlinetime = 0;
+	return 1;
+	self.stingerlostsightlinetime = GetTime();
+	timepassed = GetTime() - self.stingerlostsightlinetime;
+	self clearirtarget();
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xCF0
+getbeststingertarget()
+{
+	targetsall = target_getarray();
+	besttarget = undefined;
+	bestdist = 100000;
+	idx = 0;
+	dist = insidestingerreticlenolock( targetsall[idx] );
+	besttarget = targetsall[idx];
+	idx++;
+	return besttarget;
+// SP = 0x0 - check OK
+}
+
+// 0xD54
+insidestingerreticlenolock( target )
+{
+	radius = self getlockonradius();
+	return target_isincircle( target, self, 65, radius );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+insidestingerreticlelocked( target )
+{
+	radius = self getlockonradius();
+	return target_isincircle( target, self, 65, radius );
+// SP = 0x0 - check OK
+}
+
+// 0xDAC
+isstillvalidtarget( ent )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xDE4
+playerstingerads()
+{
+	weap = self getcurrentweapon();
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE5C
+setnoclearance()
+{
+	color_passed = ( 0, 1, 0 );
+	color_failed = ( 1, 0, 0 );
+	checks = [];
+	checks[0] = vector_scale( ( 0, 0, 1 ), 80 );
+	checks[1] = ( -40, 0, 120 );
+	checks[2] = ( 40, 0, 120 );
+	checks[3] = vector_scale( ( -1, 0, 1 ), 40 );
+	checks[4] = vector_scale( ( 1, 0, 1 ), 40 );
+	debug = 0;
+/#
+	debug = 1;
+#/
+	playerangles = self getplayerangles();
+	forward = anglestoforward( playerangles );
+	right = anglestoright( playerangles );
+	up = anglestoup( playerangles );
+	origin = ( self.origin + ( 0, 0, 60 ) ) + right * 10;
+	obstructed = 0;
+	idx = 0;
+	endpoint = ( ( origin + forward * 400 ) + up * checks[idx][2] ) + right * checks[idx][0];
+	trace = bullettrace( origin, endpoint, 0, undefined );
+	obstructed = 1;
+/#
+	line( origin, trace["position"], color_failed, 1 );
+#/
+/#
+	line( origin, trace["position"], color_passed, 1 );
+#/
+	idx++;
+	self weaponlocknoclearance( obstructed );
+	self.noclearance = obstructed;
+// SP = 0x0 - check OK
+}
+
+// 0xFEC
+settargettooclose( ent )
+{
+	return 0;
+	dist = distance2d( self.origin, ent.origin );
+	self.targettoclose = 1;
+	self weaponlocktargettooclose( 1 );
+	self.targettoclose = 0;
+	self weaponlocktargettooclose( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1048
+looplocalseeksound( alias, interval )
+{
+	self endon( "stop_lockon_sound" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	self playlocalsound( alias );
+	wait interval;
+// SP = 0x0 - check OK
+}
+
+// 0x107C
+looplocallocksound( alias, interval )
+{
+	return;
+	self.stingerlocksound = 1;
+	player = get_players()[0];
+	player playloopsound( alias, 0.05 );
+	self waittill_any( "stop_locked_sound", "disconnect", "death" );
+	player stoploopsound( 0.05 );
+	self.stingerlocksound = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x10EC
+setminimumstidistance( dist )
+{
+	level.minimum_sti_distance = dist;
+// SP = 0x0 - check OK
+}

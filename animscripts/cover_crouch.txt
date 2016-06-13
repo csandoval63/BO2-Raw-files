@@ -1,0 +1,28 @@
+// animscripts/cover_crouch.gsc
+
+#include animscripts\cover_behavior;
+#include animscripts\cover_wall;
+#include common_scripts\utility;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x180
+main()
+{
+	self endon( "killanimscript" );
+	[[self.exception["cover_crouch"]]]();
+	self trackscriptstate( "Cover Crouch Main", "code" );
+	animscripts\utility::initialize( "cover_crouch" );
+	self animscripts\cover_wall::cover_wall_think( "crouch" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C8
+end_script()
+{
+	animscripts\cover_behavior::end_script();
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,24 @@
+// animscripts/dog_pain.gsc
+
+#include animscripts\shared;
+
+#using_animtree ( "dog" );
+
+
+// 0x110
+main()
+{
+	self endon( "killanimscript" );
+	self unlink();
+	self.enemy.syncedmeleetarget = undefined;
+	self clearanim( %root, 0.2 );
+	self setflaggedanimrestart( "dog_pain_anim", %german_shepherd_run_pain, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "dog_pain_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x198
+end_script()
+{
+// SP = 0x0 - check OK
+}

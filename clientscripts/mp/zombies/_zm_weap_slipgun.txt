@@ -1,0 +1,37 @@
+// clientscripts/mp/zombies/_zm_weap_slipgun.csc
+
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x2B0
+init()
+{
+	return;
+	return;
+	level._effect["slipgun_viewmodel_eject"] = loadfx( "weapon/liquifier/fx_liquifier_clip_eject" );
+	level._effect["slipgun_viewmodel_reload"] = loadfx( "weapon/liquifier/fx_liquifier_reload_steam" );
+	level thread slipgun_notetrack_think();
+// SP = 0x0 - check OK
+}
+
+// 0x30C
+slipgun_notetrack_think()
+{
+	level.slipgun_sound_ent = spawn( 0, ( 0, 0, 0 ), "script_origin" );
+	level waittill( "notetrack", localclientnum, note );
+	currentweapon = getcurrentweapon( localclientnum );
+	switch ( note )
+	{
+		case "fx_liquifier_clip_eject":
+			playviewmodelfx( localclientnum, level._effect["slipgun_viewmodel_eject"], "tag_fx_clip" );
+			break;
+		case "fx_liquifier_reload_steam":
+			playviewmodelfx( localclientnum, level._effect["slipgun_viewmodel_reload"], "tag_fx_reload" );
+			break;
+	}
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,161 @@
+// maps/_pegasus.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x634
+_get_pegasus_death_model_array()
+{
+	a_models = array( "veh_t6_drone_pegasus_wing_l_dead", "veh_t6_drone_pegasus_wing_r_dead" );
+	return a_models;
+// SP = 0x0 - check OK
+}
+
+// 0x654
+_get_pegasus_death_model_2x_array()
+{
+	a_models = array( "veh_t6_drone_pegasus_wing_l_dead_x2", "veh_t6_drone_pegasus_wing_r_dead_x2" );
+	return a_models;
+// SP = 0x0 - check OK
+}
+
+// 0x674
+_get_pegasus_death_model_tag_array()
+{
+	a_model_tags = array( "tag_dead_wing_l", "tag_dead_wing_r" );
+	return a_model_tags;
+// SP = 0x0 - check OK
+}
+
+// 0x694
+_get_pegasus_death_model_fx_tag_array()
+{
+	a_fx_tags = array( "tag_fx_dead_wing_l", "tag_fx_dead_wing_r" );
+	return a_fx_tags;
+// SP = 0x0 - check OK
+}
+
+// 0x6B4
+precache_extra_models( is_2x )
+{
+	is_2x = 0;
+	a_models = _get_pegasus_death_model_2x_array();
+	self.is_2x = 1;
+	a_models = _get_pegasus_death_model_array();
+	i = 0;
+	str_model = a_models[i];
+	precachemodel( str_model );
+	i++;
+	self._vehicle_load_fx = ::precache_crash_fx;
+// SP = 0x0 - check OK
+}
+
+// 0x730
+precache_crash_fx( is_2x )
+{
+	self.fx_crash_effects = [];
+	return;
+	self.fx_crash_effects["fire_trail_lg"] = loadfx( "trail/fx_la2_trail_plane_smoke_damage" );
+	self.fx_crash_effects["fireball_trail_lg"] = loadfx( "trail/fx_la2_trail_plane_smoke_fireball" );
+	self.fx_crash_effects["fire_trail_lg"] = loadfx( "trail/fx_trail_drone_piece_damage_smoke" );
+	self.fx_crash_effects["fireball_trail_lg"] = loadfx( "trail/fx_trail_plane_smoke_fireball" );
+// SP = 0x0 - check OK
+}
+
+// 0x7B4
+set_deathmodel( v_point, v_dir )
+{
+	return;
+	a_models = _get_pegasus_death_model_array();
+	a_model_tags = _get_pegasus_death_model_tag_array();
+	a_fx_tags = _get_pegasus_death_model_fx_tag_array();
+	str_deathmodel = self.deathmodel;
+	str_deathmodel = self.deathmodel;
+	self setmodel( str_deathmodel );
+	self playsound( "evt_pegasus_explo" );
+	self playsound( "evt_drone_explo_close" );
+	playsoundatposition( "evt_debris_flythrough", self.origin );
+	playfxontag( self.fx_crash_effects["fireball_trail_lg"], self, "tag_origin" );
+	deathmodel_pieces = [];
+	i = 0;
+	str_model = a_models[i];
+	str_model_tag = a_model_tags[i];
+	str_fx_tag = a_fx_tags[i];
+	deathmodel_pieces[i] = spawn( "script_model", self gettagorigin( str_model_tag ) );
+	deathmodel_pieces[i].angles = self gettagangles( str_model_tag );
+	deathmodel_pieces[i] setmodel( str_model );
+	deathmodel_pieces[i] linkto( self, str_model_tag );
+	deathmodel_pieces[i] thread delete_deathmodel_piece();
+	i++;
+	deathmodel_pieces = get_array_of_closest( v_point, deathmodel_pieces );
+	num_pieces = 1;
+	num_pieces = 2;
+	i = 0;
+	vel_dir = vectornormalize( self.velocity );
+	deathmodel_pieces[i] unlink();
+	deathmodel_pieces[i] movegravity( vel_dir * randomintrange( 2500, 3500 ) + ( randomintrange( -200, 200 ), randomintrange( -200, 200 ), randomintrange( -200, 200 ) ), 5 );
+	deathmodel_pieces[i] thread rotate_dead_piece();
+	deathmodel_pieces[i].b_launched = 1;
+	playfxontag( self.fx_crash_effects["fire_trail_lg"], deathmodel_pieces[i], "tag_origin" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xA08
+update_objective_model()
+{
+	self endon( "death" );
+	self thread clear_objective_model_on_death();
+	self waittill( "missileLockTurret_locked" );
+	return;
+	level.f35_lockon_target = self;
+	self setclientflag( 15 );
+	self waittill( "missileLockTurret_cleared" );
+	level.f35_lockon_target = undefined;
+	self clearclientflag( 15 );
+// SP = 0x0 - check OK
+}
+
+// 0xA6C
+update_damage_states()
+{
+	self endon( "death" );
+	is_damaged = 0;
+	self waittill( "damage" );
+	playfxontag( self.fx_crash_effects["fire_trail_lg"], self, "tag_origin" );
+	is_damaged = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xAD0
+clear_objective_model_on_death()
+{
+	self waittill( "death" );
+	self clearclientflag( 15 );
+	level.f35_lockon_target = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xB08
+rotate_dead_piece()
+{
+	self endon( "death" );
+	torque = ( 0, randomintrange( -90, 90 ), randomintrange( 90, 720 ) );
+	torque = ( torque[0], torque[1], torque[2] * -1 );
+	ang_vel = ( 0, 0, 0 );
+	ang_vel += torque * 0.05;
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 * -1 );
+	ang_vel = ( ang_vel[0], ang_vel[1], 500 );
+	self.angles += ang_vel * 0.05;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xBE0
+delete_deathmodel_piece()
+{
+	wait 5;
+	self delete();
+// SP = 0x0 - check OK
+}

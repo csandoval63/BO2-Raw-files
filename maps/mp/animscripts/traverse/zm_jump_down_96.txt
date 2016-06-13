@@ -1,0 +1,13 @@
+// maps/mp/animscripts/traverse/zm_jump_down_96.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x100
+main()
+{
+	dog_jump_down( 96, 7 );
+	dosimpletraverse( "jump_down_96" );
+// SP = 0x0 - check OK
+}

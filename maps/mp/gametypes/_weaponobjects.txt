@@ -1,0 +1,1619 @@
+// maps/mp/gametypes/_weaponobjects.gsc
+
+#include maps\mp\gametypes\_dev;
+#include maps\mp\_vehicles;
+#include maps\mp\gametypes\_globallogic_audio;
+#include maps\mp\_entityheadicons;
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\_scrambler;
+#include maps\mp\gametypes\_weaponobjects;
+#include maps\mp\_scoreevents;
+#include maps\mp\_challenges;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\killstreaks\_qrdrone;
+#include maps\mp\killstreaks\_rcbomb;
+#include maps\mp\_ballistic_knife;
+#include maps\mp\_sensor_grenade;
+#include maps\mp\_trophy_system;
+#include maps\mp\_bouncingbetty;
+#include maps\mp\_proximity_grenade;
+#include maps\mp\_satchel_charge;
+#include maps\mp\gametypes\_hud_util;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x2958
+init()
+{
+/#
+	debug = weapons_get_dvar_int( "scr_weaponobject_debug", "0" );
+#/
+	coneangle = weapons_get_dvar_int( "scr_weaponobject_coneangle", "70" );
+	mindist = weapons_get_dvar_int( "scr_weaponobject_mindist", "20" );
+	graceperiod = weapons_get_dvar( "scr_weaponobject_graceperiod", "0.6" );
+	radius = weapons_get_dvar_int( "scr_weaponobject_radius", "192" );
+	level thread onplayerconnect();
+	level.watcherweapons = [];
+	level.watcherweapons = getwatcherweapons();
+	level.watcherweaponnames = [];
+	level.watcherweaponnames = getwatchernames( level.watcherweapons );
+	level.retrievableweapons = [];
+	level.retrievableweapons = getretrievableweapons();
+	level.retrievableweaponnames = [];
+	level.retrievableweaponnames = getwatchernames( level.retrievableweapons );
+	level.weaponobjects_headicon_offset = [];
+	level.weaponobjects_headicon_offset["default"] = vector_scale( ( 0, 0, 1 ), 20 );
+	level.weaponobjectexplodethisframe = 0;
+	setdvar( "scr_deleteexplosivesonspawn", 1 );
+	level.deleteexplosivesonspawn = GetDvarInt( #"0x8E9CA497" );
+	return;
+	precachestring( &"MP_DEFUSING_EXPLOSIVE" );
+	level.claymorefxid = loadfx( "weapon/claymore/fx_claymore_laser" );
+	level._equipment_spark_fx = loadfx( "weapon/grenade/fx_spark_disabled_weapon" );
+	level._equipment_emp_destroy_fx = loadfx( "weapon/emp/fx_emp_explosion_equip" );
+	level._equipment_explode_fx = loadfx( "explosions/fx_exp_equipment" );
+	level._equipment_explode_fx_lg = loadfx( "explosions/fx_exp_equipment_lg" );
+	level._effect["powerLight"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_red_os" );
+	setupretrievablehintstrings();
+	level.weaponobjects_headicon_offset["acoustic_sensor_mp"] = vector_scale( ( 0, 0, 1 ), 25 );
+	level.weaponobjects_headicon_offset["sensor_grenade_mp"] = vector_scale( ( 0, 0, 1 ), 25 );
+	level.weaponobjects_headicon_offset["camera_spike_mp"] = vector_scale( ( 0, 0, 1 ), 35 );
+	level.weaponobjects_headicon_offset["claymore_mp"] = vector_scale( ( 0, 0, 1 ), 20 );
+	level.weaponobjects_headicon_offset["bouncingbetty_mp"] = vector_scale( ( 0, 0, 1 ), 20 );
+	level.weaponobjects_headicon_offset["satchel_charge_mp"] = vector_scale( ( 0, 0, 1 ), 10 );
+	level.weaponobjects_headicon_offset["scrambler_mp"] = vector_scale( ( 0, 0, 1 ), 20 );
+	level.weaponobjects_headicon_offset["trophy_system_mp"] = vector_scale( ( 0, 0, 1 ), 35 );
+	level.weaponobjects_hacker_trigger_width = 32;
+	level.weaponobjects_hacker_trigger_height = 32;
+// SP = 0x0 - check OK
+}
+
+// 0x2BB0
+getwatchernames( weapons )
+{
+	names = [];
+	foreach ( weapon in weapons )
+	{
+		names[index] = getsubstr( weapon, 0, weapon.size - 3 );
+	}
+	return names;
+// SP = 0x0 - check OK
+}
+
+// 0x2C08
+weapons_get_dvar_int( dvar, def )
+{
+	return int( weapons_get_dvar( dvar, def ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2C2C
+weapons_get_dvar( dvar, def )
+{
+	return GetDvarFloat( dvar );
+	setdvar( dvar, def );
+	return def;
+// SP = 0x0 - check OK
+}
+
+// 0x2C5C
+setupretrievablehintstrings()
+{
+	createretrievablehint( "hatchet", &"MP_HATCHET_PICKUP" );
+	createretrievablehint( "claymore", &"MP_CLAYMORE_PICKUP" );
+	createretrievablehint( "bouncingbetty", &"MP_BOUNCINGBETTY_PICKUP" );
+	createretrievablehint( "trophy_system", &"MP_TROPHY_SYSTEM_PICKUP" );
+	createretrievablehint( "acoustic_sensor", &"MP_ACOUSTIC_SENSOR_PICKUP" );
+	createretrievablehint( "camera_spike", &"MP_CAMERA_SPIKE_PICKUP" );
+	createretrievablehint( "satchel_charge", &"MP_SATCHEL_CHARGE_PICKUP" );
+	createretrievablehint( "scrambler", &"MP_SCRAMBLER_PICKUP" );
+	createretrievablehint( "proximity_grenade", &"MP_SHOCK_CHARGE_PICKUP" );
+	createdestroyhint( "trophy_system", &"MP_TROPHY_SYSTEM_DESTROY" );
+	createdestroyhint( "sensor_grenade", &"MP_SENSOR_GRENADE_DESTROY" );
+	createhackerhint( "claymore_mp", &"MP_CLAYMORE_HACKING" );
+	createhackerhint( "bouncingbetty_mp", &"MP_BOUNCINGBETTY_HACKING" );
+	createhackerhint( "trophy_system_mp", &"MP_TROPHY_SYSTEM_HACKING" );
+	createhackerhint( "acoustic_sensor_mp", &"MP_ACOUSTIC_SENSOR_HACKING" );
+	createhackerhint( "camera_spike_mp", &"MP_CAMERA_SPIKE_HACKING" );
+	createhackerhint( "satchel_charge_mp", &"MP_SATCHEL_CHARGE_HACKING" );
+	createhackerhint( "scrambler_mp", &"MP_SCRAMBLER_HACKING" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D84
+onplayerconnect()
+{
+	level thread [[level._weaponobjects_on_player_connect_override]]();
+	return;
+	level waittill( "connecting", player );
+	player.usedweapons = 0;
+	player.hits = 0;
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x2DC8
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	pixbeginevent( "onPlayerSpawned" );
+	self createbasewatchers();
+	self maps\mp\_satchel_charge::createsatchelwatcher();
+	self maps\mp\_proximity_grenade::createproximitygrenadewatcher();
+	self maps\mp\_bouncingbetty::createbouncingbettywatcher();
+	self maps\mp\_trophy_system::createtrophysystemwatcher();
+	self maps\mp\_sensor_grenade::createsensorgrenadewatcher();
+	self createclaymorewatcher();
+	self creatercbombwatcher();
+	self createqrdronewatcher();
+	self createplayerhelicopterwatcher();
+	self createballisticknifewatcher();
+	self createhatchetwatcher();
+	self createtactinsertwatcher();
+	self setupretrievablewatcher();
+	self thread watchweaponobjectusage();
+	self.watchersinitialized = 1;
+	self resetwatchers();
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0x2EC4
+resetwatchers()
+{
+	return undefined;
+	team = self.team;
+	foreach ( watcher in self.weaponobjectwatcherarray )
+	{
+		resetweaponobjectwatcher( watcher, team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2F1C
+createbasewatchers()
+{
+	foreach ( weapon in level.watcherweapons )
+	{
+		self createweaponobjectwatcher( level.watcherweaponnames[index], weapon, self.team );
+	}
+	foreach ( weapon in level.retrievableweapons )
+	{
+		self createweaponobjectwatcher( level.retrievableweaponnames[index], weapon, self.team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2FAC
+setupretrievablewatcher()
+{
+	i = 0;
+	watcher = getweaponobjectwatcherbyweapon( level.retrievableweapons[i] );
+	watcher.onspawnretrievetriggers = ::onspawnretrievableweaponobject;
+	watcher.ondestroyed = ::ondestroyed;
+	watcher.pickup = ::pickup;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x302C
+createballisticknifewatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "knife_ballistic", "knife_ballistic_mp", self.team );
+	watcher.onspawn = maps\mp\_ballistic_knife::onspawn;
+	watcher.detonate = ::deleteent;
+	watcher.onspawnretrievetriggers = maps\mp\_ballistic_knife::onspawnretrievetrigger;
+	watcher.storedifferentobject = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3080
+createhatchetwatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "hatchet", "hatchet_mp", self.team );
+	watcher.detonate = ::deleteent;
+	watcher.onspawn = ::voidonspawn;
+	watcher.ondamage = ::voidondamage;
+	watcher.onspawnretrievetriggers = ::onspawnhatchettrigger;
+// SP = 0x0 - check OK
+}
+
+// 0x30D4
+createtactinsertwatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "tactical_insertion", "tactical_insertion_mp", self.team );
+	watcher.playdestroyeddialog = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3100
+creatercbombwatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "rcbomb", "rcbomb_mp", self.team );
+	watcher.altdetonate = 0;
+	watcher.headicon = 0;
+	watcher.ismovable = 1;
+	watcher.ownergetsassist = 1;
+	watcher.playdestroyeddialog = 0;
+	watcher.deleteonkillbrush = 0;
+	watcher.detonate = maps\mp\killstreaks\_rcbomb::blowup;
+	watcher.stuntime = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3170
+createqrdronewatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "qrdrone", "qrdrone_turret_mp", self.team );
+	watcher.altdetonate = 0;
+	watcher.headicon = 0;
+	watcher.ismovable = 1;
+	watcher.ownergetsassist = 1;
+	watcher.playdestroyeddialog = 0;
+	watcher.deleteonkillbrush = 0;
+	watcher.detonate = maps\mp\killstreaks\_qrdrone::qrdrone_blowup;
+	watcher.ondamage = maps\mp\killstreaks\_qrdrone::qrdrone_damagewatcher;
+	watcher.stuntime = 5;
+// SP = 0x0 - check OK
+}
+
+// 0x31EC
+createplayerhelicopterwatcher()
+{
+	watcher = self createuseweaponobjectwatcher( "helicopter_player", "helicopter_player_mp", self.team );
+	watcher.altdetonate = 1;
+	watcher.headicon = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3224
+createclaymorewatcher()
+{
+	watcher = self createproximityweaponobjectwatcher( "claymore", "claymore_mp", self.team );
+	watcher.watchforfire = 1;
+	watcher.detonate = ::claymoredetonate;
+	watcher.activatesound = "wpn_claymore_alert";
+	watcher.hackable = 1;
+	watcher.hackertoolradius = level.equipmenthackertoolradius;
+	watcher.hackertooltimems = level.equipmenthackertooltimems;
+	watcher.reconmodel = "t6_wpn_claymore_world_detect";
+	watcher.ownergetsassist = 1;
+	detectionconeangle = weapons_get_dvar_int( "scr_weaponobject_coneangle" );
+	watcher.detectiondot = cos( detectionconeangle );
+	watcher.detectionmindist = weapons_get_dvar_int( "scr_weaponobject_mindist" );
+	watcher.detectiongraceperiod = weapons_get_dvar( "scr_weaponobject_graceperiod" );
+	watcher.detonateradius = weapons_get_dvar_int( "scr_weaponobject_radius" );
+	watcher.stun = ::weaponstun;
+	watcher.stuntime = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3314
+waittillnotmoving_and_notstunned()
+{
+	prevorigin = self.origin;
+	wait 0.15;
+	prevorigin = self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x3358
+voidonspawn( unused0, unused1 )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3364
+voidondamage( unused0 )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3370
+deleteent( attacker, emp )
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3388
+clearfxondeath( fx )
+{
+	fx endon( "death" );
+	self waittill_any( "death", "hacked" );
+	fx delete();
+// SP = 0x0 - check OK
+}
+
+// 0x33B8
+deleteweaponobjectarray()
+{
+	i = 0;
+	self.objectarray[i].minemover.killcament delete();
+	self.objectarray[i].minemover delete();
+	self.objectarray[i] delete();
+	i++;
+	self.objectarray = [];
+// SP = 0x0 - check OK
+}
+
+// 0x3454
+claymoredetonate( attacker, weaponname )
+{
+	from_emp = maps\mp\killstreaks\_emp::isempkillstreakweapon( weaponname );
+	attacker maps\mp\_challenges::destroyedexplosive( weaponname );
+	maps\mp\_scoreevents::processscoreevent( "destroyed_claymore", attacker, self.owner, weaponname );
+	maps\mp\gametypes\_weaponobjects::weapondetonate( attacker, weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0x34C4
+weapondetonate( attacker, weaponname )
+{
+	from_emp = maps\mp\killstreaks\_emp::isempweapon( weaponname );
+	self delete();
+	return;
+	self.playdialog = 1;
+	self detonate( attacker );
+	self detonate();
+	self.playdialog = 0;
+	self detonate( self.owner );
+	self detonate();
+// SP = 0x0 - check OK
+}
+
+// 0x3574
+waitanddetonate( object, delay, attacker, weaponname )
+{
+	object endon( "death" );
+	object endon( "hacked" );
+	from_emp = maps\mp\killstreaks\_emp::isempweapon( weaponname );
+	object setclientflag( 15 );
+	object setclientflag( 9 );
+	object.stun_fx = 1;
+	playfx( level._equipment_emp_destroy_fx, object.origin + vector_scale( ( 0, 0, 1 ), 5 ), ( 0, randomfloat( 360 ), 0 ) );
+	delay = 1.1;
+	wait delay;
+	return;
+	return;
+	attacker notify( "destroyed_explosive" );
+	attacker notify( "destroyed_explosive" );
+	object.detonated = 1;
+	object [[self.detonate]]( attacker, weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0x36E8
+detonateweaponobjectarray( forcedetonation, weapon )
+{
+	undetonated = [];
+	i = 0;
+	undetonated[undetonated.size] = self.objectarray[i];
+	undetonated[undetonated.size] = self.objectarray[i];
+	undetonated[undetonated.size] = self.objectarray[i];
+	self thread waitanddetonate( self.objectarray[i], 0.1, undefined, weapon );
+	i++;
+	self.objectarray = undetonated;
+// SP = 0x0 - check OK
+}
+
+// 0x37F8
+addweaponobjecttowatcher( watchername, weapon )
+{
+	watcher = getweaponobjectwatcher( watchername );
+/#
+	assert( IsDefined( watcher ), "Weapon object watcher " + watchername + " does not exist" );
+#/
+	self addweaponobject( watcher, weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x3840
+addweaponobject( watcher, weapon )
+{
+	watcher.objectarray[watcher.objectarray.size] = weapon;
+	weapon.owner = self;
+	weapon.detonated = 0;
+	weapon.name = watcher.weapon;
+	weapon thread [[watcher.ondamage]]( watcher );
+	weapon thread weaponobjectdamage( watcher );
+	weapon.ownergetsassist = watcher.ownergetsassist;
+	weapon thread [[watcher.onspawn]]( watcher, self );
+	weapon thread [[watcher.onspawnfx]]();
+	weapon thread attachreconmodel( watcher.reconmodel, self );
+	weapon thread [[watcher.onspawnretrievetriggers]]( watcher, self );
+	weapon thread hackerinit( watcher );
+	weapon thread watchscramble( watcher );
+	weapon thread playdialogondeath( self );
+	weapon thread watchobjectdamage( self );
+	weapon thread [[level.deleteonkillbrushoverride]]( self, watcher );
+	weapon thread deleteonkillbrush( self );
+// SP = 0x0 - check OK
+}
+
+// 0x39B0
+watchscramble( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self waittillnotmoving();
+	self thread stunstart( watcher );
+	self stunstop();
+	level waittill_any( "scrambler_spawn", "scrambler_death", "hacked" );
+	self thread stunstart( watcher );
+	self stunstop();
+// SP = 0x0 - check OK
+}
+
+// 0x3A58
+deleteweaponobjecthelper( weapon_ent )
+{
+	return;
+	watcher = self getweaponobjectwatcherbyweapon( weapon_ent.name );
+	return;
+	watcher.objectarray = deleteweaponobject( watcher, weapon_ent );
+// SP = 0x0 - check OK
+}
+
+// 0x3A9C
+deleteweaponobject( watcher, weapon_ent )
+{
+	temp_objectarray = watcher.objectarray;
+	watcher.objectarray = [];
+	j = 0;
+	i = 0;
+	watcher.objectarray[j] = temp_objectarray[i];
+	j++;
+	i++;
+	return watcher.objectarray;
+// SP = 0x0 - check OK
+}
+
+// 0x3B0C
+weaponobjectdamage( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self setcandamage( 1 );
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	attacker = undefined;
+	self waittill( "damage", damage, attacker, direction_vec, point, type, modelname, tagname, partname, weaponname, idflags );
+	switch ( weaponname )
+	{
+		case "concussion_grenade_mp":
+		case "emp_grenade_mp":
+		case "flash_grenade_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "proximity_grenade_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "willy_pete_mp":
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+		default:
+	}
+	attacker = attacker.owner;
+	attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+	wait 0.1 + randomfloat( 0.4 );
+	wait 0.05;
+	return;
+	level.weaponobjectexplodethisframe = 1;
+	thread resetweaponobjectexplodethisframe();
+	self maps\mp\_entityheadicons::setentityheadicon( "none" );
+	self.waschained = 1;
+	self.wasdamagedfrombulletpenetration = 1;
+	self.wasdamaged = 1;
+	watcher thread waitanddetonate( self, 0, attacker, weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0x3E54
+playdialogondeath( owner )
+{
+	owner endon( "death" );
+	owner endon( "disconnect" );
+	self endon( "hacked" );
+	self waittill( "death" );
+	owner maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "equipment_destroyed", "item_destroyed" );
+// SP = 0x0 - check OK
+}
+
+// 0x3E9C
+watchobjectdamage( owner )
+{
+	owner endon( "death" );
+	owner endon( "disconnect" );
+	self endon( "hacked" );
+	self endon( "death" );
+	self waittill( "damage", damage, attacker );
+	self.playdialog = 1;
+	self.playdialog = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3F08
+stunstart( watcher, time )
+{
+	self endon( "death" );
+	return;
+	self.camerahead setclientflag( 9 );
+	self setclientflag( 9 );
+	self thread [[watcher.stun]]();
+	self.owner freezecontrolswrapper( 1 );
+	wait time;
+	return;
+	self.owner freezecontrolswrapper( 0 );
+	self stunstop();
+// SP = 0x0 - check OK
+}
+
+// 0x3FB8
+stunstop()
+{
+	self notify( "not_stunned" );
+	self.camerahead clearclientflag( 9 );
+	self clearclientflag( 9 );
+// SP = 0x0 - check OK
+}
+
+// 0x3FEC
+weaponstun()
+{
+	self endon( "death" );
+	self endon( "not_stunned" );
+	origin = self gettagorigin( "tag_fx" );
+	origin = self.origin + vector_scale( ( 0, 0, 1 ), 10 );
+	self.stun_fx = spawn( "script_model", origin );
+	self.stun_fx setmodel( "tag_origin" );
+	self thread stunfxthink( self.stun_fx );
+	wait 0.1;
+	playfxontag( level._equipment_spark_fx, self.stun_fx, "tag_origin" );
+	self.stun_fx playsound( "dst_disable_spark" );
+// SP = 0x0 - check OK
+}
+
+// 0x4088
+stunfxthink( fx )
+{
+	fx endon( "death" );
+	self waittill_any( "death", "not_stunned" );
+	fx delete();
+// SP = 0x0 - check OK
+}
+
+// 0x40B8
+isstunned()
+{
+	return IsDefined( self.stun_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x40C4
+resetweaponobjectexplodethisframe()
+{
+	wait 0.05;
+	level.weaponobjectexplodethisframe = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x40D8
+getweaponobjectwatcher( name )
+{
+	return undefined;
+	watcher = 0;
+	return self.weaponobjectwatcherarray[watcher];
+	watcher++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4120
+getweaponobjectwatcherbyweapon( weapon )
+{
+	return undefined;
+	watcher = 0;
+	return self.weaponobjectwatcherarray[watcher];
+	return self.weaponobjectwatcherarray[watcher];
+	watcher++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x41B0
+resetweaponobjectwatcher( watcher, ownerteam )
+{
+	self notify( "weapon_object_destroyed" );
+	watcher deleteweaponobjectarray();
+	watcher.ownerteam = ownerteam;
+// SP = 0x0 - check OK
+}
+
+// 0x41E0
+createweaponobjectwatcher( name, weapon, ownerteam )
+{
+	self.weaponobjectwatcherarray = [];
+	weaponobjectwatcher = getweaponobjectwatcher( name );
+	weaponobjectwatcher = spawnstruct();
+	self.weaponobjectwatcherarray[self.weaponobjectwatcherarray.size] = weaponobjectwatcher;
+	weaponobjectwatcher.name = name;
+	weaponobjectwatcher.type = "use";
+	weaponobjectwatcher.weapon = weapon;
+	weaponobjectwatcher.weaponidx = getweaponindexfromname( weapon );
+	weaponobjectwatcher.watchforfire = 0;
+	weaponobjectwatcher.hackable = 0;
+	weaponobjectwatcher.altdetonate = 0;
+	weaponobjectwatcher.detectable = 1;
+	weaponobjectwatcher.headicon = 1;
+	weaponobjectwatcher.stuntime = 0;
+	weaponobjectwatcher.activatesound = undefined;
+	weaponobjectwatcher.ignoredirection = undefined;
+	weaponobjectwatcher.immediatedetonation = undefined;
+	weaponobjectwatcher.deploysound = getweaponfiresound( weaponobjectwatcher.weaponidx );
+	weaponobjectwatcher.deploysoundplayer = getweaponfiresoundplayer( weaponobjectwatcher.weaponidx );
+	weaponobjectwatcher.pickupsound = getweaponpickupsound( weaponobjectwatcher.weaponidx );
+	weaponobjectwatcher.pickupsoundplayer = getweaponpickupsoundplayer( weaponobjectwatcher.weaponidx );
+	weaponobjectwatcher.altweapon = undefined;
+	weaponobjectwatcher.ownergetsassist = 0;
+	weaponobjectwatcher.playdestroyeddialog = 1;
+	weaponobjectwatcher.deleteonkillbrush = 1;
+	weaponobjectwatcher.deleteondifferentobjectspawn = 1;
+	weaponobjectwatcher.enemydestroy = 0;
+	weaponobjectwatcher.onspawn = undefined;
+	weaponobjectwatcher.onspawnfx = undefined;
+	weaponobjectwatcher.onspawnretrievetriggers = undefined;
+	weaponobjectwatcher.ondetonated = undefined;
+	weaponobjectwatcher.detonate = undefined;
+	weaponobjectwatcher.stun = undefined;
+	weaponobjectwatcher.ondestroyed = undefined;
+	weaponobjectwatcher.objectarray = [];
+	resetweaponobjectwatcher( weaponobjectwatcher, ownerteam );
+	return weaponobjectwatcher;
+// SP = 0x0 - check OK
+}
+
+// 0x4378
+createuseweaponobjectwatcher( name, weapon, ownerteam )
+{
+	weaponobjectwatcher = createweaponobjectwatcher( name, weapon, ownerteam );
+	weaponobjectwatcher.type = "use";
+	weaponobjectwatcher.onspawn = ::onspawnuseweaponobject;
+	return weaponobjectwatcher;
+// SP = 0x0 - check OK
+}
+
+// 0x43B4
+createproximityweaponobjectwatcher( name, weapon, ownerteam )
+{
+	weaponobjectwatcher = createweaponobjectwatcher( name, weapon, ownerteam );
+	weaponobjectwatcher.type = "proximity";
+	weaponobjectwatcher.onspawn = ::onspawnproximityweaponobject;
+	detectionconeangle = weapons_get_dvar_int( "scr_weaponobject_coneangle" );
+	weaponobjectwatcher.detectiondot = cos( detectionconeangle );
+	weaponobjectwatcher.detectionmindist = weapons_get_dvar_int( "scr_weaponobject_mindist" );
+	weaponobjectwatcher.detectiongraceperiod = weapons_get_dvar( "scr_weaponobject_graceperiod" );
+	weaponobjectwatcher.detonateradius = weapons_get_dvar_int( "scr_weaponobject_radius" );
+	return weaponobjectwatcher;
+// SP = 0x0 - check OK
+}
+
+// 0x4450
+commononspawnuseweaponobject( watcher, owner )
+{
+	self thread weaponobjectdetectionmovable( owner.pers["team"] );
+	self thread weaponobjectdetectiontrigger_wait( owner.pers["team"] );
+	self waittillnotmoving();
+	offset = level.weaponobjects_headicon_offset["default"];
+	offset = level.weaponobjects_headicon_offset[self.name];
+	self maps\mp\_entityheadicons::setentityheadicon( owner.pers["team"], owner, offset );
+// SP = 0x0 - check OK
+}
+
+// 0x4508
+onspawnuseweaponobject( watcher, owner )
+{
+	self commononspawnuseweaponobject( watcher, owner );
+// SP = 0x0 - check OK
+}
+
+// 0x4524
+onspawnproximityweaponobject( watcher, owner )
+{
+	self thread commononspawnuseweaponobject( watcher, owner );
+	self thread proximityweaponobjectdetonation( watcher );
+/#
+	self thread proximityweaponobjectdebug( watcher );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4568
+watchweaponobjectusage()
+{
+	self endon( "disconnect" );
+	self.weaponobjectwatcherarray = [];
+	self thread watchweaponobjectspawn();
+	self thread watchweaponprojectileobjectspawn();
+	self thread watchweaponobjectdetonation();
+	self thread watchweaponobjectaltdetonation();
+	self thread watchweaponobjectaltdetonate();
+	self thread deleteweaponobjectson();
+// SP = 0x0 - check OK
+}
+
+// 0x45CC
+watchweaponobjectspawn()
+{
+	self notify( "watchWeaponObjectSpawn" );
+	self endon( "watchWeaponObjectSpawn" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", weapon, weapname );
+	switch ( weapname )
+	{
+		case "acoustic_sensor_mp":
+		case "bouncingbetty_mp":
+		case "bouncingbetty_mp":
+		case "camera_spike_mp":
+		case "claymore_mp":
+		case "proximity_grenade_mp":
+		case "satchel_charge_mp":
+		case "scrambler_mp":
+		case "sensor_grenade_mp":
+		case "tactical_insertion_mp":
+		case "trophy_system_mp":
+			i = 0;
+			objectarray_size = self.weaponobjectwatcherarray[i].objectarray.size;
+			j = 0;
+			self.weaponobjectwatcherarray[i].objectarray = deleteweaponobject( self.weaponobjectwatcherarray[i], weapon );
+			j++;
+			numallowed = 2;
+			numallowed = weapons_get_dvar_int( "scr_proximityGrenadeMaxInstances" );
+			self.weaponobjectwatcherarray[i] thread waitanddetonate( self.weaponobjectwatcherarray[i].objectarray[0], 0.1, undefined, weapname );
+			i++;
+			break;
+		default:
+	}
+	self addweaponstat( weapname, "used", 1 );
+	watcher = getweaponobjectwatcherbyweapon( weapname );
+	self addweaponobject( watcher, weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x47D8
+anyobjectsinworld( weapon )
+{
+	objectsinworld = 0;
+	i = 0;
+	objectsinworld = 1;
+	i++;
+	return objectsinworld;
+// SP = 0x0 - check OK
+}
+
+// 0x4844
+watchweaponprojectileobjectspawn()
+{
+	self endon( "disconnect" );
+	self waittill( "missile_fire", weapon, weapname );
+	watcher = getweaponobjectwatcherbyweapon( weapname );
+	self addweaponobject( watcher, weapon );
+	objectarray_size = watcher.objectarray.size;
+	j = 0;
+	watcher.objectarray = deleteweaponobject( watcher, weapon );
+	j++;
+	watcher thread waitanddetonate( watcher.objectarray[0], 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4908
+proximityweaponobjectdebug( watcher )
+{
+/#
+	self waittillnotmoving();
+	self thread showcone( acos( watcher.detectiondot ), watcher.detonateradius, ( 1, 0.85, 0 ) );
+	self thread showcone( 60, 256, ( 1, 0, 0 ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x495C
+vectorcross( v1, v2 )
+{
+/#
+	return ( v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x49B0
+showcone( angle, range, color )
+{
+/#
+	self endon( "death" );
+	start = self.origin;
+	forward = anglestoforward( self.angles );
+	right = vectorcross( forward, ( 0, 0, 1 ) );
+	up = vectorcross( forward, right );
+	fullforward = forward * range * cos( angle );
+	sideamnt = range * sin( angle );
+	prevpoint = ( 0, 0, 0 );
+	i = 0;
+	coneangle = i / 20 * 360;
+	point = ( ( start + fullforward ) + sideamnt ) * ( right * ( cos( coneangle ) + ( up * sin( coneangle ) ) ) );
+	line( start, point, color );
+	line( prevpoint, point, color );
+	prevpoint = point;
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4AC0
+weaponobjectdetectionmovable( ownerteam )
+{
+	self endon( "end_detection" );
+	level endon( "game_ended" );
+	self endon( "death" );
+	self endon( "hacked" );
+	return;
+	return;
+	self.detectid = "rcBomb" + GetTime() + randomint( 1000000 );
+	wait 1;
+	players = get_players();
+	i = 0;
+	player = players[i];
+	switch ( self.model_name )
+	{
+		case "t6_wpn_c4_world_detect":
+		case "t6_wpn_claymore_world_detect":
+		default:
+			// OP_jump that jumps outside the case's boundaries detected
+	}
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4BD8
+seticonpos( item, icon, heightincrease )
+{
+	icon.x = item.origin[0];
+	icon.y = item.origin[1];
+	icon.z = item.origin[2] + heightincrease;
+// SP = 0x0 - check OK
+}
+
+// 0x4C1C
+weaponobjectdetectiontrigger_wait( ownerteam )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	waittillnotmoving();
+	return;
+	self thread weaponobjectdetectiontrigger( ownerteam );
+// SP = 0x0 - check OK
+}
+
+// 0x4C54
+weaponobjectdetectiontrigger( ownerteam )
+{
+	trigger = spawn( "trigger_radius", self.origin - vector_scale( ( 0, 0, 1 ), 128 ), 0, 512, 256 );
+	trigger.detectid = "trigger" + GetTime() + randomint( 1000000 );
+	trigger sethintlowpriority( 1 );
+	self waittill_any( "death", "hacked" );
+	trigger notify( "end_detection" );
+	trigger.bombsquadicon destroy();
+	trigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0x4CF8
+hackertriggersetvisibility( owner )
+{
+	self endon( "death" );
+/#
+	assert( isplayer( owner ) );
+#/
+	ownerteam = owner.pers["team"];
+	self setvisibletoallexceptteam( ownerteam );
+	self setexcludeteamfortrigger( ownerteam );
+	self setvisibletoall();
+	self setteamfortrigger( "none" );
+	self setinvisibletoplayer( owner );
+	level waittill_any( "player_spawned", "joined_team" );
+// SP = 0x0 - check OK
+}
+
+// 0x4D98
+hackernotmoving()
+{
+	self endon( "death" );
+	self waittillnotmoving();
+	self notify( "landed" );
+// SP = 0x0 - check OK
+}
+
+// 0x4DB8
+hackerinit( watcher )
+{
+	self thread hackernotmoving();
+	event = self waittill_any_return( "death", "landed" );
+	return;
+	triggerorigin = self.origin;
+	triggerorigin = self gettagorigin( "tag_fx" );
+	self.hackertrigger = spawn( "trigger_radius_use", triggerorigin, level.weaponobjects_hacker_trigger_width, level.weaponobjects_hacker_trigger_height );
+/#
+#/
+	self.hackertrigger sethintlowpriority( 1 );
+	self.hackertrigger setcursorhint( "HINT_NOICON", self );
+	self.hackertrigger setignoreentfortrigger( self );
+	self.hackertrigger enablelinkto();
+	self.hackertrigger linkto( self );
+	self.hackertrigger sethintstring( level.hackerhints[self.name].hint );
+	self.hackertrigger sethintstring( &"MP_GENERIC_HACKING" );
+	self.hackertrigger setperkfortrigger( "specialty_disarmexplosive" );
+	self.hackertrigger thread hackertriggersetvisibility( self.owner );
+	self thread hackerthink( self.hackertrigger, watcher );
+// SP = 0x0 - check OK
+}
+
+// 0x4EF8
+hackerthink( trigger, watcher )
+{
+	self endon( "death" );
+	trigger waittill( "trigger", player, instant );
+	self.owner hackerremoveweapon( self );
+	self.owner maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "hacked_equip", "item_destroyed" );
+	self.hacked = 1;
+	self setmissileowner( player );
+	self setteam( player.pers["team"] );
+	self.owner = player;
+	maps\mp\_scoreevents::processscoreevent( "hacked", player );
+	player addweaponstat( "pda_hack_mp", "CombatRecordStat", 1 );
+	player maps\mp\_challenges::hackedordestroyedequipment();
+	player.lowermessage settext( &"PLATFORM_SATCHEL_CHARGE_DOUBLE_TAP" );
+	player.lowermessage.alpha = 1;
+	player.lowermessage fadeovertime( 2 );
+	player.lowermessage.alpha = 0;
+	self notify( "hacked", player );
+	level notify( "hacked", self, player );
+	self.camerahead notify( "hacked", player );
+/#
+#/
+	self thread stunstart( watcher, 0.75 );
+	wait 0.75;
+	wait 0.05;
+	player notify( "grenade_fire", self, self.name, 1 );
+	watcher thread waitanddetonate( self, 0 );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x50D4
+hackerunfreezeplayer( player )
+{
+	self endon( "hack_done" );
+	self waittill( "death" );
+	player freeze_player_controls( 0 );
+	player enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x510C
+hackerresult( player, owner )
+{
+	success = 1;
+	time = GetTime();
+	hacktime = GetDvarFloat( #"0x773B1EE4" );
+	return 0;
+	self thread hackerunfreezeplayer( player );
+	success = 0;
+	success = 0;
+	success = 0;
+	player freeze_player_controls( 1 );
+	player disableweapons();
+	self.progressbar = player createprimaryprogressbar();
+	self.progressbar.lastuserate = -1;
+	self.progressbar showelem();
+	self.progressbar updatebar( 0.01, 1 / hacktime );
+	self.progresstext = player createprimaryprogressbartext();
+	self.progresstext settext( &"MP_HACKING" );
+	self.progresstext showelem();
+	player playlocalsound( "evt_hacker_hacking" );
+	wait 0.05;
+	player freeze_player_controls( 0 );
+	player enableweapons();
+	self.progressbar destroyelem();
+	self.progresstext destroyelem();
+	self notify( "hack_done" );
+	return success;
+// SP = 0x0 - check OK
+}
+
+// 0x5298
+canhack( player, owner, weapon_check )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	weapon = player getcurrentweapon();
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x5454
+hackerremoveweapon( weapon )
+{
+	i = 0;
+	objectarray_size = self.weaponobjectwatcherarray[i].objectarray.size;
+	j = 0;
+	self.weaponobjectwatcherarray[i].objectarray = deleteweaponobject( self.weaponobjectwatcherarray[i], weapon );
+	j++;
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x54DC
+proximityweaponobjectdetonation( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self waittillnotmoving();
+	wait watcher.activationdelay;
+	damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - watcher.detonateradius ), level.aitriggerspawnflags | level.vehicletriggerspawnflags, watcher.detonateradius, watcher.detonateradius * 2 );
+	damagearea enablelinkto();
+	damagearea linkto( self );
+	self thread deleteondeath( damagearea );
+	up = anglestoup( self.angles );
+	traceorigin = self.origin + up;
+	damagearea waittill( "trigger", ent );
+	self playsound( watcher.activatesound );
+	self setclientflag( 4 );
+	ent thread deathdodger( watcher.detectiongraceperiod );
+	wait watcher.detectiongraceperiod;
+	wait GetDvarFloat( #"0xAACD4273" );
+	self maps\mp\_entityheadicons::setentityheadicon( "none" );
+	self.origin = traceorigin;
+	self [[watcher.detonate]]( self.owner );
+	self [[watcher.detonate]]();
+// SP = 0x0 - check OK
+}
+
+// 0x5754
+shouldaffectweaponobject( object, watcher )
+{
+	radius = getweaponexplosionradius( watcher.weapon );
+	distancesqr = distancesquared( self.origin, object.origin );
+	return 0;
+	pos = self.origin + vector_scale( ( 0, 0, 1 ), 32 );
+	return 1;
+	dirtopos = pos - object.origin;
+	objectforward = anglestoforward( object.angles );
+	dist = vectordot( dirtopos, objectforward );
+	return 0;
+	dirtopos = vectornormalize( dirtopos );
+	dot = vectordot( dirtopos, objectforward );
+	return dot > watcher.detectiondot;
+// SP = 0x0 - check OK
+}
+
+// 0x5820
+deathdodger( graceperiod )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	wait 0.2 + graceperiod;
+	self notify( "death_dodger" );
+// SP = 0x0 - check OK
+}
+
+// 0x5848
+deleteondeath( ent )
+{
+	self waittill_any( "death", "hacked" );
+	wait 0.05;
+	ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x5880
+testkillbrushonstationary( killbrusharray, player )
+{
+	player endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "stationary" );
+	wait 0.1;
+	i = 0;
+	self delete();
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x58F8
+deleteonkillbrush( player )
+{
+	player endon( "disconnect" );
+	self endon( "death" );
+	self endon( "stationary" );
+	killbrushes = getentarray( "trigger_hurt", "classname" );
+	self thread testkillbrushonstationary( killbrushes, player );
+	i = 0;
+	self delete();
+	return;
+	i++;
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x599C
+watchweaponobjectaltdetonation()
+{
+	self endon( "disconnect" );
+	self waittill( "alt_detonate" );
+	watcher = 0;
+	self.weaponobjectwatcherarray[watcher] detonateweaponobjectarray( 0 );
+	watcher++;
+// SP = 0x0 - check OK
+}
+
+// 0x5A08
+watchweaponobjectaltdetonate()
+{
+	self endon( "disconnect" );
+	self endon( "detonated" );
+	level endon( "game_ended" );
+	buttontime = 0;
+	self waittill( "doubletap_detonate" );
+	self notify( "alt_detonate" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x5A54
+watchweaponobjectdetonation()
+{
+	self endon( "disconnect" );
+	self waittill( "detonate" );
+	weap = self getcurrentoffhand();
+	weap = self getcurrentweapon();
+	watcher = getweaponobjectwatcherbyweapon( weap );
+	watcher detonateweaponobjectarray( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x5AC0
+deleteweaponobjectson()
+{
+	msg = self waittill_any_return( "disconnect", "joined_team", "joined_spectators", "death" );
+	return;
+	watchers = [];
+	watcher = 0;
+	weaponobjectwatcher = spawnstruct();
+	watchers[watchers.size] = weaponobjectwatcher;
+	weaponobjectwatcher.objectarray = [];
+	weaponobjectwatcher.objectarray = self.weaponobjectwatcherarray[watcher].objectarray;
+	watcher++;
+	wait 0.05;
+	watcher = 0;
+	watchers[watcher] deleteweaponobjectarray();
+	watcher++;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x5BA0
+saydamaged( orig, amount )
+{
+/#
+	i = 0;
+	print3d( orig, "damaged! " + amount );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5BE0
+showheadicon( trigger )
+{
+	triggerdetectid = trigger.detectid;
+	useid = -1;
+	index = 0;
+	detectid = self.bombsquadicons[index].detectid;
+	return;
+	useid = index;
+	index++;
+	return;
+	self.bombsquadids[triggerdetectid] = 1;
+	self.bombsquadicons[useid].x = trigger.origin[0];
+	self.bombsquadicons[useid].y = trigger.origin[1];
+	self.bombsquadicons[useid].z = trigger.origin[2] + 24 + 128;
+	self.bombsquadicons[useid] fadeovertime( 0.25 );
+	self.bombsquadicons[useid].alpha = 1;
+	self.bombsquadicons[useid].detectid = trigger.detectid;
+	wait 0.05;
+	return;
+	self.bombsquadicons[useid].detectid = "";
+	self.bombsquadicons[useid] fadeovertime( 0.25 );
+	self.bombsquadicons[useid].alpha = 0;
+	self.bombsquadids[triggerdetectid] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x5D4C
+friendlyfirecheck( owner, attacker, forcedfriendlyfirerule )
+{
+	return 1;
+	return 1;
+	friendlyfirerule = level.friendlyfire;
+	friendlyfirerule = forcedfriendlyfirerule;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	occupant_team = attacker maps\mp\_vehicles::vehicle_get_occupant_team();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5E7C
+onspawnhatchettrigger( watcher, player )
+{
+	self endon( "death" );
+	self setowner( player );
+	self setteam( player.pers["team"] );
+	self.owner = player;
+	self.oldangles = self.angles;
+	self waittillnotmoving();
+	waittillframeend;
+	return;
+	triggerorigin = self.origin;
+	triggerparentent = undefined;
+	triggerparentent = self;
+	self unlink();
+	self.angles = self.oldangles;
+	self launch( vector_scale( ( 1, 1, 1 ), 5 ) );
+	self waittillnotmoving();
+	waittillframeend;
+	triggerparentent = self.stucktoplayer;
+	triggerparentent = self.stucktoplayer.body;
+	triggerorigin = triggerparentent.origin + vector_scale( ( 0, 0, 1 ), 10 );
+	self.hatchetpickuptrigger = spawn( "trigger_radius", triggerorigin, 0, 50, 50 );
+	self.hatchetpickuptrigger enablelinkto();
+	self.hatchetpickuptrigger linkto( self );
+	self.hatchetpickuptrigger linkto( triggerparentent );
+	self thread watchhatchettrigger( self.hatchetpickuptrigger, watcher.pickup, watcher.pickupsoundplayer, watcher.pickupsound );
+/#
+	thread switch_team( self, watcher.weapon, player );
+#/
+	self thread watchshutdown( player );
+// SP = 0x0 - check OK
+}
+
+// 0x6028
+watchhatchettrigger( trigger, callback, playersoundonuse, npcsoundonuse )
+{
+	self endon( "delete" );
+	self endon( "hacked" );
+	trigger waittill( "trigger", player );
+	curr_ammo = player getweaponammostock( "hatchet_mp" );
+	maxammo = weaponmaxammo( "hatchet_mp" );
+	maxammo = player.grenadetypeprimarycount;
+	maxammo = player.grenadetypesecondarycount;
+	player playlocalsound( playersoundonuse );
+	player playsound( npcsoundonuse );
+	self thread [[callback]]( player );
+// SP = 0x0 - check OK
+}
+
+// 0x6150
+onspawnretrievableweaponobject( watcher, player )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self thread watchshutdown( player );
+	return;
+	self setowner( player );
+	self setteam( player.pers["team"] );
+	self.owner = player;
+	self.oldangles = self.angles;
+	self waittillnotmoving();
+	wait watcher.activationdelay;
+	waittillframeend;
+	return;
+	triggerorigin = self.origin;
+	triggerparentent = undefined;
+	triggerparentent = self.stucktoplayer;
+	triggerparentent = self.stucktoplayer.body;
+	triggerorigin = triggerparentent.origin + vector_scale( ( 0, 0, 1 ), 10 );
+	up = anglestoup( self.angles );
+	triggerorigin = self.origin + up;
+	self.pickuptrigger = spawn( "trigger_radius_use", triggerorigin );
+	self.pickuptrigger sethintlowpriority( 1 );
+	self.pickuptrigger setcursorhint( "HINT_NOICON", self );
+	self.pickuptrigger enablelinkto();
+	self.pickuptrigger linkto( self );
+	self.pickuptrigger setinvisibletoall();
+	self.pickuptrigger setvisibletoplayer( player );
+	self.pickuptrigger sethintstring( level.retrievehints[watcher.name].hint );
+	self.pickuptrigger sethintstring( &"MP_GENERIC_PICKUP" );
+	self.pickuptrigger setteamfortrigger( player.pers["team"] );
+	self.pickuptrigger setteamfortrigger( "none" );
+	self.pickuptrigger linkto( triggerparentent );
+	self.enemytrigger = spawn( "trigger_radius_use", triggerorigin );
+	self.enemytrigger setcursorhint( "HINT_NOICON", self );
+	self.enemytrigger enablelinkto();
+	self.enemytrigger linkto( self );
+	self.enemytrigger setinvisibletoplayer( player );
+	self.enemytrigger setexcludeteamfortrigger( player.team );
+	self.enemytrigger.triggerteamignore = self.team;
+	self.enemytrigger sethintstring( level.destroyhints[watcher.name].hint );
+	self.enemytrigger sethintstring( &"MP_GENERIC_DESTROY" );
+	self thread watchusetrigger( self.enemytrigger, watcher.ondestroyed );
+	self thread watchusetrigger( self.pickuptrigger, watcher.pickup, watcher.pickupsoundplayer, watcher.pickupsound );
+/#
+	thread switch_team( self, watcher.weapon, player );
+#/
+	self thread [[watcher.pickup_trigger_listener]]( self.pickuptrigger, player );
+	self thread watchshutdown( player );
+// SP = 0x0 - check OK
+}
+
+// 0x6498
+watch_trigger_visibility( triggers, weap_name )
+{
+	self notify( "watchTriggerVisibility" );
+	self endon( "watchTriggerVisibility" );
+	self endon( "death" );
+	self endon( "hacked" );
+	max_ammo = weaponmaxammo( weap_name );
+	start_ammo = weaponstartammo( weap_name );
+	ammo_to_check = 0;
+	players = level.players;
+	i = 0;
+	ammo_to_check = max_ammo;
+	curr_ammo = players[i] getweaponammostock( weap_name ) + players[i] getweaponammoclip( weap_name );
+	curr_ammo = players[i] getweaponammostock( weap_name );
+	triggers["owner_pickup"] setvisibletoplayer( players[i] );
+	triggers["enemy_pickup"] setinvisibletoplayer( players[i] );
+	triggers["owner_pickup"] setinvisibletoplayer( players[i] );
+	triggers["enemy_pickup"] setinvisibletoplayer( players[i] );
+	curr_ammo = players[i] getweaponammostock( weap_name ) + players[i] getweaponammoclip( weap_name );
+	curr_ammo = players[i] getweaponammostock( weap_name );
+	triggers["owner_pickup"] setinvisibletoplayer( players[i] );
+	triggers["enemy_pickup"] setvisibletoplayer( players[i] );
+	triggers["owner_pickup"] setinvisibletoplayer( players[i] );
+	triggers["enemy_pickup"] setinvisibletoplayer( players[i] );
+	triggers["owner_pickup"] setinvisibletoplayer( players[i] );
+	triggers["enemy_pickup"] setinvisibletoplayer( players[i] );
+	i++;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x66A4
+destroyent()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x66B8
+pickup( player )
+{
+	return;
+	self notify( "picked_up" );
+	self.playdialog = 0;
+	self destroyent();
+	player giveweapon( self.name );
+	clip_ammo = player getweaponammoclip( self.name );
+	clip_max_ammo = weaponclipsize( self.name );
+	clip_ammo++;
+	player setweaponammoclip( self.name, clip_ammo );
+// SP = 0x0 - check OK
+}
+
+// 0x6750
+ondestroyed( attacker )
+{
+	playfx( level._effect["tacticalInsertionFizzle"], self.origin );
+	self playsound( "dst_tac_insert_break" );
+	self.owner maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "equipment_destroyed", "item_destroyed" );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x67A4
+watchshutdown( player )
+{
+	self waittill_any( "death", "hacked" );
+	pickuptrigger = self.pickuptrigger;
+	hackertrigger = self.hackertrigger;
+	hatchetpickuptrigger = self.hatchetpickuptrigger;
+	enemytrigger = self.enemytrigger;
+	pickuptrigger delete();
+	hackertrigger.progressbar destroyelem();
+	hackertrigger.progresstext destroyelem();
+	hackertrigger delete();
+	hatchetpickuptrigger delete();
+	enemytrigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0x6860
+watchusetrigger( trigger, callback, playersoundonuse, npcsoundonuse )
+{
+	self endon( "delete" );
+	self endon( "hacked" );
+	trigger waittill( "trigger", player );
+	grenade = player.throwinggrenade;
+	isequipment = isweaponequipment( player getcurrentweapon() );
+	grenade = 0;
+	player playlocalsound( playersoundonuse );
+	player playsound( npcsoundonuse );
+	self thread [[callback]]( player );
+// SP = 0x0 - check OK
+}
+
+// 0x69A0
+createretrievablehint( name, hint )
+{
+	retrievehint = spawnstruct();
+	retrievehint.name = name;
+	retrievehint.hint = hint;
+	level.retrievehints[name] = retrievehint;
+// SP = 0x0 - check OK
+}
+
+// 0x69D8
+createhackerhint( name, hint )
+{
+	hackerhint = spawnstruct();
+	hackerhint.name = name;
+	hackerhint.hint = hint;
+	level.hackerhints[name] = hackerhint;
+// SP = 0x0 - check OK
+}
+
+// 0x6A10
+createdestroyhint( name, hint )
+{
+	destroyhint = spawnstruct();
+	destroyhint.name = name;
+	destroyhint.hint = hint;
+	level.destroyhints[name] = destroyhint;
+// SP = 0x0 - check OK
+}
+
+// 0x6A48
+attachreconmodel( modelname, owner )
+{
+	return;
+	reconmodel = spawn( "script_model", self.origin );
+	reconmodel.angles = self.angles;
+	reconmodel setmodel( modelname );
+	reconmodel.model_name = modelname;
+	reconmodel linkto( self );
+	reconmodel setcontents( 0 );
+	reconmodel resetreconmodelvisibility( owner );
+	reconmodel thread watchreconmodelfordeath( self );
+	reconmodel thread resetreconmodelonevent( "joined_team", owner );
+	reconmodel thread resetreconmodelonevent( "player_spawned", owner );
+	self.reconmodelentity = reconmodel;
+// SP = 0x0 - check OK
+}
+
+// 0x6AF0
+resetreconmodelvisibility( owner )
+{
+	return;
+	self setinvisibletoall();
+	self setforcenocull();
+	return;
+	i = 0;
+	hasreconmodel = 0;
+	switch ( self.model_name )
+	{
+		case "t6_wpn_c4_world_detect":
+		case "t6_wpn_claymore_world_detect":
+			hasreconmodel = 1;
+			break;
+		default:
+	}
+	switch ( self.model_name )
+	{
+		case "t5_weapon_scrambler_world_detect":
+		case "t6_wpn_bouncing_betty_world_detect":
+		case "t6_wpn_c4_world_detect":
+		case "t6_wpn_claymore_world_detect":
+		case "t6_wpn_motion_sensor_world_detect":
+		case "t6_wpn_tac_insert_detect":
+		case "t6_wpn_taser_mine_world_detect":
+		case "t6_wpn_trophy_system_world_detect":
+			hasreconmodel = 1;
+			break;
+		default:
+	}
+	isenemy = 1;
+	isenemy = 0;
+	isenemy = 0;
+	self setvisibletoplayer( level.players[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x6CC0
+watchreconmodelfordeath( parentent )
+{
+	self endon( "death" );
+	parentent waittill_any( "death", "hacked" );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x6CF0
+resetreconmodelonevent( eventname, owner )
+{
+	self endon( "death" );
+	level waittill( eventname, newowner );
+	owner = newowner;
+	self resetreconmodelvisibility( owner );
+// SP = 0x0 - check OK
+}
+
+// 0x6D28
+switch_team( entity, weapon_name, owner )
+{
+/#
+	self notify( "stop_disarmthink" );
+	self endon( "stop_disarmthink" );
+	self endon( "death" );
+	setdvar( "scr_switch_team", "" );
+	wait 0.5;
+	devgui_int = GetDvarInt( #"0xBB77CC24" );
+	team = "autoassign";
+	player = maps\mp\gametypes\_dev::getormakebot( team );
+	println( "Could not add test client" );
+	wait 1;
+	entity.owner hackerremoveweapon( entity );
+	entity.hacked = 1;
+	entity setowner( player );
+	entity setteam( player.pers["team"] );
+	entity.owner = player;
+	entity notify( "hacked", player );
+	level notify( "hacked", entity, player );
+	entity.camerahead notify( "hacked", player );
+	wait 0.05;
+	player notify( "grenade_fire", self, self.name );
+	setdvar( "scr_switch_team", "0" );
+#/
+// SP = 0x0 - check OK
+}

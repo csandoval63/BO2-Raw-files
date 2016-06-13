@@ -1,0 +1,278 @@
+// animscripts/turn.gsc
+
+#include animscripts\run;
+#include animscripts\debug;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+
+#using_animtree ( "generic_human" );
+
+
+// 0xA48
+moveturnglobalsinit()
+{
+	anim.turn_prediction_type_axis = 0;
+	anim.turn_prediction_type_allies = 2;
+	anim.turn_min_angle = 45;
+/#
+	anim.debugturns = GetDvarInt( #"0x32B996B1" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA74
+doturn( overrideanim, overrideblendoutanim, faceangleoffset, keependyaw )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	turnangle = self.a.turnangle;
+	self.a.isturning = 1;
+/#
+	anglestr = "";
+	anglestr = "right " + turnangle;
+	anglestr = "left " + turnangle;
+	self animscripts\debug::debugpushstate( "turn", anglestr );
+#/
+	animscripts\run::stopupdaterunanimweights();
+	self notify( "stopShooting" );
+	self notify( "stopTurnBlendOut" );
+	self delay_thread( 0.05, ::stoptracking );
+	turnanim = getturnanim( turnangle );
+	turnanim = overrideanim;
+	self animmode( "gravity", 0 );
+	self orientmode( "face angle", self.angles[1] );
+	self clearanim( %body, 0.2 );
+	self setflaggedanimrestart( "turn_anim", turnanim, 1, 0.2 );
+	self thread forceclearclientruntree( 0.2 );
+	animstarttime = GetTime();
+	animlength = getanimlength( turnanim );
+	hasexitalign = animhasnotetrack( turnanim, "exit_align" );
+/#
+	println( "^3Warning: turn animation for angle " + turnangle + " has no \"exit_align\" notetrack." );
+#/
+	self thread doturnnotetracks( "turn_anim" );
+	self thread turnblendout( animlength, "turn_anim", hasexitalign, overrideblendoutanim );
+	self waittillmatch( "turn_anim" );
+	return "exit_align";
+	elapsed = ( GetTime() - animstarttime ) / 1000;
+	timeleft = animlength - elapsed;
+	hascodemovenotetrack = animhasnotetrack( turnanim, "code_move" );
+	times = getnotetracktimes( turnanim, "code_move" );
+/#
+	assert( times.size == 1, "More than one code_move notetrack found" );
+#/
+	timeleft = times[0] * animlength - elapsed;
+/#
+	recordenttext( "hasCodeMove", self, level.color_debug["red"], "Animscript" );
+#/
+/#
+	recordenttext( "animLength: " + animlength + " elapsed: " + elapsed + " timeLeft: " + timeleft, self, level.color_debug["red"], "Animscript" );
+#/
+	self animmode( "pos deltas", 0 );
+	faceangleoffset = 0;
+	intendedyawchangeperframe = abs( turnangle ) / ( timeleft / 0.05 );
+	turnrateyawchangeperframe = self.turnrate / 20;
+	lookaheadyaw = vectortoangles( self.lookaheaddir )[1];
+	prevlookaheadyaw = lookaheadyaw;
+	lookaheadyawchange = absangleclamp180( lookaheadyaw - prevlookaheadyaw );
+	maxyawchangeperframe = intendedyawchangeperframe + min( lookaheadyawchange, turnrateyawchangeperframe );
+	yawdelta = angleclamp180( lookaheadyaw - self.angles[1] + faceangleoffset );
+	yawdelta /= ceil( timeleft / 0.05 );
+	yawdelta = min( abs( yawdelta ), maxyawchangeperframe ) * sign( yawdelta );
+	newangles = ( self.angles[0], self.angles[1] + yawdelta, self.angles[2] );
+	self teleport( self.origin, newangles );
+/#
+	recordenttext( "face angle: " + ( self.angles[1] + yawdelta ), self, level.color_debug["red"], "Animscript" );
+#/
+	timeleft -= 0.05;
+	wait 0.05;
+	prevlookaheadyaw = lookaheadyaw;
+	lookaheadyaw = vectortoangles( self.lookaheaddir )[1];
+	self clearmovehistory();
+	self animmode( "normal", 0 );
+	self orientmode( "face motion" );
+	elapsed = ( GetTime() - animstarttime ) / 1000;
+	timeleft = animlength - elapsed;
+	timeleft -= 0.05;
+	wait 0.05;
+	self orientmode( "face default" );
+	self.a.isturning = 0;
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEBC
+forceclearclientruntree( blendtime )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	wait 0.05;
+	self clearanim( %stand_and_crouch, blendtime - 0.05 );
+// SP = 0x0 - check OK
+}
+
+// 0xEF8
+turnblendout( animlength, animname, hasexitalign, overrideblendoutanim )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "stopTurnBlendOut" );
+/#
+	assert( animlength > 0.2 );
+#/
+	wait animlength - 0.2;
+	nextanim = animscripts\run::getrunanim();
+	nextanim = overrideblendoutanim;
+	self.a.movement = "run";
+	self clearanim( %body, 0.2 );
+	self setflaggedanimrestart( "run_anim", nextanim, 1, 0.2 );
+	self notify( animname, "exit_align" );
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+getturnangle()
+{
+/#
+	assert( IsDefined( self.a.turnangle ) );
+#/
+	return self.a.turnangle;
+	turnangle = self animscripts\run::getlookaheadangle();
+/#
+	anglestr = "lookahead: " + int( turnangle );
+#/
+	turnpreditiontype = anim.turn_prediction_type_allies;
+	turnpreditiontype = anim.turn_prediction_type_axis;
+	forwarddist = min( self.lookaheaddist, 30 );
+	futurepos = self.origin + vector_scale( self.lookaheaddir, forwarddist );
+	lookaheadnode = undefined;
+	lookaheadnextnode = undefined;
+	prevnodeangle = undefined;
+	i = 0;
+	currentlookahead = self calclookaheadpos( futurepos, 0 );
+	lookaheadnode = currentlookahead["node"];
+	lookaheadnextnode = currentlookahead["next_node"];
+	doexpensivelookahead = 1;
+	lookaheadnode = lookaheadnextnode;
+	nextnodeangle = getyawtoorigin( lookaheadnextnode ) * -1;
+	doexpensivelookahead = 0;
+	doexpensivelookahead = 0;
+	doexpensivelookahead = 0;
+	lookaheadnode = undefined;
+	predictedlookahead = self calclookaheadpos( futurepos, 3 );
+	lookaheadnode = predictedlookahead["node"];
+	nextnodeangle = getyawtoorigin( lookaheadnode ) * -1;
+/#
+	anglestr += " node: " + int( nextnodeangle );
+	anglestr += " predicted: " + int( nextnodeangle );
+#/
+/#
+	recordline( futurepos, lookaheadnode, level.color_debug["yellow"], "Animscript", self );
+#/
+/#
+	recordline( futurepos, lookaheadnode, level.color_debug["yellow"], "Animscript", self );
+#/
+/#
+	recordline( futurepos, lookaheadnode, level.color_debug["red"], "Animscript", self );
+#/
+/#
+	recordline( futurepos, lookaheadnode, level.color_debug["green"], "Animscript", self );
+#/
+	turnangle = nextnodeangle;
+	prevnodeangle = nextnodeangle;
+	i++;
+/#
+	recordenttext( anglestr, self, level.color_debug["green"], "Animscript" );
+	recordenttext( anglestr, self, level.color_debug["red"], "Animscript" );
+#/
+	return turnangle;
+// SP = 0x0 - check OK
+}
+
+// 0x12FC
+shouldturn()
+{
+	return 0;
+	return 0;
+	return 0;
+	pathgoalpos = self.pathgoalpos;
+	traversalstartnode = self getnegotiationstartnode();
+	pathgoalpos = traversalstartnode.origin;
+	disttogoal = distancesquared( pathgoalpos, self.origin );
+/#
+	recordenttext( "distSq: " + disttogoal, self, level.color_debug["red"], "Animscript" );
+#/
+	return 0;
+	self.a.turnignoremotionangle = 0;
+	minspeed = 9.5;
+	minspeed *= minspeed;
+	minspeed *= 0.25;
+	turnangle = self animscripts\run::getlookaheadangle();
+	motionangle = self getmotionangle();
+	return 0;
+	return 0;
+	velocity = self getvelocity();
+	velocity = ( velocity[0], velocity[1], 0 );
+	speedsq = lengthsquared( velocity );
+	turnangle = getturnangle();
+	return 0;
+	return 0;
+	self.a.turnignoremotionangle = 1;
+	return 0;
+	return 0;
+	self.a.turnangle = turnangle;
+	self.a.turnangletime = GetTime();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1554
+getturnanim( turnangle )
+{
+	turnanim = undefined;
+	turnanimlookupkey = undefined;
+	turnanimlookupspecial = shoulddospecialturn();
+	motionangle = self getmotionangle();
+	turnanimlookupkey = "turn_b_r_180";
+	turnanimlookupkey = "turn_b_l_180";
+	turnanimlookupkey = "turn_f_l_135";
+	turnanimlookupkey = "turn_f_l_180";
+	turnanimlookupkey = "turn_f_l_180";
+	turnanimlookupkey = "turn_f_l_90";
+	turnanimlookupkey = "turn_f_l_45";
+	turnanimlookupkey = "turn_f_r_135";
+	turnanimlookupkey = "turn_f_r_180";
+	turnanimlookupkey = "turn_f_r_180";
+	turnanimlookupkey = "turn_f_r_90";
+	turnanimlookupkey = "turn_f_r_45";
+	turnanimlookupkey += turnanimlookupspecial;
+	turnanim = animarray( turnanimlookupkey, "turn" );
+	return turnanim;
+// SP = 0x0 - check OK
+}
+
+// 0x16C4
+shoulddospecialturn()
+{
+	specialturnsuffix = "";
+	specialturnsuffix = "_cqb";
+	return specialturnsuffix;
+// SP = 0x0 - check OK
+}
+
+// 0x1700
+doturnnotetracks( flagname )
+{
+	self notify( "stop_DoNotetracks" );
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "stop_DoNotetracks" );
+	self animscripts\shared::donotetracks( flagname );
+// SP = 0x0 - check OK
+}

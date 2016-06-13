@@ -1,0 +1,226 @@
+// clientscripts/_busing.csc
+
+#include clientscripts\_utility;
+
+
+// 0x370
+businit()
+{
+	level.activebusstate = "";
+	level.nextbusstate = "";
+	level.busstates = [];
+	registerdefaults();
+	thread updatebus( 1 );
+	thread bussavewait();
+	clientscripts\_utility::registersystem( "busCmd", ::buscmdhandler );
+// SP = 0x0 - check OK
+}
+
+// 0x3C0
+bussavewait()
+{
+	level waittill( "save_restore" );
+	level.nextbusstate = level.activebusstate;
+	level.activebusstate = "";
+	busstatedeactivate();
+	busstateactivate( "slow_on" );
+/#
+	println( "resetting bus state to " + level.nextbusstate );
+#/
+	thread updatebus( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x434
+buscmdhandler( clientnum, state, oldstate )
+{
+	return;
+	level.nextbusstate = state;
+/#
+	println( "bussing debug: got state '" + state + "'" );
+#/
+	level notify( "new_bus" );
+// SP = 0x0 - check OK
+}
+
+// 0x474
+setbusstate( state )
+{
+	level.nextbusstate = state;
+/#
+	println( "bussing debug: set state '" + state + "'" );
+#/
+	level notify( "new_bus" );
+// SP = 0x0 - check OK
+}
+
+// 0x4A4
+updatebus( forcefade )
+{
+	level endon( "save_restore" );
+	busstatedeactivate();
+	busstateactivate( "immediate_off" );
+	wait 1;
+	busstatedeactivate();
+	busstateactivate( "slow_on" );
+	level waittill( "new_bus" );
+/#
+	println( "got bus change current'" + level.activebusstate + "' next '" + level.nextbusstate + "'" );
+#/
+/#
+	assert( IsDefined( level.nextbusstate ) );
+#/
+/#
+	assert( IsDefined( level.activebusstate ) );
+#/
+	busstatedeactivate();
+	next = level.nextbusstate;
+	busstateactivate( next );
+	level.activebusstate = next;
+// SP = 0x0 - check OK
+}
+
+// 0x594
+busstateactivate( name )
+{
+/#
+	println( "activating bus '" + name + "'" );
+#/
+	state = level.busstates[name];
+/#
+	println( "invalid bus state '" + name + "'" );
+#/
+	return;
+/#
+	assert( IsDefined( state.time ) );
+#/
+	keys = getarraykeys( state.levels );
+/#
+	assert( IsDefined( keys ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x61C
+busstatedeactivate()
+{
+/#
+	println( "deactivating bus " );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x634
+declarebusstate( name )
+{
+	return;
+	level.busdeclarename = name;
+	return;
+	level.busstates[name] = spawnstruct();
+	level.busstates[name].time = 0.5;
+	level.busstates[name].levels = [];
+// SP = 0x0 - check OK
+}
+
+// 0x690
+busvolume( busname, value )
+{
+	level.busstates[level.busdeclarename].levels[busname] = value;
+// SP = 0x0 - check OK
+}
+
+// 0x6B0
+busfadetime( time )
+{
+	level.busstates[level.busdeclarename].time = time;
+// SP = 0x0 - check OK
+}
+
+// 0x6CC
+busisin( bus, names )
+{
+	j = 0;
+	return 1;
+	j++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x700
+busvolumes( names, value )
+{
+	j = 0;
+	busvolume( names[j], value );
+	j++;
+// SP = 0x0 - check OK
+}
+
+// 0x734
+busvolumeall( value )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x740
+argsasdict( a, b, c, d, e, f, g, h, i )
+{
+	names = [];
+	names[0] = a;
+	names[1] = b;
+	names[2] = c;
+	names[3] = d;
+	names[4] = e;
+	names[5] = f;
+	names[6] = g;
+	names[7] = h;
+	names[8] = i;
+	return names;
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+busvolumesexcept( a, b, c, d, e, f, g, h, i )
+{
+	args = argsasdict( a, b, c, d, e, f, g, h, i );
+	value = args[args.size - 1];
+	names = [];
+	i = 0;
+	names[i] = args[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x850
+registerdefaults()
+{
+	declarebusstate( "map_load" );
+	busfadetime( 0.25 );
+	busvolumesexcept( "music", "ui", 0 );
+	declarebusstate( "map_start" );
+	busfadetime( 1 );
+	busvolumeall( 1 );
+	declarebusstate( "default" );
+	busfadetime( 0.25 );
+	busvolumeall( 1 );
+	declarebusstate( "all_off" );
+	busvolumeall( 0 );
+	declarebusstate( "map_end" );
+	busfadetime( 2 );
+	busvolumesexcept( "music", "ui", 0 );
+	declarebusstate( "last_stand_start" );
+	busfadetime( 0.1 );
+	busvolumesexcept( "full_vol", "ui", 0.6 );
+	declarebusstate( "last_stand_duration" );
+	busfadetime( 29.9 );
+	busvolumesexcept( "full_vol", "ui", 0.05 );
+	declarebusstate( "immediate_off" );
+	busfadetime( 0.01 );
+	busvolumesexcept( "ui", 0 );
+	declarebusstate( "slow_on" );
+	busvolumesexcept( "ui", 1 );
+	busfadetime( 1 );
+	declarebusstate( "zombie_death" );
+	busvolumesexcept( "music", 0 );
+	busfadetime( 10 );
+// SP = 0x0 - check OK
+}

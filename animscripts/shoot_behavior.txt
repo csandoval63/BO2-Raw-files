@@ -1,0 +1,421 @@
+// animscripts/shoot_behavior.gsc
+
+#include maps\_gameskill;
+#include maps\_utility;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+
+
+// 0x938
+decidewhatandhowtoshoot( objective )
+{
+	self endon( "killanimscript" );
+	self notify( "stop_deciding_how_to_shoot" );
+	self endon( "stop_deciding_how_to_shoot" );
+	self endon( "death" );
+/#
+	assert( IsDefined( objective ) );
+#/
+	maps\_gameskill::resetmisstime();
+	self.shootobjective = objective;
+	self.shootent = undefined;
+	self.shootpos = undefined;
+	self.shootstyle = "none";
+	self.fastburst = 0;
+	self.shouldreturntocover = 0;
+	self.changingcoverpos = 0;
+	atcover = self.covernode.type != "Conceal Prone";
+	wait 0.05;
+	prevshootent = self.shootent;
+	prevshootpos = self.shootpos;
+	prevshootstyle = self.shootstyle;
+	self animscripts\shared::updatelaserstatus( 1 );
+	self resetsniperaim( 1 );
+	thread watchforincomingfire();
+	thread runonshootbehaviorend();
+	self.ambushendtime = undefined;
+/#
+	assert( self.shootobjective == "ambush" );
+#/
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+	result = undefined;
+	nogunshoot();
+	setshootstyle( "none", 0 );
+	setshootent( self.enemy );
+	result = rpgshoot();
+	result = pistolshoot();
+	result = shotgunshoot();
+	result = flamethrower_shoot();
+	result = grenadeshoot();
+	result = rifleshoot();
+	self notify( "shoot_behavior_change" );
+	prevshootent = self.shootent;
+	prevshootpos = self.shootpos;
+	prevshootstyle = self.shootstyle;
+	waitabit();
+// SP = 0x0 - check OK
+}
+
+// 0xC10
+waitabit()
+{
+	self endon( "enemy" );
+	self endon( "done_changing_cover_pos" );
+	self endon( "weapon_position_change" );
+	self endon( "enemy_visible" );
+	self.shootent endon( "death" );
+	self endon( "do_slow_things" );
+	wait 0.05;
+	self.shootpos = self.shootent getshootatpos();
+	wait 0.05;
+	self waittill( "do_slow_things" );
+// SP = 0x0 - check OK
+}
+
+// 0xC7C
+nogunshoot()
+{
+/#
+	println( "^1Warning: AI at " + self.origin + ", entnum " + self getentnum() + ", export " + self.export + " trying to shoot but has no gun" );
+#/
+	self.shootent = undefined;
+	self.shootpos = undefined;
+	self.shootstyle = "none";
+	self.shootobjective = "normal";
+// SP = 0x0 - check OK
+}
+
+// 0xCD0
+shouldsuppress()
+{
+	return !(weapon_spread());
+// SP = 0x0 - check OK
+}
+
+// 0xCF0
+rifleshoot()
+{
+	self resetsniperaim();
+	havenothingtoshoot();
+	markenemyposinvisible();
+	self.shootobjective = "suppress";
+	self.shootobjective = "ambush";
+	return "retry";
+	setshootent( self.enemy );
+	self setshootstyleforvisibleenemy();
+	self.shootobjective = "normal";
+	self.ambushendtime = undefined;
+	return "retry";
+	markenemyposinvisible();
+	self resetsniperaim();
+	havenothingtoshoot();
+/#
+	assert( self.shootobjective == "ambush" );
+#/
+	self.shootstyle = "none";
+	likelyenemydir = self getanglestolikelyenemypath();
+	likelyenemydir = self.covernode.angles;
+	likelyenemydir = self.angles;
+	self.shootent = undefined;
+	dist = 1024;
+	dist = distance( self.origin, self.enemy.origin );
+	newshootpos = self geteye() + anglestoforward( likelyenemydir ) * dist;
+	self.shootpos = newshootpos;
+	self.ambushendtime = undefined;
+	self notify( "return_to_cover" );
+	self.shouldreturntocover = 1;
+	self.shootent = undefined;
+	self.shootpos = getenemysightpos();
+	self setshootstyleforsuppression();
+/#
+	assert( self.shootobjective == "ambush" );
+#/
+	self.shootstyle = "none";
+	self.shootobjective = "suppress";
+	self.ambushendtime = undefined;
+	self notify( "return_to_cover" );
+	self.shouldreturntocover = 1;
+	return "retry";
+// SP = 0x0 - check OK
+}
+
+// 0xF98
+shouldstopambushing()
+{
+	self.ambushendtime = GetTime() + randomintrange( 4000, 10000 );
+	self.ambushendtime = GetTime() + randomintrange( 40000, 60000 );
+	return self.ambushendtime < GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0xFF8
+rpgshootexplodable()
+{
+	self endon( "death" );
+	enemy = self.enemy;
+	weapon = self.weapon;
+/#
+	assert( IsDefined( enemy ) );
+#/
+/#
+	assert( IsDefined( enemy._explodable_targets ) );
+#/
+	target = undefined;
+	i = 0;
+	target = enemy._explodable_targets[i];
+	self setentitytarget( target );
+	i++;
+	wait 0.05;
+	self clearentitytarget();
+// SP = 0x0 - check OK
+}
+
+// 0x10D0
+rpgshoot()
+{
+	markenemyposinvisible();
+	havenothingtoshoot();
+	return;
+	self thread rpgshootexplodable();
+	setshootent( self.enemy );
+	self.shootstyle = "single";
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	self notify( "return_to_cover" );
+	self.shouldreturntocover = 1;
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x115C
+grenadeshoot()
+{
+	markenemyposinvisible();
+	havenothingtoshoot();
+	return;
+	setshootent( self.enemy );
+	self.shootstyle = "burst";
+	self.shootstyle = "single";
+// SP = 0x0 - check OK
+}
+
+// 0x11B0
+shotgunshoot()
+{
+	havenothingtoshoot();
+	return;
+	setshootent( self.enemy );
+	self.shootstyle = "single";
+// SP = 0x0 - check OK
+}
+
+// 0x11E4
+flamethrower_shoot()
+{
+	havenothingtoshoot();
+	return;
+	setshootent( self.enemy );
+	self.shootstyle = "full";
+// SP = 0x0 - check OK
+}
+
+// 0x1218
+pistolshoot()
+{
+	havenothingtoshoot();
+	return;
+	markenemyposinvisible();
+	self.shootobjective = "ambush";
+	return "retry";
+	setshootent( self.enemy );
+	self.shootstyle = "semi";
+	self.shootobjective = "normal";
+	self.ambushendtime = undefined;
+	return "retry";
+	markenemyposinvisible();
+	self.shootent = undefined;
+	self.shootpos = getenemysightpos();
+	self.shootstyle = "none";
+	self.ambushendtime = GetTime() + randomintrange( 4000, 8000 );
+	self.shootobjective = "normal";
+	self.ambushendtime = undefined;
+	return "retry";
+// SP = 0x0 - check OK
+}
+
+// 0x1310
+markenemyposinvisible()
+{
+	return;
+	self.couldntseeenemypos = self.enemy.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x13B4
+watchforincomingfire()
+{
+	self endon( "killanimscript" );
+	self endon( "stop_deciding_how_to_shoot" );
+	self waittill( "suppression" );
+	self notify( "return_to_cover" );
+	self.shouldreturntocover = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1400
+readytoreturntocover()
+{
+	return 0;
+	return 0;
+/#
+	assert( IsDefined( self.coverposestablishedtime ) );
+#/
+	return 1;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x14B0
+runonshootbehaviorend()
+{
+	self endon( "death" );
+	self waittill_any( "killanimscript", "stop_deciding_how_to_shoot", "return_to_cover" );
+	self animscripts\shared::updatelaserstatus( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x14E0
+checkchanged( prevval, newval )
+{
+	return 1;
+/#
+	assert( !(IsDefined( prevval )) );
+#/
+	return 0;
+	return prevval != newval;
+// SP = 0x0 - check OK
+}
+
+// 0x151C
+setshootent( ent )
+{
+	return;
+	self.shootent = ent;
+	self.shootpos = self.shootent getshootatpos();
+// SP = 0x0 - check OK
+}
+
+// 0x1548
+havenothingtoshoot()
+{
+	self.shootent = undefined;
+	self.shootpos = undefined;
+	self.shootstyle = "none";
+	self notify( "return_to_cover" );
+	self.shouldreturntocover = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1578
+shootingplayerathigherdifficulty()
+{
+	return isplayer( self.enemy );
+// SP = 0x0 - check OK
+}
+
+// 0x1598
+setshootstyleforvisibleenemy()
+{
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+/#
+	assert( IsDefined( self.shootent ) );
+#/
+	return setshootstyle( "single", 0 );
+	return setshootstyle( "single", 0 );
+	distancesq = distancesquared( self getshootatpos(), self.shootpos );
+	return setshootstyle( "semi", 0 );
+	return setshootstyle( "single", 0 );
+	return setshootstyle( "full", 0 );
+	return setshootstyle( "single", 0 );
+	return setshootstyle( "full", 0 );
+	return setshootstyle( "burst", 1 );
+	return setshootstyle( "semi", 0 );
+	return setshootstyle( "burst", 0 );
+	return setshootstyle( "single", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1748
+setshootstyleforsuppression()
+{
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+	distancesq = distancesquared( self getshootatpos(), self.shootpos );
+/#
+	assert( !(self issniper()) );
+#/
+/#
+	assert( !(self weapon_spread()) );
+#/
+	return setshootstyle( "semi", 0 );
+	return setshootstyle( "single", 0 );
+	return setshootstyle( "full", 0 );
+	return setshootstyle( "semi", 0 );
+	return setshootstyle( "burst", 0 );
+	return setshootstyle( "single", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x184C
+setshootstyle( style, fastburst )
+{
+	self.shootstyle = style;
+	self.fastburst = fastburst;
+// SP = 0x0 - check OK
+}
+
+// 0x1868
+shoulddosemiforvariety()
+{
+	return 0;
+	self.semiforvarietycheck = 0;
+	time = GetTime();
+	return 0;
+	dosemi = 1;
+	dosemi = 0;
+	self.semiforvarietycheck = time + 10000;
+	return dosemi;
+// SP = 0x0 - check OK
+}
+
+// 0x18D4
+resetsniperaim( considermissing )
+{
+/#
+	assert( self issniper() );
+#/
+	self.snipershotcount = 0;
+	self.sniperhitcount = 0;
+	self.lastmissedenemy = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1910
+showsniperglint()
+{
+	return;
+	return;
+	return;
+	return;
+	return;
+	playfxontag( level._effect["sniper_glint"], self, "tag_flash" );
+// SP = 0x0 - check OK
+}

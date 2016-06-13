@@ -1,0 +1,403 @@
+// maps/mp/zm_alcatraz_grief_cellblock.gsc
+
+#include maps\mp\gametypes_zm\zmeat;
+#include maps\mp\zm_alcatraz_traps;
+#include maps\mp\zombies\_zm_game_module;
+#include maps\mp\zombies\_zm_blockers;
+#include maps\mp\zombies\_zm_ai_brutus;
+#include maps\mp\gametypes_zm\_zm_gametype;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zm_prison;
+#include maps\mp\zombies\_zm_race_utility;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+#using_animtree ( "fxanim_props" );
+
+
+// 0x16D0
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x16D8
+zgrief_preinit()
+{
+	registerclientfield( "toplayer", "meat_stink", 1, 1, "int" );
+	level.givecustomloadout = maps\mp\zm_prison::givecustomloadout;
+	zgrief_init();
+// SP = 0x0 - check OK
+}
+
+// 0x170C
+zgrief_init()
+{
+	encounter_init();
+	flag_wait( "start_zombie_round_logic" );
+	level.zombie_move_speed = 35;
+// SP = 0x0 - check OK
+}
+
+// 0x1744
+encounter_init()
+{
+	level._game_module_player_laststand_callback = ::alcatraz_grief_laststand_weapon_save;
+	level.precachecustomcharacters = ::precache_team_characters;
+	level.givecustomcharacters = ::give_team_characters;
+	level.gamemode_post_spawn_logic = ::give_player_shiv;
+// SP = 0x0 - check OK
+}
+
+// 0x177C
+alcatraz_grief_laststand_weapon_save( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+	primary_weapons_that_can_be_taken = [];
+	primaryweapons = self getweaponslistprimaries();
+	i = 0;
+	primary_weapons_that_can_be_taken[primary_weapons_that_can_be_taken.size] = primaryweapons[i];
+	i++;
+	weapon_to_take = primary_weapons_that_can_be_taken[primary_weapons_that_can_be_taken.size - 1];
+	self takeweapon( weapon_to_take );
+	self.weapon_taken_by_losing_specialty_additionalprimaryweapon = weapon_to_take;
+	self.grief_savedweapon_weapons = self getweaponslist();
+	self.grief_savedweapon_weaponsammo_stock = [];
+	self.grief_savedweapon_weaponsammo_clip = [];
+	self.grief_savedweapon_currentweapon = self getcurrentweapon();
+	self.grief_savedweapon_grenades = self get_player_lethal_grenade();
+	self.grief_savedweapon_grenades_clip = self getweaponammoclip( self.grief_savedweapon_grenades );
+	self.grief_savedweapon_tactical = self get_player_tactical_grenade();
+	self.grief_savedweapon_tactical_clip = self getweaponammoclip( self.grief_savedweapon_tactical );
+	i = 0;
+	self.grief_savedweapon_weaponsammo_clip[i] = self getweaponammoclip( self.grief_savedweapon_weapons[i] );
+	self.grief_savedweapon_weaponsammo_stock[i] = self getweaponammostock( self.grief_savedweapon_weapons[i] );
+	i++;
+	self.grief_hasriotshield = 1;
+	self.grief_savedweapon_claymore = 1;
+	self.grief_savedweapon_claymore_clip = self getweaponammoclip( "claymore_zm" );
+// SP = 0x0 - check OK
+}
+
+// 0x1938
+precache_team_characters()
+{
+	precachemodel( "c_zom_player_grief_guard_fb" );
+	precachemodel( "c_zom_oleary_shortsleeve_viewhands" );
+	precachemodel( "c_zom_player_grief_inmate_fb" );
+	precachemodel( "c_zom_grief_guard_viewhands" );
+// SP = 0x0 - check OK
+}
+
+// 0x1970
+give_team_characters()
+{
+	self detachall();
+	self set_player_is_female( 0 );
+	self.characterindex = 1;
+	self.characterindex = 0;
+	switch ( self.characterindex )
+	{
+		case 0:
+		case 1:
+			self setmodel( "c_zom_player_grief_inmate_fb" );
+			self.voice = "american";
+			self.skeleton = "base";
+			self setviewmodel( "c_zom_oleary_shortsleeve_viewhands" );
+			self.characterindex = 0;
+			break;
+		case 2:
+		case 3:
+			self setmodel( "c_zom_player_grief_guard_fb" );
+			self.voice = "american";
+			self.skeleton = "base";
+			self setviewmodel( "c_zom_grief_guard_viewhands" );
+			self.characterindex = 1;
+			break;
+	}
+	self setmovespeedscale( 1 );
+	self setsprintduration( 4 );
+	self setsprintcooldown( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A7C
+give_player_shiv()
+{
+	self takeweapon( "knife_zm" );
+	self giveweapon( "knife_zm_alcatraz" );
+// SP = 0x0 - check OK
+}
+
+// 0x1AA4
+grief_treasure_chest_init()
+{
+	chest1 = getstruct( "start_chest", "script_noteworthy" );
+	chest2 = getstruct( "cafe_chest", "script_noteworthy" );
+	setdvar( "disableLookAtEntityLogic", 1 );
+	level.chests = [];
+	level.chests[level.chests.size] = chest1;
+	level.chests[level.chests.size] = chest2;
+	maps\mp\zombies\_zm_magicbox::treasure_chest_init( "start_chest" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B14
+main()
+{
+	maps\mp\gametypes_zm\_zm_gametype::setup_standard_objects( "cellblock" );
+	grief_treasure_chest_init();
+	precacheshader( "zm_al_wth_zombie" );
+	array_thread( level.zombie_spawners, ::add_spawn_function, ::remove_zombie_hats_for_grief );
+	maps\mp\zombies\_zm_ai_brutus::precache();
+	maps\mp\zombies\_zm_ai_brutus::init();
+	level.enemy_location_override_func = ::enemy_location_override;
+	level._effect["butterflies"] = loadfx( "maps/zombie_alcatraz/fx_alcatraz_skull_elec" );
+	a_t_door_triggers = getentarray( "zombie_door", "targetname" );
+	foreach ( trigger in a_t_door_triggers )
+	{
+		trigger delete();
+		str_target = trigger.target;
+		a_door_and_clip = getentarray( str_target, "targetname" );
+		foreach ( ent in a_door_and_clip )
+		{
+			ent delete();
+		}
+		trigger delete();
+	}
+	a_t_doors = getentarray( "zombie_door", "targetname" );
+	foreach ( t_door in a_t_doors )
+	{
+		t_door maps\mp\zombies\_zm_blockers::door_opened( self.zombie_cost );
+	}
+	zbarriers = getzbarrierarray();
+	a_str_zones = [];
+	a_str_zones[0] = "zone_start";
+	a_str_zones[1] = "zone_library";
+	a_str_zones[2] = "zone_cafeteria";
+	a_str_zones[3] = "zone_cafeteria_end";
+	a_str_zones[4] = "zone_warden_office";
+	a_str_zones[5] = "zone_cellblock_east";
+	a_str_zones[6] = "zone_cellblock_west_warden";
+	a_str_zones[7] = "zone_cellblock_west_barber";
+	a_str_zones[8] = "zone_cellblock_west";
+	a_str_zones[9] = "zone_cellblock_west_gondola";
+	foreach ( barrier in zbarriers )
+	{
+		str_model = barrier.model;
+		b_delete_barrier = 1;
+		i = 0;
+		b_delete_barrier = 0;
+		i++;
+		barrier delete();
+	}
+	t_temp = getent( "tower_trap_activate_trigger", "targetname" );
+	t_temp delete();
+	t_temp = getent( "tower_trap_range_trigger", "targetname" );
+	t_temp delete();
+	e_model = getent( "trap_control_docks", "targetname" );
+	e_model delete();
+	e_brush = getent( "tower_shockbox_door", "targetname" );
+	e_brush delete();
+	a_t_travel_triggers = getentarray( "travel_trigger", "script_noteworthy" );
+	foreach ( trigger in a_t_travel_triggers )
+	{
+		trigger delete();
+	}
+	a_e_gondola_lights = getentarray( "gondola_state_light", "targetname" );
+	foreach ( light in a_e_gondola_lights )
+	{
+		light delete();
+	}
+	a_e_gondola_landing_gates = getentarray( "gondola_landing_gates", "targetname" );
+	foreach ( model in a_e_gondola_landing_gates )
+	{
+		model delete();
+	}
+	a_e_gondola_landing_doors = getentarray( "gondola_landing_doors", "targetname" );
+	foreach ( model in a_e_gondola_landing_doors )
+	{
+		model delete();
+	}
+	a_e_gondola_gates = getentarray( "gondola_gates", "targetname" );
+	foreach ( model in a_e_gondola_gates )
+	{
+		model delete();
+	}
+	a_e_gondola_doors = getentarray( "gondola_doors", "targetname" );
+	foreach ( model in a_e_gondola_doors )
+	{
+		model delete();
+	}
+	m_gondola = getent( "zipline_gondola", "targetname" );
+	m_gondola delete();
+	t_ride_trigger = getent( "gondola_ride_trigger", "targetname" );
+	t_ride_trigger delete();
+	a_classic_clips = getentarray( "classic_clips", "targetname" );
+	foreach ( clip in a_classic_clips )
+	{
+		clip connectpaths();
+		clip delete();
+	}
+	a_afterlife_props = getentarray( "afterlife_show", "targetname" );
+	foreach ( m_prop in a_afterlife_props )
+	{
+		m_prop delete();
+	}
+	spork_portal = getent( "afterlife_show_spork", "targetname" );
+	spork_portal delete();
+	a_audio = getentarray( "at_headphones", "script_noteworthy" );
+	foreach ( model in a_audio )
+	{
+		model delete();
+	}
+	m_spoon_pickup = getent( "pickup_spoon", "targetname" );
+	m_spoon_pickup delete();
+	t_sq_bg = getent( "sq_bg_reward_pickup", "targetname" );
+	t_sq_bg delete();
+	t_crafting_table = getentarray( "open_craftable_trigger", "targetname" );
+	foreach ( trigger in t_crafting_table )
+	{
+		trigger delete();
+	}
+	t_warden_fence = getent( "warden_fence_damage", "targetname" );
+	t_warden_fence delete();
+	m_plane_about_to_crash = getent( "plane_about_to_crash", "targetname" );
+	m_plane_about_to_crash delete();
+	m_plane_craftable = getent( "plane_craftable", "targetname" );
+	m_plane_craftable delete();
+	i = 1;
+	m_key_lock = getent( "masterkey_lock_" + i, "targetname" );
+	m_key_lock delete();
+	i++;
+	m_shower_door = getent( "shower_key_door", "targetname" );
+	m_shower_door delete();
+	m_nixie_door = getent( "nixie_door_left", "targetname" );
+	m_nixie_door delete();
+	m_nixie_door = getent( "nixie_door_right", "targetname" );
+	m_nixie_door delete();
+	m_nixie_brush = getent( "nixie_tube_weaponclip", "targetname" );
+	m_nixie_brush delete();
+	i = 1;
+	m_nixie_tube = getent( "nixie_tube_" + i, "targetname" );
+	m_nixie_tube delete();
+	i++;
+	t_elevator_door = getent( "nixie_elevator_door", "targetname" );
+	t_elevator_door delete();
+	e_elevator_clip = getent( "elevator_door_playerclip", "targetname" );
+	e_elevator_clip delete();
+	e_elevator_bottom_gate = getent( "elevator_bottom_gate_l", "targetname" );
+	e_elevator_bottom_gate delete();
+	e_elevator_bottom_gate = getent( "elevator_bottom_gate_r", "targetname" );
+	e_elevator_bottom_gate delete();
+	m_docks_puzzle = getent( "cable_puzzle_gate_01", "targetname" );
+	m_docks_puzzle delete();
+	m_docks_puzzle = getent( "cable_puzzle_gate_02", "targetname" );
+	m_docks_puzzle delete();
+	m_infirmary_case = getent( "infirmary_case_door_left", "targetname" );
+	m_infirmary_case delete();
+	m_infirmary_case = getent( "infirmary_case_door_right", "targetname" );
+	m_infirmary_case delete();
+	fake_plane_part = getent( "fake_veh_t6_dlc_zombie_part_control", "targetname" );
+	fake_plane_part delete();
+	i = 1;
+	m_generator = getent( "generator_panel_" + i, "targetname" );
+	m_generator delete();
+	i++;
+	a_m_generator_core = getentarray( "generator_core", "targetname" );
+	foreach ( generator in a_m_generator_core )
+	{
+		generator delete();
+	}
+	e_playerclip = getent( "electric_chair_playerclip", "targetname" );
+	e_playerclip delete();
+	i = 1;
+	t_use = getent( "trigger_electric_chair_" + i, "targetname" );
+	t_use delete();
+	m_chair = getent( "electric_chair_" + i, "targetname" );
+	m_chair delete();
+	i++;
+	a_afterlife_interact = getentarray( "afterlife_interact", "targetname" );
+	foreach ( model in a_afterlife_interact )
+	{
+		model turn_afterlife_interact_on();
+		wait 0.1;
+	}
+	flag_wait( "initial_blackscreen_passed" );
+	maps\mp\zombies\_zm_game_module::turn_power_on_and_open_doors();
+	flag_wait( "start_zombie_round_logic" );
+	level thread maps\mp\zm_alcatraz_traps::init_fan_trap_trigs();
+	level thread maps\mp\zm_alcatraz_traps::init_acid_trap_trigs();
+	wait 1;
+	level notify( "sleight_on" );
+	wait_network_frame();
+	level notify( "doubletap_on" );
+	wait_network_frame();
+	level notify( "juggernog_on" );
+	wait_network_frame();
+	level notify( "electric_cherry_on" );
+	wait_network_frame();
+	level notify( "deadshot_on" );
+	wait_network_frame();
+	level notify( "divetonuke_on" );
+	wait_network_frame();
+	level notify( "additionalprimaryweapon_on" );
+	wait_network_frame();
+	level notify( "Pack_A_Punch_on" );
+	wait_network_frame();
+/#
+	level thread maps\mp\gametypes_zm\zmeat::spawn_level_meat_manager();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x26D4
+remove_zombie_hats_for_grief()
+{
+	self detach( "c_zom_guard_hat" );
+// SP = 0x0 - check OK
+}
+
+// 0x26EC
+enemy_location_override( zombie, enemy )
+{
+	location = enemy.origin;
+	location = self.reroute_origin;
+	return location;
+// SP = 0x0 - check OK
+}
+
+// 0x2724
+magicbox_face_spawn()
+{
+	self endon( "disconnect" );
+	return;
+	self waittill( "user_grabbed_weapon" );
+	self playsoundtoplayer( "zmb_easteregg_face", self );
+	self.wth_elem = newclienthudelem( self );
+	self.wth_elem.horzalign = "fullscreen";
+	self.wth_elem.vertalign = "fullscreen";
+	self.wth_elem.sort = 1000;
+	self.wth_elem.foreground = 0;
+	self.wth_elem.alpha = 1;
+	self.wth_elem setshader( "zm_al_wth_zombie", 640, 480 );
+	self.wth_elem.hidewheninmenu = 1;
+	wait 0.25;
+	self.wth_elem destroy();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2800
+turn_afterlife_interact_on()
+{
+	return;
+	level.shockbox_anim["on"] = %fxanim_zom_al_shock_box_on_anim;
+	level.shockbox_anim["off"] = %fxanim_zom_al_shock_box_off_anim;
+	self useanimtree( -1 );
+	self setmodel( "p6_zm_al_shock_box_on" );
+	self setanim( level.shockbox_anim["on"] );
+	self delete();
+// SP = 0x0 - check OK
+}

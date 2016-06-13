@@ -1,0 +1,344 @@
+// maps/mp/killstreaks/_remote_weapons.gsc
+
+#include maps\mp\gametypes\_hud;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\killstreaks\_ai_tank;
+#include maps\mp\killstreaks\_turret_killstreak;
+#include maps\mp\gametypes\_hud_util;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xB48
+init()
+{
+	level.remoteweapons = [];
+	level.remoteweapons["killstreak_remote_turret_mp"] = spawnstruct();
+	level.remoteweapons["killstreak_remote_turret_mp"].hintstring = &"MP_REMOTE_USE_TURRET";
+	level.remoteweapons["killstreak_remote_turret_mp"].usecallback = maps\mp\killstreaks\_turret_killstreak::startturretremotecontrol;
+	level.remoteweapons["killstreak_remote_turret_mp"].endusecallback = maps\mp\killstreaks\_turret_killstreak::endremoteturret;
+	level.remoteweapons["killstreak_ai_tank_mp"] = spawnstruct();
+	level.remoteweapons["killstreak_ai_tank_mp"].hintstring = &"MP_REMOTE_USE_TANK";
+	level.remoteweapons["killstreak_ai_tank_mp"].usecallback = maps\mp\killstreaks\_ai_tank::starttankremotecontrol;
+	level.remoteweapons["killstreak_ai_tank_mp"].endusecallback = maps\mp\killstreaks\_ai_tank::endtankremotecontrol;
+	level.remoteexithint = &"MP_REMOTE_EXIT";
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0xC08
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0xC2C
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self.remotecontroltrigger.origin = self.origin;
+	self.remotecontroltrigger linkto( self );
+// SP = 0x0 - check OK
+}
+
+// 0xC68
+initremoteweapon( weapon, weaponname )
+{
+	weapon.inittime = GetTime();
+	weapon.remotename = weaponname;
+	weapon thread watchfindremoteweapon( self );
+	self notify( "remove_remote_weapon", 1 );
+	self thread setactiveremotecontrolledweapon( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0xCC4
+setactiveremotecontrolledweapon( weapon )
+{
+/#
+/#
+	assert( !(IsDefined( self.remoteweapon )), "Trying to activate remote weapon without cleaning up the current one" );
+#/
+#/
+	return;
+	wait 0.05;
+	self notify( "set_active_remote_weapon" );
+	self.remoteweapon = weapon;
+	self thread watchremoveremotecontrolledweapon( weapon.remotename );
+	self thread watchremotecontrolledweapondeath();
+	self thread watchremoteweaponpings();
+	self createremoteweapontrigger( weapon.remotename );
+// SP = 0x0 - check OK
+}
+
+// 0xD50
+watchfindremoteweapon( player )
+{
+	self endon( "removed_on_death" );
+	self endon( "death" );
+	player waittill( "find_remote_weapon" );
+	player notify( "remote_weapon_ping", self );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+watchremoteweaponpings()
+{
+	self endon( "disconnect" );
+	self endon( "joined_team" );
+	self endon( "joined_spectators" );
+	self endon( "set_active_remote_weapon" );
+	self.remoteweaponqueue = [];
+	self thread collectweaponpings();
+	self waittill( "remote_weapon_ping", weapon );
+	self.remoteweaponqueue[self.remoteweaponqueue.size] = weapon;
+// SP = 0x0 - check OK
+}
+
+// 0xDDC
+collectweaponpings()
+{
+	self endon( "disconnect" );
+	self endon( "joined_team" );
+	self endon( "joined_spectators" );
+	self waittill( "remote_weapon_ping" );
+	wait 0.1;
+	wait 0.05;
+/#
+/#
+	assert( IsDefined( self.remoteweaponqueue ) );
+#/
+#/
+	best_weapon = undefined;
+	foreach ( weapon in self.remoteweaponqueue )
+	{
+		best_weapon = weapon;
+	}
+	self thread setactiveremotecontrolledweapon( best_weapon );
+// SP = 0x0 - check OK
+}
+
+// 0xEB4
+watchremotecontrolledweapondeath()
+{
+	self endon( "remove_remote_weapon" );
+/#
+/#
+	assert( IsDefined( self.remoteweapon ) );
+#/
+#/
+	self.remoteweapon waittill( "death" );
+	self notify( "remove_remote_weapon", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xEF0
+watchremoveremotecontrolledweapon( weaponname )
+{
+	self endon( "disconnect" );
+	self waittill( "remove_remote_weapon", trytoreplace );
+	self removeremotecontrolledweapon( weaponname );
+	wait 0.05;
+	self notify( "find_remote_weapon" );
+// SP = 0x0 - check OK
+}
+
+// 0xF38
+removeremotecontrolledweapon( weaponname )
+{
+	remoteweaponname = self getremotename();
+	self baseendremotecontrolweaponuse( weaponname, 1 );
+	self destroyremotecontrolactionprompthud();
+	self.remoteweapon = undefined;
+	self.remotecontroltrigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0xF94
+createremoteweapontrigger( weaponname )
+{
+	trigger = spawn( "trigger_radius_use", self.origin, 32, 32 );
+	trigger enablelinkto();
+	trigger linkto( self );
+	trigger sethintlowpriority( 1 );
+	trigger setcursorhint( "HINT_NOICON" );
+	trigger sethintstring( level.remoteweapons[weaponname].hintstring );
+	trigger setteamfortrigger( self.team );
+	trigger.triggerteam = self.team;
+	self clientclaimtrigger( trigger );
+	trigger.claimedby = self;
+	self.remotecontroltrigger = trigger;
+	self thread watchremotetriggeruse( weaponname );
+	self thread removeremotetriggerondisconnect( trigger );
+// SP = 0x0 - check OK
+}
+
+// 0x105C
+removeremotetriggerondisconnect( trigger )
+{
+	self endon( "remove_remote_weapon" );
+	trigger endon( "death" );
+	self waittill( "disconnect" );
+	trigger delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1084
+watchremotetriggeruse( weaponname )
+{
+	self endon( "remove_remote_weapon" );
+	self endon( "disconnect" );
+	return;
+	self.remotecontroltrigger waittill( "trigger", player );
+	self iprintlnbold( &"KILLSTREAK_AUTO_TURRET_NOT_AVAILABLE" );
+	self useremotecontrolweapon( weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0x114C
+useremotecontrolweapon( weaponname, allowexit )
+{
+	self disableoffhandweapons();
+	self giveweapon( weaponname );
+	self switchtoweapon( weaponname );
+	allowexit = 1;
+	self thread maps\mp\killstreaks\_killstreaks::watchforemoveremoteweapon();
+	self waittill( "weapon_change", newweapon );
+	self notify( "endWatchFoRemoveRemoteWeapon" );
+	self setusingremote( weaponname );
+	self clearusingremote();
+	return;
+	result = self maps\mp\killstreaks\_killstreaks::initridekillstreak( weaponname );
+	self clearusingremote();
+	self clearusingremote();
+	return;
+	self.remoteweapon.controlled = 1;
+	self.remoteweapon.killcament = self;
+	self.remoteweapon notify( "remote_start" );
+	self thread watchremotecontroldeactivate( weaponname );
+	self thread [[level.remoteweapons[weaponname].usecallback]]( self.remoteweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x126C
+createremotecontrolactionprompthud()
+{
+	self.hud_prompt_exit = newclienthudelem( self );
+	self.hud_prompt_exit.alignx = "left";
+	self.hud_prompt_exit.aligny = "bottom";
+	self.hud_prompt_exit.horzalign = "user_left";
+	self.hud_prompt_exit.vertalign = "user_bottom";
+	self.hud_prompt_exit.font = "small";
+	self.hud_prompt_exit.fontscale = 1.25;
+	self.hud_prompt_exit.hidewheninmenu = 1;
+	self.hud_prompt_exit.archived = 0;
+	self.hud_prompt_exit.x = 25;
+	self.hud_prompt_exit.y = -10;
+	self.hud_prompt_exit settext( level.remoteexithint );
+// SP = 0x0 - check OK
+}
+
+// 0x1318
+destroyremotecontrolactionprompthud()
+{
+	self.hud_prompt_exit destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x133C
+watchremotecontroldeactivate( weaponname )
+{
+	self endon( "remove_remote_weapon" );
+	self endon( "disconnect" );
+	self.remoteweapon endon( "remote_start" );
+	wait 1;
+	timeused = 0;
+	timeused += 0.05;
+	self thread baseendremotecontrolweaponuse( weaponname, 0 );
+	return;
+	wait 0.05;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x13B4
+endremotecontrolweaponuse( weaponname )
+{
+	self.hud_prompt_exit settext( "" );
+	self [[level.remoteweapons[weaponname].endusecallback]]( self.remoteweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x13EC
+fadeouttoblack( isdead )
+{
+	self endon( "disconnect" );
+	self endon( "early_death" );
+	self sendkillstreakdamageevent( 600 );
+	wait 0.75;
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0.25, 0.1, 0.25 );
+	self thread maps\mp\gametypes\_hud::fadetoblackforxsec( 0, 0.2, 0, 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x145C
+baseendremotecontrolweaponuse( weaponname, isdead )
+{
+	self thread fadeouttoblack( 1 );
+	wait 1;
+	self thread fadeouttoblack( 0 );
+	self clearusingremote();
+	self takeweapon( weaponname );
+	self.remoteweapon.wascontrollednowdead = self.remoteweapon.controlled;
+	self.remoteweapon.controlled = 0;
+	self [[level.remoteweapons[weaponname].endusecallback]]( self.remoteweapon, isdead );
+	self.remoteweapon.killcament = self.remoteweapon;
+	self unlink();
+	self.killstreak_waitamount = undefined;
+	self destroyremotehud();
+	self clientnotify( "nofutz" );
+	self freezecontrolswrapper( 1 );
+	self.hud_prompt_exit settext( "" );
+	self notify( "remove_remote_weapon", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x157C
+destroyremotehud()
+{
+	self useservervisionset( 0 );
+	self setinfraredvision( 0 );
+	self.fullscreen_static destroy();
+	self.remote_hud_reticle destroy();
+	self.remote_hud_bracket_right destroy();
+	self.remote_hud_bracket_left destroy();
+	self.remote_hud_arrow_right destroy();
+	self.remote_hud_arrow_left destroy();
+	self.tank_rocket_1 destroy();
+	self.tank_rocket_2 destroy();
+	self.tank_rocket_3 destroy();
+	self.tank_rocket_hint destroy();
+	self.tank_mg_bar destroy();
+	self.tank_mg_arrow destroy();
+	self.tank_mg_hint destroy();
+	self.tank_fullscreen_effect destroy();
+	self.hud_prompt_exit destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x1704
+stunstaticfx( duration )
+{
+	self endon( "remove_remote_weapon" );
+	self.fullscreen_static.alpha = 0.65;
+	wait duration - 0.5;
+	time = duration - 0.5;
+	wait 0.05;
+	time += 0.05;
+	self.fullscreen_static.alpha -= 0.05;
+	self.fullscreen_static.alpha = 0.15;
+// SP = 0x0 - check OK
+}

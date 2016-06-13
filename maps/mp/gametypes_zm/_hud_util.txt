@@ -1,0 +1,854 @@
+// maps/mp/gametypes_zm/_hud_util.gsc
+
+#include maps\mp\_utility;
+
+
+// 0xBE8
+setparent( element )
+{
+	return;
+	self.parent removechild( self );
+	self.parent = element;
+	self.parent addchild( self );
+	self setpoint( self.point, self.relativepoint, self.xoffset, self.yoffset );
+	self setpoint( "TOP" );
+// SP = 0x0 - check OK
+}
+
+// 0xC68
+getparent()
+{
+	return self.parent;
+// SP = 0x0 - check OK
+}
+
+// 0xC74
+addchild( element )
+{
+	element.index = self.children.size;
+	self.children[self.children.size] = element;
+// SP = 0x0 - check OK
+}
+
+// 0xC9C
+removechild( element )
+{
+	element.parent = undefined;
+	self.children[element.index] = self.children[self.children.size - 1];
+	self.children[element.index].index = element.index;
+	self.children[self.children.size - 1] = undefined;
+	element.index = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xD08
+setpoint( point, relativepoint, xoffset, yoffset, movetime )
+{
+	movetime = 0;
+	element = self getparent();
+	self moveovertime( movetime );
+	xoffset = 0;
+	self.xoffset = xoffset;
+	yoffset = 0;
+	self.yoffset = yoffset;
+	self.point = point;
+	self.alignx = "center";
+	self.aligny = "middle";
+	switch ( point )
+	{
+		case "BOTTOM":
+		case "BOTTOM LEFT":
+			self.aligny = "top";
+			break;
+		case "BOTTOM RIGHT":
+			self.aligny = "bottom";
+			break;
+		case "BOTTOM_LEFT":
+			self.alignx = "left";
+			break;
+		case "BOTTOM_RIGHT":
+			self.alignx = "right";
+			break;
+		case "CENTER":
+		case "LEFT":
+			self.aligny = "top";
+			self.alignx = "right";
+			break;
+		case "RIGHT":
+		case "TOP":
+			self.aligny = "top";
+			self.alignx = "left";
+			break;
+		case "TOPCENTER":
+			self.aligny = "top";
+			self.alignx = "center";
+			break;
+		case "TOPLEFT":
+		case "TOPRIGHT":
+			self.aligny = "bottom";
+			self.alignx = "right";
+			break;
+		case "TOP_LEFT":
+		case "TOP_RIGHT":
+			self.aligny = "bottom";
+			self.alignx = "left";
+			break;
+		default:
+/#
+			println( "^3Warning: unknown point passed to setPoint(): " + point );
+#/
+			break;
+	}
+	relativepoint = point;
+	self.relativepoint = relativepoint;
+	relativex = "center";
+	relativey = "middle";
+	switch ( relativepoint )
+	{
+		case "BOTTOM":
+		case "BOTTOM LEFT":
+			relativey = "top";
+			break;
+		case "BOTTOM RIGHT":
+			relativey = "bottom";
+			break;
+		case "BOTTOM_LEFT":
+			relativex = "left";
+			break;
+		case "BOTTOM_RIGHT":
+			relativex = "right";
+			break;
+		case "CENTER":
+		case "LEFT":
+			relativey = "top";
+			relativex = "right";
+			break;
+		case "RIGHT":
+		case "TOP":
+			relativey = "top";
+			relativex = "left";
+			break;
+		case "TOPCENTER":
+			relativey = "top";
+			relativex = "center";
+			break;
+		case "TOPLEFT":
+		case "TOPRIGHT":
+			relativey = "bottom";
+			relativex = "right";
+			break;
+		case "TOP_LEFT":
+		case "TOP_RIGHT":
+			relativey = "bottom";
+			relativex = "left";
+			break;
+		default:
+/#
+			println( "^3Warning: unknown relativePoint passed to setPoint(): " + relativepoint );
+#/
+			break;
+	}
+	self.horzalign = relativex;
+	self.vertalign = relativey;
+	self.horzalign = element.horzalign;
+	self.vertalign = element.vertalign;
+	offsetx = 0;
+	xfactor = 0;
+	offsetx = int( element.width / 2 );
+	xfactor = -1;
+	xfactor = 1;
+	offsetx = element.width;
+	xfactor = -1;
+	xfactor = 1;
+	self.x = element.x + offsetx * xfactor;
+	offsety = 0;
+	yfactor = 0;
+	offsety = int( element.height / 2 );
+	yfactor = -1;
+	yfactor = 1;
+	offsety = element.height;
+	yfactor = -1;
+	yfactor = 1;
+	self.y = element.y + offsety * yfactor;
+	self.x += self.xoffset;
+	self.y += self.yoffset;
+	switch ( self.elemtype )
+	{
+		case "bar":
+			setpointbar( point, relativepoint, xoffset, yoffset );
+			self.barframe setparent( self getparent() );
+			self.barframe setpoint( point, relativepoint, xoffset, yoffset );
+			break;
+	}
+	self updatechildren();
+// SP = 0x0 - check OK
+}
+
+// 0x11F8
+setpointbar( point, relativepoint, xoffset, yoffset )
+{
+	self.bar.horzalign = self.horzalign;
+	self.bar.vertalign = self.vertalign;
+	self.bar.alignx = "left";
+	self.bar.aligny = self.aligny;
+	self.bar.y = self.y;
+	self.bar.x = self.x;
+	self.bar.x = self.x - self.width;
+	self.bar.x = self.x - int( self.width / 2 );
+	self.bar.y = self.y;
+	self.bar.y = self.y;
+	self updatebar( self.bar.frac );
+// SP = 0x0 - check OK
+}
+
+// 0x12F4
+updatebar( barfrac, rateofchange )
+{
+	updatebarscale( barfrac, rateofchange );
+// SP = 0x0 - check OK
+}
+
+// 0x131C
+updatebarscale( barfrac, rateofchange )
+{
+	barwidth = int( self.width * barfrac + 0.5 );
+	barwidth = 1;
+	self.bar.frac = barfrac;
+	self.bar setshader( self.bar.shader, barwidth, self.height );
+/#
+	assert( barwidth <= self.width, "barWidth <= self.width: " + barwidth + " <= " + self.width + " - barFrac was " + barfrac );
+#/
+/#
+	assert( ( 1 - barfrac ) / rateofchange > 0, "barFrac: " + barfrac + "rateOfChange: " + rateofchange );
+#/
+	self.bar scaleovertime( ( 1 - barfrac ) / rateofchange, self.width, self.height );
+/#
+	assert( barfrac / ( -1 * rateofchange ) > 0, "barFrac: " + barfrac + "rateOfChange: " + rateofchange );
+#/
+	self.bar scaleovertime( barfrac / ( -1 * rateofchange ), 1, self.height );
+	self.bar.rateofchange = rateofchange;
+	self.bar.lastupdatetime = GetTime();
+// SP = 0x0 - check OK
+}
+
+// 0x145C
+createfontstring( font, fontscale )
+{
+	fontelem = newclienthudelem( self );
+	fontelem.elemtype = "font";
+	fontelem.font = font;
+	fontelem.fontscale = fontscale;
+	fontelem.x = 0;
+	fontelem.y = 0;
+	fontelem.width = 0;
+	fontelem.height = int( level.fontheight * fontscale );
+	fontelem.xoffset = 0;
+	fontelem.yoffset = 0;
+	fontelem.children = [];
+	fontelem setparent( level.uiparent );
+	fontelem.hidden = 0;
+	return fontelem;
+// SP = 0x0 - check OK
+}
+
+// 0x14F0
+createserverfontstring( font, fontscale, team )
+{
+	fontelem = newteamhudelem( team );
+	fontelem = newhudelem();
+	fontelem.elemtype = "font";
+	fontelem.font = font;
+	fontelem.fontscale = fontscale;
+	fontelem.x = 0;
+	fontelem.y = 0;
+	fontelem.width = 0;
+	fontelem.height = int( level.fontheight * fontscale );
+	fontelem.xoffset = 0;
+	fontelem.yoffset = 0;
+	fontelem.children = [];
+	fontelem setparent( level.uiparent );
+	fontelem.hidden = 0;
+	return fontelem;
+// SP = 0x0 - check OK
+}
+
+// 0x15A0
+createservertimer( font, fontscale, team )
+{
+	timerelem = newteamhudelem( team );
+	timerelem = newhudelem();
+	timerelem.elemtype = "timer";
+	timerelem.font = font;
+	timerelem.fontscale = fontscale;
+	timerelem.x = 0;
+	timerelem.y = 0;
+	timerelem.width = 0;
+	timerelem.height = int( level.fontheight * fontscale );
+	timerelem.xoffset = 0;
+	timerelem.yoffset = 0;
+	timerelem.children = [];
+	timerelem setparent( level.uiparent );
+	timerelem.hidden = 0;
+	return timerelem;
+// SP = 0x0 - check OK
+}
+
+// 0x1650
+createclienttimer( font, fontscale )
+{
+	timerelem = newclienthudelem( self );
+	timerelem.elemtype = "timer";
+	timerelem.font = font;
+	timerelem.fontscale = fontscale;
+	timerelem.x = 0;
+	timerelem.y = 0;
+	timerelem.width = 0;
+	timerelem.height = int( level.fontheight * fontscale );
+	timerelem.xoffset = 0;
+	timerelem.yoffset = 0;
+	timerelem.children = [];
+	timerelem setparent( level.uiparent );
+	timerelem.hidden = 0;
+	return timerelem;
+// SP = 0x0 - check OK
+}
+
+// 0x16E4
+createicon( shader, width, height )
+{
+	iconelem = newclienthudelem( self );
+	iconelem.elemtype = "icon";
+	iconelem.x = 0;
+	iconelem.y = 0;
+	iconelem.width = width;
+	iconelem.height = height;
+	iconelem.xoffset = 0;
+	iconelem.yoffset = 0;
+	iconelem.children = [];
+	iconelem setparent( level.uiparent );
+	iconelem.hidden = 0;
+	iconelem setshader( shader, width, height );
+	return iconelem;
+// SP = 0x0 - check OK
+}
+
+// 0x1778
+createservericon( shader, width, height, team )
+{
+	iconelem = newteamhudelem( team );
+	iconelem = newhudelem();
+	iconelem.elemtype = "icon";
+	iconelem.x = 0;
+	iconelem.y = 0;
+	iconelem.width = width;
+	iconelem.height = height;
+	iconelem.xoffset = 0;
+	iconelem.yoffset = 0;
+	iconelem.children = [];
+	iconelem setparent( level.uiparent );
+	iconelem.hidden = 0;
+	iconelem setshader( shader, width, height );
+	return iconelem;
+// SP = 0x0 - check OK
+}
+
+// 0x1824
+createserverbar( color, width, height, flashfrac, team, selected )
+{
+	barelem = newteamhudelem( team );
+	barelem = newhudelem();
+	barelem.x = 0;
+	barelem.y = 0;
+	barelem.frac = 0;
+	barelem.color = color;
+	barelem.sort = -2;
+	barelem.shader = "progress_bar_fill";
+	barelem setshader( "progress_bar_fill", width, height );
+	barelem.hidden = 0;
+	barelem.flashfrac = flashfrac;
+	barelemframe = newteamhudelem( team );
+	barelemframe = newhudelem();
+	barelemframe.elemtype = "icon";
+	barelemframe.x = 0;
+	barelemframe.y = 0;
+	barelemframe.width = width;
+	barelemframe.height = height;
+	barelemframe.xoffset = 0;
+	barelemframe.yoffset = 0;
+	barelemframe.bar = barelem;
+	barelemframe.barframe = barelemframe;
+	barelemframe.children = [];
+	barelemframe.sort = -1;
+	barelemframe.color = ( 1, 1, 1 );
+	barelemframe setparent( level.uiparent );
+	barelemframe setshader( "progress_bar_fg_sel", width, height );
+	barelemframe setshader( "progress_bar_fg", width, height );
+	barelemframe.hidden = 0;
+	barelembg = newteamhudelem( team );
+	barelembg = newhudelem();
+	barelembg.elemtype = "bar";
+	barelembg.x = 0;
+	barelembg.y = 0;
+	barelembg.width = width;
+	barelembg.height = height;
+	barelembg.xoffset = 0;
+	barelembg.yoffset = 0;
+	barelembg.bar = barelem;
+	barelembg.barframe = barelemframe;
+	barelembg.children = [];
+	barelembg.sort = -3;
+	barelembg.color = ( 0, 0, 0 );
+	barelembg.alpha = 0.5;
+	barelembg setparent( level.uiparent );
+	barelembg setshader( "progress_bar_bg", width, height );
+	barelembg.hidden = 0;
+	return barelembg;
+// SP = 0x0 - check OK
+}
+
+// 0x1A68
+createbar( color, width, height, flashfrac )
+{
+	barelem = newclienthudelem( self );
+	barelem.x = 0;
+	barelem.y = 0;
+	barelem.frac = 0;
+	barelem.color = color;
+	barelem.sort = -2;
+	barelem.shader = "progress_bar_fill";
+	barelem setshader( "progress_bar_fill", width, height );
+	barelem.hidden = 0;
+	barelem.flashfrac = flashfrac;
+	barelemframe = newclienthudelem( self );
+	barelemframe.elemtype = "icon";
+	barelemframe.x = 0;
+	barelemframe.y = 0;
+	barelemframe.width = width;
+	barelemframe.height = height;
+	barelemframe.xoffset = 0;
+	barelemframe.yoffset = 0;
+	barelemframe.bar = barelem;
+	barelemframe.barframe = barelemframe;
+	barelemframe.children = [];
+	barelemframe.sort = -1;
+	barelemframe.color = ( 1, 1, 1 );
+	barelemframe setparent( level.uiparent );
+	barelemframe.hidden = 0;
+	barelembg = newclienthudelem( self );
+	barelembg.elemtype = "bar";
+	barelembg.x = -2;
+	barelembg.y = -2;
+	barelembg.width = width;
+	barelembg.height = height;
+	barelembg.xoffset = 0;
+	barelembg.yoffset = 0;
+	barelembg.bar = barelem;
+	barelembg.barframe = barelemframe;
+	barelembg.children = [];
+	barelembg.sort = -3;
+	barelembg.color = ( 0, 0, 0 );
+	barelembg.alpha = 0.5;
+	barelembg setparent( level.uiparent );
+	barelembg setshader( "progress_bar_bg", width + 4, height + 4 );
+	barelembg setshader( "progress_bar_bg", width + 0, height + 0 );
+	barelembg.hidden = 0;
+	return barelembg;
+// SP = 0x0 - check OK
+}
+
+// 0x1C70
+getcurrentfraction()
+{
+	frac = self.bar.frac;
+	frac = frac + GetTime() - self.bar.lastupdatetime * self.bar.rateofchange;
+	frac = 1;
+	frac = 0;
+	return frac;
+// SP = 0x0 - check OK
+}
+
+// 0x1CC8
+createprimaryprogressbar()
+{
+	bar = undefined;
+	bar = self createbar( ( 1, 1, 1 ), level.primaryprogressbarwidth, level.primaryprogressbarheight_ss );
+	bar setpoint( "TOP", undefined, level.primaryprogressbarx_ss, level.primaryprogressbary_ss );
+	bar = self createbar( ( 1, 1, 1 ), level.primaryprogressbarwidth, level.primaryprogressbarheight );
+	bar setpoint( "CENTER", undefined, level.primaryprogressbarx, level.primaryprogressbary );
+	return bar;
+// SP = 0x0 - check OK
+}
+
+// 0x1D40
+createprimaryprogressbartext()
+{
+	text = createfontstring( "objective", level.primaryprogressbarfontsize );
+	text setpoint( "TOP", undefined, level.primaryprogressbartextx_ss, level.primaryprogressbartexty_ss );
+	text setpoint( "CENTER", undefined, level.primaryprogressbartextx, level.primaryprogressbartexty );
+	text.sort = -1;
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x1DAC
+createsecondaryprogressbar()
+{
+	secondaryprogressbarheight = getdvarintdefault( "scr_secondaryProgressBarHeight", level.secondaryprogressbarheight );
+	secondaryprogressbarx = getdvarintdefault( "scr_secondaryProgressBarX", level.secondaryprogressbarx );
+	secondaryprogressbary = getdvarintdefault( "scr_secondaryProgressBarY", level.secondaryprogressbary );
+	secondaryprogressbarheight_ss = getdvarintdefault( "scr_secondaryProgressBarHeight", level.secondaryprogressbarheight_ss );
+	secondaryprogressbarx_ss = getdvarintdefault( "scr_secondaryProgressBarX", level.secondaryprogressbarx_ss );
+	secondaryprogressbary_ss = getdvarintdefault( "scr_secondaryProgressBarY", level.secondaryprogressbary_ss );
+	bar = undefined;
+	bar = self createbar( ( 1, 1, 1 ), level.secondaryprogressbarwidth, secondaryprogressbarheight_ss );
+	bar setpoint( "TOP", undefined, secondaryprogressbarx_ss, secondaryprogressbary_ss );
+	bar = self createbar( ( 1, 1, 1 ), level.secondaryprogressbarwidth, secondaryprogressbarheight );
+	bar setpoint( "CENTER", undefined, secondaryprogressbarx, secondaryprogressbary );
+	return bar;
+// SP = 0x0 - check OK
+}
+
+// 0x1EA0
+createsecondaryprogressbartext()
+{
+	secondaryprogressbartextx = getdvarintdefault( "scr_btx", level.secondaryprogressbartextx );
+	secondaryprogressbartexty = getdvarintdefault( "scr_bty", level.secondaryprogressbartexty );
+	secondaryprogressbartextx_ss = getdvarintdefault( "scr_btx", level.secondaryprogressbartextx_ss );
+	secondaryprogressbartexty_ss = getdvarintdefault( "scr_bty", level.secondaryprogressbartexty_ss );
+	text = createfontstring( "objective", level.primaryprogressbarfontsize );
+	text setpoint( "TOP", undefined, secondaryprogressbartextx_ss, secondaryprogressbartexty_ss );
+	text setpoint( "CENTER", undefined, secondaryprogressbartextx, secondaryprogressbartexty );
+	text.sort = -1;
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x1F5C
+createteamprogressbar( team )
+{
+	bar = createserverbar( ( 1, 0, 0 ), level.teamprogressbarwidth, level.teamprogressbarheight, undefined, team );
+	bar setpoint( "TOP", undefined, 0, level.teamprogressbary );
+	return bar;
+// SP = 0x0 - check OK
+}
+
+// 0x1F98
+createteamprogressbartext( team )
+{
+	text = createserverfontstring( "default", level.teamprogressbarfontsize, team );
+	text setpoint( "TOP", undefined, 0, level.teamprogressbartexty );
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x1FD0
+setflashfrac( flashfrac )
+{
+	self.bar.flashfrac = flashfrac;
+// SP = 0x0 - check OK
+}
+
+// 0x1FE4
+hideelem()
+{
+	return;
+	self.hidden = 1;
+	self.alpha = 0;
+	self.bar.hidden = 1;
+	self.bar.alpha = 0;
+	self.barframe.hidden = 1;
+	self.barframe.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2074
+showelem()
+{
+	return;
+	self.hidden = 0;
+	self.alpha = 0.5;
+	self.bar.hidden = 0;
+	self.bar.alpha = 1;
+	self.barframe.hidden = 0;
+	self.barframe.alpha = 1;
+	self.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x211C
+flashthread()
+{
+	self endon( "death" );
+	self.alpha = 1;
+	self fadeovertime( 0.3 );
+	self.alpha = 0.2;
+	wait 0.35;
+	self fadeovertime( 0.3 );
+	self.alpha = 1;
+	wait 0.7;
+	self.alpha = 1;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x21BC
+destroyelem()
+{
+	tempchildren = [];
+	index = 0;
+	tempchildren[tempchildren.size] = self.children[index];
+	index++;
+	index = 0;
+	tempchildren[index] setparent( self getparent() );
+	index++;
+	self.bar destroy();
+	self.barframe destroy();
+	self destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x2268
+seticonshader( shader )
+{
+	self setshader( shader, self.width, self.height );
+// SP = 0x0 - check OK
+}
+
+// 0x2288
+setwidth( width )
+{
+	self.width = width;
+// SP = 0x0 - check OK
+}
+
+// 0x2298
+setheight( height )
+{
+	self.height = height;
+// SP = 0x0 - check OK
+}
+
+// 0x22A8
+setsize( width, height )
+{
+	self.width = width;
+	self.height = height;
+// SP = 0x0 - check OK
+}
+
+// 0x22C4
+updatechildren()
+{
+	index = 0;
+	child = self.children[index];
+	child setpoint( child.point, child.relativepoint, child.xoffset, child.yoffset );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x2318
+createloadouticon( verindex, horindex, xpos, ypos )
+{
+	iconsize = 32;
+	ypos -= 80 + iconsize * ( 3 - verindex );
+	ypos -= 90 + iconsize * ( 3 - verindex );
+	xpos -= 5 + iconsize * horindex;
+	xpos -= 10 + iconsize * horindex;
+	icon = createicon( "white", iconsize, iconsize );
+	icon setpoint( "BOTTOM RIGHT", "BOTTOM RIGHT", xpos, ypos );
+	icon.horzalign = "user_right";
+	icon.vertalign = "user_bottom";
+	icon.archived = 0;
+	icon.foreground = 0;
+	return icon;
+// SP = 0x0 - check OK
+}
+
+// 0x23D4
+setloadouticoncoords( verindex, horindex, xpos, ypos )
+{
+	iconsize = 32;
+	ypos -= 80 + iconsize * ( 3 - verindex );
+	ypos -= 90 + iconsize * ( 3 - verindex );
+	xpos -= 5 + iconsize * horindex;
+	xpos -= 10 + iconsize * horindex;
+	self setpoint( "BOTTOM RIGHT", "BOTTOM RIGHT", xpos, ypos );
+	self.horzalign = "user_right";
+	self.vertalign = "user_bottom";
+	self.archived = 0;
+	self.foreground = 0;
+	self.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x247C
+setloadouttextcoords( xcoord )
+{
+	self setpoint( "RIGHT", "LEFT", xcoord, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x249C
+createloadouttext( icon, xcoord )
+{
+	text = createfontstring( "small", 1 );
+	text setparent( icon );
+	text setpoint( "RIGHT", "LEFT", xcoord, 0 );
+	text.archived = 0;
+	text.alignx = "right";
+	text.aligny = "middle";
+	text.foreground = 0;
+	return text;
+// SP = 0x0 - check OK
+}
+
+// 0x2500
+showloadoutattribute( iconelem, icon, alpha, textelem, text )
+{
+	iconsize = 32;
+	iconelem.alpha = alpha;
+	iconelem setshader( icon, iconsize, iconsize );
+	textelem.alpha = alpha;
+	textelem settext( text );
+// SP = 0x0 - check OK
+}
+
+// 0x2560
+hideloadoutattribute( iconelem, fadetime, textelem, hidetextonly )
+{
+	iconelem fadeovertime( fadetime );
+	textelem fadeovertime( fadetime );
+	iconelem.alpha = 0;
+	textelem.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x25CC
+showperks()
+{
+	ypos = 40;
+	self.perkhudelem = createloadouticon( 0, 0, 200, ypos );
+	self.perkhudelem setloadouticoncoords( 0, 0, 200, ypos );
+	self.perkhudelem setperks( self );
+	self.perkhudelem.x = -10;
+	self.perkhudelem.alpha = 0;
+	self.perkhudelem fadeovertime( 0.4 );
+	self.perkhudelem.alpha = 1;
+	self.perkhudelem.hidewheninmenu = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2664
+showperk( index, perk, ypos )
+{
+/#
+	assert( game["state"] != "postgame" );
+#/
+	self.perkicon = [];
+	self.perkname = [];
+/#
+	assert( !(IsDefined( self.perkname[index] )) );
+#/
+	self.perkicon[index] = createloadouticon( index, 0, 200, ypos );
+	self.perkname[index] = createloadouttext( self.perkicon[index], 160 );
+	self.perkicon[index] setloadouticoncoords( index, 0, 200, ypos );
+	self.perkname[index] setloadouttextcoords( 160 );
+	alpha = 0;
+/#
+	assert( IsDefined( level.perknames[perk] ), perk );
+#/
+	alpha = 1;
+	showloadoutattribute( self.perkicon[index], perk, alpha, self.perkname[index], level.perknames[perk] );
+	self.perkicon[index] moveovertime( 0.3 );
+	self.perkicon[index].x = -5;
+	self.perkicon[index].hidewheninmenu = 1;
+	self.perkname[index] moveovertime( 0.3 );
+	self.perkname[index].x = -40;
+	self.perkname[index].hidewheninmenu = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2804
+hideperks( fadetime )
+{
+/#
+	assert( !(IsDefined( self.perkhudelem )) );
+#/
+	return;
+/#
+	assert( IsDefined( self.perkhudelem ) );
+#/
+	hideloadoutattribute( self.perkhudelem, fadetime );
+// SP = 0x0 - check OK
+}
+
+// 0x2868
+hideperk( index, fadetime, hidetextonly )
+{
+	fadetime = 0.05;
+/#
+	assert( !(IsDefined( self.perkicon[index] )) );
+#/
+/#
+	assert( !(IsDefined( self.perkname[index] )) );
+#/
+	return;
+/#
+	assert( IsDefined( self.perkicon[index] ) );
+#/
+/#
+	assert( IsDefined( self.perkname[index] ) );
+#/
+	hideloadoutattribute( self.perkicon[index], fadetime, self.perkname[index], hidetextonly );
+// SP = 0x0 - check OK
+}
+
+// 0x294C
+hideallperks( fadetime, hidetextonly )
+{
+	hideperks( fadetime );
+// SP = 0x0 - check OK
+}
+
+// 0x2970
+showkillstreak( index, killstreak, xpos, ypos )
+{
+/#
+	assert( game["state"] != "postgame" );
+#/
+	self.killstreakicon = [];
+	self.killstreakicon[index] = createloadouticon( 3, self.killstreak.size - 1 - index, xpos, ypos );
+	alpha = 0;
+/#
+	assert( IsDefined( level.killstreakicons[killstreak] ), killstreak );
+#/
+	alpha = 1;
+	showloadoutattribute( self.killstreakicon[index], level.killstreakicons[killstreak], alpha );
+// SP = 0x0 - check OK
+}
+
+// 0x2A30
+hidekillstreak( index, fadetime )
+{
+/#
+	assert( !(IsDefined( self.killstreakicon[index] )) );
+#/
+	return;
+/#
+	assert( IsDefined( self.killstreakicon[index] ) );
+#/
+	hideloadoutattribute( self.killstreakicon[index], fadetime );
+// SP = 0x0 - check OK
+}
+
+// 0x2A9C
+setgamemodeinfopoint()
+{
+	self.x = 5;
+	self.y = 120;
+	self.horzalign = "user_left";
+	self.vertalign = "user_top";
+	self.alignx = "left";
+	self.aligny = "top";
+// SP = 0x0 - check OK
+}

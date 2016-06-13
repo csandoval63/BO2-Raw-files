@@ -1,0 +1,139 @@
+// maps/mp/_flashgrenades.gsc
+
+#include maps\mp\_utility;
+
+
+// 0x3A0
+main()
+{
+	precacheshellshock( "flashbang" );
+	level.sound_flash_start = "";
+	level.sound_flash_loop = "";
+	level.sound_flash_stop = "";
+// SP = 0x0 - check OK
+}
+
+// 0x3CC
+startmonitoringflash()
+{
+	self thread monitorflash();
+// SP = 0x0 - check OK
+}
+
+// 0x3E0
+stopmonitoringflash( disconnected )
+{
+	self notify( "stop_monitoring_flash" );
+// SP = 0x0 - check OK
+}
+
+// 0x3F0
+flashrumbleloop( duration )
+{
+	self endon( "stop_monitoring_flash" );
+	self endon( "flash_rumble_loop" );
+	self notify( "flash_rumble_loop" );
+	goaltime = GetTime() + duration * 1000;
+	self playrumbleonentity( "damage_heavy" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x43C
+monitorflash_internal( amount_distance, amount_angle, attacker, direct_on_player )
+{
+	hurtattacker = 0;
+	hurtvictim = 1;
+	amount_angle = 0.5;
+	amount_angle = 1;
+	amount_distance *= 0.5;
+	duration = amount_distance * amount_angle * 6;
+	return;
+	rumbleduration = undefined;
+	rumbleduration = 0.75;
+	rumbleduration = 0.25;
+/#
+	assert( IsDefined( self.team ) );
+#/
+	return;
+	duration *= 0.5;
+	rumbleduration *= 0.5;
+	hurtvictim = 0;
+	hurtattacker = 1;
+	duration *= 0.5;
+	rumbleduration *= 0.5;
+	hurtattacker = 1;
+	duration *= 0.1;
+	rumbleduration *= 0.1;
+	attacker addweaponstat( "flash_grenade_mp", "hits", 1 );
+	attacker addweaponstat( "flash_grenade_mp", "used", 1 );
+	self thread applyflash( duration, rumbleduration, attacker );
+	attacker thread applyflash( duration, rumbleduration, attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x650
+monitorflash()
+{
+	self endon( "disconnect" );
+	self.flashendtime = 0;
+	self waittill( "flashbang", amount_distance, amount_angle, attacker );
+	self monitorflash_internal( amount_distance, amount_angle, attacker, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x6A4
+monitorrcbombflash()
+{
+	self endon( "death" );
+	self.flashendtime = 0;
+	self waittill( "flashbang", amount_distance, amount_angle, attacker );
+	driver = self getseatoccupant( 0 );
+	driver monitorflash_internal( amount_distance, amount_angle, attacker, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x710
+applyflash( duration, rumbleduration, attacker )
+{
+	self.flashduration = duration;
+	self.flashrumbleduration = rumbleduration;
+	self thread playflashsound( duration );
+	wait 0.05;
+	self shellshock( "flashbang", self.flashduration, 0 );
+	self.flashendtime = GetTime() + self.flashduration * 1000;
+	self.lastflashedby = attacker;
+	self thread flashrumbleloop( self.flashrumbleduration );
+	self.flashduration = undefined;
+	self.flashrumbleduration = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x7C0
+playflashsound( duration )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	flashsound = spawn( "script_origin", ( 0, 0, 1 ) );
+	flashsound.origin = self.origin;
+	flashsound linkto( self );
+	flashsound thread deleteentonownerdeath( self );
+	flashsound playsound( level.sound_flash_start );
+	flashsound playloopsound( level.sound_flash_loop );
+	wait duration - 0.5;
+	flashsound playsound( level.sound_flash_start );
+	flashsound stoploopsound( 0.5 );
+	wait 0.5;
+	flashsound notify( "delete" );
+	flashsound delete();
+// SP = 0x0 - check OK
+}
+
+// 0x880
+deleteentonownerdeath( owner )
+{
+	self endon( "delete" );
+	owner waittill( "death" );
+	self delete();
+// SP = 0x0 - check OK
+}

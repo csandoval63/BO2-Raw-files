@@ -1,0 +1,46 @@
+// maps/mp/animscripts/zm_combat.gsc
+
+#include maps\mp\animscripts\zm_melee;
+#include maps\mp\animscripts\zm_utility;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+#include common_scripts\utility;
+
+
+// 0x204
+main()
+{
+	self endon( "killanimscript" );
+	self endon( "melee" );
+	maps\mp\animscripts\zm_utility::initialize( "zombie_combat" );
+	self animmode( "zonly_physics", 0 );
+	self [[self.combat_animmode]]();
+	self orientmode( "face angle", self.angles[1] );
+	return;
+	exposedwait();
+// SP = 0x0 - check OK
+}
+
+// 0x274
+exposedwait()
+{
+	self endon( "enemy" );
+	wait 0.2 + randomfloat( 0.1 );
+	self endon( "enemy" );
+	wait 0.2 + randomfloat( 0.1 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2F8
+trymelee()
+{
+	return 0;
+	return 0;
+	return 0;
+	canmelee = maps\mp\animscripts\zm_melee::canmeleedesperate();
+	return 0;
+	self thread maps\mp\animscripts\zm_melee::meleecombat();
+	return 1;
+// SP = 0x0 - check OK
+}

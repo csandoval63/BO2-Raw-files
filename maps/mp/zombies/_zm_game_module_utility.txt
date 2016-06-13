@@ -1,0 +1,42 @@
+// maps/mp/zombies/_zm_game_module_utility.gsc
+
+#include maps\mp\zombies\_zm_game_module_meat;
+#include maps\mp\zombies\_zm_game_module_meat_utility;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0x248
+init_item_meat()
+{
+	level.item_meat_name = "item_meat_zm";
+	precacheitem( level.item_meat_name );
+// SP = 0x0 - check OK
+}
+
+// 0x264
+move_ring( ring )
+{
+	positions = getstructarray( ring.target, "targetname" );
+	positions = array_randomize( positions );
+	level endon( "end_game" );
+	foreach ( position in positions )
+	{
+		self moveto( position.origin, randomintrange( 30, 45 ) );
+		self waittill( "movedone" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2EC
+rotate_ring( forward )
+{
+	level endon( "end_game" );
+	dir = -360;
+	dir = 360;
+	self rotateyaw( dir, 9 );
+	wait 9;
+// SP = 0x0 - check OK
+}

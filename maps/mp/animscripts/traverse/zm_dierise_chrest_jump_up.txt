@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_chrest_jump_up.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x124
+main()
+{
+	dosimpletraverse( "dierise_chrest_interior_low_to_high", undefined, "zm_traverse_dierise" );
+// SP = 0x0 - check OK
+}

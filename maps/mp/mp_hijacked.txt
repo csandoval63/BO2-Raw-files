@@ -1,0 +1,174 @@
+// maps/mp/mp_hijacked.gsc
+
+#include maps\mp\_compass;
+#include maps\mp\mp_hijacked_amb;
+#include maps\mp\_load;
+#include maps\mp\mp_hijacked_fx;
+#include maps\mp\_utility;
+
+
+// 0x730
+main()
+{
+	level.levelspawndvars = ::levelspawndvars;
+	level.overrideplayerdeathwatchtimer = ::leveloverridetime;
+	level.useintermissionpointsonwavespawn = ::useintermissionpointsonwavespawn;
+	maps\mp\mp_hijacked_fx::main();
+	precachemodel( "collision_physics_64x64x10" );
+	precachemodel( "collision_physics_wall_64x64x10" );
+	precachemodel( "collision_physics_cylinder_32x128" );
+	precachemodel( "collision_clip_64x64x10" );
+	maps\mp\_load::main();
+	maps\mp\mp_hijacked_amb::main();
+	spawn( "mp_dm_spawn", ( 82, 262, -135.5 ), 0, 187, 0 );
+	spawn( "mp_dm_spawn", ( 783.5, 90, 58 ), 0, 198, 0 );
+	spawn( "mp_dm_spawn", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_dm_spawn", ( -3012, -178, -136 ), 0, 335, 0 );
+	spawn( "mp_dm_spawn", ( -3016, 176, -136 ), 0, 28, 0 );
+	spawn( "mp_dm_spawn", ( -1022.5, -109.5, -136 ), 0, 5, 0 );
+	spawn( "mp_dm_spawn", ( -874, 661, -14 ), 0, 5, 0 );
+	spawn( "mp_dm_spawn", ( -1048, -333, 201 ), 0, 69, 0 );
+	spawn( "mp_dm_spawn", ( -1462.5, 169.5, -8 ), 0, 48, 0 );
+	spawn( "mp_tdm_spawn", ( 82, 262, -135.5 ), 0, 187, 0 );
+	spawn( "mp_tdm_spawn", ( 783.5, 90, 58 ), 0, 198, 0 );
+	spawn( "mp_tdm_spawn", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_tdm_spawn", ( -3012, -178, -136 ), 0, 335, 0 );
+	spawn( "mp_tdm_spawn", ( -3016, 176, -136 ), 0, 28, 0 );
+	spawn( "mp_tdm_spawn", ( -1022.5, -109.5, -136 ), 0, 5, 0 );
+	spawn( "mp_tdm_spawn", ( -874, 661, -14 ), 0, 5, 0 );
+	spawn( "mp_tdm_spawn", ( -1048, -333, 201 ), 0, 69, 0 );
+	spawn( "mp_tdm_spawn", ( -1462.5, 169.5, -8 ), 0, 48, 0 );
+	spawn( "mp_tdm_spawn", ( 82, 262, -135.5 ), 0, 187, 0 );
+	spawn( "mp_tdm_spawn", ( 783.5, 90, 58 ), 0, 198, 0 );
+	spawn( "mp_tdm_spawn", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_tdm_spawn", ( -3012, -178, -136 ), 0, 335, 0 );
+	spawn( "mp_tdm_spawn", ( -3016, 176, -136 ), 0, 28, 0 );
+	spawn( "mp_tdm_spawn", ( -1022.5, -109.5, -136 ), 0, 5, 0 );
+	spawn( "mp_tdm_spawn", ( -874, 661, -14 ), 0, 5, 0 );
+	spawn( "mp_tdm_spawn", ( -1048, -333, 201 ), 0, 69, 0 );
+	spawn( "mp_tdm_spawn", ( -1462.5, 169.5, -8 ), 0, 48, 0 );
+	spawn( "mp_ctf_spawn_axis", ( 82, 262, -135.5 ), 0, 187, 0 );
+	spawn( "mp_ctf_spawn_axis", ( 249, 682, 48 ), 0, 183, 0 );
+	spawn( "mp_ctf_spawn_axis", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_ctf_spawn_allies", ( -1022.5, -109.5, -136 ), 0, 5, 0 );
+	spawn( "mp_ctf_spawn_allies", ( -874, 661, -14 ), 0, 5, 0 );
+	spawn( "mp_ctf_spawn_allies", ( -1462.5, 169.5, -8 ), 0, 48, 0 );
+	spawn( "mp_dom_spawn", ( 82, 262, -135.5 ), 0, 187, 0 );
+	spawn( "mp_dom_spawn", ( 249, 682, 48 ), 0, 183, 0 );
+	spawn( "mp_dom_spawn", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_dom_spawn", ( -1022.5, -109.5, -136 ), 0, 5, 0 );
+	spawn( "mp_dom_spawn", ( -874, 661, -14 ), 0, 5, 0 );
+	spawn( "mp_dom_spawn", ( -1462.5, 169.5, -8 ), 0, 48, 0 );
+	spawn( "mp_dom_spawn", ( -1048, -333, 201 ), 0, 69, 0 );
+	spawn( "mp_dem_spawn_attacker", ( 1103.5, -187.5, 192 ), 0, 165, 0 );
+	spawn( "mp_dem_spawn_attacker", ( 783.5, 90, 58 ), 0, 198, 0 );
+	maps\mp\_compass::setupminimap( "compass_map_mp_hijacked" );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 1660, 40, 59 ), vector_scale( ( 0, 0, -1 ), 90 ) );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 1633, 40, 48 ), vector_scale( ( 0, 0, -1 ), 90 ) );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 1660, -42, 59 ), vector_scale( ( 0, 0, -1 ), 90 ) );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 1632, -42, 48 ), vector_scale( ( 0, 0, -1 ), 90 ) );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 904, 18, 53 ), ( 0, 270, -90 ) );
+	spawncollision( "collision_physics_64x64x10", "collider", ( 904, 91, 90 ), ( 0, 270, -90 ) );
+	spawncollision( "collision_physics_cylinder_32x128", "collider", ( -1055, 10, 216 ), vector_scale( ( 0, 0, -1 ), 90 ) );
+	spawncollision( "collision_clip_64x64x10", "collider", ( -1912.65, -245, -76.3463 ), vector_scale( ( 1, 0, 0 ), 282 ) );
+	spawncollision( "collision_physics_wall_64x64x10", "collider", ( -1064, 412, 254 ), vector_scale( ( 1, 0, 0 ), 342.8 ) );
+	spawncollision( "collision_physics_wall_64x64x10", "collider", ( -1112, 416.5, 284 ), vector_scale( ( 1, 0, 0 ), 316.3 ) );
+	level.levelkothdisable = [];
+	level.levelkothdisable[level.levelkothdisable.size] = spawn( "trigger_radius", ( 402, 181.5, 35 ), 0, 70, 128 );
+	level.levelkothdisable[level.levelkothdisable.size] = spawn( "trigger_radius", ( -96, 320, 34 ), 0, 150, 80 );
+	level thread water_trigger_init();
+	trigs = getentarray( "koth_zone_trigger", "targetname" );
+	foreach ( trigger in trigs )
+	{
+		trigger delete();
+	}
+	trigger = spawn( "trigger_box", ( -204, 92, -128 ), 1, 2088, 504, 160 );
+	trigger.targetname = "koth_zone_trigger";
+// SP = 0x0 - check OK
+}
+
+// 0xF34
+levelspawndvars( reset_dvars )
+{
+	ss = level.spawnsystem;
+	ss.enemy_influencer_radius = set_dvar_float_if_unset( "scr_spawn_enemy_influencer_radius", "1600", reset_dvars );
+	ss.dead_friend_influencer_radius = set_dvar_float_if_unset( "scr_spawn_dead_friend_influencer_radius", "1400", reset_dvars );
+	ss.dead_friend_influencer_timeout_seconds = set_dvar_float_if_unset( "scr_spawn_dead_friend_influencer_timeout_seconds", "8", reset_dvars );
+	ss.dead_friend_influencer_count = set_dvar_float_if_unset( "scr_spawn_dead_friend_influencer_count", "10", reset_dvars );
+	ss.enemy_spawned_influencer_timeout_seconds = set_dvar_float_if_unset( "scr_spawn_enemy_spawned_influencer_timeout_seconds", "12", reset_dvars );
+	ss.dom_unowned_flag_influencer_radius = set_dvar_float_if_unset( "scr_spawn_dom_unowned_flag_influencer_radius", "1200", reset_dvars );
+	ss.dom_unowned_flag_influencer_score = set_dvar_float_if_unset( "scr_spawn_dom_unowned_flag_influencer_score", "-25", reset_dvars );
+	ss.dom_enemy_flag_influencer_radius[0] = set_dvar_float_if_unset( "scr_spawn_dom_enemy_flag_A_influencer_radius", "1200", reset_dvars );
+// SP = 0x0 - check OK
+}
+
+// 0x100C
+water_trigger_init()
+{
+	wait 3;
+	triggers = getentarray( "trigger_hurt", "classname" );
+	foreach ( trigger in triggers )
+	{
+		trigger thread water_trigger_think();
+	}
+	triggers = getentarray( "water_killbrush", "targetname" );
+	foreach ( trigger in triggers )
+	{
+		trigger thread player_splash_think();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x10C4
+player_splash_think()
+{
+	self waittill( "trigger", entity );
+	self thread trigger_thread( entity, ::player_water_fx );
+// SP = 0x0 - check OK
+}
+
+// 0x1110
+player_water_fx( player, endon_condition )
+{
+	maxs = self.origin + self getmaxs();
+	maxs += vector_scale( ( 0, 0, 1 ), 10 );
+	origin = ( player.origin[0], player.origin[1], maxs[2] );
+	playfx( level._effect["water_splash_sm"], origin );
+// SP = 0x0 - check OK
+}
+
+// 0x117C
+water_trigger_think()
+{
+	self waittill( "trigger", entity );
+	entity playsound( "mpl_splash_death" );
+	playfx( level._effect["water_splash"], entity.origin + vector_scale( ( 0, 0, 1 ), 40 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x11D4
+leveloverridetime( defaulttime )
+{
+	return 0.4;
+	return defaulttime;
+// SP = 0x0 - check OK
+}
+
+// 0x11F4
+useintermissionpointsonwavespawn()
+{
+	return self isinwater();
+// SP = 0x0 - check OK
+}
+
+// 0x1208
+isinwater()
+{
+	triggers = getentarray( "trigger_hurt", "classname" );
+	foreach ( trigger in triggers )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}

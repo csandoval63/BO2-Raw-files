@@ -1,0 +1,348 @@
+// maps/mp/gametypes_zm/_globallogic_ui.gsc
+
+#include maps\mp\gametypes_zm\_globallogic_player;
+#include maps\mp\gametypes_zm\_spectating;
+#include maps\mp\gametypes_zm\_globallogic;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\_utility;
+
+
+// 0x8B4
+init()
+{
+	precachestring( &"MP_HALFTIME" );
+	precachestring( &"MP_OVERTIME" );
+	precachestring( &"MP_ROUNDEND" );
+	precachestring( &"MP_INTERMISSION" );
+	precachestring( &"MP_SWITCHING_SIDES_CAPS" );
+	precachestring( &"MP_FRIENDLY_FIRE_WILL_NOT" );
+	precachestring( &"MP_RAMPAGE" );
+	precachestring( &"medal_received" );
+	precachestring( &"killstreak_received" );
+	precachestring( &"prox_grenade_notify" );
+	precachestring( &"player_callout" );
+	precachestring( &"score_event" );
+	precachestring( &"rank_up" );
+	precachestring( &"gun_level_complete" );
+	precachestring( &"challenge_complete" );
+	precachestring( &"hud_update_survival_team" );
+	precachestring( &"MP_ENDED_GAME" );
+	precachestring( &"MP_HOST_ENDED_GAME" );
+// SP = 0x0 - check OK
+}
+
+// 0x9AC
+setupcallbacks()
+{
+	level.autoassign = ::menuautoassign;
+	level.spectator = ::menuspectator;
+	level.class = ::menuclass;
+	level.teammenu = ::menuteam;
+// SP = 0x0 - check OK
+}
+
+// 0x9E4
+hideloadoutaftertime( delay )
+{
+	self endon( "disconnect" );
+	self endon( "perks_hidden" );
+	wait delay;
+	self thread hideallperks( 0.4 );
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xA18
+hideloadoutondeath()
+{
+	self endon( "disconnect" );
+	self endon( "perks_hidden" );
+	self waittill( "death" );
+	self hideallperks();
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xA44
+hideloadoutonkill()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "perks_hidden" );
+	self waittill( "killed_player" );
+	self hideallperks();
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xA78
+freegameplayhudelems()
+{
+	numspecialties = 0;
+	self.perkicon[numspecialties] destroyelem();
+	self.perkname[numspecialties] destroyelem();
+	numspecialties++;
+	self.perkhudelem destroyelem();
+	self.killstreakicon[0] destroyelem();
+	self.killstreakicon[1] destroyelem();
+	self.killstreakicon[2] destroyelem();
+	self.killstreakicon[3] destroyelem();
+	self.killstreakicon[4] destroyelem();
+	self notify( "perks_hidden" );
+	self.lowermessage destroyelem();
+	self.lowertimer destroyelem();
+	self.proxbar destroyelem();
+	self.proxbartext destroyelem();
+	self.carryicon destroyelem();
+// SP = 0x0 - check OK
+}
+
+// 0xC04
+teamplayercountsequal( playercounts )
+{
+	count = undefined;
+	foreach ( team in level.teams )
+	{
+		count = playercounts[team];
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xC64
+teamwithlowestplayercount( playercounts, ignore_team )
+{
+	count = 9999;
+	lowest_team = undefined;
+	foreach ( team in level.teams )
+	{
+		count = playercounts[team];
+		lowest_team = team;
+	}
+	return lowest_team;
+// SP = 0x0 - check OK
+}
+
+// 0xCC8
+menuautoassign( comingfrommenu )
+{
+	teamkeys = getarraykeys( level.teams );
+	assignment = teamkeys[randomint( teamkeys.size )];
+	self closemenus();
+	assignment = "allies";
+	assignment = "";
+	team = getassignedteam( self );
+	switch ( team )
+	{
+		case 1:
+			assignment = teamkeys[1];
+			break;
+		case 2:
+			assignment = teamkeys[0];
+			break;
+		case 3:
+			assignment = teamkeys[2];
+			break;
+		case 4:
+			self setclientscriptmainmenu( game["menu_class"] );
+		default:
+			assignment = "";
+			assignment = team;
+			self setclientscriptmainmenu( game["menu_class"] );
+	}
+	assignment = "allies";
+	self beginclasschoice();
+	return;
+	team = getassignedteam( self );
+	assignment = team;
+	self setclientscriptmainmenu( game["menu_class"] );
+	return;
+	self.switching_teams = 1;
+	self.joining_team = assignment;
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = assignment;
+	self.team = assignment;
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionteam = assignment;
+	self.sessionteam = "none";
+	self.ffateam = assignment;
+	self.statusicon = "hud_status_dead";
+	self notify( "joined_team" );
+	level notify( "joined_team" );
+	self notify( "end_respawn" );
+	self beginclasschoice();
+	self setclientscriptmainmenu( game["menu_class"] );
+// SP = 0x0 - check OK
+}
+
+// 0xFE8
+teamscoresequal()
+{
+	score = undefined;
+	foreach ( team in level.teams )
+	{
+		score = getteamscore( team );
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1054
+teamwithlowestscore()
+{
+	score = 99999999;
+	lowest_team = undefined;
+	foreach ( team in level.teams )
+	{
+		lowest_team = team;
+	}
+	return lowest_team;
+// SP = 0x0 - check OK
+}
+
+// 0x10B4
+pickteamfromscores( teams )
+{
+	assignment = "allies";
+	assignment = teams[randomint( teams.size )];
+	assignment = teamwithlowestscore();
+	return assignment;
+// SP = 0x0 - check OK
+}
+
+// 0x10F8
+getsplitscreenteam()
+{
+	index = 0;
+	team = level.players[index].sessionteam;
+	return team;
+	index++;
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x1174
+updateobjectivetext()
+{
+	self setclientcgobjectivetext( "" );
+	return;
+	self setclientcgobjectivetext( getobjectivescoretext( self.pers["team"] ) );
+	self setclientcgobjectivetext( getobjectivetext( self.pers["team"] ) );
+// SP = 0x0 - check OK
+}
+
+// 0x11EC
+closemenus()
+{
+	self closemenu();
+	self closeingamemenu();
+// SP = 0x0 - check OK
+}
+
+// 0x120C
+beginclasschoice( forcenewchoice )
+{
+/#
+	assert( IsDefined( level.teams[self.pers["team"]] ) );
+#/
+	team = self.pers["team"];
+	self.pers["class"] = level.defaultclass;
+	self.class = level.defaultclass;
+	self thread [[level.spawnclient]]();
+	level thread maps\mp\gametypes_zm\_globallogic::updateteamstatus();
+	self thread maps\mp\gametypes_zm\_spectating::setspectatepermissionsformachine();
+	return;
+	self openmenu( game["menu_changeclass_wager"] );
+	self openmenu( game["menu_changeclass_barebones"] );
+	self openmenu( game["menu_changeclass_" + team] );
+// SP = 0x0 - check OK
+}
+
+// 0x12E8
+showmainmenuforteam()
+{
+/#
+	assert( IsDefined( level.teams[self.pers["team"]] ) );
+#/
+	team = self.pers["team"];
+	self openmenu( game["menu_changeclass_wager"] );
+	self openmenu( game["menu_changeclass_" + team] );
+// SP = 0x0 - check OK
+}
+
+// 0x1348
+menuteam( team )
+{
+	self closemenus();
+	return;
+	self.hasspawned = 0;
+	self.switching_teams = 1;
+	self.joining_team = team;
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = team;
+	self.team = team;
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionteam = team;
+	self.sessionteam = "none";
+	self.ffateam = team;
+	self setclientscriptmainmenu( game["menu_class"] );
+	self notify( "joined_team" );
+	level notify( "joined_team" );
+	self notify( "end_respawn" );
+	self beginclasschoice();
+// SP = 0x0 - check OK
+}
+
+// 0x1474
+menuspectator()
+{
+	self closemenus();
+	self.switching_teams = 1;
+	self.joining_team = "spectator";
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = "spectator";
+	self.team = "spectator";
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionteam = "spectator";
+	self.ffateam = "spectator";
+	[[level.spawnspectator]]();
+	self thread maps\mp\gametypes_zm\_globallogic_player::spectate_player_watcher();
+	self setclientscriptmainmenu( game["menu_class"] );
+	self notify( "joined_spectators" );
+// SP = 0x0 - check OK
+}
+
+// 0x1550
+menuclass( response )
+{
+	self closemenus();
+// SP = 0x0 - check OK
+}
+
+// 0x1564
+removespawnmessageshortly( delay )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	self endon( "end_respawn" );
+	wait delay;
+	self clearlowermessage( 2 );
+// SP = 0x0 - check OK
+}

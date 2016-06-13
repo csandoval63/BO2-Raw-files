@@ -1,0 +1,166 @@
+// animscripts/predict.gsc
+
+
+// 0x298
+start()
+{
+	self.codepredictcmd = [];
+// SP = 0x0 - check OK
+}
+
+// 0x2A4
+end()
+{
+	self.codepredictcmd = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2B0
+addentry( entry )
+{
+	self.codepredictcmd[self.codepredictcmd.size] = entry;
+	handler = entry["handler"];
+	[[handler]]( entry );
+// SP = 0x0 - check OK
+}
+
+// 0x2DC
+addentryplaybackonly( entry )
+{
+	self.codepredictcmd[self.codepredictcmd.size] = entry;
+// SP = 0x0 - check OK
+}
+
+// 0x2F4
+_setanim( animation, goalweight, goaltime, rate )
+{
+	entry["handler"] = ::setanimh;
+	entry["animation"] = animation;
+	entry["goalWeight"] = goalweight;
+	entry["goalTime"] = goaltime;
+	entry["rate"] = rate;
+	addentry( entry );
+// SP = 0x0 - check OK
+}
+
+// 0x34C
+_setanimknoball( animation, root, goalweight, goaltime, rate )
+{
+	entry["handler"] = ::setanimknoballh;
+	entry["animation"] = animation;
+	entry["root"] = root;
+	entry["goalWeight"] = goalweight;
+	entry["goalTime"] = goaltime;
+	entry["rate"] = rate;
+	addentry( entry );
+// SP = 0x0 - check OK
+}
+
+// 0x3AC
+_setflaggedanimknoball( notifyname, animation, root, goalweight, goaltime, rate )
+{
+	entry["handler"] = ::setflaggedanimknoballh;
+	entry["notifyName"] = notifyname;
+	entry["animation"] = animation;
+	entry["root"] = root;
+	entry["goalWeight"] = goalweight;
+	entry["goalTime"] = goaltime;
+	entry["rate"] = rate;
+	addentry( entry );
+// SP = 0x0 - check OK
+}
+
+// 0x41C
+setanimh( entry )
+{
+	self setanim( entry["animation"], entry["goalWeight"], entry["goalTime"], entry["rate"] );
+// SP = 0x0 - check OK
+}
+
+// 0x448
+setanimknoballh( entry )
+{
+	self setanimknoball( entry["animation"], entry["root"], entry["goalWeight"], entry["goalTime"], entry["rate"] );
+// SP = 0x0 - check OK
+}
+
+// 0x47C
+setflaggedanimknoballh( entry )
+{
+	self setflaggedanimknoball( entry["notifyName"], entry["animation"], entry["root"], entry["goalWeight"], entry["goalTime"], entry["rate"] );
+// SP = 0x0 - check OK
+}
+
+// 0x4B4
+stumblewall( maxtime )
+{
+	maxframes = maxtime / 0.05;
+	i = 0;
+	self predictanim( 0 );
+	self predictoriginandangles();
+	entry["handler"] = ::moveh;
+	entry["origin"] = self.origin;
+	entry["angles"] = self.angles;
+	addentryplaybackonly( entry );
+	switch ( self gethitenttype() )
+	{
+		case "obstacle":
+			self orientmode( "face angle", self gethityaw() );
+			return 1;
+		case "world":
+			return 0;
+	}
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x578
+tumblewall( notifyname )
+{
+	thread getnotetrack( notifyname );
+	bpredictmore = self predictanim( 1 );
+	self notify( notifyname );
+	self waittill( "predictGetNotetrack", notetrack );
+	return 1;
+	self predictoriginandangles();
+	return 0;
+	entry["handler"] = ::moveh;
+	entry["origin"] = self.origin;
+	entry["angles"] = self.angles;
+	addentryplaybackonly( entry );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x624
+getnotetrack( notifyname )
+{
+	self waittill( notifyname, notetrack );
+	self notify( "predictGetNotetrack", notetrack );
+// SP = 0x0 - check OK
+}
+
+// 0x640
+moveh( entry )
+{
+	self predictanim( 0 );
+	self lerpposition( entry["origin"], entry["angles"] );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x678
+playback()
+{
+	self animmode( "nophysics" );
+	count = self.codepredictcmd.size;
+	i = 0;
+	entry = self.codepredictcmd[i];
+	handler = entry["handler"];
+	[[handler]]( entry );
+	self.codepredictcmd[i] = undefined;
+	i++;
+	self animmode( "none" );
+// SP = 0x0 - check OK
+}

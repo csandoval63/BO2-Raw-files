@@ -1,0 +1,53 @@
+// maps/mp/gametypes_zm/_shellshock.gsc
+
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x21C
+init()
+{
+	precacheshellshock( "frag_grenade_mp" );
+	precacheshellshock( "damage_mp" );
+	precacherumble( "artillery_rumble" );
+	precacherumble( "grenade_rumble" );
+// SP = 0x0 - check OK
+}
+
+// 0x254
+shellshockondamage( cause, damage )
+{
+	time = 0;
+	time = 4;
+	time = 3;
+	time = 2;
+	time = 2;
+	self shellshock( "frag_grenade_mp", 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x2FC
+endondeath()
+{
+	self waittill( "death" );
+	waittillframeend;
+	self notify( "end_explode" );
+// SP = 0x0 - check OK
+}
+
+// 0x310
+endontimer( timer )
+{
+	self endon( "disconnect" );
+	wait timer;
+	self notify( "end_on_timer" );
+// SP = 0x0 - check OK
+}
+
+// 0x32C
+rcbomb_earthquake( position )
+{
+	playrumbleonposition( "grenade_rumble", position );
+	earthquake( 0.5, 0.5, self.origin, 512 );
+// SP = 0x0 - check OK
+}

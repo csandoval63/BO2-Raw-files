@@ -1,0 +1,34 @@
+// clientscripts/_claw_grenade.csc
+
+
+// 0x198
+main()
+{
+	level._effect["claw_red_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_red_os" );
+	level._effect["claw_green_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_grn_os" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C8
+spawned( localclientnum )
+{
+	player = getlocalplayer( localclientnum );
+	self.fxtagname = "tag_origin";
+// SP = 0x0 - check OK
+}
+
+// 0x1E8
+loop_local_sound( localclientnum, alias, interval, fx, fx2 )
+{
+	self endon( "entityshutdown" );
+	fxtoplay = fx;
+	fusetime = 4;
+	self playsound( localclientnum, alias );
+	playfxontag( localclientnum, fxtoplay, self, self.fxtagname );
+	wait interval;
+	fusetime -= interval;
+	interval /= 1.1;
+	interval = 0.1;
+	fxtoplay = fx2;
+// SP = 0x0 - check OK
+}

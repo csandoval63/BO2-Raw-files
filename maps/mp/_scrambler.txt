@@ -1,0 +1,134 @@
+// maps/mp/_scrambler.gsc
+
+#include maps\mp\gametypes\_damagefeedback;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\_challenges;
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\gametypes\_weaponobjects;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x5F8
+init()
+{
+	level._effect["scrambler_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["scrambler_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+	level.scramblerweapon = "scrambler_mp";
+	level.scramblerlength = 30;
+	level.scramblerouterradiussq = 1000000;
+	level.scramblerinnerradiussq = 360000;
+// SP = 0x0 - check OK
+}
+
+// 0x654
+createscramblerwatcher()
+{
+	watcher = self maps\mp\gametypes\_weaponobjects::createuseweaponobjectwatcher( "scrambler", "scrambler_mp", self.team );
+	watcher.onspawn = ::onspawnscrambler;
+	watcher.detonate = ::scramblerdetonate;
+	watcher.stun = maps\mp\gametypes\_weaponobjects::weaponstun;
+	watcher.stuntime = 5;
+	watcher.reconmodel = "t5_weapon_scrambler_world_detect";
+	watcher.hackable = 1;
+	watcher.ondamage = ::watchscramblerdamage;
+// SP = 0x0 - check OK
+}
+
+// 0x6C8
+onspawnscrambler( watcher, player )
+{
+	player endon( "disconnect" );
+	self endon( "death" );
+	self thread maps\mp\gametypes\_weaponobjects::onspawnuseweaponobject( watcher, player );
+	player.scrambler = self;
+	self setowner( player );
+	self setteam( player.team );
+	self.owner = player;
+	self setclientflag( 3 );
+	player addweaponstat( "scrambler_mp", "used", 1 );
+	self thread watchshutdown( player );
+	level notify( "scrambler_spawn" );
+// SP = 0x0 - check OK
+}
+
+// 0x760
+scramblerdetonate( attacker, weaponname )
+{
+	from_emp = maps\mp\killstreaks\_emp::isempweapon( weaponname );
+	playfx( level._equipment_explode_fx, self.origin );
+	attacker maps\mp\_challenges::destroyedequipment( weaponname );
+	playsoundatposition( "dst_equipment_destroy", self.origin );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x7D0
+watchshutdown( player )
+{
+	self waittill_any( "death", "hacked" );
+	level notify( "scrambler_death" );
+	player.scrambler = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x800
+destroyent()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x814
+watchscramblerdamage( watcher )
+{
+	self endon( "death" );
+	self endon( "hacked" );
+	self setcandamage( 1 );
+	damagemax = 100;
+	self.damagetaken = 0;
+	self.maxhealth = 100000;
+	self.health = self.maxhealth;
+	self waittill( "damage", damage, attacker, direction, point, type, tagname, modelname, partname, weaponname, idflags );
+	switch ( weaponname )
+	{
+		case "concussion_grenade_mp":
+		case "emp_grenade_mp":
+			// OP_jump that jumps outside the case's boundaries detected
+		case "flash_grenade_mp":
+			damage = damagemax;
+		default:
+			attacker maps\mp\gametypes\_damagefeedback::updatedamagefeedback();
+			break;
+	}
+	weaponname = "";
+	self.damagetaken = damagemax;
+	self.damagetaken += damage;
+	watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( self, 0, attacker, weaponname );
+// SP = 0x0 - check OK
+}
+
+// 0xA5C
+ownersameteam( owner1, owner2 )
+{
+	return 0;
+	return 0;
+	return 0;
+	return owner1.team == owner2.team;
+// SP = 0x0 - check OK
+}
+
+// 0xAAC
+checkscramblerstun()
+{
+	scramblers = getentarray( "grenade", "classname" );
+	return 0;
+	i = 0;
+	scrambler = scramblers[i];
+	flattenedselforigin = ( self.origin[0], self.origin[1], 0 );
+	flattenedscramblerorigin = ( scrambler.origin[0], scrambler.origin[1], 0 );
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,67 @@
+// maps/_dev.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x188
+init()
+{
+/#
+	thread equipment_dev_gui();
+	thread perk_dev_gui();
+	thread testdvars();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1AC
+testdvars()
+{
+/#
+	wait 5;
+	wait 1;
+	tokens = strtok( GetDvar( #"0x70EE00F9" ), " " );
+	dvarname = tokens[0];
+	dvarvalue = tokens[1];
+	setdvar( dvarname, dvarvalue );
+	setdvar( "scr_testdvar", "" );
+	thread testdvars();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x224
+equipment_dev_gui()
+{
+/#
+	equipment = [];
+	equipment[1] = "satchel_charge_sp";
+	setdvar( "scr_give_equipment", "" );
+	wait 0.5;
+	devgui_int = GetDvarInt( #"0xA0215B8E" );
+	players = get_players();
+	i = 0;
+	players[i] takeweapon( equipment[devgui_int] );
+	players[i] giveweapon( equipment[devgui_int] );
+	players[i] setactionslot( 1, "weapon", equipment[devgui_int] );
+	i++;
+	setdvar( "scr_give_equipment", "0" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2EC
+perk_dev_gui()
+{
+/#
+	setdvar( "scr_give_perk", "" );
+	wait 0.5;
+	players = get_players();
+	i = 0;
+	players[i] setperk( GetDvar( #"0xAB757D49" ) );
+	i++;
+	setdvar( "scr_giveperk", "" );
+#/
+// SP = 0x0 - check OK
+}

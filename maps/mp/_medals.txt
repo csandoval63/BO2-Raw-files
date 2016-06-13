@@ -1,0 +1,53 @@
+// maps/mp/_medals.gsc
+
+#include common_scripts\utility;
+#include maps\mp\_scoreevents;
+#include maps\mp\_utility;
+
+
+// 0x1A0
+init()
+{
+	level.medalinfo = [];
+	level.medalcallbacks = [];
+	level.numkills = 0;
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x1C4
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player.lastkilledby = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1E4
+setlastkilledby( attacker )
+{
+	self.lastkilledby = attacker;
+// SP = 0x0 - check OK
+}
+
+// 0x1F4
+offenseglobalcount()
+{
+	level.globalteammedals++;
+// SP = 0x0 - check OK
+}
+
+// 0x200
+defenseglobalcount()
+{
+	level.globalteammedals++;
+// SP = 0x0 - check OK
+}
+
+// 0x20C
+codecallback_medal( medalindex )
+{
+	self luinotifyevent( &"medal_received", 1, medalindex );
+	self luinotifyeventtospectators( &"medal_received", 1, medalindex );
+// SP = 0x0 - check OK
+}

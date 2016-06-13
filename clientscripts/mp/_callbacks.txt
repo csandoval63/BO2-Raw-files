@@ -1,0 +1,513 @@
+// clientscripts/mp/_callbacks.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_callbacks;
+#include clientscripts\mp\_footsteps;
+#include clientscripts\mp\_burnplayer;
+#include clientscripts\mp\_airsupport;
+#include clientscripts\mp\_dogs;
+#include clientscripts\mp\_qrdrone;
+#include clientscripts\mp\_helicopter;
+#include clientscripts\mp\_helicopter_sounds;
+#include clientscripts\mp\_treadfx;
+#include clientscripts\mp\_ai_tank;
+#include clientscripts\mp\_rcbomb;
+#include clientscripts\mp\_bouncingbetty;
+#include clientscripts\mp\_trophy_system;
+#include clientscripts\mp\_claymore;
+#include clientscripts\mp\_satchel_charge;
+#include clientscripts\mp\_decoy;
+#include clientscripts\mp\_proximity_grenade;
+#include clientscripts\mp\_sticky_grenade;
+#include clientscripts\mp\_acousticsensor;
+#include clientscripts\mp\_explosive_bolt;
+#include clientscripts\mp\_explode;
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\_ambientpackage;
+#include clientscripts\mp\_players;
+#include clientscripts\mp\_vehicle;
+#include clientscripts\mp\_utility;
+
+
+// 0x1118
+statechange( clientnum, system, newstate )
+{
+	level._systemstates = [];
+	level._systemstates[system] = spawnstruct();
+	level._systemstates[system].state = newstate;
+	[[level._systemstates[system].callback]]( clientnum, newstate );
+/#
+	println( "*** Unhandled client system state change - " + system + " - has no registered callback function." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11A4
+maprestart()
+{
+/#
+	println( "*** Client script VM map restart." );
+#/
+	waitforclient( 0 );
+	level thread clientscripts\mp\_utility::initutility();
+// SP = 0x0 - check OK
+}
+
+// 0x11D4
+localclientconnect( clientnum )
+{
+/#
+	println( "*** Client script VM : Local client connect " + clientnum );
+#/
+	level thread clientscripts\mp\_players::on_connect( clientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1200
+localclientdisconnect( clientnum )
+{
+/#
+	println( "*** Client script VM : Local client disconnect " + clientnum );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1220
+glass_smash( org, dir )
+{
+	level notify( "glass_smash", org, dir );
+	level thread [[level._glasssmashcbfunc]]( org, dir );
+// SP = 0x0 - check OK
+}
+
+// 0x124C
+soundsetambientstate( ambientroom, ambientpackage, roomcollidercent, packagecollidercent, defaultroom )
+{
+	clientscripts\mp\_ambientpackage::setcurrentambientstate( ambientroom, ambientpackage, roomcollidercent, packagecollidercent, defaultroom );
+// SP = 0x0 - check OK
+}
+
+// 0x1274
+soundsetaiambientstate( triggers, actors, numtriggers )
+{
+	self thread clientscripts\mp\_ambientpackage::setcurrentaiambientstate( triggers, actors, numtriggers );
+// SP = 0x0 - check OK
+}
+
+// 0x1294
+soundplayuidecodeloop( decodestring, playtimems )
+{
+	self thread clientscripts\mp\_audio::soundplayuidecodeloop( decodestring, playtimems );
+// SP = 0x0 - check OK
+}
+
+// 0x12B0
+playerspawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread [[level._playerspawned_override]]( localclientnum );
+	return;
+/#
+	println( "Player spawned" );
+#/
+	self thread clientscripts\mp\_explode::playerspawned( localclientnum );
+	self thread clientscripts\mp\_players::dtp_effects();
+	self thread [[level._faceanimcbfunc]]( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1318
+codecallback_gibevent( localclientnum, type, locations )
+{
+	self thread [[level._gibeventcbfunc]]( localclientnum, type, locations );
+// SP = 0x0 - check OK
+}
+
+// 0x133C
+codecallback_precachegametype()
+{
+	[[level.callbackprecachegametype]]();
+// SP = 0x0 - check OK
+}
+
+// 0x1354
+codecallback_startgametype()
+{
+	[[level.callbackstartgametype]]();
+	level.gametypestarted = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1388
+entityspawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread [[level._entityspawned_override]]( localclientnum );
+	return;
+/#
+	println( "Entity type undefined!" );
+#/
+	return;
+	self thread clientscripts\mp\_audio::rpgwhizbywatcher();
+	switch ( self.weapon )
+	{
+		case "acoustic_sensor_mp":
+			self thread clientscripts\mp\_explosive_bolt::spawned( localclientnum );
+			break;
+		case "bouncingbetty_mp":
+			self thread clientscripts\mp\_acousticsensor::spawned( localclientnum );
+			break;
+		case "claymore_mp":
+			self thread clientscripts\mp\_sticky_grenade::spawned( localclientnum );
+			break;
+		case "explosive_bolt_mp":
+			self thread clientscripts\mp\_proximity_grenade::spawned( localclientnum );
+			break;
+		case "nightingale_mp":
+			self thread clientscripts\mp\_decoy::spawned( localclientnum );
+			break;
+		case "proximity_grenade_mp":
+			self thread clientscripts\mp\_satchel_charge::spawned( localclientnum );
+			break;
+		case "satchel_charge_mp":
+			self thread clientscripts\mp\_claymore::spawned( localclientnum );
+			break;
+		case "sticky_grenade_mp":
+			self thread clientscripts\mp\_trophy_system::spawned( localclientnum );
+			break;
+		case "trophy_system_mp":
+			self thread clientscripts\mp\_bouncingbetty::spawned( localclientnum );
+			break;
+	}
+	clientscripts\mp\_vehicle::init_vehicles();
+	self thread clientscripts\mp\_rcbomb::spawned( localclientnum );
+	self thread clientscripts\mp\_ai_tank::spawned( localclientnum );
+	self thread vehicle_treads( localclientnum );
+	self thread playtankexhaust( localclientnum );
+	self thread vehicle_rumble( localclientnum );
+	self thread vehicle_variants( localclientnum );
+	clientscripts\mp\_treadfx::loadtreadfx( self );
+	self thread clientscripts\mp\_helicopter_sounds::start_helicopter_sounds();
+	self thread clientscripts\mp\_helicopter::startfx_loop( localclientnum );
+	self thread clientscripts\mp\_qrdrone::spawned( localclientnum );
+	self thread clientscripts\mp\_dogs::spawned( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x15D4
+codecallback_soundnotify( localclientnum, entity, note )
+{
+	switch ( note )
+	{
+		case "scr_bomb_beep":
+			entity playsound( localclientnum, "fly_bomb_buttons_npc" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1620
+entityshutdown_callback( localclientnum, entity )
+{
+	[[level._entityshutdowncbfunc]]( localclientnum, entity );
+// SP = 0x0 - check OK
+}
+
+// 0x1640
+localclientchanged_callback( localclientnum )
+{
+	level.localplayers = getlocalplayers();
+// SP = 0x0 - check OK
+}
+
+// 0x1658
+airsupport( localclientnum, x, y, z, type, yaw, team, teamfaction, owner, exittype, time, height )
+{
+	pos = ( x, y, z );
+	switch ( teamfaction )
+	{
+		case "j":
+			teamfaction = "vietcong";
+			break;
+		case "m":
+		case "n":
+			teamfaction = "nva";
+			break;
+		case "nva":
+			teamfaction = "japanese";
+			break;
+		case "r":
+			teamfaction = "marines";
+			break;
+		case "s":
+			teamfaction = "specops";
+			break;
+		case "v":
+			teamfaction = "russian";
+			break;
+		default:
+/#
+			println( "Warning: Invalid team char provided, defaulted to marines" );
+#/
+/#
+			println( "Teamfaction received: " + teamfaction + "\n" );
+#/
+			teamfaction = "marines";
+			break;
+	}
+	switch ( team )
+	{
+		case "l":
+			team = "axis";
+			break;
+		case "r":
+			team = "allies";
+			break;
+		case "x":
+			team = "free";
+			break;
+		default:
+/#
+			println( "Invalid team used with playclientAirstike/napalm: " + team + "\n" );
+#/
+			team = "allies";
+			break;
+	}
+	data = spawnstruct();
+	data.team = team;
+	data.owner = owner;
+	data.bombsite = pos;
+	data.yaw = yaw;
+	direction = ( 0, yaw, 0 );
+	data.direction = direction;
+	data.flyheight = height;
+	planehalfdistance = 12000;
+	data.planehalfdistance = planehalfdistance;
+	data.startpoint = pos + vector_scale( anglestoforward( direction ), -1 * planehalfdistance );
+	data.endpoint = pos + vector_scale( anglestoforward( direction ), planehalfdistance );
+	data.planemodel = "t5_veh_air_b52";
+	data.flybysound = "null";
+	data.washsound = "veh_b52_flyby_wash";
+	data.apextime = 6145;
+	data.exittype = -1;
+	data.flyspeed = 2000;
+	data.flytime = planehalfdistance * 2 / data.flyspeed;
+	planetype = "airstrike";
+	planehalfdistance = 24000;
+	data.planehalfdistance = planehalfdistance;
+	data.startpoint = pos + vector_scale( anglestoforward( direction ), -1 * planehalfdistance );
+	data.endpoint = pos + vector_scale( anglestoforward( direction ), planehalfdistance );
+	data.planemodel = clientscripts\mp\_airsupport::getplanemodel( teamfaction );
+	data.flybysound = "null";
+	data.washsound = "evt_us_napalm_wash";
+	data.apextime = 2362;
+	data.exittype = exittype;
+	data.flyspeed = 7000;
+	data.flytime = planehalfdistance * 2 / data.flyspeed;
+	planetype = "napalm";
+/#
+	println( "" );
+	println( "Unhandled airsupport type, only A (airstrike) and N (napalm) supported" );
+	println( type );
+	println( "" );
+#/
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1970
+demo_jump( localclientnum, time )
+{
+	level notify( "demo_jump", time );
+	level notify( "demo_jump" + localclientnum, time );
+// SP = 0x0 - check OK
+}
+
+// 0x1990
+demo_player_switch( localclientnum )
+{
+	level notify( "demo_player_switch" );
+	level notify( "demo_player_switch" + localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x19A8
+player_switch( localclientnum )
+{
+	level notify( "player_switch" );
+	level notify( "player_switch" + localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x19C0
+killcam_begin( localclientnum, time )
+{
+	level notify( "killcam_begin", time );
+	level notify( "killcam_begin" + localclientnum, time );
+// SP = 0x0 - check OK
+}
+
+// 0x19E0
+killcam_end( localclientnum, time )
+{
+	level notify( "killcam_end", time );
+	level notify( "killcam_end" + localclientnum, time );
+// SP = 0x0 - check OK
+}
+
+// 0x1A00
+stunned_callback( localclientnum, set )
+{
+	self.stunned = set;
+/#
+	println( "stunned_callback" );
+#/
+	self notify( "stunned" );
+	self notify( "not_stunned" );
+// SP = 0x0 - check OK
+}
+
+// 0x1A38
+emp_callback( localclientnum, set )
+{
+	self.emp = set;
+/#
+	println( "emp_callback" );
+#/
+	self notify( "emp" );
+	self notify( "not_emp" );
+// SP = 0x0 - check OK
+}
+
+// 0x1A70
+proximity_callback( localclientnum, set )
+{
+	self.enemyinproximity = set;
+// SP = 0x0 - check OK
+}
+
+// 0x1A84
+client_flag_debug( msg )
+{
+/#
+	println( msg );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1AB0
+client_flag_callback( localclientnum, flag, set )
+{
+/#
+	assert( IsDefined( level._client_flag_callbacks ) );
+#/
+/#
+	client_flag_debug( "*** client_flag_callback(): localClientNum: " + localclientnum + " flag: " + flag + " set: " + set + " self: " + self getentitynumber() + " self.type: " + self.type );
+#/
+/#
+	client_flag_debug( "*** client_flag_callback(): no callback defined for self.type: " + self.type );
+#/
+	return;
+	self thread [[level._client_flag_callbacks[self.type][flag]]]( localclientnum, set );
+	self thread [[level._client_flag_callbacks[self.type]]]( localclientnum, flag, set );
+// SP = 0x0 - check OK
+}
+
+// 0x1B88
+client_flagasval_callback( localclientnum, val )
+{
+	self thread [[level._client_flagasval_callbacks[self.type]]]( localclientnum, val );
+// SP = 0x0 - check OK
+}
+
+// 0x1BBC
+codecallback_creatingcorpse( localclientnum, player )
+{
+	self thread clientscripts\mp\_burnplayer::corpseflamefx( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x1BE4
+codecallback_playerjump( client_num, player, ground_type, firstperson, quiet, islouder )
+{
+	clientscripts\mp\_footsteps::playerjump( client_num, player, ground_type, firstperson, quiet, islouder );
+// SP = 0x0 - check OK
+}
+
+// 0x1C10
+codecallback_playerland( client_num, player, ground_type, firstperson, quiet, damageplayer, islouder )
+{
+	clientscripts\mp\_footsteps::playerland( client_num, player, ground_type, firstperson, quiet, damageplayer, islouder );
+	level thread [[level.playerland]]( client_num, player, ground_type, firstperson, quiet, damageplayer );
+// SP = 0x0 - check OK
+}
+
+// 0x1C5C
+codecallback_playerfoliage( client_num, player, firstperson, quiet )
+{
+	clientscripts\mp\_footsteps::playerfoliage( client_num, player, firstperson, quiet );
+// SP = 0x0 - check OK
+}
+
+// 0x1C80
+codecallback_finalizeinitialization()
+{
+	callback( "on_finalize_initialization" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C94
+onfinalizeinitialization_callback( func )
+{
+	clientscripts\mp\_callbacks::addcallback( "on_finalize_initialization", func );
+// SP = 0x0 - check OK
+}
+
+// 0x1CAC
+addcallback( event, func )
+{
+/#
+	assert( IsDefined( event ), "Trying to set a callback on an undefined event." );
+#/
+	level._callbacks[event] = [];
+	level._callbacks[event] = add_to_array( level._callbacks[event], func, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1D08
+callback( event )
+{
+	i = 0;
+	callback = level._callbacks[event][i];
+	self thread [[callback]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D60
+callback_activate_exploder( exploder_id )
+{
+	return;
+	keys = getarraykeys( level._exploder_ids );
+	exploder = undefined;
+	i = 0;
+	exploder = keys[i];
+	i++;
+	return;
+	clientscripts\mp\_fx::activate_exploder( exploder );
+// SP = 0x0 - check OK
+}
+
+// 0x1DD0
+callback_deactivate_exploder( exploder_id )
+{
+	return;
+	keys = getarraykeys( level._exploder_ids );
+	exploder = undefined;
+	i = 0;
+	exploder = keys[i];
+	i++;
+	return;
+	clientscripts\mp\_fx::deactivate_exploder( exploder );
+// SP = 0x0 - check OK
+}

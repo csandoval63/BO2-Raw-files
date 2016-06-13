@@ -1,0 +1,231 @@
+// animscripts/cover_prone.gsc
+
+#include animscripts\move;
+#include animscripts\weaponlist;
+#include maps\_dds;
+#include animscripts\shoot_behavior;
+#include animscripts\cover_wall;
+#include animscripts\combat;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include maps\_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x8C8
+main()
+{
+	self trackscriptstate( "Cover Prone Main", "code" );
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( "cover_prone" );
+	animscripts\combat::main();
+	return;
+/#
+	assert( IsDefined( self.node.turretinfo ) );
+#/
+	self animscripts\cover_wall::useselfplacedturret( "saw_bipod_prone", "weapon_saw_MG_Setup" );
+	self animscripts\cover_wall::usestationaryturret();
+	self thread animscripts\combat::main();
+	return;
+	self setup_cover_prone();
+	self.covernode = self.node;
+/#
+	assert( IsDefined( self.covernode ) );
+#/
+	self orientmode( "face angle", self.covernode.angles[1] );
+	self setproneanimnodes( -45, 45, %prone_legs_down, %exposed_modern, %prone_legs_up );
+	self transitionto( "prone" );
+	self enterpronewrapper( 0 );
+	self setanimknoball( animarray( "straight_level" ), %body, 1, 0.1, 1 );
+	self orientmode( "face angle", self.covernode.angles[1] );
+	self animmode( "zonly_physics" );
+	self pronecombatmainloop();
+	self notify( "stop_deciding_how_to_shoot" );
+// SP = 0x0 - check OK
+}
+
+// 0xA98
+idlethread()
+{
+	self endon( "killanimscript" );
+	self endon( "kill_idle_thread" );
+	idleanim = animarraypickrandom( "prone_idle" );
+	self setflaggedanimlimited( "idle", idleanim );
+	self waittillmatch( "idle" );
+	return "end";
+	self clearanim( idleanim, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0xAF4
+updatepronewrapper( time )
+{
+	self updateprone( %prone_aim_feet_45up, %prone_aim_feet_45down, 1, time, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB1C
+pronecombatmainloop()
+{
+	self endon( "killanimscript" );
+	self endon( "melee" );
+	self thread trackshootentorpos();
+	self setanim( %add_idle );
+	self thread idlethread();
+	self thread animscripts\shoot_behavior::decidewhatandhowtoshoot( "normal" );
+	desynched = GetTime() > 2500;
+	self animscripts\utility::isincombat();
+	self updatepronewrapper( 0.05 );
+	wait 0.05 + randomfloat( 1.5 );
+	desynched = 1;
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	wait 0.05;
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+	distsqtoshootpos = lengthsquared( self.origin - self.shootpos );
+	transitionto( "crouch" );
+	self thread animscripts\combat::main();
+	return;
+	shootuntilshootbehaviorchange();
+	self flamethrower_stop_shoot();
+	self clearanim( %add_fire, 0.2 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xCDC
+pronereload()
+{
+	return flamethrower_reload();
+	self maps\_dds::dds_notify_reload( undefined, self.team == "allies" );
+	reloadanim = self animarraypickrandom( "reload" );
+	self setflaggedanimknoball( "reloadanim", reloadanim, %body, 1, 0.1, 1 );
+	self setanim( %exposed_aiming, 1, 0 );
+	animscripts\shared::donotetracks( "reloadanim" );
+	self clearanim( reloadanim, 0.2 );
+	self animscripts\weaponlist::refillclip();
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xD98
+setup_cover_prone()
+{
+	self.rightaimlimit = 45;
+	self.leftaimlimit = -45;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+// SP = 0x0 - check OK
+}
+
+// 0xDC0
+trythrowinggrenade( throwat, safe )
+{
+	theanim = undefined;
+	theanim = animarraypickrandom( "grenade_safe" );
+	theanim = animarraypickrandom( "grenade_exposed" );
+	self animmode( "zonly_physics" );
+	self.keepclaimednodeifvalid = 1;
+	armoffset = ( 32, 20, 64 );
+	threwgrenade = trygrenade( throwat, theanim );
+	self.keepclaimednodeifvalid = 0;
+	return threwgrenade;
+// SP = 0x0 - check OK
+}
+
+// 0xE38
+considerthrowgrenade()
+{
+	return trythrowinggrenade( self.enemy, 850 );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE58
+shouldfirewhilechangingpose()
+{
+	return 0;
+	return animscripts\move::mayshootwhilemoving();
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xEC8
+transitionto( newpose )
+{
+	return;
+	self clearanim( %root, 0.3 );
+	self notify( "kill_idle_thread" );
+	transanim = animarray( self.a.pose + "_2_" + newpose + "_firing", "cover_prone" );
+	transanim = animarray( self.a.pose + "_2_" + newpose, "cover_prone" );
+/#
+	assert( animhasnotetrack( transanim, "anim_pose = \"prone\"" ) );
+#/
+	self setflaggedanimknoballrestart( "trans", transanim, %body, 1, 0.2, 1 );
+	animscripts\shared::donotetracks( "trans" );
+/#
+	assert( self.a.pose == newpose );
+#/
+	self setanimknoballrestart( animarray( "straight_level" ), %body, 1, 0.25 );
+	setupaim( 0.25 );
+// SP = 0x0 - check OK
+}
+
+// 0xFF8
+finishnotetracks( animname )
+{
+	self endon( "killanimscript" );
+	animscripts\shared::donotetracks( animname );
+// SP = 0x0 - check OK
+}
+
+// 0x1014
+setupaim( transtime )
+{
+	self setanimknoball( animarray( "straight_level" ), %body, 1, transtime );
+	self setanimlimited( animarray( "add_aim_up" ), 1, transtime );
+	self setanimlimited( animarray( "add_aim_down" ), 1, transtime );
+	self setanimlimited( animarray( "add_aim_left" ), 1, transtime );
+	self setanimlimited( animarray( "add_aim_right" ), 1, transtime );
+// SP = 0x0 - check OK
+}
+
+// 0x10A0
+proneto( newpose, rate )
+{
+/#
+	assert( self.a.pose == "prone" );
+#/
+	self clearanim( %root, 0.3 );
+	transanim = undefined;
+	transanim = animarray( "prone_2_crouch_firing", "cover_prone" );
+	transanim = animarray( "prone_2_stand_firing", "cover_prone" );
+	transanim = animarray( "prone_2_crouch", "cover_prone" );
+	transanim = animarray( "prone_2_stand", "cover_prone" );
+/#
+	assert( IsDefined( transanim ) );
+#/
+	rate = 1;
+	self exitpronewrapper( getanimlength( transanim ) / 2 );
+	self setflaggedanimknoballrestart( "trans", transanim, %body, 1, 0.2, rate );
+	animscripts\shared::donotetracks( "trans" );
+	self clearanim( transanim, 0.1 );
+/#
+	assert( self.a.pose == newpose );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11FC
+end_script()
+{
+// SP = 0x0 - check OK
+}

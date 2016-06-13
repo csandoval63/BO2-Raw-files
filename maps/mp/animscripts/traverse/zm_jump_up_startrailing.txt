@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_jump_up_startrailing.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xFC
+main()
+{
+	dosimpletraverse( "jump_up_startrailing" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,1510 @@
+// maps/_load_common.gsc
+
+#include maps\_colors;
+#include maps\_createfx;
+#include animscripts\traverse\shared;
+#include maps\_lights;
+#include maps\_hud_util;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2874
+run_gump_functions()
+{
+	level waittill( "gump_loaded" );
+	str_gump = GetDvar( #"0x3DE7CA0E" );
+	foreach ( func_gump in level._gump_functions[str_gump] )
+	{
+		level thread [[func_gump]]();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x28E4
+level_notify_listener()
+{
+	val = GetDvar( #"0xB42CFE95" );
+	level notify( val );
+	setdvar( "level_notify", "" );
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x292C
+client_notify_listener()
+{
+	val = GetDvar( #"0xC5740DFC" );
+	clientnotify( val );
+	setdvar( "client_notify", "" );
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x2978
+save_game_on_notify()
+{
+	level waittill( "save" );
+	level.checkpoint_time = GetTime();
+	savegame( "debug_save" );
+// SP = 0x0 - check OK
+}
+
+// 0x29A4
+onfirstplayerready()
+{
+	level waittill( "first_player_ready", player );
+/#
+	println( "*********************First player connected to game." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x29C8
+set_early_level()
+{
+	level.early_level = [];
+	level.early_level["cuba"] = 1;
+	level.early_level["vorkuta"] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x29EC
+setup_simple_primary_lights()
+{
+	flickering_lights = getentarray( "generic_flickering", "targetname" );
+	pulsing_lights = getentarray( "generic_pulsing", "targetname" );
+	double_strobe = getentarray( "generic_double_strobe", "targetname" );
+	fire_flickers = getentarray( "fire_flicker", "targetname" );
+	array_thread( flickering_lights, maps\_lights::generic_flickering );
+	array_thread( pulsing_lights, maps\_lights::generic_pulsing );
+	array_thread( double_strobe, maps\_lights::generic_double_strobe );
+	array_thread( fire_flickers, maps\_lights::fire_flicker );
+// SP = 0x0 - check OK
+}
+
+// 0x2A8C
+weapon_ammo()
+{
+	ents = getentarray();
+	i = 0;
+	weap = ents[i];
+	change_ammo = 0;
+	clip = undefined;
+	extra = undefined;
+	clip = weap.script_ammo_clip;
+	change_ammo = 1;
+	extra = weap.script_ammo_extra;
+	change_ammo = 1;
+/#
+	assertmsg( "weapon: " + weap.classname + " " + weap.origin + " sets script_ammo_extra but not script_ammo_clip" );
+#/
+/#
+	assertmsg( "weapon: " + weap.classname + " " + weap.origin + " sets script_ammo_clip but not script_ammo_extra" );
+#/
+	weap itemweaponsetammo( clip, extra );
+	weap itemweaponsetammo( clip, extra, 1 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2BB8
+trigger_group()
+{
+	self thread trigger_group_remove();
+	level endon( "trigger_group_" + self.script_trigger_group );
+	self waittill( "trigger" );
+	level notify( "trigger_group_" + self.script_trigger_group, self );
+// SP = 0x0 - check OK
+}
+
+// 0x2BE8
+trigger_group_remove()
+{
+	level waittill( "trigger_group_" + self.script_trigger_group, trigger );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2C14
+exploder_load( trigger )
+{
+	level endon( "killexplodertridgers" + trigger.script_exploder );
+	trigger waittill( "trigger" );
+	wait trigger.script_delay;
+	wait 4;
+	level thread exploder_load( trigger );
+	return;
+	exploder( trigger.script_exploder );
+	level notify( "killexplodertridgers" + trigger.script_exploder );
+// SP = 0x0 - check OK
+}
+
+// 0x2C90
+setup_traversals()
+{
+	potential_traverse_nodes = getallnodes();
+	i = 0;
+	node = potential_traverse_nodes[i];
+	node animscripts\traverse\shared::init_traverse();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2CE0
+badplace_think( badplace )
+{
+	level.badplaces = 0;
+	level.badplaces++;
+	badplace_cylinder( "badplace" + level.badplaces, -1, badplace.origin, badplace.radius, 1024 );
+// SP = 0x0 - check OK
+}
+
+// 0x2D24
+setupexploders()
+{
+	level.exploders = [];
+	ents = getentarray( "script_brushmodel", "classname" );
+	smodels = getentarray( "script_model", "classname" );
+	i = 0;
+	ents[ents.size] = smodels[i];
+	i++;
+	i = 0;
+	ents[i].script_exploder = ents[i].script_prefab_exploder;
+	level.exploders[ents[i].script_exploder] = 1;
+	ents[i] hide();
+	ents[i] hide();
+	ents[i] notsolid();
+	ents[i] connectpaths();
+	ents[i] hide();
+	ents[i] notsolid();
+	ents[i] connectpaths();
+	i++;
+	script_exploders = [];
+	potentialexploders = getentarray( "script_brushmodel", "classname" );
+	i = 0;
+	potentialexploders[i].script_exploder = potentialexploders[i].script_prefab_exploder;
+	script_exploders[script_exploders.size] = potentialexploders[i];
+	i++;
+/#
+	println( "Server : Potential exploders from brushmodels " + potentialexploders.size );
+#/
+	potentialexploders = getentarray( "script_model", "classname" );
+	i = 0;
+	potentialexploders[i].script_exploder = potentialexploders[i].script_prefab_exploder;
+	script_exploders[script_exploders.size] = potentialexploders[i];
+	i++;
+/#
+	println( "Server : Potential exploders from script_model " + potentialexploders.size );
+#/
+	potentialexploders = getentarray( "item_health", "classname" );
+	i = 0;
+	potentialexploders[i].script_exploder = potentialexploders[i].script_prefab_exploder;
+	script_exploders[script_exploders.size] = potentialexploders[i];
+	i++;
+/#
+	println( "Server : Potential exploders from item_health " + potentialexploders.size );
+#/
+	level.createfxent = [];
+	acceptabletargetnames = [];
+	acceptabletargetnames["exploderchunk visible"] = 1;
+	acceptabletargetnames["exploderchunk"] = 1;
+	acceptabletargetnames["exploder"] = 1;
+	i = 0;
+	exploder = script_exploders[i];
+	ent = createexploder( exploder.script_fxid );
+	ent.v = [];
+	ent.v["origin"] = exploder.origin;
+	ent.v["angles"] = exploder.angles;
+	ent.v["delay"] = exploder.script_delay;
+	ent.v["firefx"] = exploder.script_firefx;
+	ent.v["firefxdelay"] = exploder.script_firefxdelay;
+	ent.v["firefxsound"] = exploder.script_firefxsound;
+	ent.v["firefxtimeout"] = exploder.script_firefxtimeout;
+	ent.v["earthquake"] = exploder.script_earthquake;
+	ent.v["damage"] = exploder.script_damage;
+	ent.v["damage_radius"] = exploder.script_radius;
+	ent.v["soundalias"] = exploder.script_soundalias;
+	ent.v["repeat"] = exploder.script_repeat;
+	ent.v["delay_min"] = exploder.script_delay_min;
+	ent.v["delay_max"] = exploder.script_delay_max;
+	ent.v["target"] = exploder.target;
+	ent.v["ender"] = exploder.script_ender;
+	ent.v["type"] = "exploder";
+	ent.v["fxid"] = "No FX";
+	ent.v["fxid"] = exploder.script_fxid;
+	ent.v["exploder"] = exploder.script_exploder;
+/#
+	assert( IsDefined( exploder.script_exploder ), "Exploder at origin " + exploder.origin + " has no script_exploder" );
+#/
+	ent.v["delay"] = 0;
+	e_target = getent( ent.v["target"], "targetname" );
+	e_target = getstruct( ent.v["target"], "targetname" );
+	org = e_target.origin;
+	ent.v["angles"] = vectortoangles( org - ent.v["origin"] );
+	ent.model = exploder;
+	ent.model.disconnect_paths = exploder.script_disconnectpaths;
+	ent.v["exploder_type"] = exploder.targetname;
+	ent.v["exploder_type"] = "normal";
+/#
+	ent maps\_createfx::post_entity_creation_function();
+#/
+	i++;
+	level.createfxexploders = [];
+	i = 0;
+	ent = level.createfxent[i];
+	ent.v["exploder_id"] = getexploderid( ent );
+	level.createfxexploders[ent.v["exploder"]] = [];
+	level.createfxexploders[ent.v["exploder"]][level.createfxexploders[ent.v["exploder"]].size] = ent;
+	i++;
+	reportexploderids();
+// SP = 0x0 - check OK
+}
+
+// 0x3408
+playerdamagerumble()
+{
+	self waittill( "damage", amount );
+	self playrumbleonentity( "damage_heavy" );
+// SP = 0x0 - check OK
+}
+
+// 0x3440
+map_is_early_in_the_game()
+{
+/#
+	return 1;
+#/
+/#
+	level.early_level[level.script] = 0;
+#/
+	return level.early_level[level.script];
+// SP = 0x0 - check OK
+}
+
+// 0x3488
+player_throwgrenade_timer()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self.lastgrenadetime = 0;
+	wait 0.05;
+	self.lastgrenadetime = GetTime();
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x34E4
+player_special_death_hint()
+{
+	self endon( "disconnect" );
+	self thread player_throwgrenade_timer();
+	return;
+	self waittill( "death", attacker, cause, weaponname, inflicter );
+	return;
+	return;
+	setdvar( "ui_deadquote", &"PANAMA_AC130_FAILQUOTE" );
+	return;
+	level notify( "new_quote_string" );
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLODING_VEHICLE_DEATH" );
+	self thread explosive_vehice_death_indicator_hudelement();
+	return;
+	level notify( "new_quote_string" );
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLODING_BARREL_DEATH" );
+	return;
+	level notify( "new_quote_string" );
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLODING_VEHICLE_DEATH" );
+	self thread explosive_vehice_death_indicator_hudelement();
+	return;
+	return;
+	level notify( "new_quote_string" );
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLOSIVE_FLECHETTE_DEATH" );
+	thread explosive_dart_death_indicator_hudelement();
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLOSIVE_BOLT_DEATH" );
+	thread explosive_arrow_death_indicator_hudelement();
+	setdvar( "ui_deadquote", "@SCRIPT_GRENADE_DEATH" );
+	thread grenade_death_indicator_hudelement();
+	return;
+	setdvar( "ui_deadquote", "@SCRIPT_EXPLODING_NITROGEN_TANK_DEATH" );
+	thread explosive_nitrogen_tank_death_indicator_hudelement();
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x3764
+grenade_death_text_hudelement( textline1, textline2 )
+{
+	self.failingmission = 1;
+	setdvar( "ui_deadquote", "" );
+	wait 0.5;
+	fontelem = newhudelem();
+	fontelem.elemtype = "font";
+	fontelem.font = "default";
+	fontelem.fontscale = 1.5;
+	fontelem.x = 0;
+	fontelem.y = -60;
+	fontelem.alignx = "center";
+	fontelem.aligny = "middle";
+	fontelem.horzalign = "center";
+	fontelem.vertalign = "middle";
+	fontelem settext( textline1 );
+	fontelem.foreground = 1;
+	fontelem.alpha = 0;
+	fontelem fadeovertime( 1 );
+	fontelem.alpha = 1;
+	fontelem.hidewheninmenu = 1;
+	fontelem = newhudelem();
+	fontelem.elemtype = "font";
+	fontelem.font = "default";
+	fontelem.fontscale = 1.5;
+	fontelem.x = 0;
+	fontelem.y = -60 + level.fontheight * fontelem.fontscale;
+	fontelem.alignx = "center";
+	fontelem.aligny = "middle";
+	fontelem.horzalign = "center";
+	fontelem.vertalign = "middle";
+	fontelem settext( textline2 );
+	fontelem.foreground = 1;
+	fontelem.alpha = 0;
+	fontelem fadeovertime( 1 );
+	fontelem.alpha = 1;
+	fontelem.hidewheninmenu = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x38F0
+grenade_death_indicator_hudelement()
+{
+	self endon( "disconnect" );
+	wait 0.5;
+	overlayicon = newclienthudelem( self );
+	overlayicon.x = 0;
+	overlayicon.y = 68;
+	overlayicon setshader( "hud_grenadeicon_256", 50, 50 );
+	overlayicon.alignx = "center";
+	overlayicon.aligny = "middle";
+	overlayicon.horzalign = "center";
+	overlayicon.vertalign = "middle";
+	overlayicon.foreground = 1;
+	overlayicon.alpha = 0;
+	overlayicon fadeovertime( 1 );
+	overlayicon.alpha = 1;
+	overlayicon.hidewheninmenu = 1;
+	overlaypointer = newclienthudelem( self );
+	overlaypointer.x = 0;
+	overlaypointer.y = 25;
+	overlaypointer setshader( "hud_grenadepointer", 50, 25 );
+	overlaypointer.alignx = "center";
+	overlaypointer.aligny = "middle";
+	overlaypointer.horzalign = "center";
+	overlaypointer.vertalign = "middle";
+	overlaypointer.foreground = 1;
+	overlaypointer.alpha = 0;
+	overlaypointer fadeovertime( 1 );
+	overlaypointer.alpha = 1;
+	overlaypointer.hidewheninmenu = 1;
+	self thread grenade_death_indicator_hudelement_cleanup( overlayicon, overlaypointer );
+// SP = 0x0 - check OK
+}
+
+// 0x3A3C
+explosive_arrow_death_indicator_hudelement()
+{
+	self endon( "disconnect" );
+	wait 0.5;
+	overlayicon = newclienthudelem( self );
+	overlayicon.x = 0;
+	overlayicon.y = 68;
+	overlayicon setshader( "hud_explosive_arrow_icon", 50, 50 );
+	overlayicon.alignx = "center";
+	overlayicon.aligny = "middle";
+	overlayicon.horzalign = "center";
+	overlayicon.vertalign = "middle";
+	overlayicon.foreground = 1;
+	overlayicon.alpha = 0;
+	overlayicon fadeovertime( 1 );
+	overlayicon.alpha = 1;
+	overlayicon.hidewheninmenu = 1;
+	overlaypointer = newclienthudelem( self );
+	overlaypointer.x = 0;
+	overlaypointer.y = 25;
+	overlaypointer setshader( "hud_grenadepointer", 50, 25 );
+	overlaypointer.alignx = "center";
+	overlaypointer.aligny = "middle";
+	overlaypointer.horzalign = "center";
+	overlaypointer.vertalign = "middle";
+	overlaypointer.foreground = 1;
+	overlaypointer.alpha = 0;
+	overlaypointer fadeovertime( 1 );
+	overlaypointer.alpha = 1;
+	overlaypointer.hidewheninmenu = 1;
+	self thread grenade_death_indicator_hudelement_cleanup( overlayicon, overlaypointer );
+// SP = 0x0 - check OK
+}
+
+// 0x3B88
+explosive_dart_death_indicator_hudelement()
+{
+	self endon( "disconnect" );
+	wait 0.5;
+	overlayicon = newclienthudelem( self );
+	overlayicon.x = 0;
+	overlayicon.y = 68;
+	overlayicon setshader( "hud_monsoon_titus_arrow", 50, 50 );
+	overlayicon.alignx = "center";
+	overlayicon.aligny = "middle";
+	overlayicon.horzalign = "center";
+	overlayicon.vertalign = "middle";
+	overlayicon.foreground = 1;
+	overlayicon.alpha = 0;
+	overlayicon fadeovertime( 1 );
+	overlayicon.alpha = 1;
+	overlayicon.hidewheninmenu = 1;
+	overlaypointer = newclienthudelem( self );
+	overlaypointer.x = 0;
+	overlaypointer.y = 25;
+	overlaypointer setshader( "hud_grenadepointer", 50, 25 );
+	overlaypointer.alignx = "center";
+	overlaypointer.aligny = "middle";
+	overlaypointer.horzalign = "center";
+	overlaypointer.vertalign = "middle";
+	overlaypointer.foreground = 1;
+	overlaypointer.alpha = 0;
+	overlaypointer fadeovertime( 1 );
+	overlaypointer.alpha = 1;
+	overlaypointer.hidewheninmenu = 1;
+	self thread grenade_death_indicator_hudelement_cleanup( overlayicon, overlaypointer );
+// SP = 0x0 - check OK
+}
+
+// 0x3CD4
+explosive_nitrogen_tank_death_indicator_hudelement()
+{
+	self endon( "disconnect" );
+	wait 0.5;
+	overlayicon = newclienthudelem( self );
+	overlayicon.x = 0;
+	overlayicon.y = 68;
+	overlayicon setshader( "hud_monsoon_nitrogen_barrel", 50, 50 );
+	overlayicon.alignx = "center";
+	overlayicon.aligny = "middle";
+	overlayicon.horzalign = "center";
+	overlayicon.vertalign = "middle";
+	overlayicon.foreground = 1;
+	overlayicon.alpha = 0;
+	overlayicon fadeovertime( 1 );
+	overlayicon.alpha = 1;
+	overlayicon.hidewheninmenu = 1;
+	overlaypointer = newclienthudelem( self );
+	overlaypointer.x = 0;
+	overlaypointer.y = 25;
+	overlaypointer setshader( "hud_grenadepointer", 50, 25 );
+	overlaypointer.alignx = "center";
+	overlaypointer.aligny = "middle";
+	overlaypointer.horzalign = "center";
+	overlaypointer.vertalign = "middle";
+	overlaypointer.foreground = 1;
+	overlaypointer.alpha = 0;
+	overlaypointer fadeovertime( 1 );
+	overlaypointer.alpha = 1;
+	overlaypointer.hidewheninmenu = 1;
+	self thread grenade_death_indicator_hudelement_cleanup( overlayicon, overlaypointer );
+// SP = 0x0 - check OK
+}
+
+// 0x3E20
+explosive_vehice_death_indicator_hudelement()
+{
+	self endon( "disconnect" );
+	wait 0.5;
+	overlayicon = newclienthudelem( self );
+	overlayicon.x = 0;
+	overlayicon.y = -10;
+	overlayicon setshader( "hud_exploding_vehicles", 50, 50 );
+	overlayicon.alignx = "center";
+	overlayicon.aligny = "middle";
+	overlayicon.horzalign = "center";
+	overlayicon.vertalign = "middle";
+	overlayicon.foreground = 1;
+	overlayicon.alpha = 0;
+	overlayicon fadeovertime( 1 );
+	overlayicon.alpha = 1;
+	overlayicon.hidewheninmenu = 1;
+	overlaypointer = newclienthudelem( self );
+	self thread grenade_death_indicator_hudelement_cleanup( overlayicon, overlaypointer );
+// SP = 0x0 - check OK
+}
+
+// 0x3EE8
+grenade_death_indicator_hudelement_cleanup( hudelemicon, hudelempointer )
+{
+	self endon( "disconnect" );
+	self waittill( "spawned" );
+	hudelemicon destroy();
+	hudelempointer destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x3F18
+special_death_indicator_hudelement( shader, iwidth, iheight, fdelay, x, y )
+{
+	fdelay = 0.5;
+	wait fdelay;
+	overlay = newclienthudelem( self );
+	overlay.x = x;
+	overlay.x = 0;
+	overlay.y = y;
+	overlay.y = 40;
+	overlay setshader( shader, iwidth, iheight );
+	overlay.alignx = "center";
+	overlay.aligny = "middle";
+	overlay.horzalign = "center";
+	overlay.vertalign = "middle";
+	overlay.foreground = 1;
+	overlay.alpha = 0;
+	overlay fadeovertime( 1 );
+	overlay.alpha = 1;
+	overlay.hidewheninmenu = 1;
+	self thread special_death_death_indicator_hudelement_cleanup( overlay );
+// SP = 0x0 - check OK
+}
+
+// 0x4000
+special_death_death_indicator_hudelement_cleanup( overlay )
+{
+	self endon( "disconnect" );
+	self waittill( "spawned" );
+	overlay destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x4024
+waterthink()
+{
+/#
+	assert( IsDefined( self.target ) );
+#/
+	targeted = getent( self.target, "targetname" );
+/#
+	assert( IsDefined( targeted ) );
+#/
+	waterheight = targeted.origin[2];
+	targeted = undefined;
+	level.depth_allow_prone = 8;
+	level.depth_allow_crouch = 33;
+	level.depth_allow_stand = 50;
+	wait 0.05;
+	players = get_players();
+	i = 0;
+	players[i] allowprone( 1 );
+	players[i] allowcrouch( 1 );
+	players[i] allowstand( 1 );
+	i++;
+	self waittill( "trigger", other );
+	players = get_players();
+	players_in_water_count = 0;
+	i = 0;
+	players_in_water_count++;
+	players[i].inwater = 1;
+	playerorg = players[i] getorigin();
+	d = playerorg[2] - waterheight;
+	newspeed = int( level.default_run_speed - abs( d * 5 ) );
+	newspeed = 50;
+/#
+	assert( newspeed <= 190 );
+#/
+	players[i] allowcrouch( 0 );
+	players[i] allowcrouch( 1 );
+	players[i] allowprone( 0 );
+	players[i] allowprone( 1 );
+	players[i].inwater = 0;
+	i++;
+	wait 0.5;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x4268
+massnodeinitfunctions()
+{
+	nodes = getallnodes();
+	thread maps\_colors::init_color_grouping( nodes );
+// SP = 0x0 - check OK
+}
+
+// 0x4288
+trigger_unlock( trigger )
+{
+	noteworthy = "not_set";
+	noteworthy = trigger.script_noteworthy;
+	target_triggers = getentarray( trigger.target, "targetname" );
+	trigger thread trigger_unlock_death( trigger.target );
+	array_thread( target_triggers, ::trigger_off );
+	trigger waittill( "trigger" );
+	array_thread( target_triggers, ::trigger_on );
+	wait_for_an_unlocked_trigger( target_triggers, noteworthy );
+	array_notify( target_triggers, "relock" );
+// SP = 0x0 - check OK
+}
+
+// 0x4320
+trigger_unlock_death( target )
+{
+	self waittill( "death" );
+	target_triggers = getentarray( target, "targetname" );
+	array_thread( target_triggers, ::trigger_off );
+// SP = 0x0 - check OK
+}
+
+// 0x4358
+wait_for_an_unlocked_trigger( triggers, noteworthy )
+{
+	level endon( "unlocked_trigger_hit" + noteworthy );
+	ent = spawnstruct();
+	i = 0;
+	triggers[i] thread report_trigger( ent, noteworthy );
+	i++;
+	ent waittill( "trigger" );
+	level notify( "unlocked_trigger_hit" + noteworthy );
+// SP = 0x0 - check OK
+}
+
+// 0x43B4
+report_trigger( ent, noteworthy )
+{
+	self endon( "relock" );
+	level endon( "unlocked_trigger_hit" + noteworthy );
+	self waittill( "trigger" );
+	ent notify( "trigger" );
+// SP = 0x0 - check OK
+}
+
+// 0x43DC
+get_trigger_look_target()
+{
+	a_potential_targets = getentarray( self.target, "targetname" );
+	a_targets = [];
+	foreach ( target in a_potential_targets )
+	{
+		a_targets[a_targets.size] = target;
+	}
+	a_potential_target_structs = get_struct_array( self.target );
+	a_targets = arraycombine( a_targets, a_potential_target_structs, 1, 0 );
+/#
+	assert( a_targets.size == 1, "Look tigger at " + self.origin + " targets multiple origins/structs." );
+#/
+	e_target = a_targets[0];
+	e_target = self;
+	return e_target;
+// SP = 0x0 - check OK
+}
+
+// 0x44D8
+trigger_look( trigger )
+{
+	trigger endon( "death" );
+	e_target = trigger get_trigger_look_target();
+	flag_init( trigger.script_flag, undefined, 1 );
+	a_parameters = [];
+	a_parameters = strtok( trigger.script_parameters, ",; " );
+	b_ads_check = isinarray( a_parameters, "check_ads" );
+	trigger waittill( "trigger", e_other );
+	trigger notify( "trigger_look" );
+	flag_set( trigger.script_flag );
+	flag_clear( trigger.script_flag );
+	wait 0.05;
+	flag_clear( trigger.script_flag );
+/#
+	assertmsg( "Look triggers only support players." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4640
+indicate_start( start )
+{
+	hudelem = newhudelem();
+	hudelem.alignx = "left";
+	hudelem.aligny = "middle";
+	hudelem.x = 70;
+	hudelem.y = 400;
+	hudelem.label = start;
+	hudelem.alpha = 0;
+	hudelem.fontscale = 3;
+	wait 1;
+	hudelem fadeovertime( 1 );
+	hudelem.alpha = 1;
+	wait 5;
+	hudelem fadeovertime( 1 );
+	hudelem.alpha = 0;
+	wait 1;
+	hudelem destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x46E4
+trigger_notify( trigger, msg )
+{
+	trigger endon( "death" );
+	other = trigger trigger_wait();
+	notify_ent = getent( trigger.target, "targetname" );
+	notify_ent notify( msg, other );
+	level notify( msg, other );
+// SP = 0x0 - check OK
+}
+
+// 0x4740
+flag_set_trigger( trigger, str_flag )
+{
+	trigger endon( "death" );
+	flag = trigger get_trigger_flag( str_flag );
+	flag_init( flag, undefined, 1 );
+	trigger trigger_wait();
+	trigger script_delay();
+	flag_set( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x47C4
+flag_clear_trigger( trigger, flag_name )
+{
+	trigger endon( "death" );
+	flag = trigger get_trigger_flag( flag_name );
+	flag_init( flag, undefined, 1 );
+	trigger trigger_wait();
+	trigger script_delay();
+	flag_clear( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x4844
+add_tokens_to_trigger_flags( tokens )
+{
+	i = 0;
+	flag = tokens[i];
+	level.trigger_flags[flag] = [];
+	level.trigger_flags[flag][level.trigger_flags[flag].size] = self;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4898
+script_flag_false_trigger( trigger )
+{
+	tokens = create_flags_and_return_tokens( trigger.script_flag_false );
+	trigger add_tokens_to_trigger_flags( tokens );
+	trigger update_trigger_based_on_flags();
+// SP = 0x0 - check OK
+}
+
+// 0x48D0
+script_flag_true_trigger( trigger )
+{
+	tokens = create_flags_and_return_tokens( trigger.script_flag_true );
+	trigger add_tokens_to_trigger_flags( tokens );
+	trigger update_trigger_based_on_flags();
+// SP = 0x0 - check OK
+}
+
+// 0x4908
+wait_for_flag( tokens )
+{
+	i = 0;
+	level endon( tokens[i] );
+	i++;
+	level waittill( "foreverrr" );
+// SP = 0x0 - check OK
+}
+
+// 0x4938
+friendly_respawn_trigger( trigger )
+{
+	spawners = getentarray( trigger.target, "targetname" );
+/#
+	assert( spawners.size == 1, "friendly_respawn_trigger targets multiple spawner with targetname " + trigger.target + ". Should target just 1 spawner." );
+#/
+	spawner = spawners[0];
+/#
+	assert( !(IsDefined( spawner.script_forcecolor )), "targeted spawner at " + spawner.origin + " should not have script_forcecolor set!" );
+#/
+	spawners = undefined;
+	spawner endon( "death" );
+	trigger waittill( "trigger" );
+	level.respawn_spawners_specific[trigger.script_forcecolor] = spawner;
+	level.respawn_spawner = spawner;
+	flag_set( "respawn_friendlies" );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x49F4
+friendly_respawn_clear( trigger )
+{
+	trigger waittill( "trigger" );
+	flag_clear( "respawn_friendlies" );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x4A20
+trigger_ignore( trigger )
+{
+	thread trigger_runs_function_on_touch( trigger, ::set_ignoreme, ::get_ignoreme );
+// SP = 0x0 - check OK
+}
+
+// 0x4A44
+trigger_pacifist( trigger )
+{
+	thread trigger_runs_function_on_touch( trigger, ::set_pacifist, ::get_pacifist );
+// SP = 0x0 - check OK
+}
+
+// 0x4A68
+trigger_runs_function_on_touch( trigger, set_func, get_func )
+{
+	trigger waittill( "trigger", other );
+	other thread touched_trigger_runs_func( trigger, set_func );
+// SP = 0x0 - check OK
+}
+
+// 0x4AB8
+touched_trigger_runs_func( trigger, set_func )
+{
+	self endon( "death" );
+	self.ignoreme = 1;
+	[[set_func]]( 1 );
+	self.ignoretriggers = 1;
+	wait 1;
+	self.ignoretriggers = 0;
+	wait 1;
+	[[set_func]]( 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x4B08
+trigger_turns_off( trigger )
+{
+	trigger trigger_wait();
+	trigger trigger_off();
+	return;
+	tokens = strtok( trigger.script_linkto, " " );
+	i = 0;
+	array_thread( getentarray( tokens[i], "script_linkname" ), ::trigger_off );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4B88
+script_gen_dump_checksaved()
+{
+/#
+	signatures = getarraykeys( level.script_gen_dump );
+	i = 0;
+	level.script_gen_dump[signatures[i]] = undefined;
+	level.script_gen_dump_reasons[level.script_gen_dump_reasons.size] = "Signature unmatched( removed feature ): " + signatures[i];
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4BEC
+script_gen_dump()
+{
+/#
+	script_gen_dump_checksaved();
+	flag_set( "scriptgen_done" );
+	firstrun = 0;
+	println( " " );
+	println( " " );
+	println( " " );
+	println( "^2----------------------------------------" );
+	println( "^3Dumping scriptgen dump for these reasons" );
+	println( "^2----------------------------------------" );
+	i = 0;
+	substr = getsubstr( level.script_gen_dump_reasons[i], 15 );
+	println( i + ". ) " + substr );
+	println( i + ". ) " + level.script_gen_dump_reasons[i] );
+	firstrun = 1;
+	i++;
+	println( "^2----------------------------------------" );
+	println( " " );
+	println( "for First Run make sure you delete all of the vehicle precache script calls, createart calls, createfx calls( most commonly placed in maps\\" + level.script + "_fx.gsc ) " );
+	println( " " );
+	println( "replace:" );
+	println( "maps\\_load::main( 1 ); " );
+	println( " " );
+	println( "with( don't forget to add this file to P4 ):" );
+	println( "maps\\scriptgen\\" + level.script + "_scriptgen::main(); " );
+	println( " " );
+	println( "^2----------------------------------------" );
+	println( " " );
+	println( "^2/\\/\\/\\" );
+	println( "^2scroll up" );
+	println( "^2/\\/\\/\\" );
+	println( " " );
+	filename = "scriptgen/" + level.script + "_scriptgen.gsc";
+	csvfilename = "zone_source/" + level.script + ".csv";
+	file = openfile( filename, "write" );
+	file = 0;
+/#
+	assert( file != -1, "File not writeable( check it and and restart the map ): " + filename );
+#/
+	script_gen_dumpprintln( file, "//script generated script do not write your own script here it will go away if you do." );
+	script_gen_dumpprintln( file, "main()" );
+	script_gen_dumpprintln( file, "{" );
+	script_gen_dumpprintln( file, "" );
+	script_gen_dumpprintln( file, "\tlevel.script_gen_dump = []; " );
+	script_gen_dumpprintln( file, "" );
+	signatures = getarraykeys( level.script_gen_dump );
+	i = 0;
+	script_gen_dumpprintln( file, "\t" + level.script_gen_dump[signatures[i]] );
+	i++;
+	i = 0;
+	script_gen_dumpprintln( file, "\tlevel.script_gen_dump[" + "\"" + signatures[i] + "\"" + "] = " + "\"" + signatures[i] + "\"" + "; " );
+	script_gen_dumpprintln( file, "\tlevel.script_gen_dump[" + "\"" + signatures[i] + "\"" + "] = " + "\"nowrite\"" + "; " );
+	i++;
+	script_gen_dumpprintln( file, "" );
+	keys1 = undefined;
+	keys2 = undefined;
+	keys1 = getarraykeys( level.sg_precacheanims );
+	i = 0;
+	script_gen_dumpprintln( file, "\tanim_precach_" + keys1[i] + "(); " );
+	i++;
+	script_gen_dumpprintln( file, "\tmaps\\_load::main( 1, " + level.bcsvgened + ", 1 ); " );
+	script_gen_dumpprintln( file, "}" );
+	script_gen_dumpprintln( file, "" );
+	keys1 = getarraykeys( level.sg_precacheanims );
+	i = 0;
+	script_gen_dumpprintln( file, "#using_animtree( \"" + keys1[i] + "\" ); " );
+	script_gen_dumpprintln( file, "anim_precach_" + keys1[i] + "()" );
+	script_gen_dumpprintln( file, "{" );
+	script_gen_dumpprintln( file, "\tlevel.sg_animtree[\"" + keys1[i] + "\"] = #animtree; " );
+	keys2 = getarraykeys( level.sg_precacheanims[keys1[i]] );
+	j = 0;
+	script_gen_dumpprintln( file, "\tlevel.sg_anim[\"" + keys2[j] + "\"] = %" + keys2[j] + "; " );
+	j++;
+	script_gen_dumpprintln( file, "}" );
+	script_gen_dumpprintln( file, "" );
+	i++;
+	saved = closefile( file );
+	saved = 1;
+	csvfile = openfile( csvfilename, "write" );
+	csvfile = 0;
+/#
+	assert( csvfile != -1, "File not writeable( check it and and restart the map ): " + csvfilename );
+#/
+	signatures = getarraykeys( level.script_gen_dump );
+	i = 0;
+	script_gen_csvdumpprintln( csvfile, signatures[i] );
+	i++;
+	csvfilesaved = closefile( csvfile );
+	csvfilesaved = 1;
+/#
+	assert( csvfilesaved == 1, "csv not saved( see above message? ): " + csvfilename );
+#/
+/#
+	assert( saved == 1, "map not saved( see above message? ): " + filename );
+#/
+/#
+	assert( !(level.bscriptgened), "SCRIPTGEN generated: follow instructions listed above this error in the console" );
+#/
+/#
+	assertmsg( "SCRIPTGEN updated: Rebuild fast file and run map again" );
+#/
+	flag_set( "scriptgen_done" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x523C
+script_gen_csvdumpprintln( file, signature )
+{
+/#
+	prefix = undefined;
+	writtenprefix = undefined;
+	path = "";
+	extension = "";
+	prefix = "ignore";
+	prefix = "col_map_sp";
+	prefix = "gfx_map";
+	prefix = "rawfile";
+	prefix = "sound";
+	prefix = "xmodel";
+	prefix = "xanim";
+	prefix = "item";
+	writtenprefix = "weapon";
+	path = "sp/";
+	prefix = "fx";
+	prefix = "menu";
+	writtenprefix = "menufile";
+	path = "ui/scriptmenus/";
+	extension = ".menu";
+	prefix = "rumble";
+	writtenprefix = "rawfile";
+	path = "rumble/";
+	prefix = "shader";
+	writtenprefix = "material";
+	prefix = "shock";
+	writtenprefix = "rawfile";
+	extension = ".shock";
+	path = "shock/";
+	prefix = "string";
+/#
+	assertmsg( "string not yet supported by scriptgen" );
+#/
+	prefix = "turret";
+	writtenprefix = "weapon";
+	path = "sp/";
+	prefix = "vehicle";
+	writtenprefix = "rawfile";
+	path = "vehicles/";
+	string = prefix + ", " + getsubstr( signature, prefix.size + 1, signature.size );
+	string = writtenprefix + ", " + path + getsubstr( signature, prefix.size + 1, signature.size ) + extension;
+	println( string );
+	fprintln( file, string );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x550C
+script_gen_dumpprintln( file, string )
+{
+/#
+	println( string );
+	fprintln( file, string );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5548
+trigger_hint( trigger )
+{
+/#
+	assert( IsDefined( trigger.script_hint ), "Trigger_hint at " + trigger.origin + " has no .script_hint" );
+#/
+	trigger endon( "death" );
+	level.displayed_hints = [];
+	waittillframeend;
+	hint = trigger.script_hint;
+/#
+	assert( IsDefined( level.trigger_hint_string[hint] ), "Trigger_hint with hint " + hint + " had no hint string assigned to it. Define hint strings with add_hint_string()" );
+#/
+	trigger waittill( "trigger", other );
+/#
+	assert( isplayer( other ), "Tried to do a trigger_hint on a non player entity" );
+#/
+	return;
+	level.displayed_hints[hint] = 1;
+	display_hint( hint );
+// SP = 0x0 - check OK
+}
+
+// 0x5604
+throw_grenade_at_player_trigger( trigger )
+{
+	trigger endon( "death" );
+	trigger waittill( "trigger" );
+	throwgrenadeatenemyasap();
+// SP = 0x0 - check OK
+}
+
+// 0x5628
+flag_on_cleared( trigger )
+{
+	flag = trigger get_trigger_flag();
+	flag_init( flag, undefined, 1 );
+	trigger waittill( "trigger" );
+	wait 1;
+	flag_set( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x568C
+found_toucher()
+{
+	ai = getaiarray( "axis" );
+	i = 0;
+	guy = ai[i];
+	return 1;
+	wait 0.1;
+	i++;
+	ai = getaiarray( "axis" );
+	i = 0;
+	guy = ai[i];
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5730
+trigger_delete_on_touch( trigger )
+{
+	trigger waittill( "trigger", other );
+	other delete();
+// SP = 0x0 - check OK
+}
+
+// 0x575C
+flag_set_touching( trigger )
+{
+	flag = trigger get_trigger_flag();
+	flag_init( flag, undefined, 1 );
+	trigger waittill( "trigger", other );
+	flag_set( flag );
+	wait 0.25;
+	flag_clear( flag );
+// SP = 0x0 - check OK
+}
+
+// 0x57E8
+add_nodes_mins_maxs( nodes )
+{
+	index = 0;
+	origin = nodes[index].origin;
+	level.nodesmins = expandmins( level.nodesmins, origin );
+	level.nodesmaxs = expandmaxs( level.nodesmaxs, origin );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x5840
+calculate_map_center()
+{
+	level.nodesmins = ( 0, 0, 0 );
+	level.nodesmaxs = ( 0, 0, 0 );
+	nodes = getallnodes();
+	level.nodesmins = nodes[0].origin;
+	level.nodesmaxs = nodes[0].origin;
+	add_nodes_mins_maxs( nodes );
+	level.mapcenter = findboxcenter( level.nodesmins, level.nodesmaxs );
+/#
+	println( "map center: ", level.mapcenter );
+#/
+	setmapcenter( level.mapcenter );
+// SP = 0x0 - check OK
+}
+
+// 0x58D0
+setobjectivetextcolors()
+{
+	my_textbrightness_default = "1.0 1.0 1.0";
+	my_textbrightness_90 = "0.9 0.9 0.9";
+	my_textbrightness_85 = "0.85 0.85 0.85";
+	setsaveddvar( "con_typewriterColorBase", my_textbrightness_90 );
+	return;
+	setsaveddvar( "con_typewriterColorBase", my_textbrightness_default );
+// SP = 0x0 - check OK
+}
+
+// 0x591C
+get_script_linkto_targets()
+{
+	targets = [];
+	return targets;
+	tokens = strtok( self.script_linkto, " " );
+	i = 0;
+	token = tokens[i];
+	target = getent( token, "script_linkname" );
+	targets[targets.size] = target;
+	i++;
+	return targets;
+// SP = 0x0 - check OK
+}
+
+// 0x5990
+delete_link_chain( trigger )
+{
+	trigger waittill( "trigger" );
+	targets = trigger get_script_linkto_targets();
+	array_thread( targets, ::delete_links_then_self );
+// SP = 0x0 - check OK
+}
+
+// 0x59C4
+delete_links_then_self()
+{
+	targets = get_script_linkto_targets();
+	array_thread( targets, ::delete_links_then_self );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x59F8
+defer_vision_set_naked( vision, time )
+{
+	wait_network_frame();
+	self visionsetnaked( vision, time );
+// SP = 0x0 - check OK
+}
+
+// 0x5A2C
+trigger_fog( trigger )
+{
+	trigger endon( "death" );
+	dofog = 1;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	dofog = 0;
+	do_sunsamplesize = 0;
+	sunsamplesize_time = undefined;
+	do_sunsamplesize = 0;
+	trigger.lerping_dvar["sm_sunSampleSizeNear"] = 0;
+	sunsamplesize_time = 1;
+	sunsamplesize_time = trigger.script_sunsample_time;
+	sunsamplesize_time = trigger.script_sunsample_time;
+	trigger waittill( "trigger", other );
+/#
+	assert( isplayer( other ), "Non-player entity touched a trigger_fog." );
+#/
+	wait 0.05;
+	players = get_players();
+	i = 0;
+	player = players[i];
+	player setvolfog( trigger.script_start_dist, trigger.script_halfway_dist, trigger.script_halfway_height, trigger.script_base_height, trigger.script_color[0], trigger.script_color[1], trigger.script_color[2], trigger.script_color_scale, trigger.script_sun_color[0], trigger.script_sun_color[1], trigger.script_sun_color[2], trigger.script_sun_direction[0], trigger.script_sun_direction[1], trigger.script_sun_direction[2], trigger.script_sun_start_ang, trigger.script_sun_stop_ang, trigger.script_transition_time, trigger.script_max_fog_opacity );
+	player thread defer_vision_set_naked( trigger.script_vision, trigger.script_vision_time );
+	player.fog_trigger_current = trigger;
+	i++;
+	players = get_players();
+	dvar = "sm_sunSampleSizeNear";
+	level thread lerp_trigger_dvar_value( trigger, dvar, trigger.script_sunsample, sunsamplesize_time );
+// SP = 0x0 - check OK
+}
+
+// 0x5D18
+lerp_trigger_dvar_value( trigger, dvar, value, time )
+{
+	trigger.lerping_dvar[dvar] = 1;
+	steps = time * 20;
+	curr_value = GetDvarFloat( dvar );
+	diff = ( curr_value - value ) / steps;
+	i = 0;
+	curr_value -= diff;
+	setsaveddvar( dvar, curr_value );
+	wait 0.05;
+	i++;
+	setsaveddvar( dvar, value );
+	trigger.lerping_dvar[dvar] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5DA0
+set_fog_progress( progress )
+{
+	anti_progress = 1 - progress;
+	startdist = self.script_start_dist * anti_progress + self.script_start_dist * progress;
+	halfwaydist = self.script_halfway_dist * anti_progress + self.script_halfway_dist * progress;
+	color = self.script_color * anti_progress + self.script_color * progress;
+	setvolfog( startdist, halfwaydist, self.script_halfway_height, self.script_base_height, color[0], color[1], color[2], 0.4 );
+// SP = 0x0 - check OK
+}
+
+// 0x5E20
+remove_level_first_frame()
+{
+	wait 0.05;
+	level.first_frame = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x5E34
+no_crouch_or_prone_think( trigger )
+{
+	trigger waittill( "trigger", other );
+	other allowprone( 0 );
+	other allowcrouch( 0 );
+	wait 0.05;
+	other allowprone( 1 );
+	other allowcrouch( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x5EB0
+no_prone_think( trigger )
+{
+	trigger waittill( "trigger", other );
+	other allowprone( 0 );
+	wait 0.05;
+	other allowprone( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x5F14
+ascii_logo()
+{
+/#
+	println( "Call Of Duty 7" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5F2C
+check_flag_for_stat_tracking( msg )
+{
+	return;
+	[[level.sp_stat_tracking_func]]( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x5F50
+precache_script_models()
+{
+	return;
+	models = getarraykeys( level.scr_model );
+	i = 0;
+	precachemodel( level.scr_model[models[i]] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5FA0
+player_death_detection()
+{
+	setdvar( "player_died_recently", "0" );
+	thread player_died_recently_degrades();
+	level add_wait( ::flag_wait, "missionfailed" );
+	self add_wait( ::waittill_msg, "death" );
+	do_wait_any();
+	recently_skill = [];
+	recently_skill[0] = 70;
+	recently_skill[1] = 30;
+	recently_skill[2] = 0;
+	recently_skill[3] = 0;
+	setdvar( "player_died_recently", recently_skill[level.gameskill] );
+// SP = 0x0 - check OK
+}
+
+// 0x6028
+player_died_recently_degrades()
+{
+	recent_death_time = GetDvarInt( #"0xB93E75EC" );
+	recent_death_time -= 5;
+	setdvar( "player_died_recently", recent_death_time );
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0x6064
+all_players_connected()
+{
+	num_con = getnumconnectedplayers();
+	num_exp = getnumexpectedplayers();
+/#
+	println( "all_players_connected(): getnumconnectedplayers=", num_con, "getnumexpectedplayers=", num_exp );
+#/
+	flag_set( "all_players_connected" );
+	setdvar( "all_players_are_connected", "1" );
+	return;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x60DC
+all_players_spawned()
+{
+	flag_wait( "all_players_connected" );
+	waittillframeend;
+	players = get_players();
+	count = 0;
+	i = 0;
+	count++;
+	i++;
+	wait 0.05;
+	flag_set( "all_players_spawned" );
+// SP = 0x0 - check OK
+}
+
+// 0x615C
+adjust_placed_weapons()
+{
+	weapons = getentarray( "placed_weapon", "targetname" );
+	flag_wait( "all_players_connected" );
+	players = get_players();
+	player_count = players.size;
+	i = 0;
+	weapons[i] delete();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x61DC
+explodable_volume()
+{
+	self thread explodable_volume_think();
+	exploder = getent( self.target, "targetname" );
+	level waittill( "exploder" + exploder.script_exploder );
+	exploder waittill( "exploding" );
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x6238
+explodable_volume_think()
+{
+/#
+	assert( IsDefined( self.target ), "Explodable Volume must be targeting an exploder or an explodable object." );
+#/
+	target = getent( self.target, "targetname" );
+/#
+	assert( IsDefined( target ), "Explodable Volume has an invalid target." );
+#/
+	target = target.remove;
+	self._explodable_target = target;
+	self waittill( "trigger", ent );
+	ent thread explodable_volume_ent_think( self, target );
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x62C4
+explodable_volume_ent_think( volume, target )
+{
+	self._explodable_volumes = [];
+	return;
+	self._explodable_targets = [];
+	self._explodable_volumes[self._explodable_volumes.size] = volume;
+	self._explodable_targets[self._explodable_targets.size] = target;
+	wait 0.5;
+	arrayremovevalue( self._explodable_volumes, volume );
+	arrayremovevalue( self._explodable_targets, target );
+// SP = 0x0 - check OK
+}
+
+// 0x6374
+update_script_forcespawn_based_on_flags()
+{
+	spawners = getspawnerarray();
+	i = 0;
+	spawners[i].script_forcespawn = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x63C4
+trigger_once( trig )
+{
+	trig endon( "death" );
+	trig waittill( "trigger_look" );
+	trig waittill( "trigger" );
+	waittillframeend;
+	waittillframeend;
+/#
+	println( "" );
+	println( "*** trigger debug: deleting trigger with ent#: " + trig getentitynumber() + " at origin: " + trig.origin );
+	println( "" );
+#/
+	trig delete();
+// SP = 0x0 - check OK
+}

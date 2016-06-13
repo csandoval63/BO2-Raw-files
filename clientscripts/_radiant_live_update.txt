@@ -1,0 +1,33 @@
+// clientscripts/_radiant_live_update.csc
+
+
+// 0xD4
+main()
+{
+/#
+	thread scriptstruct_debug_render();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xE8
+scriptstruct_debug_render()
+{
+/#
+	level waittill( "liveupdate", selected_struct );
+	level thread render_struct( selected_struct );
+	level notify( "stop_struct_render" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x124
+render_struct( selected_struct )
+{
+/#
+	self endon( "stop_struct_render" );
+	box( selected_struct.origin, vector_scale( ( -1, -1, -1 ), 16 ), vector_scale( ( 1, 1, 1 ), 16 ), 0, ( 1, 0.4, 0.4 ) );
+	wait 0.01;
+#/
+// SP = 0x0 - check OK
+}

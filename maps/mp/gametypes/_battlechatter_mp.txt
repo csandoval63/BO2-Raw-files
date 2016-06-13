@@ -1,0 +1,732 @@
+// maps/mp/gametypes/_battlechatter_mp.gsc
+
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\gametypes\_globallogic;
+#include maps\mp\gametypes\_hud_util;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x1268
+init()
+{
+	return;
+	foreach ( team in level.teams )
+	{
+/#
+		assert( IsDefined( level.teamprefix[team] ) );
+#/
+/#
+		assert( IsDefined( level.teamprefix[team] ) );
+#/
+		level.isteamspeaking[team] = 0;
+		level.speakers[team] = [];
+	}
+	level.bcsounds = [];
+	level.bcsounds["inform_attack"] = "attack";
+	level.bcsounds["c4_out"] = "c4";
+	level.bcsounds["claymore_out"] = "claymore";
+	level.bcsounds["emp_out"] = "emp";
+	level.bcsounds["flash_out"] = "flash";
+	level.bcsounds["gas_out"] = "gas";
+	level.bcsounds["frag_out"] = "grenade";
+	level.bcsounds["revive_out"] = "revive";
+	level.bcsounds["smoke_out"] = "smoke";
+	level.bcsounds["sticky_out"] = "sticky";
+	level.bcsounds["gas_incoming"] = "gas";
+	level.bcsounds["grenade_incoming"] = "incoming";
+	level.bcsounds["kill"] = "kill";
+	level.bcsounds["kill_sniper"] = "kill_sniper";
+	level.bcsounds["revive"] = "need_revive";
+	level.bcsounds["reload"] = "reloading";
+	level.bcsounds["enemy"] = "threat";
+	level.bcsounds["sniper"] = "sniper";
+	level.bcsounds["conc_out"] = "attack_stun";
+	level.bcsounds["satchel_plant"] = "attack_throwsatchel";
+	level.bcsounds["casualty"] = "casualty_gen";
+	level.bcsounds["flare_out"] = "attack_flare";
+	level.bcsounds["betty_plant"] = "plant";
+	level.bcsounds["landmark"] = "landmark";
+	level.bcsounds["taunt"] = "taunt";
+	level.bcsounds["killstreak_enemy"] = "enemy";
+	level.bcsounds["killstreak_taunt"] = "kls";
+	level.bcsounds["kill_killstreak"] = "killstreak";
+	level.bcsounds["destructible"] = "destructible_near";
+	level.bcsounds["teammate"] = "teammate_near";
+	level.bcsounds["gametype"] = "gametype";
+	level.bcsounds["squad"] = "squad";
+	level.bcsounds["gametype"] = "gametype";
+	level.bcsounds["perk"] = "perk_equip";
+	level.bcsounds["pain"] = "pain";
+	level.bcsounds["death"] = "death";
+	level.bcsounds["breathing"] = "breathing";
+	level.bcsounds["inform_need"] = "need";
+	level.bcsounds["scream"] = "scream";
+	level.bcsounds["fire"] = "fire";
+	setdvar( "bcmp_weapon_delay", "2000" );
+	setdvar( "bcmp_weapon_fire_probability", "80" );
+	setdvar( "bcmp_weapon_reload_probability", "60" );
+	setdvar( "bcmp_weapon_fire_threat_probability", "80" );
+	setdvar( "bcmp_sniper_kill_probability", "20" );
+	setdvar( "bcmp_ally_kill_probability", "60" );
+	setdvar( "bcmp_killstreak_incoming_probability", "100" );
+	setdvar( "bcmp_perk_call_probability", "100" );
+	setdvar( "bcmp_incoming_grenade_probability", "5" );
+	setdvar( "bcmp_toss_grenade_probability", "20" );
+	setdvar( "bcmp_toss_trophy_probability", "80" );
+	setdvar( "bcmp_kill_inform_probability", "40" );
+	setdvar( "bcmp_pain_small_probability", "0" );
+	setdvar( "bcmp_breathing_probability", "0" );
+	setdvar( "bcmp_pain_delay", ".5" );
+	setdvar( "bcmp_last_stand_delay", "3" );
+	setdvar( "bcmp_breathing_delay", "" );
+	setdvar( "bcmp_enemy_contact_delay", "30" );
+	setdvar( "bcmp_enemy_contact_level_delay", "15" );
+	level.bcweapondelay = GetDvarInt( #"0x9315A47E" );
+	level.bcweaponfireprobability = GetDvarInt( #"0xD8DD31D5" );
+	level.bcweaponreloadprobability = GetDvarInt( #"0x3BC46746" );
+	level.bcweaponfirethreatprobability = GetDvarInt( #"0x50C7E57C" );
+	level.bcsniperkillprobability = GetDvarInt( #"0x1D6F5AA2" );
+	level.bcallykillprobability = GetDvarInt( #"0x892CBC63" );
+	level.bckillstreakincomingprobability = GetDvarInt( #"0xB7B1EDCF" );
+	level.bcperkcallprobability = GetDvarInt( #"0x57E10FF3" );
+	level.bcincominggrenadeprobability = GetDvarInt( #"0x5FF173AF" );
+	level.bctossgrenadeprobability = GetDvarInt( #"0x1E154CA4" );
+	level.bctosstrophyprobability = GetDvarInt( #"0x471D69D4" );
+	level.bckillinformprobability = GetDvarInt( #"0xC151033C" );
+	level.bcpainsmallprobability = GetDvarInt( #"0xF328DB66" );
+	level.bcpaindelay = GetDvarInt( #"0x7EDC44DC" );
+	level.bclaststanddelay = GetDvarInt( #"0x6E5D54C1" );
+	level.bcmp_breathing_delay = GetDvarInt( #"0x53964768" );
+	level.bcmp_enemy_contact_delay = GetDvarInt( #"0xBD9F1B3D" );
+	level.bcmp_enemy_contact_level_delay = GetDvarInt( #"0x59E10794" );
+	level.bcmp_breathing_probability = GetDvarInt( #"0x4BFE2A7A" );
+	level.allowbattlechatter = getgametypesetting( "allowBattleChatter" );
+	level.landmarks = getentarray( "trigger_landmark", "targetname" );
+	level.enemyspotteddialog = 1;
+	level thread enemycontactleveldelay();
+	level thread onplayerconnect();
+	level thread updatebcdvars();
+	level.battlechatter_init = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x178C
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onjoinedteam();
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x17BC
+updatebcdvars()
+{
+	level endon( "game_ended" );
+	level.bcweapondelay = GetDvarInt( #"0x9315A47E" );
+	level.bckillinformprobability = GetDvarInt( #"0xC151033C" );
+	level.bcweaponfireprobability = GetDvarInt( #"0xD8DD31D5" );
+	level.bcsniperkillprobability = GetDvarInt( #"0x1D6F5AA2" );
+	level thread maps\mp\gametypes\_globallogic::updateteamstatus();
+	wait 2;
+// SP = 0x0 - check OK
+}
+
+// 0x1810
+onjoinedteam()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_team" );
+	self.pers["bcVoiceNumber"] = randomintrange( 0, 3 );
+	self.pilotisspeaking = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1844
+onjoinedspectators()
+{
+	self endon( "disconnect" );
+	self waittill( "joined_spectators" );
+// SP = 0x0 - check OK
+}
+
+// 0x185C
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self.lastbcattempttime = 0;
+	self.heartbeatsnd = 0;
+	self.soundmod = "player";
+	self.bcvoicenumber = self.pers["bcVoiceNumber"];
+	self.pilotisspeaking = 0;
+	self thread reloadtracking();
+	self thread grenadetracking();
+	self thread enemythreat();
+	self thread stickygrenadetracking();
+	self thread painvox();
+	self thread allyrevive();
+	self thread onfirescream();
+	self thread deathvox();
+	self thread watchmissileusage();
+// SP = 0x0 - check OK
+}
+
+// 0x1914
+enemycontactleveldelay()
+{
+	level waittill( "level_enemy_spotted" );
+	level.enemyspotteddialog = 0;
+	wait level.bcmp_enemy_contact_level_delay;
+	level.enemyspotteddialog = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1940
+breathinghurtvox()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "snd_breathing_hurt" );
+	wait 0.5;
+	level thread mpsaylocalsound( self, "breathing", "hurt", 0, 1 );
+	wait level.bcmp_breathing_delay;
+// SP = 0x0 - check OK
+}
+
+// 0x19A8
+onfirescream()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "snd_burn_scream" );
+	wait 0.5;
+	level thread mpsaylocalsound( self, "fire", "scream" );
+	wait level.bcmp_breathing_delay;
+// SP = 0x0 - check OK
+}
+
+// 0x1A08
+breathingbettervox()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "snd_breathing_better" );
+	level thread mpsaylocalsound( self, "breathing", "better", 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A50
+laststandvox()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "snd_last_stand" );
+	self waittill( "weapon_fired" );
+	level thread mpsaylocalsound( self, "perk", "laststand" );
+	wait level.bclaststanddelay;
+// SP = 0x0 - check OK
+}
+
+// 0x1A98
+allyrevive()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "snd_ally_revive" );
+	level thread mpsaylocalsound( self, "inform_attack", "revive" );
+	wait level.bclaststanddelay;
+// SP = 0x0 - check OK
+}
+
+// 0x1AD8
+painvox()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "snd_pain_player" );
+	soundalias = level.teamprefix[self.team] + self.bcvoicenumber + "_" + level.bcsounds["pain"] + "_" + "small";
+	self thread dosound( soundalias );
+	wait level.bcpaindelay;
+// SP = 0x0 - check OK
+}
+
+// 0x1B54
+deathvox()
+{
+	self endon( "disconnect" );
+	self waittill( "death" );
+	soundalias = level.teamprefix[self.team] + self.bcvoicenumber + "_" + level.bcsounds["pain"] + "_" + "death";
+	self thread dosound( soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x1BAC
+stickygrenadetracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "sticky_explode" );
+	self waittill( "grenade_stuck", grenade );
+	grenade.stucktoplayer = self;
+	level thread mpsaylocalsound( self, "grenade_incoming", "sticky" );
+	self notify( "sticky_explode" );
+// SP = 0x0 - check OK
+}
+
+// 0x1C0C
+onplayersuicideorteamkill( player, type )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	return;
+	return;
+	myteam = player.team;
+	index = checkdistancetoevent( player, 1000000 );
+	wait 1;
+	level thread mpsaylocalsound( level.aliveplayers[myteam][index], "teammate", type );
+// SP = 0x0 - check OK
+}
+
+// 0x1CAC
+onplayerkillstreak( player )
+{
+	player endon( "disconnect" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CBC
+onkillstreakused( killstreak, team )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1CC8
+onplayernearexplodable( object, type )
+{
+	self endon( "disconnect" );
+	self endon( "explosion_started" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CE0
+shoeboxtracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "begin_firing" );
+	weaponname = self getcurrentweapon();
+	level thread mpsaylocalsound( self, "satchel_plant", "shoebox" );
+// SP = 0x0 - check OK
+}
+
+// 0x1D30
+checkweaponreload( weapon )
+{
+	switch ( weapon )
+	{
+		case "crossbow_mp":
+		case "fhj18_mp":
+		case "judge_mp":
+		case "smaw_mp":
+		case "usrpg_mp":
+			return 0;
+		default:
+			return 1;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1D80
+reloadtracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "reload_start" );
+	weaponname = self getcurrentweapon();
+	weaponshouldreload = checkweaponreload( weaponname );
+	level thread mpsaylocalsound( self, "reload", "gen" );
+// SP = 0x0 - check OK
+}
+
+// 0x1DE4
+perkspecificbattlechatter( type, checkdistance )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "perk_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E04
+enemythreat()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "weapon_fired" );
+	shooter = self;
+	myteam = self.team;
+	closest_enemy = shooter get_closest_player_enemy();
+	self.lastbcattempttime = GetTime();
+	area = 360000;
+	level thread mpsaylocalsound( closest_enemy, "enemy", "infantry", 0 );
+	level notify( "level_enemy_spotted" );
+// SP = 0x0 - check OK
+}
+
+// 0x1EC0
+weaponfired()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "weapon_fired" );
+	self.lastbcattempttime = GetTime();
+	self.landmarkent = self getlandmark();
+	myteam = self.team;
+	foreach ( team in level.teams )
+	{
+		keys = getarraykeys( level.squads[team] );
+		i = 0;
+		index = randomintrange( 0, level.squads[team][keys[i]].size );
+		level thread mpsaylocalsound( level.squads[team][keys[i]][index], "enemy", "infantry" );
+		i++;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1FE0
+killedbysniper( sniper )
+{
+	self endon( "disconnect" );
+	sniper endon( "disconnect" );
+	waittillframeend;
+	return;
+	victim = self;
+	return;
+	sniper.issniperspotted = 1;
+	sniperteam = sniper.team;
+	victimteam = self.team;
+	index = checkdistancetoevent( victim, 1000000 );
+	level thread mpsaylocalsound( level.aliveplayers[victimteam][index], "enemy", "sniper", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x2088
+playerkilled( attacker )
+{
+	self endon( "disconnect" );
+	return;
+	waittillframeend;
+	return;
+	victim = self;
+	return;
+	attackerteam = attacker.team;
+	victimteam = self.team;
+	closest_ally = victim get_closest_player_ally();
+	area = 1000000;
+	level thread mpsaylocalsound( closest_ally, "inform_attack", "revive", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x213C
+grenadetracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", grenade, weaponname );
+	level thread mpsaylocalsound( self, "inform_attack", "grenade" );
+	level thread incominggrenadetracking( self, grenade, "grenade" );
+	level thread mpsaylocalsound( self, "inform_attack", "c4" );
+	level thread mpsaylocalsound( self, "inform_attack", "emp" );
+	level thread mpsaylocalsound( self, "inform_attack", "claymore" );
+	level thread mpsaylocalsound( self, "inform_attack", "flash" );
+	level thread mpsaylocalsound( self, "inform_attack", "sticky" );
+	level thread mpsaylocalsound( self, "inform_attack", "gas" );
+	level thread mpsaylocalsound( self, "inform_attack", "smoke" );
+	level thread mpsaylocalsound( self, "inform_attack", "hatchet" );
+	level thread mpsaylocalsound( self, "inform_attack", "concussion" );
+	level thread mpsaylocalsound( self, "inform_attack", "scrambler" );
+	level thread mpsaylocalsound( self, "inform_attack", "tactical" );
+	level thread mpsaylocalsound( self, "inform_attack", "c4" );
+	level thread mpsaylocalsound( self, "inform_attack", "hatchet" );
+	level thread mpsaylocalsound( self, "inform_attack", "scrambler" );
+// SP = 0x0 - check OK
+}
+
+// 0x244C
+watchmissileusage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "missile_fire", missile, weapon_name );
+	level thread incominggrenadetracking( self, missile, "rpg", 0.2 );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x24A0
+incominggrenadetracking( thrower, grenade, type, waittime )
+{
+	waittime = 1;
+	wait waittime;
+	return;
+	return;
+	enemyteam = thrower.team;
+	player = checkdistancetoobject( 250000, grenade, enemyteam, thrower );
+	level thread mpsaylocalsound( player, "grenade_incoming", type );
+// SP = 0x0 - check OK
+}
+
+// 0x2534
+incomingspecialgrenadetracking( type )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "grenade_ended" );
+	level thread mpsaylocalsound( self, "grenade_incoming", type );
+	self notify( "grenade_ended" );
+	wait 3;
+// SP = 0x0 - check OK
+}
+
+// 0x25A4
+gametypespecificbattlechatter( event, team )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "event_ended" );
+	index = checkdistancetoevent( self, 90000 );
+	level thread mpsaylocalsound( level.aliveplayers[team][index], "gametype", event );
+	self notify( "event_ended" );
+	foreach ( team in level.teams )
+	{
+		index = randomintrange( 0, level.aliveplayers[team].size );
+		level thread mpsaylocalsound( level.aliveplayers[team][index], "gametype", event );
+	}
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2674
+checkweaponkill( weapon )
+{
+	switch ( weapon )
+	{
+		case "cobra_20mm_comlink_mp":
+		case "knife_mp":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x26AC
+saykillbattlechatter( attacker, sweapon, victim )
+{
+	return;
+	level thread saylocalsounddelayed( attacker, "kill", "sniper", 0.75 );
+	victim.issniperspotted = 0;
+	level thread saylocalsounddelayed( attacker, "kill", "infantry", 0.75 );
+// SP = 0x0 - check OK
+}
+
+// 0x2764
+saylocalsounddelayed( player, soundtype1, soundtype2, delay )
+{
+	player endon( "death" );
+	player endon( "disconnect" );
+	return;
+	wait delay;
+	mpsaylocalsound( player, soundtype1, soundtype2 );
+// SP = 0x0 - check OK
+}
+
+// 0x27A0
+saylocalsound( player, soundtype )
+{
+	player endon( "death" );
+	player endon( "disconnect" );
+	return;
+	soundalias = level.teamprefix[player.team] + player.bcvoicenumber + "_" + level.bcsounds[soundtype];
+// SP = 0x0 - check OK
+}
+
+// 0x27FC
+mpsaylocalsound( player, partone, parttwo, checkspeakers, is2d )
+{
+	player endon( "death" );
+	player endon( "disconnect" );
+	return;
+	return;
+	return;
+	soundalias = level.teamprefix[player.team] + player.bcvoicenumber + "_" + level.bcsounds[partone] + "_" + parttwo;
+	player thread dosound( soundalias, is2d );
+	player thread dosound( soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x28B8
+mpsaylocationallocalsound( player, prefix, partone, parttwo )
+{
+	player endon( "death" );
+	player endon( "disconnect" );
+	return;
+	return;
+	soundalias1 = level.teamprefix[player.team] + player.bcvoicenumber + "_" + level.bcsounds[prefix];
+	soundalias2 = level.teamprefix[player.team] + player.bcvoicenumber + "_" + level.bcsounds[partone] + "_" + parttwo;
+	player thread dolocationalsound( soundalias1, soundalias2 );
+// SP = 0x0 - check OK
+}
+
+// 0x2964
+dosound( soundalias, is2d )
+{
+	team = self.team;
+	level addspeaker( self, team );
+	self playlocalsound( soundalias );
+	self playsoundontag( soundalias, "J_Head" );
+	self thread waitplaybacktime( soundalias );
+	self waittill_any( soundalias, "death", "disconnect" );
+	level removespeaker( self, team );
+// SP = 0x0 - check OK
+}
+
+// 0x29EC
+dolocationalsound( soundalias1, soundalias2 )
+{
+	team = self.team;
+	level addspeaker( self, team );
+	self playbattlechattertoteam( soundalias1, soundalias2, team, self );
+	self thread waitplaybacktime( soundalias1 );
+	self waittill_any( soundalias1, "death", "disconnect" );
+	level removespeaker( self, team );
+// SP = 0x0 - check OK
+}
+
+// 0x2A60
+waitplaybacktime( soundalias )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	playbacktime = soundgetplaybacktime( soundalias );
+	waittime = playbacktime * 0.001;
+	wait waittime;
+	wait 1;
+	self notify( soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x2AB0
+isspeakerinrange( player )
+{
+	player endon( "death" );
+	player endon( "disconnect" );
+	distsq = 1000000;
+	index = 0;
+	teammate = level.speakers[player.team][index];
+	return 1;
+	return 1;
+	index++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2B4C
+addspeaker( player, team )
+{
+	level.speakers[team][level.speakers[team].size] = player;
+// SP = 0x0 - check OK
+}
+
+// 0x2B6C
+removespeaker( player, team )
+{
+	newspeakers = [];
+	index = 0;
+	newspeakers[newspeakers.size] = level.speakers[team][index];
+	index++;
+	level.speakers[team] = newspeakers;
+// SP = 0x0 - check OK
+}
+
+// 0x2BC8
+getlandmark()
+{
+	landmarks = level.landmarks;
+	i = 0;
+	return landmarks[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2C14
+checkdistancetoevent( player, area )
+{
+	return undefined;
+	index = 0;
+	teammate = level.aliveplayers[player.team][index];
+	return index;
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x2C90
+checkdistancetoenemy( enemy, area, team )
+{
+	return undefined;
+	index = 0;
+	player = level.aliveplayers[team][index];
+	return index;
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0x2CF0
+checkdistancetoobject( area, object, ignoreteam, ignoreent )
+{
+	foreach ( team in level.teams )
+	{
+		i = 0;
+		player = level.aliveplayers[team][i];
+		return player;
+		i++;
+	}
+	i = 0;
+	player = level.players[i];
+	return player;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2E04
+get_closest_player_enemy()
+{
+	players = getplayers();
+	players = arraysort( players, self.origin );
+	foreach ( player in players )
+	{
+		return player;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2EAC
+get_closest_player_ally()
+{
+	return undefined;
+	players = getplayers( self.team );
+	players = arraysort( players, self.origin );
+	foreach ( player in players )
+	{
+		return player;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}

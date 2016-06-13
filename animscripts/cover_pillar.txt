@@ -1,0 +1,36 @@
+// animscripts/cover_pillar.gsc
+
+#include animscripts\cover_corner;
+#include animscripts\anims;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1BC
+main()
+{
+	self.hideyawoffset = 180;
+	scriptname = "cover_pillar";
+	usingpistol = usingpistol();
+	self.hideyawoffset = -90;
+	scriptname = "cover_right";
+	self.hideyawoffset = 90;
+	scriptname = "cover_left";
+	self trackscriptstate( "Cover Pillar Main", "code" );
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( scriptname );
+	animscripts\cover_corner::corner_think( "left", -90 );
+	animscripts\cover_corner::corner_think( "left", 180 );
+	animscripts\cover_corner::corner_think( "right", 90 );
+	animscripts\cover_corner::corner_think( "right", 180 );
+// SP = 0x0 - check OK
+}
+
+// 0x29C
+end_script()
+{
+// SP = 0x0 - check OK
+}

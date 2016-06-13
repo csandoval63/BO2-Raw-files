@@ -1,0 +1,43 @@
+// clientscripts/mp/gametypes/zgrief.csc
+
+
+// 0x258
+main()
+{
+	level._zombie_gamemodeprecache = ::onprecachegametype;
+	level._zombie_gamemodepremain = ::premain;
+	level._zombie_gamemodemain = ::onstartgametype;
+// SP = 0x0 - check OK
+}
+
+// 0x284
+onprecachegametype()
+{
+	setteamreviveicon( "allies", "waypoint_revive_cdc_zm" );
+	setteamreviveicon( "axis", "waypoint_revive_cia_zm" );
+	level._effect["meat_stink_camera"] = loadfx( "maps/zombie/fx_zmb_meat_stink_camera" );
+	level._effect["meat_stink_torso"] = loadfx( "maps/zombie/fx_zmb_meat_stink_torso" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D4
+premain()
+{
+	registerclientfield( "toplayer", "meat_stink", 1, 1, "int", ::meat_stink_cb, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x300
+onstartgametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x308
+meat_stink_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self.meatstink_fx = playfxontag( localclientnum, level._effect["meat_stink_camera"], self, "J_SpineLower" );
+	stopfx( localclientnum, self.meatstink_fx );
+	self.meatstink_fx = undefined;
+// SP = 0x0 - check OK
+}

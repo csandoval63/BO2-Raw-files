@@ -1,0 +1,59 @@
+// clientscripts/mp/_explode.csc
+
+#include clientscripts\mp\_proximity_grenade;
+#include clientscripts\mp\_utility;
+
+
+// 0x304
+main()
+{
+	level thread watchforexplosion();
+// SP = 0x0 - check OK
+}
+
+// 0x318
+playerspawned( localclientnum )
+{
+	self thread watchforrespawn();
+// SP = 0x0 - check OK
+}
+
+// 0x32C
+watchforrespawn()
+{
+	self endon( "entityshutdown" );
+	menuname = "fullscreen_dirt";
+	menuname = "fullscreen_snow";
+	localplayers = level.localplayers;
+	i = 0;
+	animateui( i, menuname, "dirt", "Default", 0 );
+	animateui( i, menuname, "blurred_dirt", "Default", 0 );
+	animateui( i, menuname, "dirt_left", "Default", 0 );
+	animateui( i, menuname, "dirt_left_splash", "Default", 0 );
+	animateui( i, menuname, "dirt_right", "Default", 0 );
+	animateui( i, menuname, "dirt_right_splash", "Default", 0 );
+	i++;
+	self waittill( "respawn" );
+// SP = 0x0 - check OK
+}
+
+// 0x41C
+watchforexplosion()
+{
+	return;
+	level waittill( "explode", localclientnum, position, mod, weaponname, owner_cent );
+	localplayer = getlocalplayer( localclientnum );
+	trace = bullettrace( getlocalclienteyepos( localclientnum ), position, 0, localplayer );
+	forwardvec = vectornormalize( anglestoforward( localplayer.angles ) );
+	rightvec = vectornormalize( anglestoright( localplayer.angles ) );
+	explosionvec = vectornormalize( position - localplayer.origin );
+	fdot = vectordot( explosionvec, forwardvec );
+	rdot = vectordot( explosionvec, rightvec );
+	localplayer thread clientscripts\mp\_proximity_grenade::taserhudfx( localclientnum, position );
+	menuname = "fullscreen_dirt";
+	menuname = "fullscreen_snow";
+	animateui( localclientnum, menuname, "dirt", "in", 0 );
+	animateui( localclientnum, menuname, "dirt_right", "in", 0 );
+	animateui( localclientnum, menuname, "dirt_left", "in", 0 );
+// SP = 0x0 - check OK
+}

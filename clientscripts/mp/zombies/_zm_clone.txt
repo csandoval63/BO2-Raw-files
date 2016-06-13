@@ -1,0 +1,22 @@
+// clientscripts/mp/zombies/_zm_clone.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zm_ally" );
+
+
+// 0x104
+init()
+{
+	init_mover_tree();
+// SP = 0x0 - check OK
+}
+
+// 0x114
+init_mover_tree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}

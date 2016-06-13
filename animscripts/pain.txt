@@ -1,0 +1,918 @@
+// animscripts/pain.gsc
+
+#include animscripts\run;
+#include animscripts\cover_utility;
+#include animscripts\shared;
+#include animscripts\death;
+#include animscripts\face;
+#include animscripts\balcony;
+#include maps\_utility;
+#include animscripts\combat_utility;
+#include animscripts\anims;
+#include common_scripts\utility;
+#include animscripts\weaponlist;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1CEC
+main()
+{
+	return;
+	self setflashbanged( 0 );
+	self flamethrower_stop_shoot();
+	self waittill( "killanimscript" );
+	return;
+	self notify( "kill_long_death" );
+	self.a.paintime = GetTime();
+	return;
+	self.health = 1;
+	ratio = self.health / self.maxhealth;
+	self trackscriptstate( "Pain Main", "code" );
+	self notify( "anim entered pain" );
+	self endon( "killanimscript" );
+	animscripts\utility::initialize( "pain" );
+	self animmode( "gravity" );
+	self animscripts\face::saygenericdialogue( "pain_bullet" );
+	painhelmetpop();
+	trywoundedanimset( ratio );
+	[[self.painoverridefunc]]();
+	return;
+	return;
+	return;
+	painanim = getpainanim();
+/#
+	recordenttext( "Pain - " + self getentitynumber() + " hit at " + self.damagelocation, self, level.color_debug["yellow"], "Animscript" );
+	println( "^2Pain - ", painanim, " ; pose is ", self.a.pose );
+#/
+	playpainanim( painanim );
+// SP = 0x0 - check OK
+}
+
+// 0x1E80
+paingloabalsinit()
+{
+	anim.painglobals = spawnstruct();
+	anim.painglobals.numdeathsuntilcrawlingpain = randomintrange( 0, 15 );
+	anim.painglobals.nextcrawlingpaintime = GetTime() + randomintrange( 0, 20000 );
+	anim.painglobals.nextcrawlingpaintimefromlegdamage = GetTime() + randomintrange( 0, 10000 );
+	anim.painglobals.min_running_pain_dist_sq = 4096;
+	anim.painglobals.run_pain_short = 120;
+	anim.painglobals.run_pain_med = 200;
+	anim.painglobals.run_pain_long = 300;
+// SP = 0x0 - check OK
+}
+
+// 0x1F14
+painhelmetpop()
+{
+	self animscripts\death::helmetpop();
+	self playsound( "prj_bullet_impact_headshot_helmet_nodie" );
+	self animscripts\death::helmetpop();
+// SP = 0x0 - check OK
+}
+
+// 0x1F70
+trywoundedanimset( ratio )
+{
+	return;
+	self.a.disablebackwardrunngun = 1;
+	self.a.allow_sidearm = 0;
+	self disable_tactical_walk();
+	self disable_react();
+	self.a.dontpeek = 1;
+	self.a.disable120runngun = 1;
+	self [[level.setup_wounded_anims_callback]]();
+// SP = 0x0 - check OK
+}
+
+// 0x1FE8
+shouldtrywoundedanimset()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2090
+crawlingpain()
+{
+/#
+	self.forcelongdeath = 1;
+#/
+	return 0;
+	anim.painglobals.nextcrawlingpaintime = GetTime() + 3000;
+	anim.painglobals.nextcrawlingpaintimefromlegdamage = GetTime() + 3000;
+	self thread crawlingpistol();
+	self waittill( "killanimscript" );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2100
+shouldcrawlingpain()
+{
+	self.health = 10;
+	self thread crawlingpistol();
+	self waittill( "killanimscript" );
+	return 1;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	leghit = self damagelocationisany( "left_leg_upper", "left_leg_lower", "right_leg_upper", "right_leg_lower", "left_foot", "right_foot" );
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x22A8
+crawlingpistol()
+{
+	self endon( "kill_long_death" );
+	self endon( "death" );
+	self setplayercollision( 0 );
+	self thread preventpainforashorttime( "crawling" );
+	self.a.special = "none";
+	self thread paindeathnotify();
+	self.issniper = 0;
+	self setanimknoball( %dying, %body, 1, 0.1, 1 );
+	return;
+/#
+	assert( self.a.pose == "prone" );
+#/
+	transanimslot = self.a.pose + "_2_back";
+	transanim = animarraypickrandom( transanimslot );
+	self setflaggedanimknob( "transition", transanim, 1, 0.5, 1 );
+	self animscripts\shared::donotetracksintercept( "transition", ::handlebackcrawlnotetracks );
+/#
+	println( "Anim \"", transanim, "\" is missing an 'anim_pose = \"back\"' notetrack." );
+#/
+/#
+	assert( self.a.pose == "back" );
+#/
+	self.a.special = "dying_crawl";
+	self thread dyingcrawlbackaim();
+	decidenumcrawls();
+	crawlanim = animarray( "back_crawl" );
+	delta = getmovedelta( crawlanim, 0, 1 );
+	endpos = self localtoworldcoords( delta );
+	self setflaggedanimknobrestart( "back_crawl", crawlanim, 1, 0.1, 1 );
+	self animscripts\shared::donotetracksintercept( "back_crawl", ::handlebackcrawlnotetracks );
+	self.desiredtimeofdeath = GetTime() + randomintrange( 4000, 20000 );
+	backanim = animarray( "back_fire" );
+	self setflaggedanimknobrestart( "back_idle_or_fire", backanim, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "back_idle_or_fire" );
+	backanim = animarray( "back_idle" );
+	backanim = animarraypickrandom( "back_idle_twitch" );
+	self setflaggedanimknobrestart( "back_idle_or_fire", backanim, 1, 0.1, 1 );
+	timeremaining = getanimlength( backanim );
+	interval = 0.5;
+	interval = timeremaining;
+	timeremaining = 0;
+	timeremaining -= interval;
+	self animscripts\shared::donotetracksfortime( interval, "back_idle_or_fire" );
+	self notify( "end_dying_crawl_back_aim" );
+	self clearanim( %dying_back_aim_4_wrapper, 0.3 );
+	self clearanim( %dying_back_aim_6_wrapper, 0.3 );
+	self.a.nodeath = 1;
+	deathanim = animarraypickrandom( "back_death" );
+	self setflaggedanimknobrestart( "back_death", deathanim, 1, 0.1, 1 );
+	self animscripts\shared::donotetracksfortime( getanimlength( deathanim ) * 0.9, "back_death" );
+	self dodamage( self.health + 5, ( 0, 0, 0 ) );
+	self.a.special = "none";
+// SP = 0x0 - check OK
+}
+
+// 0x26A8
+preventpainforashorttime( type )
+{
+	self endon( "kill_long_death" );
+	self endon( "death" );
+	self.flashbangimmunity = 1;
+	self.doinglongdeath = 1;
+	self notify( "long_death" );
+	self.a.mayonlydie = 1;
+	anybody_nearby = isanyplayernearby( 1024 );
+	anim.painglobals.numdeathsuntilcrawlingpain = randomintrange( 10, 30 );
+	anim.painglobals.nextcrawlingpaintime = GetTime() + randomintrange( 15000, 60000 );
+	anim.painglobals.numdeathsuntilcrawlingpain = randomintrange( 5, 12 );
+	anim.painglobals.nextcrawlingpaintime = GetTime() + randomintrange( 5000, 25000 );
+	anim.painglobals.nextcrawlingpaintimefromlegdamage = GetTime() + randomintrange( 7000, 13000 );
+/#
+	thread printlongdeathdebugtext( self.origin + vector_scale( ( 0, 0, 1 ), 64 ), "crawl death" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x27B0
+decidenumcrawls()
+{
+	self.a.numcrawls = randomintrange( 0, 5 );
+// SP = 0x0 - check OK
+}
+
+// 0x27CC
+shouldkeepcrawling()
+{
+/#
+	assert( IsDefined( self.a.numcrawls ) );
+#/
+	self.a.numcrawls = undefined;
+	return 0;
+	self.a.numcrawls--;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x280C
+shouldstayalive()
+{
+	return 0;
+	return GetTime() < self.desiredtimeofdeath;
+// SP = 0x0 - check OK
+}
+
+// 0x2830
+dyingcrawl()
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	self setflaggedanimknob( "falling", animarraypickrandom( self.a.pose + "_2_crawl" ), 1, 0.5, 1 );
+	self animscripts\shared::donotetracks( "falling" );
+/#
+	assert( self.a.pose == "prone" );
+#/
+	self.a.special = "dying_crawl";
+	decidenumcrawls();
+	crawlanim = animarray( "crawl" );
+	delta = getmovedelta( crawlanim, 0, 1 );
+	endpos = self localtoworldcoords( delta );
+	return 1;
+	self setflaggedanimknobrestart( "crawling", crawlanim, 1, 0.1, 1 );
+	self animscripts\shared::donotetracks( "crawling" );
+	return 1;
+	self.a.nodeath = 1;
+	deathanim = animarraypickrandom( "death" );
+	self setflaggedanimknobrestart( "crawl_death", deathanim, 1, 0.1, 1 );
+	self animscripts\shared::donotetracksfortime( getanimlength( deathanim ) * 0.9, "crawl_death" );
+	self.a.special = "none";
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2A30
+dyingcrawlbackaim()
+{
+	self endon( "kill_long_death" );
+	self endon( "death" );
+	self endon( "end_dying_crawl_back_aim" );
+	return;
+	self.dyingcrawlaiming = 1;
+	self setanimlimited( animarray( "aim_left" ), 1, 0 );
+	self setanimlimited( animarray( "aim_right" ), 1, 0 );
+	prevyaw = 0;
+	aimyaw = self getyawtoenemy();
+	diff = angleclamp180( aimyaw - prevyaw );
+	diff = sign( diff ) * 3;
+	aimyaw = angleclamp180( prevyaw + diff );
+	aimyaw = -45;
+	weight = aimyaw / -45;
+	self setanim( %dying_back_aim_4_wrapper, weight, 0.05 );
+	self setanim( %dying_back_aim_6_wrapper, 0, 0.05 );
+	aimyaw = 45;
+	weight = aimyaw / 45;
+	self setanim( %dying_back_aim_6_wrapper, weight, 0.05 );
+	self setanim( %dying_back_aim_4_wrapper, 0, 0.05 );
+	prevyaw = aimyaw;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2B9C
+startdyingcrawlbackaimsoon()
+{
+	self endon( "kill_long_death" );
+	self endon( "death" );
+	wait 0.5;
+	self thread dyingcrawlbackaim();
+// SP = 0x0 - check OK
+}
+
+// 0x2BC4
+handlebackcrawlnotetracks( note )
+{
+	return 1;
+	return 1;
+	self shootenemywrapper();
+	return 1;
+	self thread startdyingcrawlbackaimsoon();
+	return 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2C24
+aimedsomewhatatenemy()
+{
+/#
+	assert( isvalidenemy( self.enemy ) );
+#/
+	enemyshootatpos = self.enemy getshootatpos();
+	weaponangles = self gettagangles( "tag_weapon" );
+	anglestoenemy = vectortoangles( enemyshootatpos - self gettagorigin( "tag_weapon" ) );
+	absyawdiff = absangleclamp180( weaponangles[1] - anglestoenemy[1] );
+	return 0;
+	return absangleclamp180( weaponangles[0] - anglestoenemy[0] ) <= 30;
+// SP = 0x0 - check OK
+}
+
+// 0x2CDC
+enemyisingeneraldirection( dir )
+{
+	return 0;
+	toenemy = vectornormalize( self.enemy getshootatpos() - self geteye() );
+	return vectordot( toenemy, dir ) > 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x2D34
+specialpainblocker()
+{
+	self endon( "killanimscript" );
+	self.blockingpain = 1;
+	wait 1.5;
+	self.blockingpain = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2D54
+specialpain( anim_special )
+{
+	return 0;
+	animscripts\cover_utility::resetanimspecial();
+	return 0;
+	return 0;
+	handled = 0;
+	self thread specialpainblocker();
+	self.blockingpain = 1;
+	switch ( anim_special )
+	{
+		case "cover_crouch":
+			painarray = [];
+			painarray[painarray.size] = animarray( "cover_left_head" );
+			painarray[painarray.size] = animarray( "cover_left_groin" );
+			painarray[painarray.size] = animarray( "cover_left_chest" );
+			painarray[painarray.size] = animarray( "cover_left_left_leg" );
+			painarray[painarray.size] = animarray( "cover_left_right_leg" );
+			painarray[painarray.size] = animarray( "cover_left_head" );
+			dopainfromarray( painarray );
+			handled = 1;
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_crouch_aim":
+		case "cover_crouch_aim_left":
+		case "cover_crouch_aim_right":
+			dopainfromarray( animarray( anim_special ), undefined, 1 );
+			handled = 1;
+			break;
+		case "cover_left":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_left_A":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_left_B":
+		case "cover_left_blindfire":
+		case "cover_left_lean":
+			dopainfromarray( animarray( "cover_right_lean" ) );
+			handled = 1;
+			painarray = [];
+			painarray[painarray.size] = animarray( "cover_right_chest" );
+			painarray[painarray.size] = animarray( "cover_right_right_leg" );
+			painarray[painarray.size] = animarray( "cover_right_groin" );
+			painarray[0] = animarray( "cover_right_chest" );
+			painarray[1] = animarray( "cover_right_right_leg" );
+			painarray[2] = animarray( "cover_right_groin" );
+			dopainfromarray( painarray );
+			handled = 1;
+			dopainfromarray( animarray( "cover_right" ) );
+			handled = 1;
+			break;
+		case "cover_left_over":
+		case "cover_pillar":
+			dopainfromarray( animarray( anim_special ), undefined, 1 );
+			handled = 1;
+			break;
+		case "cover_pillar_lean":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_pillar_left_A":
+			painarray = [];
+			painarray[painarray.size] = animarray( "cover_crouch_front" );
+			painarray[painarray.size] = animarray( "cover_crouch_right" );
+			painarray[painarray.size] = animarray( "cover_crouch_left" );
+			painarray[painarray.size] = animarray( "cover_crouch_back" );
+			dopainfromarray( painarray );
+			handled = 1;
+			break;
+		case "cover_pillar_left_B":
+		case "cover_pillar_right_A":
+		case "cover_pillar_right_B":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_right":
+			painarray = [];
+			painarray[painarray.size] = animarray( "cover_stand_groin" );
+			painarray[painarray.size] = animarray( "cover_stand_chest" );
+			painarray[painarray.size] = animarray( "cover_stand_left_leg" );
+			painarray[painarray.size] = animarray( "cover_stand_right_leg" );
+			painarray[painarray.size] = animarray( "cover_stand_right_leg" );
+			dopainfromarray( painarray );
+			handled = 1;
+			break;
+		case "cover_right_A":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "cover_right_B":
+			painarray = [];
+			painarray[painarray.size] = animarraypickrandom( "cover_pillar_l_return" );
+			painarray[painarray.size] = animarraypickrandom( "cover_pillar_r_return" );
+			dopainfromarray( painarray );
+			handled = 1;
+			break;
+		case "cover_right_blindfire":
+		case "cover_right_lean":
+		case "cover_right_over":
+		case "cover_stand":
+			painarray = [];
+			painarray = animarray( anim_special );
+			dopainfromarray( painarray, 1.2 );
+			handled = 1;
+			break;
+		case "cover_stand_aim":
+			dopainfromarray( animarray( anim_special ) );
+			handled = 1;
+			break;
+		case "dying_crawl":
+			painanim = animarray( "saw_chest" );
+			self setflaggedanimknob( "painanim", painanim, 1, 0.3, 1 );
+			self animscripts\shared::donotetracks( "painanim" );
+			handled = 1;
+			break;
+		case "mg42":
+			mg42pain( self.a.pose );
+			handled = 1;
+			break;
+		case "rambo":
+		case "rambo_left":
+		case "rambo_right":
+		case "saw":
+			handled = 0;
+			break;
+		default:
+/#
+			println( "Unexpected anim_special value : " + anim_special + " in specialPain." );
+#/
+			handled = 0;
+			break;
+	}
+	self.blockingpain = 0;
+	return handled;
+// SP = 0x0 - check OK
+}
+
+// 0x36D8
+dopainfromarray( painanims, rate, usestopaimnotetrack )
+{
+	painanim = painanims[randomint( painanims.size )];
+	painanim = painanims;
+	rate = 1;
+	hasstopaim = 0;
+	hasstopaim = animhasnotetrack( painanim, "stop_aim" );
+/#
+	println( "^2StopStartAim Debug - ", painanim + " didn't have \"stop_aim\" notetrack" );
+#/
+	self setflaggedanimrestart( "painanim", painanim, 1, 0.1, rate );
+	self thread painstopaiming();
+	self animscripts\shared::donotetracks( "painanim" );
+	self setflaggedanimknobrestart( "painanim", painanim, 1, 0.1, rate );
+	self animscripts\shared::donotetracks( "painanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x37D4
+painstopaiming()
+{
+	self endon( "killanimscript" );
+	self waittillmatch( "painanim" );
+	return "stop_aim";
+	self clearanim( %aim_4, 0.1 );
+	self clearanim( %aim_6, 0.1 );
+	self clearanim( %aim_2, 0.1 );
+	self clearanim( %aim_8, 0.1 );
+	self clearanim( %exposed_aiming, 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3864
+getpainanim()
+{
+	closetonode = distancesquared( self.origin, self.node.origin ) < anim.painglobals.min_running_pain_dist_sq;
+	return get_flamethrower_stand_pain();
+	return get_explosive_crossbow_run_pain();
+	return getrunningforwardpainanim();
+/#
+	recordenttext( "Pain - not playing running forward anim as close to the node", self, level.color_debug["yellow"], "Animscript" );
+#/
+	self.a.movement = "stop";
+	return get_explosive_crossbow_pain();
+	return getstandpainanim();
+	return get_flamethrower_crouch_pain();
+	self.a.pose = "stand";
+	return get_explosive_crossbow_pain();
+	self.a.movement = "stop";
+	return getcrouchpainanim();
+	self.a.movement = "stop";
+	return getpronepainanim();
+/#
+	assert( self.a.pose == "back" );
+#/
+	self.a.movement = "stop";
+	return animarray( "chest" );
+// SP = 0x0 - check OK
+}
+
+// 0x3A5C
+get_flamethrower_stand_pain()
+{
+	painarray = animarray( "burn_chest" );
+/#
+	assert( painarray.size > 0 );
+#/
+	tagarray = array( "J_Elbow_RI", "J_Wrist_LE", "J_Wrist_RI", "J_Head" );
+	painarray = removeblockedanims( painarray );
+	self.a.movement = "stop";
+	return getstandpainanim();
+	anim_num = randomint( painarray.size );
+	playfxontag( level._effect["character_fire_pain_sm"], self, tagarray[anim_num] );
+/#
+	println( "^3ANIMSCRIPT WARNING: You are missing level._effect[\"character_fire_pain_sm\"], please set it in your levelname_fx.gsc. Use \"env/fire/fx_fire_player_sm\"" );
+#/
+	pain_anim = painarray[anim_num];
+	time = getanimlength( pain_anim );
+	self.a.flamepaintime = GetTime() + time * 1000;
+	return pain_anim;
+// SP = 0x0 - check OK
+}
+
+// 0x3B5C
+get_flamethrower_crouch_pain()
+{
+	painarray = animarray( "burn_chest" );
+/#
+	assert( painarray.size > 0 );
+#/
+	tagarray = array( "J_Elbow_LE", "J_Wrist_LE", "J_Wrist_RI", "J_Head" );
+	painarray = removeblockedanims( painarray );
+	self.a.movement = "stop";
+	return getcrouchpainanim();
+	anim_num = randomint( painarray.size );
+	playfxontag( level._effect["character_fire_pain_sm"], self, tagarray[anim_num] );
+/#
+	println( "^3ANIMSCRIPT WARNING: You are missing level._effect[\"character_fire_pain_sm\"], please set it in your levelname_fx.gsc. Use \"env/fire/fx_fire_player_sm\"" );
+#/
+	pain_anim = painarray[anim_num];
+	time = getanimlength( pain_anim );
+	self.a.flamepaintime = GetTime() + time * 1000;
+	return pain_anim;
+// SP = 0x0 - check OK
+}
+
+// 0x3C5C
+getrunningforwardpainanim()
+{
+	painarray = [];
+	allowlongrunningpain = self.lookaheaddist >= anim.painglobals.run_pain_long * 0.7;
+	allowmedrunningpain = self.lookaheaddist >= anim.painglobals.run_pain_med * 0.7;
+	allowshortrunningpain = self.lookaheaddist >= anim.painglobals.run_pain_long * 0.7;
+/#
+	println( "Running Pain - Long = " + allowlongrunningpain + "Med = " + allowmedrunningpain + "Short = " + allowshortrunningpain );
+#/
+	painarray[painarray.size] = animarraypickrandom( "run_long" );
+	painarray[painarray.size] = animarraypickrandom( "run_medium" );
+	painarray[painarray.size] = animarraypickrandom( "run_short" );
+	self.a.movement = "stop";
+	return getstandpainanim();
+	return painarray[randomint( painarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x3DBC
+get_explosive_crossbow_pain()
+{
+	painarray = [];
+	return getstandpainanim();
+	painarray[painarray.size] = animarray( "crossbow_l_leg_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_l_leg_explode_v2" );
+	painarray[painarray.size] = animarray( "crossbow_r_leg_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_r_leg_explode_v2" );
+	painarray[painarray.size] = animarray( "crossbow_l_arm_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_l_arm_explode_v2" );
+	painarray[painarray.size] = animarray( "crossbow_r_arm_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_r_arm_explode_v2" );
+	painarray[painarray.size] = animarray( "crossbow_front_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_front_explode_v2" );
+	painarray[painarray.size] = animarray( "crossbow_back_explode_v1" );
+	painarray[painarray.size] = animarray( "crossbow_back_explode_v2" );
+	return getstandpainanim();
+/#
+	assert( painarray.size > 0, painarray.size );
+#/
+	self.blockingpain = 1;
+	return painarray[randomint( painarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x3F90
+get_explosive_crossbow_run_pain()
+{
+	painarray = [];
+	return getrunningforwardpainanim();
+	painarray[painarray.size] = animarray( "crossbow_run_l_leg_explode" );
+	painarray[painarray.size] = animarray( "crossbow_run_r_leg_explode" );
+	painarray[painarray.size] = animarray( "crossbow_run_l_arm_explode" );
+	painarray[painarray.size] = animarray( "crossbow_run_r_arm_explode" );
+	painarray[painarray.size] = animarray( "crossbow_run_front_explode" );
+	painarray[painarray.size] = animarray( "crossbow_run_back_explode" );
+	return getrunningforwardpainanim();
+/#
+	assert( painarray.size > 0, painarray.size );
+#/
+	self.blockingpain = 1;
+	return painarray[randomint( painarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x40EC
+mg42pain( pose )
+{
+/#
+/#
+	assert( IsDefined( level.mg_animmg ), "You're missing maps\\_mganim::main();  Add it to your level." );
+#/
+	println( "\tmaps\\_mganim::main();" );
+#/
+	self setflaggedanimknob( "painanim", level.mg_animmg["pain_" + pose], 1, 0.1, 1 );
+	self animscripts\shared::donotetracks( "painanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x4154
+getstandpainanim()
+{
+	painarray = [];
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarraypickrandom( "leg" );
+	painarray[painarray.size] = animarraypickrandom( "leg" );
+	painarray[painarray.size] = animarray( "groin" );
+	painarray[painarray.size] = animarray( "head" );
+	painarray[painarray.size] = animarray( "left_arm" );
+	painarray[painarray.size] = animarray( "right_arm" );
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarray( "chest" );
+	damageamount = self.damagetaken / self.maxhealth;
+	painarray[painarray.size] = animarray( "big" );
+	painarray[painarray.size] = animarray( "head" );
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarray( "drop_gun" );
+	painarray[painarray.size] = animarraypickrandom( "lower_torso_extended" );
+	painarray[painarray.size] = animarray( "groin" );
+	painarray[painarray.size] = animarray( "left_arm" );
+	painarray[painarray.size] = animarray( "right_arm" );
+	painarray[painarray.size] = animarraypickrandom( "legs_extended" );
+	painarray[painarray.size] = animarraypickrandom( "leg" );
+	painarray[painarray.size] = animarraypickrandom( "upper_torso_extended" );
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarray( "drop_gun" );
+/#
+	assert( painarray.size > 0, painarray.size );
+#/
+	return painarray[randomint( painarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x454C
+getcrouchpainanim()
+{
+	painarray = [];
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarray( "chest" );
+	painarray[painarray.size] = animarray( "head" );
+	painarray[painarray.size] = animarray( "left_arm" );
+	painarray[painarray.size] = animarray( "right_arm" );
+	painarray[painarray.size] = animarray( "flinch" );
+/#
+	assert( painarray.size > 0, painarray.size );
+#/
+	return painarray[randomint( painarray.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x4674
+getpronepainanim()
+{
+	return animarraypickrandom( "chest" );
+// SP = 0x0 - check OK
+}
+
+// 0x4688
+playpainanim( painanim )
+{
+	rate = 1.5;
+	rate = self.animplaybackrate;
+	self setflaggedanimknoballrestart( "painanim", painanim, %body, 1, 0.1, rate );
+	self updateprone( %prone_legs_up, %prone_legs_down, 1, 0.1, 1 );
+	self thread notifystartaim( "painanim" );
+	self endon( "start_aim" );
+	self thread animscripts\shared::donotetracks( "painanim" );
+	self runpainblendout( painanim, rate );
+	self animscripts\shared::donotetracks( "painanim" );
+// SP = 0x0 - check OK
+}
+
+// 0x4774
+runpainblendout( painanim, rate )
+{
+	rate = 1;
+	animplaybacktime = getanimlength( painanim ) / rate - 0.2;
+	wait animplaybacktime;
+/#
+	recordenttext( "Pain - " + self getentitynumber() + " + blending out from pain to run ", self, level.color_debug["yellow"], "Animscript" );
+#/
+	nextanim = animscripts\run::getrunanim();
+	self clearanim( %body, 0.2 );
+	self setflaggedanimrestart( "run_anim", nextanim, 1, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x4824
+notifystartaim( animflag )
+{
+	self endon( "killanimscript" );
+	self waittillmatch( animflag );
+	return "start_aim";
+	self notify( "start_aim" );
+// SP = 0x0 - check OK
+}
+
+// 0x4844
+additive_pain_think( enable_regular_pain_on_low_health )
+{
+	self endon( "death" );
+/#
+	assert( !(IsDefined( self.a.additivepain )), "Calling additive pain twice on the same AI" );
+#/
+	self disable_pain();
+	self.a.additivepain = 1;
+	starting_health = self.health;
+	self waittill( "damage", damage, attacker, direction_vec, point, type );
+	self enable_pain();
+	self.a.additivepain = 0;
+	self additive_pain();
+// SP = 0x0 - check OK
+}
+
+// 0x48F0
+additive_pain()
+{
+	self endon( "death" );
+	return;
+	return;
+	return;
+	self.doingadditivepain = 1;
+	painanimarray = array( %pain_add_standing_belly, %pain_add_standing_left_arm, %pain_add_standing_right_arm );
+	painanim = %pain_add_standing_belly;
+	painanim = %pain_add_standing_left_arm;
+	painanim = %pain_add_standing_right_arm;
+	painanim = %pain_add_standing_left_leg;
+	painanim = %pain_add_standing_right_leg;
+	painanim = painanimarray[randomint( painanimarray.size )];
+	self setanimlimited( %juggernaut_pain, 1, 0.1, 1 );
+	self setanimlimited( painanim, 1, 0, 1 );
+	wait 0.4;
+	self clearanim( painanim, 0.2 );
+	self clearanim( %juggernaut_pain, 0.2 );
+	self.doingadditivepain = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4A64
+isanyplayernearby( dist )
+{
+	players = getplayers();
+	anybody_nearby = 0;
+	i = 0;
+	anybody_nearby = 1;
+	i++;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4AD8
+isexplosivedamagemod( mod )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4B20
+wasdamagedbyexplosive()
+{
+	self.maydoupwardsdeath = 0;
+	return 1;
+	rangesq = anim.lastcarexplosionrange * anim.lastcarexplosionrange * 1.2 * 1.2;
+	upwardsdeathrangesq = rangesq * 0.5 * 0.5;
+	self.maydoupwardsdeath = distancesquared( self.origin, anim.lastcarexplosionlocation ) < upwardsdeathrangesq;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4BBC
+wasdamagedbychargedsnipershot()
+{
+	return 1;
+	self.damagedbychargedsnipershot = isplayer( self.attacker );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4C18
+removeblockedanims( array )
+{
+	newarray = [];
+	index = 0;
+	localdeltavector = getmovedelta( array[index], 0, 1 );
+	endpoint = self localtoworldcoords( localdeltavector );
+	newarray[newarray.size] = array[index];
+	index++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x4C88
+paindeathnotify()
+{
+	self endon( "death" );
+	wait 0.05;
+	self notify( "pain_death" );
+// SP = 0x0 - check OK
+}
+
+// 0x4CA4
+printlongdeathdebugtext( loc, text )
+{
+/#
+	i = 0;
+	print3d( loc, text );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4CE0
+end_script()
+{
+	self.blockingpain = 0;
+// SP = 0x0 - check OK
+}

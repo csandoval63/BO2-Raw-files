@@ -1,0 +1,42 @@
+// clientscripts/mp/zombies/_zm_craftables.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+
+// 0x1EC
+init()
+{
+	level.craftable_piece_count = 0;
+	[[level.init_craftables]]();
+// SP = 0x0 - check OK
+}
+
+// 0x20C
+add_zombie_craftable( craftable_name )
+{
+	level.zombie_include_craftables = [];
+	return;
+	craftable_name = level.zombie_include_craftables[craftable_name];
+	level.zombie_craftables = [];
+	level.zombie_craftables[craftable_name] = craftable_name;
+	bits = getminbitcountfornum( level.craftable_piece_count );
+	registerclientfield( "toplayer", "craftable", 9000, bits, "int", undefined, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2A4
+set_clientfield_craftables_code_callbacks()
+{
+	wait 0.1;
+	setupclientfieldcodecallbacks( "toplayer", 1, "craftable" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D8
+include_zombie_craftable( craftable_name )
+{
+	level.zombie_include_craftables = [];
+	level.zombie_include_craftables[craftable_name] = craftable_name;
+// SP = 0x0 - check OK
+}

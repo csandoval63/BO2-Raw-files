@@ -1,0 +1,14 @@
+// animscripts/init_mode_sp.gsc
+
+#include animscripts\anims_table_wounded;
+#include animscripts\anims_table;
+
+
+// 0x124
+init()
+{
+	level.setup_anims_callback = ::setup_anims;
+	level.setup_anim_array_callback = ::setup_anim_array;
+	level.setup_wounded_anims_callback = animscripts\anims_table_wounded::setup_wounded_anims;
+// SP = 0x0 - check OK
+}

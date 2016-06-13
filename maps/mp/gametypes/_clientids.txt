@@ -1,0 +1,19 @@
+// maps/mp/gametypes/_clientids.gsc
+
+
+// 0x98
+init()
+{
+	level.clientid = 0;
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0xB0
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player.clientid = level.clientid;
+	level.clientid++;
+// SP = 0x0 - check OK
+}

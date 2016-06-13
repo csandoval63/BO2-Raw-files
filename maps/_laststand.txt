@@ -1,0 +1,630 @@
+// maps/_laststand.gsc
+
+#include maps\_hud_util;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x1010
+laststand_global_init()
+{
+	level.const_laststand_getup_count_start = 0;
+	level.const_laststand_getup_bar_start = 0.5;
+	level.const_laststand_getup_bar_regen = 0.0025;
+	level.const_laststand_getup_bar_damage = 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x1040
+init( getupallowed )
+{
+	return;
+	laststand_global_init();
+	precacheitem( "syrette_sp" );
+	precachestring( &"GAME_BUTTON_TO_REVIVE_PLAYER" );
+	precachestring( &"GAME_PLAYER_NEEDS_TO_BE_REVIVED" );
+	precachestring( &"GAME_PLAYER_IS_REVIVING_YOU" );
+	precachestring( &"GAME_REVIVING" );
+	level.laststandpistol = "m1911_sp";
+	precacheitem( level.laststandpistol );
+	level thread revive_hud_think();
+	level.primaryprogressbarx = 0;
+	level.primaryprogressbary = 110;
+	level.primaryprogressbarheight = 4;
+	level.primaryprogressbarwidth = 120;
+	level.primaryprogressbary = 280;
+	setdvar( "revive_trigger_radius", "40" );
+	level.laststandgetupallowed = 0;
+	level.laststandgetupallowed = 1;
+	add_global_spawn_function( "axis", ::ai_laststand_on_death );
+	onplayerconnect_callback( ::player_getup_setup );
+// SP = 0x0 - check OK
+}
+
+// 0x115C
+player_is_in_laststand()
+{
+	return IsDefined( self.revivetrigger );
+// SP = 0x0 - check OK
+}
+
+// 0x1168
+player_num_in_laststand()
+{
+	num = 0;
+	players = get_players();
+	i = 0;
+	num++;
+	i++;
+	return num;
+// SP = 0x0 - check OK
+}
+
+// 0x11B0
+player_all_players_in_laststand()
+{
+	return player_num_in_laststand() == get_players().size;
+// SP = 0x0 - check OK
+}
+
+// 0x11C8
+player_any_player_in_laststand()
+{
+	return player_num_in_laststand() > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x11D8
+playerlaststand( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+	self mission_failed_during_laststand( self );
+	return;
+	return;
+	self.downs++;
+	self.stats["downs"] = self.downs;
+	dvarname = "player" + self getentitynumber() + "downs";
+	setdvar( dvarname, self.downs );
+	self allowjump( 0 );
+	[[level.playerlaststand_func]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+	self mission_failed_during_laststand( self );
+	return;
+	self mission_failed_during_laststand( self );
+	return;
+	self visionsetlaststand( "laststand", 1 );
+	self.health = 1;
+	self revive_trigger_spawn();
+	self laststand_disable_player_weapons();
+	self laststand_give_pistol();
+	self.ignoreme = 1;
+	self thread laststand_getup();
+	self thread laststand_bleedout( GetDvarFloat( #"0x661A27E2" ) );
+	self notify( "player_downed" );
+	self thread refire_player_downed();
+// SP = 0x0 - check OK
+}
+
+// 0x134C
+refire_player_downed()
+{
+	self endon( "player_revived" );
+	self endon( "death" );
+	wait 1;
+	self notify( "player_downed" );
+// SP = 0x0 - check OK
+}
+
+// 0x1378
+laststand_allowed( sweapon, smeansofdeath, shitloc )
+{
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1408
+laststand_disable_player_weapons()
+{
+	weaponinventory = self getweaponslist();
+	self.lastactiveweapon = self getcurrentweapon();
+	self setlaststandprevweap( self.lastactiveweapon );
+	self.laststandpistol = undefined;
+	self.hadpistol = 0;
+	self.lastactiveweapon = "none";
+	self.weapon_taken_by_losing_specialty_additionalprimaryweapon = undefined;
+	i = 0;
+	weapon = weaponinventory[i];
+	self.laststandpistol = weapon;
+	self.hadpistol = 1;
+	switch ( weapon )
+	{
+		case "syrette_sp":
+			self takeweapon( weapon );
+			self.lastactiveweapon = "none";
+			break;
+	}
+	i++;
+	self.laststandpistol = level.laststandpistol;
+	self disableweaponcycling();
+	self disableoffhandweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x150C
+laststand_enable_player_weapons()
+{
+	self takeweapon( self.laststandpistol );
+	self enableweaponcycling();
+	self enableoffhandweapons();
+	self switchtoweapon( self.lastactiveweapon );
+	primaryweapons = self getweaponslistprimaries();
+	self switchtoweapon( primaryweapons[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x15C0
+laststand_clean_up_on_disconnect( playerbeingrevived, revivergun )
+{
+	revivetrigger = playerbeingrevived.revivetrigger;
+	playerbeingrevived waittill( "disconnect" );
+	revivetrigger delete();
+	self.reviveprogressbar destroyelem();
+	self.revivetexthud destroy();
+	self revive_give_back_weapons( revivergun );
+// SP = 0x0 - check OK
+}
+
+// 0x162C
+laststand_give_pistol()
+{
+/#
+	assert( IsDefined( self.laststandpistol ) );
+#/
+/#
+	assert( self.laststandpistol != "none" );
+#/
+	self giveweapon( self.laststandpistol );
+	self givemaxammo( self.laststandpistol );
+	self switchtoweapon( self.laststandpistol );
+// SP = 0x0 - check OK
+}
+
+// 0x1690
+laststand_bleedout( delay )
+{
+	self endon( "player_revived" );
+	self endon( "disconnect" );
+	setclientsysstate( "lsm", "1", self );
+	self.bleedout_time = delay;
+	self.bleedout_time -= 1;
+	wait 1;
+	self visionsetlaststand( "death", delay * 0.5 );
+	self.bleedout_time -= 1;
+	wait 1;
+	wait 0.1;
+	self notify( "bled_out" );
+	wait_network_frame();
+	setclientsysstate( "lsm", "0", self );
+	level notify( "bleed_out", self getentitynumber() );
+	self thread [[level.spawnspectator]]();
+	self.ignoreme = 0;
+	self mission_failed_during_laststand( self );
+// SP = 0x0 - check OK
+}
+
+// 0x179C
+revive_trigger_spawn()
+{
+	radius = GetDvarInt( #"0xA17166B0" );
+	self.revivetrigger = spawn( "trigger_radius", self.origin, 0, radius, radius );
+	self.revivetrigger sethintstring( "" );
+	self.revivetrigger setcursorhint( "HINT_NOICON" );
+	self.revivetrigger enablelinkto();
+	self.revivetrigger linkto( self );
+	self.revivetrigger.beingrevived = 0;
+	self.revivetrigger.createtime = GetTime();
+	self thread revive_trigger_think();
+// SP = 0x0 - check OK
+}
+
+// 0x1828
+revive_trigger_think()
+{
+	self endon( "disconnect" );
+	self endon( "zombified" );
+	self endon( "stop_revive_trigger" );
+	wait 0.1;
+	players = get_players();
+	self.revivetrigger sethintstring( "" );
+	i = 0;
+	d = 0;
+	d = self depthinwater();
+	self.revivetrigger sethintstring( &"GAME_BUTTON_TO_REVIVE_PLAYER" );
+	i++;
+	i = 0;
+	reviver = players[i];
+	gun = reviver getcurrentweapon();
+/#
+	assert( IsDefined( gun ) );
+#/
+	reviver giveweapon( "syrette_sp" );
+	reviver switchtoweapon( "syrette_sp" );
+	reviver setweaponammostock( "syrette_sp", 1 );
+	revive_success = reviver revive_do_revive( self, gun );
+	reviver revive_give_back_weapons( gun );
+	self allowjump( 1 );
+	self thread revive_success( reviver );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1994
+revive_give_back_weapons( gun )
+{
+	self takeweapon( "syrette_sp" );
+	return;
+	self switchtoweapon( gun );
+	primaryweapons = self getweaponslistprimaries();
+	self switchtoweapon( primaryweapons[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x1A44
+can_revive( revivee )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1B44
+is_reviving( revivee )
+{
+	return self usebuttonpressed();
+// SP = 0x0 - check OK
+}
+
+// 0x1B68
+is_facing( facee )
+{
+	orientation = self getplayerangles();
+	forwardvec = anglestoforward( orientation );
+	forwardvec2d = ( forwardvec[0], forwardvec[1], 0 );
+	unitforwardvec2d = vectornormalize( forwardvec2d );
+	tofaceevec = facee.origin - self.origin;
+	tofaceevec2d = ( tofaceevec[0], tofaceevec[1], 0 );
+	unittofaceevec2d = vectornormalize( tofaceevec2d );
+	dotproduct = vectordot( unitforwardvec2d, unittofaceevec2d );
+	return dotproduct > 0.9;
+// SP = 0x0 - check OK
+}
+
+// 0x1BF4
+revive_do_revive( playerbeingrevived, revivergun )
+{
+/#
+	assert( self is_reviving( playerbeingrevived ) );
+#/
+	revivetime = 3;
+	revivetime /= 2;
+	timer = 0;
+	revived = 0;
+	playerbeingrevived.revivetrigger.beingrevived = 1;
+	playerbeingrevived.revive_hud settext( &"GAME_PLAYER_IS_REVIVING_YOU", self );
+	playerbeingrevived revive_hud_show_n_fade( 3 );
+	playerbeingrevived.revivetrigger sethintstring( "" );
+	playerbeingrevived startrevive( self );
+	self.reviveprogressbar = self createprimaryprogressbar();
+	self.revivetexthud = newclienthudelem( self );
+	self thread laststand_clean_up_on_disconnect( playerbeingrevived, revivergun );
+	self.reviveprogressbar updatebar( 0.01, 1 / revivetime );
+	self.revivetexthud.alignx = "center";
+	self.revivetexthud.aligny = "middle";
+	self.revivetexthud.horzalign = "center";
+	self.revivetexthud.vertalign = "bottom";
+	self.revivetexthud.y = -113;
+	self.revivetexthud.y = -107;
+	self.revivetexthud.foreground = 1;
+	self.revivetexthud.font = "default";
+	self.revivetexthud.fontscale = 1.8;
+	self.revivetexthud.alpha = 1;
+	self.revivetexthud.color = ( 1, 1, 1 );
+	self.revivetexthud settext( &"GAME_REVIVING" );
+	wait 0.05;
+	timer += 0.05;
+	revived = 1;
+	self.reviveprogressbar destroyelem();
+	self.revivetexthud destroy();
+	playerbeingrevived stoprevive( self );
+	playerbeingrevived.revivetrigger sethintstring( &"GAME_BUTTON_TO_REVIVE_PLAYER" );
+	playerbeingrevived.revivetrigger.beingrevived = 0;
+	return revived;
+// SP = 0x0 - check OK
+}
+
+// 0x1E7C
+auto_revive( reviver )
+{
+	self.revivetrigger.auto_revive = 1;
+	wait_network_frame();
+	self.revivetrigger.auto_trigger = 0;
+	self reviveplayer();
+	self setmaxhealth( self.premaxhealth );
+	setclientsysstate( "lsm", "0", self );
+	self notify( "stop_revive_trigger" );
+	self.revivetrigger delete();
+	self.revivetrigger = undefined;
+	self laststand_enable_player_weapons();
+	self allowjump( 1 );
+	self.ignoreme = 0;
+	reviver.revives++;
+	reviver.stats["revives"] = reviver.revives;
+	self notify( "player_revived", reviver );
+// SP = 0x0 - check OK
+}
+
+// 0x1F64
+remote_revive( reviver )
+{
+	return;
+	reviver giveachievement_wrapper( "SP_ZOM_NODAMAGE" );
+	self auto_revive( reviver );
+// SP = 0x0 - check OK
+}
+
+// 0x1F98
+revive_success( reviver )
+{
+	self notify( "player_revived", reviver );
+	self reviveplayer();
+	self setmaxhealth( self.premaxhealth );
+	reviver.revives++;
+	reviver.stats["revives"] = reviver.revives;
+	setclientsysstate( "lsm", "0", self );
+	self.revivetrigger delete();
+	self.revivetrigger = undefined;
+	self laststand_enable_player_weapons();
+	self.ignoreme = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2020
+revive_force_revive( reviver )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( isplayer( self ) );
+#/
+/#
+	assert( self player_is_in_laststand() );
+#/
+	self thread revive_success( reviver );
+// SP = 0x0 - check OK
+}
+
+// 0x2078
+revive_hud_create()
+{
+	self.revive_hud = newclienthudelem( self );
+	self.revive_hud.alignx = "center";
+	self.revive_hud.aligny = "middle";
+	self.revive_hud.horzalign = "center";
+	self.revive_hud.vertalign = "bottom";
+	self.revive_hud.y = -50;
+	self.revive_hud.foreground = 1;
+	self.revive_hud.font = "default";
+	self.revive_hud.fontscale = 1.5;
+	self.revive_hud.alpha = 0;
+	self.revive_hud.color = ( 1, 1, 1 );
+	self.revive_hud settext( "" );
+// SP = 0x0 - check OK
+}
+
+// 0x211C
+revive_hud_think()
+{
+	self endon( "disconnect" );
+	wait 0.1;
+	players = get_players();
+	playertorevive = undefined;
+	i = 0;
+	playertorevive = players[i];
+	i++;
+	i = 0;
+	players[i] thread faderevivemessageover( playertorevive, 3 );
+	i++;
+	playertorevive.revivetrigger.createtime = undefined;
+	wait 3.5;
+// SP = 0x0 - check OK
+}
+
+// 0x224C
+faderevivemessageover( playertorevive, time )
+{
+	revive_hud_show();
+	self.revive_hud settext( &"GAME_PLAYER_NEEDS_TO_BE_REVIVED", playertorevive );
+	self.revive_hud fadeovertime( time );
+	self.revive_hud.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2290
+revive_hud_show()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.revive_hud ) );
+#/
+	self.revive_hud.alpha = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x22C8
+revive_hud_show_n_fade( time )
+{
+	revive_hud_show();
+	self.revive_hud fadeovertime( time );
+	self.revive_hud.alpha = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x22F4
+drawcylinder( pos, rad, height )
+{
+/#
+	currad = rad;
+	curheight = height;
+	r = 0;
+	theta = r / 20 * 360;
+	theta2 = ( r + 1 ) / 20 * 360;
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, 0 ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ), pos + ( cos( theta2 ) * currad, sin( theta2 ) * currad, curheight ) );
+	line( pos + ( cos( theta ) * currad, sin( theta ) * currad, 0 ), pos + ( cos( theta ) * currad, sin( theta ) * currad, curheight ) );
+	r++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2424
+mission_failed_during_laststand( dead_player )
+{
+	return;
+	players = get_players();
+	i = 0;
+/#
+	println( "Player #" + i + " is dead" );
+#/
+/#
+	println( "Player #" + i + " is alive" );
+#/
+	i++;
+	missionfailed();
+// SP = 0x0 - check OK
+}
+
+// 0x24B4
+ai_laststand_on_death()
+{
+	level endon( "special_op_terminated" );
+	self waittill( "death", attacker, type, weapon );
+	revive_kill = 0;
+	revive_kill = 1;
+	revive_kill = 1;
+	attacker auto_revive( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x255C
+laststand_can_pick_self_up()
+{
+	return get_lives_remaining() > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2578
+get_lives_remaining()
+{
+/#
+	assert( level.laststandgetupallowed, "Lives only exist in the Laststand type GETUP." );
+#/
+	return max( 0, self.laststand_info.type_getup_lives );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x25C4
+update_lives_remaining( increment )
+{
+/#
+	assert( level.laststandgetupallowed, "Lives only exist in the Laststand type GETUP." );
+#/
+/#
+	assert( IsDefined( increment ), "Must specify increment true or false" );
+#/
+	increment = 0;
+	self.laststand_info.type_getup_lives = max( 0, self.laststand_info.type_getup_lives - 1, self.laststand_info.type_getup_lives + 1 );
+	self notify( "laststand_lives_updated" );
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x2640
+player_getup_setup()
+{
+	self.laststand_info = spawnstruct();
+	self.laststand_info.type_getup_lives = level.const_laststand_getup_count_start;
+// SP = 0x0 - check OK
+}
+
+// 0x2660
+laststand_getup()
+{
+	self endon( "player_revived" );
+	self endon( "disconnect" );
+	self update_lives_remaining( 0 );
+	setclientsysstate( "lsm", "1", self );
+	self.laststand_info.getup_bar_value = level.const_laststand_getup_bar_start;
+	self thread laststand_getup_hud();
+	self thread laststand_getup_damage_watcher();
+	self.laststand_info.getup_bar_value += level.const_laststand_getup_bar_regen;
+	wait 0.05;
+	self auto_revive( self );
+	setclientsysstate( "lsm", "0", self );
+// SP = 0x0 - check OK
+}
+
+// 0x2700
+laststand_getup_damage_watcher()
+{
+	self endon( "player_revived" );
+	self endon( "disconnect" );
+	self waittill( "damage" );
+	self.laststand_info.getup_bar_value -= level.const_laststand_getup_bar_damage;
+	self.laststand_info.getup_bar_value = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2754
+laststand_getup_hud()
+{
+	self endon( "player_revived" );
+	self endon( "disconnect" );
+	hudelem = newclienthudelem( self );
+	hudelem.alignx = "left";
+	hudelem.aligny = "middle";
+	hudelem.horzalign = "left";
+	hudelem.vertalign = "middle";
+	hudelem.x = 5;
+	hudelem.y = 170;
+	hudelem.font = "big";
+	hudelem.fontscale = 1.5;
+	hudelem.foreground = 1;
+	hudelem.hidewheninmenu = 1;
+	hudelem.hidewhendead = 1;
+	hudelem.sort = 2;
+	hudelem.label = &"SO_WAR_LASTSTAND_GETUP_BAR";
+	self thread laststand_getup_hud_destroy( hudelem );
+	hudelem setvalue( self.laststand_info.getup_bar_value );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x282C
+laststand_getup_hud_destroy( hudelem )
+{
+	self waittill_either( "player_revived", "disconnect" );
+	hudelem destroy();
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,185 @@
+// clientscripts/mp/zombies/_zm_audio.csc
+
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\_music;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_ambientpackage;
+#include clientscripts\mp\_utility;
+
+
+// 0x698
+init()
+{
+	registerclientfield( "allplayers", "charindex", 1, 3, "int", ::charindex_cb, 0 );
+	registerclientfield( "toplayer", "isspeaking", 1, 1, "int", ::isspeaking_cb, 0, 1 );
+	level.exert_sounds = [];
+	level.exert_sounds[0]["playerbreathinsound"] = "vox_exert_generic_inhale";
+	level.exert_sounds[0]["playerbreathoutsound"] = "vox_exert_generic_exhale";
+	level.exert_sounds[0]["playerbreathgaspsound"] = "vox_exert_generic_exhale";
+	level.exert_sounds[0]["falldamage"] = "vox_exert_generic_pain";
+	level.exert_sounds[0]["mantlesoundplayer"] = "vox_exert_generic_mantle";
+	level.exert_sounds[0]["meleeswipesoundplayer"] = "vox_exert_generic_knifeswipe";
+	level.exert_sounds[0]["dtplandsoundplayer"] = "vox_exert_generic_pain";
+	[[level.setupcustomcharacterexerts]]();
+	level thread gameover_snapshot();
+// SP = 0x0 - check OK
+}
+
+// 0x778
+delay_set_exert_id( newval )
+{
+	self endon( "entityshutdown" );
+	wait 0.5;
+	self.player_exert_id = newval;
+// SP = 0x0 - check OK
+}
+
+// 0x798
+charindex_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self.player_exert_id = newval;
+	self._first_frame_exert_id_recieved = 1;
+	self._first_frame_exert_id_recieved = 1;
+	self thread delay_set_exert_id( newval );
+// SP = 0x0 - check OK
+}
+
+// 0x7E4
+isspeaking_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self.isspeaking = newval;
+	self.isspeaking = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x810
+zmbmuslooper()
+{
+	ent = spawn( 0, ( 0, 0, 0 ), "script_origin" );
+	playsound( 0, "mus_zmb_gamemode_start", ( 0, 0, 0 ) );
+	wait 10;
+	ent playloopsound( "mus_zmb_gamemode_loop", 0.05 );
+	ent thread waitfor_music_stop();
+// SP = 0x0 - check OK
+}
+
+// 0x864
+waitfor_music_stop()
+{
+	level waittill( "stpm" );
+	self stoploopsound( 0.1 );
+	playsound( 0, "mus_zmb_gamemode_end", ( 0, 0, 0 ) );
+	wait 1;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x8A0
+playerfalldamagesound( client_num, firstperson )
+{
+	self playerexert( client_num, "falldamage" );
+// SP = 0x0 - check OK
+}
+
+// 0x8BC
+clientvoicesetup()
+{
+	players = getlocalplayers();
+	i = 0;
+	thread audio_player_connect( i );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x8F8
+audio_player_connect( localclientnum )
+{
+	thread sndvonotifyplain( localclientnum, "playerbreathinsound" );
+	thread sndvonotifyplain( localclientnum, "playerbreathoutsound" );
+	thread sndvonotifyplain( localclientnum, "playerbreathgaspsound" );
+	thread sndvonotifyplain( localclientnum, "mantlesoundplayer" );
+	thread sndvonotifyplain( localclientnum, "meleeswipesoundplayer" );
+	thread sndmeleeswipe( localclientnum, "meleeswipesoundplayer" );
+	thread sndvonotifydtp( localclientnum, "dtplandsoundplayer" );
+// SP = 0x0 - check OK
+}
+
+// 0x970
+playerexert( localclientnum, exert )
+{
+	return;
+	id = level.exert_sounds[0][exert];
+	id = random( level.exert_sounds[0][exert] );
+	id = random( level.exert_sounds[self.player_exert_id][exert] );
+	id = level.exert_sounds[self.player_exert_id][exert];
+	self playsound( localclientnum, id );
+// SP = 0x0 - check OK
+}
+
+// 0xA20
+sndvonotifydtp( localclientnum, notifystring )
+{
+	player = undefined;
+	player = getnonpredictedlocalplayer( localclientnum );
+	wait 0.05;
+	player endon( "disconnect" );
+	player waittill( notifystring, surfacetype );
+	player playerexert( localclientnum, notifystring );
+// SP = 0x0 - check OK
+}
+
+// 0xA74
+sndmeleeswipe( localclientnum, notifystring )
+{
+	player = undefined;
+	player = getnonpredictedlocalplayer( localclientnum );
+	wait 0.05;
+	player endon( "disconnect" );
+	player waittill( notifystring );
+	currentweapon = getcurrentweapon( localclientnum );
+	playsound( 0, "zmb_melee_whoosh_zmb_plr", player.origin );
+	playsound( 0, "zmb_bowie_swing_plr", player.origin );
+	playsound( 0, "zmb_spoon_swing_plr", player.origin );
+	playsound( 0, "zmb_spork_swing_plr", player.origin );
+	playsound( 0, "zmb_melee_whoosh_plr", player.origin );
+// SP = 0x0 - check OK
+}
+
+// 0xB70
+sndvonotifyplain( localclientnum, notifystring )
+{
+	player = undefined;
+	player = getnonpredictedlocalplayer( localclientnum );
+	wait 0.05;
+	player endon( "disconnect" );
+	player waittill( notifystring );
+	player playerexert( localclientnum, notifystring );
+// SP = 0x0 - check OK
+}
+
+// 0xBD8
+end_gameover_snapshot()
+{
+	level waittill_any( "demo_jump", "demo_player_switch", "snd_clear_script_duck" );
+	wait 1;
+	snd_set_snapshot( "default" );
+	level thread gameover_snapshot();
+// SP = 0x0 - check OK
+}
+
+// 0xC14
+gameover_snapshot()
+{
+	level waittill( "zesn" );
+	snd_set_snapshot( "zmb_gameover" );
+	level thread end_gameover_snapshot();
+// SP = 0x0 - check OK
+}
+
+// 0xC3C
+sndsetzombiecontext( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self setsoundentcontext( "grass", "no_grass" );
+	self setsoundentcontext( "grass", "in_grass" );
+// SP = 0x0 - check OK
+}

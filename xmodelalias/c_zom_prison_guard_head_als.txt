@@ -1,0 +1,13 @@
+// xmodelalias/c_zom_prison_guard_head_als.gsc
+
+
+// 0xE4
+main()
+{
+	a[0] = "c_zom_zombie_barbwire_head";
+	a[1] = "c_zom_zombie_hellcatraz_head";
+	a[2] = "c_zom_zombie_mask_head";
+	a[3] = "c_zom_zombie_slackjaw_head";
+	return a;
+// SP = 0x0 - check OK
+}

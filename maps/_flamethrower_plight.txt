@@ -1,0 +1,12 @@
+// maps/_flamethrower_plight.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xC0
+init()
+{
+	loadfx( "weapon/muzzleflashes/fx_pilot_light" );
+// SP = 0x0 - check OK
+}

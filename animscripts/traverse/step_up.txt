@@ -1,0 +1,42 @@
+// animscripts/traverse/step_up.gsc
+
+#include animscripts\run;
+#include animscripts\shared;
+#include animscripts\utility;
+#include animscripts\anims;
+#include animscripts\traverse\shared;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x278
+main()
+{
+	step_up_human();
+	dog_jump_up( 40, 3 );
+// SP = 0x0 - check OK
+}
+
+// 0x2B0
+step_up_human()
+{
+	preparefortraverse();
+	self.desired_anim_pose = "crouch";
+	animscripts\utility::updateanimpose();
+	self endon( "killanimscript" );
+	self.a.movement = "walk";
+	self traversemode( "nogravity" );
+	startnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( startnode ) );
+#/
+	self orientmode( "face angle", startnode.angles[1] );
+	self setflaggedanimknoballrestart( "stepanim", animarray( "step_up", "move" ), %body, 1, 0.1, 1 );
+	self waittillmatch( "stepanim" );
+	return "gravity on";
+	self traversemode( "gravity" );
+	self animscripts\shared::donotetracks( "stepanim" );
+	self setanimknoballrestart( animscripts\run::getcrouchrunanim(), %body, 1, 0.1, 1 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,431 @@
+// maps/_weapons.gsc
+
+#include maps\_shellshock;
+#include maps\_afghanstinger;
+#include maps\_titus;
+#include maps\_riotshield;
+#include maps\_ballistic_knife;
+#include maps\_flamethrower_plight;
+#include maps\_sticky_grenade;
+#include maps\_explosive_dart;
+#include maps\_explosive_bolt;
+#include maps\_weaponobjects;
+#include maps\_flashgrenades;
+#include maps\_empgrenade;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0xCB4
+init()
+{
+	level thread on_player_connect();
+	precacheitem( "scavenger_item_sp" );
+	maps\_empgrenade::init();
+	maps\_flashgrenades::main();
+	maps\_weaponobjects::init();
+	maps\_explosive_bolt::init();
+	maps\_explosive_dart::init();
+	maps\_sticky_grenade::init();
+	maps\_flamethrower_plight::init();
+	maps\_ballistic_knife::init();
+	maps\_riotshield::init();
+	maps\_titus::init();
+	maps\_afghanstinger::init();
+// SP = 0x0 - check OK
+}
+
+// 0xD2C
+on_player_connect()
+{
+	level waittill( "connecting", player );
+	player.usedweapons = 0;
+	player.hits = 0;
+	player thread on_player_spawned();
+// SP = 0x0 - check OK
+}
+
+// 0xD64
+on_player_spawned()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self.usedweapons = 0;
+	self.hits = 0;
+	self waittill( "spawned_player" );
+	self thread maps\_titus::_titus_fire_watcher();
+	self thread maps\_afghanstinger::_afghanstinger_fire_watcher();
+	self thread watch_weapon_usage();
+	self thread watch_grenade_usage();
+	self thread watch_riotshield_usage();
+	self thread watch_metalstorm_mms_usage();
+// SP = 0x0 - check OK
+}
+
+// 0xDDC
+watch_weapon_usage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	level endon( "game_ended" );
+	self waittill( "begin_firing" );
+	curweapon = self getcurrentweapon();
+	switch ( weaponclass( curweapon ) )
+	{
+		case "grenade":
+		case "mg":
+		case "pistol":
+		case "rifle":
+		case "rocketlauncher":
+		case "smg":
+		case "spread":
+			self thread maps\_shellshock::rocket_earthquake();
+			break;
+		default:
+	}
+	self waittill( "end_firing" );
+// SP = 0x0 - check OK
+}
+
+// 0xE9C
+watch_grenade_usage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self thread begin_other_grenade_tracking();
+	self waittill( "grenade_pullback", weaponname );
+	self begin_grenade_tracking();
+// SP = 0x0 - check OK
+}
+
+// 0xEF0
+watch_riotshield_usage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self thread maps\_riotshield::trackriotshield();
+	self waittill( "raise_riotshield" );
+	self thread maps\_riotshield::startriotshielddeploy();
+// SP = 0x0 - check OK
+}
+
+// 0xF20
+watch_metalstorm_mms_usage()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self waittill( "weapon_change", weapon );
+	self metalstorm_mms_charge_watch();
+	weapon = level.player getcurrentweapon();
+// SP = 0x0 - check OK
+}
+
+// 0xF70
+metalstorm_mms_charge_watch()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	self endon( "weapon_change" );
+	self endon( "weapon_fired" );
+	self waittill( "action_notify_attack" );
+	switch ( self.chargeshotlevel )
+	{
+		case 1:
+		case 2:
+			level.player playrumbleonentity( "anim_light" );
+			break;
+		case 3:
+		case 4:
+			level.player playrumbleonentity( "anim_med" );
+			break;
+		case 5:
+			level.player playrumbleonentity( "anim_heavy" );
+			break;
+	}
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x1020
+begin_grenade_tracking()
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	starttime = GetTime();
+	self waittill( "grenade_fire", grenade, weaponname );
+	grenade.iscooked = 1;
+	switch ( weaponname )
+	{
+		case "c4_sp":
+		case "frag_grenade_80s_sp":
+		case "frag_grenade_sp":
+		case "satchel_charge_80s_sp":
+			grenade thread maps\_shellshock::grenade_earthquake();
+			grenade.originalowner = self;
+			break;
+		case "satchel_charge_sp":
+		case "sticky_grenade_80s_sp":
+			grenade thread maps\_shellshock::satchel_earthquake();
+			break;
+		case "sticky_grenade_sp":
+			grenade thread maps\_shellshock::c4_earthquake();
+			break;
+	}
+	self.throwinggrenade = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x10E4
+begin_other_grenade_tracking()
+{
+	self notify( "grenadeTrackingStart" );
+	self endon( "grenadeTrackingStart" );
+	self endon( "disconnect" );
+	self waittill( "grenade_fire", grenade, weaponname, parent );
+	switch ( weaponname )
+	{
+		case "c4_sp":
+		case "emp_grenade_sp":
+		case "flash_grenade_80s_sp":
+		case "flash_grenade_sp":
+		case "m8_orange_smoke_sp":
+		case "satchel_charge_80s_sp":
+		case "satchel_charge_sp":
+		case "signal_flare_sp":
+			grenade thread watchsmokegrenadedetonation();
+			break;
+		case "sticky_grenade_80s_sp":
+		case "sticky_grenade_sp":
+		case "tabun_gas_sp":
+		case "vc_grenade_sp":
+		case "willy_pete_80s_sp":
+		case "willy_pete_sp":
+			grenade thread watch_emp_grenade( self, "emp_grenade_sp" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x11D4
+watch_emp_grenade( owner, weaponname )
+{
+	level endon( "death" );
+	self waittill( "explode", origin );
+	ents = getdamageableents( origin, 512 );
+	foreach ( ent in ents )
+	{
+		ent.entity dodamage( 1, origin, owner, "none", "MOD_GRENADE_SPLASH", 0, weaponname );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x12A0
+getdamageableents( pos, radius, dolos, startradius )
+{
+	ents = [];
+	dolos = 0;
+	startradius = 0;
+	players = getplayers();
+	i = 0;
+	playerpos = players[i].origin + vector_scale( ( 0, 0, 1 ), 32 );
+	distsq = distancesquared( pos, playerpos );
+	newent = spawnstruct();
+	newent.isplayer = 1;
+	newent.isadestructable = 0;
+	newent.entity = players[i];
+	newent.damagecenter = playerpos;
+	ents[ents.size] = newent;
+	i++;
+	guys = getaiarray( "axis", "allies", "neutral" );
+	i = 0;
+	entpos = guys[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 0;
+	newent.entity = guys[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	vehicles = getvehiclearray( "axis", "allies", "neutral" );
+	i = 0;
+	entpos = vehicles[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 0;
+	newent.entity = vehicles[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	grenades = getentarray( "grenade", "classname" );
+	i = 0;
+	entpos = grenades[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 0;
+	newent.entity = grenades[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	destructibles = getentarray( "destructible", "targetname" );
+	i = 0;
+	entpos = destructibles[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 0;
+	newent.entity = destructibles[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	destructables = getentarray( "destructable", "targetname" );
+	i = 0;
+	entpos = destructables[i].origin;
+	distsq = distancesquared( pos, entpos );
+	newent = spawnstruct();
+	newent.isplayer = 0;
+	newent.isadestructable = 1;
+	newent.entity = destructables[i];
+	newent.damagecenter = entpos;
+	ents[ents.size] = newent;
+	i++;
+	return ents;
+// SP = 0x0 - check OK
+}
+
+// 0x16F0
+weapondamagetracepassed( from, to, startradius, ignore )
+{
+	midpos = undefined;
+	diff = to - from;
+	midpos = to;
+	dir = vectornormalize( diff );
+	midpos = from + ( dir[0] * startradius, dir[1] * startradius, dir[2] * startradius );
+	trace = bullettrace( midpos, to, 0, ignore );
+	return trace["fraction"] == 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1774
+damageent( einflictor, eattacker, idamage, smeansofdeath, sweapon, damagepos, damagedir )
+{
+	self.damageorigin = damagepos;
+	self.entity thread [[level.callbackplayerdamage]]( einflictor, eattacker, idamage, 0, smeansofdeath, sweapon, damagepos, damagedir, "none", 0, 0 );
+	self.entity dodamage( idamage, damagepos, eattacker, einflictor, smeansofdeath, 0 );
+	return;
+	self.entity damage_notify_wrapper( idamage, eattacker, ( 0, 0, 0 ), ( 0, 0, 0 ), "mod_explosive", "", "" );
+// SP = 0x0 - check OK
+}
+
+// 0x1828
+watchsmokegrenadedetonation()
+{
+	self waittill( "explode", position, surface );
+	smokesound = spawn( "script_origin", ( 0, 0, 1 ) );
+	smokesound.origin = position;
+	smokesound playsound( "wpn_smoke_hiss_start" );
+	smokesound playloopsound( "wpn_smoke_hiss_lp" );
+	wait 6;
+	playsoundatposition( "wpn_smoke_hiss_end", position );
+	smokesound stoploopsound( 0.5 );
+	wait 0.5;
+	smokesound delete();
+// SP = 0x0 - check OK
+}
+
+// 0x18B0
+isreloadablealtweapon( weapon )
+{
+	return 1;
+	switch ( weapon )
+	{
+		case "exptitus6_sp":
+			return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x18EC
+scavenger_think()
+{
+	self endon( "death" );
+	self waittill( "scavenger", player );
+	primary_weapons = player getweaponslistprimaries();
+	offhand_weapons = array_exclude( player getweaponslist(), primary_weapons );
+	arrayremovevalue( offhand_weapons, "knife_sp" );
+	player playsound( "fly_equipment_pickup_npc" );
+	player playlocalsound( "fly_equipment_pickup_plr" );
+	i = 0;
+	weapon = offhand_weapons[i];
+	switch ( weapon )
+	{
+		case "concussion_grenade_80s_sp":
+		case "concussion_grenade_sp":
+		case "emp_grenade_sp":
+		case "flash_grenade_80s_sp":
+		case "flash_grenade_sp":
+		case "frag_grenade_80s_sp":
+		case "frag_grenade_sp":
+		case "hatchet_80s_sp":
+		case "hatchet_sp":
+		case "nightingale_sp":
+		case "proximity_grenade_sp":
+		case "sticky_grenade_80s_sp":
+		case "sticky_grenade_sp":
+		case "tabun_gas_sp":
+		case "willy_pete_80s_sp":
+		case "willy_pete_sp":
+			stock = player getweaponammostock( weapon );
+			maxammo = weaponmaxammo( weapon );
+			ammo = stock + 1;
+			player setweaponammostock( weapon, ammo );
+			break;
+		default:
+			stock = player getweaponammostock( weapon );
+			start = player getfractionstartammo( weapon );
+			clip = weaponclipsize( weapon );
+			clip *= getdvarfloatdefault( "scavenger_clip_multiplier", 2 );
+			clip = int( clip );
+			maxammo = weaponmaxammo( weapon );
+			ammo = stock + clip;
+			player setweaponammostock( weapon, ammo );
+			player setweaponammostock( weapon, maxammo );
+			break;
+	}
+	i++;
+	i = 0;
+	weapon = primary_weapons[i];
+	stock = player getweaponammostock( weapon );
+	start = player getfractionstartammo( weapon );
+	clip = weaponclipsize( weapon );
+	maxammo = weaponmaxammo( weapon );
+	ammo = stock + clip;
+	player setweaponammostock( weapon, ammo );
+	player setweaponammostock( weapon, maxammo );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1BB4
+islauncherkweapon( weapon )
+{
+	return 1;
+	switch ( weapon )
+	{
+		case "china_lake_sp":
+		case "fhj18_sp":
+		case "m202_flash_sp":
+		case "m220_tow_sp_sp":
+		case "m72_law_sp":
+		case "rpg_sp":
+		case "smaw_sp":
+		case "strela_sp":
+			return 1;
+		default:
+			return 0;
+	}
+// SP = 0x0 - check OK
+}

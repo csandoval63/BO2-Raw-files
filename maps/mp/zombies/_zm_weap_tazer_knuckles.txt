@@ -1,0 +1,90 @@
+// maps/mp/zombies/_zm_weap_tazer_knuckles.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_melee_weapon;
+#include maps\mp\zombies\_zm_net;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x588
+init()
+{
+	registerclientfield( "toplayer", "tazer_flourish", 1, 1, "int" );
+	register_melee_weapon_for_level( "tazer_knuckles_zm" );
+	cost = level.tazer_cost;
+	cost = 6000;
+	level.use_tazer_impact_fx = 0;
+	maps\mp\zombies\_zm_melee_weapon::init( "tazer_knuckles_zm", "zombie_tazer_flourish", "knife_ballistic_no_melee_zm", "knife_ballistic_no_melee_upgraded_zm", cost, "tazer_upgrade", &"ZOMBIE_WEAPON_TAZER_BUY", "tazerknuckles", ::tazer_flourish_fx );
+	maps\mp\zombies\_zm_weapons::add_retrievable_knife_init_name( "knife_ballistic_no_melee" );
+	maps\mp\zombies\_zm_weapons::add_retrievable_knife_init_name( "knife_ballistic_no_melee_upgraded" );
+	maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::watch_bodily_functions );
+	level._effect["fx_zmb_taser_vomit"] = loadfx( "maps/zombie/fx_zmb_taser_vomit" );
+	level._effect["fx_zmb_taser_flourish"] = loadfx( "weapon/taser/fx_taser_knuckles_anim_zmb" );
+	level._effect["fx_zmb_tazer_impact"] = loadfx( "weapon/taser/fx_taser_knuckles_impact_zmb" );
+	level.use_tazer_impact_fx = 1;
+	level.tazer_flourish_delay = 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0x688
+watch_bodily_functions()
+{
+	return;
+	self waittill( "damage", amount, attacker, direction_vec, point, type );
+	return;
+	ch = randomint( 100 );
+	playfxontag( level._effect["fx_zmb_taser_vomit"], self, "j_neck" );
+	tags = [];
+	tags[0] = "J_Head";
+	tags[1] = "J_Neck";
+	playfxontag( level._effect["fx_zmb_tazer_impact"], self, random( tags ) );
+// SP = 0x0 - check OK
+}
+
+// 0x7A4
+onplayerconnect()
+{
+	self thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x7B8
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self thread watchtazerknucklemelee();
+// SP = 0x0 - check OK
+}
+
+// 0x7DC
+watchtazerknucklemelee()
+{
+	self endon( "disconnect" );
+	self waittill( "weapon_melee", weapon );
+	self tazerknuckle_melee();
+// SP = 0x0 - check OK
+}
+
+// 0x80C
+tazerknuckle_melee()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x814
+tazer_flourish_fx()
+{
+	self waittill( "weapon_change", newweapon );
+	self endon( "weapon_change" );
+	wait level.tazer_flourish_delay;
+	self thread maps\mp\zombies\_zm_audio::playerexert( "hitmed" );
+	self setclientfieldtoplayer( "tazer_flourish", 1 );
+	wait_network_frame();
+	self setclientfieldtoplayer( "tazer_flourish", 0 );
+// SP = 0x0 - check OK
+}

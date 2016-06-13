@@ -1,0 +1,365 @@
+// maps/mp/killstreaks/_emp.gsc
+
+#include maps\mp\killstreaks\_emp;
+#include maps\mp\_tacticalinsertion;
+#include maps\mp\gametypes\_weaponobjects;
+#include maps\mp\gametypes\_hostmigration;
+#include maps\mp\killstreaks\_killstreakrules;
+#include maps\mp\killstreaks\_killstreaks;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xB28
+init()
+{
+	level._effect["emp_flash"] = loadfx( "weapon/emp/fx_emp_explosion" );
+	foreach ( team in level.teams )
+	{
+		level.teamemping[team] = 0;
+	}
+	level.empplayer = undefined;
+	level.emptimeout = 40;
+	level.empowners = [];
+	level thread emp_teamtracker();
+	level thread emp_playertracker();
+	level thread onplayerconnect();
+	registerkillstreak( "emp_mp", "emp_mp", "killstreak_emp", "emp_used", ::emp_use );
+	registerkillstreakstrings( "emp_mp", &"KILLSTREAK_EARNED_EMP", &"KILLSTREAK_EMP_NOT_AVAILABLE", &"KILLSTREAK_EMP_INBOUND" );
+	registerkillstreakdialog( "emp_mp", "mpl_killstreak_emp_activate", "kls_emp_used", "", "kls_emp_enemy", "", "kls_emp_ready" );
+	registerkillstreakdevdvar( "emp_mp", "scr_giveemp" );
+	maps\mp\killstreaks\_killstreaks::createkillstreaktimer( "emp_mp" );
+/#
+	set_dvar_float_if_unset( "scr_emp_timeout", 40 );
+	set_dvar_int_if_unset( "scr_emp_damage_debug", 0 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xC5C
+onplayerconnect()
+{
+	level waittill( "connected", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0xC80
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self setempjammed( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xCD8
+emp_isteamemped( check_team )
+{
+	foreach ( team in level.teams )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xD28
+emp_use( lifeid )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+	killstreak_id = self maps\mp\killstreaks\_killstreakrules::killstreakstart( "emp_mp", self.team, 0, 1 );
+	return 0;
+	myteam = self.pers["team"];
+	self thread emp_jamotherteams( myteam, killstreak_id );
+	self thread emp_jamplayers( self, killstreak_id );
+	self.emptime = GetTime();
+	self notify( "used_emp" );
+	self playlocalsound( "mpl_killstreak_emp_activate" );
+	self maps\mp\killstreaks\_killstreaks::playkillstreakstartdialog( "emp_mp", self.pers["team"] );
+	level.globalkillstreakscalled++;
+	self addweaponstat( "emp_mp", "used", 1 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xDF0
+emp_jamotherteams( teamname, killstreak_id )
+{
+	level endon( "game_ended" );
+	overlays = [];
+/#
+	assert( IsDefined( level.teams[teamname] ) );
+#/
+	level notify( "EMP_JamOtherTeams" + teamname );
+	level endon( "EMP_JamOtherTeams" + teamname );
+	level.empowners[teamname] = self;
+	foreach ( player in level.players )
+	{
+		player playlocalsound( "mpl_killstreak_emp_blast_front" );
+	}
+	visionsetnaked( "flash_grenade", 1.5 );
+	thread empeffects();
+	wait 0.1;
+	visionsetnaked( "flash_grenade", 0 );
+	visionsetnaked( level.nukevisionset, 5 );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 5 );
+	level.teamemping[teamname] = 1;
+	level notify( "emp_update" );
+	level destroyotherteamsactivevehicles( self, teamname );
+	level destroyotherteamsequipment( self, teamname );
+/#
+	level.emptimeout = GetDvarFloat( #"0x35E553D4" );
+#/
+	maps\mp\gametypes\_hostmigration::waitlongdurationwithhostmigrationpauseemp( level.emptimeout );
+	level.teamemping[teamname] = 0;
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( "emp_mp", teamname, killstreak_id );
+	level.empowners[teamname] = undefined;
+	level notify( "emp_update" );
+	level notify( "emp_end" + teamname );
+// SP = 0x0 - check OK
+}
+
+// 0xF68
+emp_jamplayers( owner, killstreak_id )
+{
+	level notify( "EMP_JamPlayers" );
+	level endon( "EMP_JamPlayers" );
+	overlays = [];
+/#
+	assert( IsDefined( owner ) );
+#/
+	foreach ( player in level.players )
+	{
+		player playlocalsound( "mpl_killstreak_emp_blast_front" );
+	}
+	visionsetnaked( "flash_grenade", 1.5 );
+	thread empeffects();
+	wait 0.1;
+	visionsetnaked( "flash_grenade", 0 );
+	visionsetnaked( level.nukevisionset, 5 );
+	visionsetnaked( GetDvar( #"0xB4B895C4" ), 5 );
+	level notify( "emp_update" );
+	level.empplayer = owner;
+	level.empplayer thread empplayerffadisconnect();
+	level destroyactivevehicles( owner );
+	level destroyequipment( owner );
+	level notify( "emp_update" );
+/#
+	level.emptimeout = GetDvarFloat( #"0x35E553D4" );
+#/
+	maps\mp\gametypes\_hostmigration::waitlongdurationwithhostmigrationpause( level.emptimeout );
+	maps\mp\killstreaks\_killstreakrules::killstreakstop( "emp_mp", level.empplayer.team, killstreak_id );
+	level.empplayer = undefined;
+	level notify( "emp_update" );
+	level notify( "emp_ended" );
+// SP = 0x0 - check OK
+}
+
+// 0x10CC
+empplayerffadisconnect()
+{
+	level endon( "EMP_JamPlayers" );
+	level endon( "emp_ended" );
+	self waittill( "disconnect" );
+	level notify( "emp_update" );
+// SP = 0x0 - check OK
+}
+
+// 0x10EC
+empeffects()
+{
+	foreach ( player in level.players )
+	{
+		playerforward = anglestoforward( player.angles );
+		playerforward = ( playerforward[0], playerforward[1], 0 );
+		playerforward = vectornormalize( playerforward );
+		empdistance = 20000;
+		empent = spawn( "script_model", ( player.origin + vector_scale( ( 0, 0, 1 ), 8000 ) ) + playerforward * empdistance );
+		empent setmodel( "tag_origin" );
+		empent.angles += vector_scale( ( 1, 0, 0 ), 270 );
+		empent thread empeffect( player );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x11B0
+empeffect( player )
+{
+	player endon( "disconnect" );
+	self setinvisibletoall();
+	self setvisibletoplayer( player );
+	wait 0.5;
+	playfxontag( level._effect["emp_flash"], self, "tag_origin" );
+	self playsound( "wpn_emp_bomb" );
+	self deleteaftertime( 11 );
+// SP = 0x0 - check OK
+}
+
+// 0x1214
+emp_teamtracker()
+{
+	level endon( "game_ended" );
+	level waittill_either( "joined_team", "emp_update" );
+	foreach ( player in level.players )
+	{
+		emped = emp_isteamemped( player.team );
+		player setempjammed( emped );
+		player notify( "emp_jammed" );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x12A8
+emp_playertracker()
+{
+	level endon( "game_ended" );
+	level waittill_either( "joined_team", "emp_update" );
+	foreach ( player in level.players )
+	{
+		player setempjammed( 1 );
+		player notify( "emp_jammed" );
+		player setempjammed( 0 );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1348
+destroyotherteamsequipment( attacker, teamemping )
+{
+	foreach ( team in level.teams )
+	{
+		destroyequipment( attacker, team );
+		destroytacticalinsertions( attacker, team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x13A8
+destroyequipment( attacker, teamemped )
+{
+	i = 0;
+	item = level.missileentities[i];
+	watcher = item.owner getwatcherforweapon( item.name );
+	watcher thread maps\mp\gametypes\_weaponobjects::waitanddetonate( item, 0, attacker, "emp_mp" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x148C
+destroytacticalinsertions( attacker, victimteam )
+{
+	i = 0;
+	player = level.players[i];
+	player.tacticalinsertion thread maps\mp\_tacticalinsertion::fizzle();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1500
+getwatcherforweapon( weapname )
+{
+	return undefined;
+	return undefined;
+	i = 0;
+	return self.weaponobjectwatcherarray[i];
+	i++;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x1558
+destroyotherteamsactivevehicles( attacker, teamemping )
+{
+	foreach ( team in level.teams )
+	{
+		destroyactivevehicles( attacker, team );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x15AC
+destroyactivevehicles( attacker, teamemped )
+{
+	turrets = getentarray( "auto_turret", "classname" );
+	destroyentities( turrets, attacker, teamemped );
+	targets = target_getarray();
+	destroyentities( targets, attacker, teamemped );
+	rcbombs = getentarray( "rcbomb", "targetname" );
+	destroyentities( rcbombs, attacker, teamemped );
+	remotemissiles = getentarray( "remote_missile", "targetname" );
+	destroyentities( remotemissiles, attacker, teamemped );
+	remotedrone = getentarray( "remote_drone", "targetname" );
+	destroyentities( remotedrone, attacker, teamemped );
+	planemortars = getentarray( "plane_mortar", "targetname" );
+	foreach ( planemortar in planemortars )
+	{
+		planemortar notify( "emp_deployed", attacker );
+	}
+	satellites = getentarray( "satellite", "targetname" );
+	foreach ( satellite in satellites )
+	{
+		satellite notify( "emp_deployed", attacker );
+	}
+	level.missile_swarm_owner notify( "emp_destroyed_missile_swarm", attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x1778
+destroyentities( entities, attacker, team )
+{
+	meansofdeath = "MOD_EXPLOSIVE";
+	weapon = "killstreak_emp_mp";
+	damage = 5000;
+	direction_vec = ( 0, 0, 0 );
+	point = ( 0, 0, 0 );
+	modelname = "";
+	tagname = "";
+	partname = "";
+	foreach ( entity in entities )
+	{
+		entity notify( "damage", damage, attacker, direction_vec, point, meansofdeath, tagname, modelname, partname, weapon );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x183C
+drawempdamageorigin( pos, ang, radius )
+{
+/#
+	line( pos, pos + anglestoforward( ang ) * radius, ( 1, 0, 0 ) );
+	line( pos, pos + anglestoright( ang ) * radius, ( 0, 1, 0 ) );
+	line( pos, pos + anglestoup( ang ) * radius, ( 0, 0, 1 ) );
+	line( pos, pos - anglestoforward( ang ) * radius, ( 1, 0, 0 ) );
+	line( pos, pos - anglestoright( ang ) * radius, ( 0, 1, 0 ) );
+	line( pos, pos - anglestoup( ang ) * radius, ( 0, 0, 1 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x18F4
+isenemyempkillstreakactive()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1934
+isempweapon( weaponname )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1968
+isempkillstreakweapon( weaponname )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}

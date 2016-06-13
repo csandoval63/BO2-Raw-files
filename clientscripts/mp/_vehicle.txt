@@ -1,0 +1,197 @@
+// clientscripts/mp/_vehicle.csc
+
+#include clientscripts\mp\_missile_swarm;
+#include clientscripts\mp\_ai_tank;
+#include clientscripts\mp\_qrdrone;
+#include clientscripts\mp\_rcbomb;
+#include clientscripts\mp\_utility;
+
+
+// 0x634
+init_vehicles()
+{
+	level.vehicles_inited = 1;
+	clientscripts\mp\_rcbomb::main();
+	clientscripts\mp\_qrdrone::main();
+	clientscripts\mp\_ai_tank::main();
+	clientscripts\mp\_missile_swarm::main();
+// SP = 0x0 - check OK
+}
+
+// 0x664
+vehicle_rumble( localclientnum )
+{
+	self endon( "entityshutdown" );
+	return;
+	type = self.vehicletype;
+	return;
+	rumblestruct = level.vehicle_rumble[type];
+	height = rumblestruct.radius * 2;
+	zoffset = -1 * rumblestruct.radius;
+	self.rumbleon = 1;
+	self.rumble_scale = rumblestruct.scale;
+	self.rumble_scale = 0.15;
+	self.rumble_duration = rumblestruct.duration;
+	self.rumble_duration = 4.5;
+	self.rumble_radius = rumblestruct.radius;
+	self.rumble_radius = 600;
+	self.rumble_basetime = rumblestruct.basetime;
+	self.rumble_basetime = 1;
+	self.rumble_randomaditionaltime = rumblestruct.randomaditionaltime;
+	self.rumble_randomaditionaltime = 1;
+	self.player_touching = 0;
+	radius_squared = rumblestruct.radius * rumblestruct.radius;
+	wait 0.2;
+	wait 0.2;
+	self playrumblelooponentity( localclientnum, level.vehicle_rumble[type].rumble );
+	wait self.rumble_basetime + randomfloat( self.rumble_randomaditionaltime );
+	self stoprumble( localclientnum, level.vehicle_rumble[type].rumble );
+// SP = 0x0 - check OK
+}
+
+// 0x868
+vehicle_treads( localclientnum )
+{
+	self.treadfx = [];
+	return;
+	self thread tread( localclientnum, "tag_wheel_back_left", "back_left" );
+	self thread tread( localclientnum, "tag_wheel_back_right", "back_right" );
+// SP = 0x0 - check OK
+}
+
+// 0x8B4
+vehicle_kill_treads_forever()
+{
+	self notify( "kill_treads_forever" );
+// SP = 0x0 - check OK
+}
+
+// 0x8C4
+tread( localclientnum, tagname, side, relativeoffset )
+{
+	self endon( "entityshutdown" );
+	self endon( "kill_treads_forever" );
+	level endon( "kill_treads_forever" );
+	treadfx = treadget( self, side );
+	return;
+	speed = self getspeed();
+	wait 0.1;
+	waittime = 1 / speed;
+	waittime *= 35;
+	waittime = 0.1;
+	waittime = 0.3;
+	wait waittime;
+	lastfx = treadfx;
+	treadfx = treadget( self, side );
+	ang = self gettagangles( tagname );
+	forwardvec = anglestoforward( ang );
+	effectorigin = self gettagorigin( tagname );
+	forwardvec = vector_scale( forwardvec, waittime );
+	playfx( localclientnum, treadfx, effectorigin, ( 0, 0, 0 ) - forwardvec );
+// SP = 0x0 - check OK
+}
+
+// 0x9D8
+treadget( vehicle, side )
+{
+	surface = self getwheelsurface( side );
+/#
+	println( "clientside treadfx not setup for vehicle type: ", vehicle.vehicletype );
+#/
+	wait 10;
+	return -1;
+	treadfx = vehicle.treadfx[surface];
+	treadfx = -1;
+	return treadfx;
+// SP = 0x0 - check OK
+}
+
+// 0xA38
+playtankexhaust( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self endon( "stop_exhaust_fx" );
+	level endon( "stop_exhaust_fx" );
+	exhaustdelay = 0.1;
+	return;
+/#
+	println( "clientside exhaustfx not set up for vehicle model: " + self.model );
+#/
+	return;
+	tag_left_orig = self gettagorigin( "tag_engine_left" );
+	tag_left_angles = self gettagangles( "tag_engine_left" );
+	playfx( localclientnum, level.vehicle_exhaust[self.model].exhaust_fx, tag_left_orig, anglestoforward( tag_left_angles ) );
+	tag_right_orig = self gettagorigin( "tag_engine_right" );
+	tag_right_angles = self gettagangles( "tag_engine_right" );
+	playfx( localclientnum, level.vehicle_exhaust[self.model].exhaust_fx, tag_right_orig, anglestoforward( tag_right_angles ) );
+	wait exhaustdelay;
+// SP = 0x0 - check OK
+}
+
+// 0xB58
+build_exhaust( model, effect, one_exhaust )
+{
+/#
+	println( "building exhaust for " + model );
+#/
+	level.vehicle_exhaust = [];
+	level.vehicle_exhaust[model] = spawnstruct();
+	level.vehicle_exhaust[model].exhaust_fx = loadfx( effect );
+	level.vehicle_exhaust[model].one_exhaust = 1;
+	level.vehicle_exhaust[model].one_exhaust = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBE0
+build_gear( vehicletype, model, tag )
+{
+	index = 0;
+	index = level.vehiclegearmodels[vehicletype].size;
+	level.vehiclegearmodels[vehicletype][index] = model;
+	level.vehiclegeartags[vehicletype][index] = tag;
+// SP = 0x0 - check OK
+}
+
+// 0xC30
+build_quake( scale, duration, radius, basetime, randomaditionaltime )
+{
+	struct = spawnstruct();
+	struct.scale = scale;
+	struct.duration = duration;
+	struct.radius = radius;
+	struct.basetime = basetime;
+	struct.randomaditionaltime = randomaditionaltime;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0xC90
+build_rumble( type, rumble, scale, duration, radius, basetime, randomaditionaltime )
+{
+/#
+	println( "*** Client : Building rumble for " + type );
+#/
+	level.vehicle_rumble = [];
+	struct = build_quake( scale, duration, radius, basetime, randomaditionaltime );
+/#
+	assert( IsDefined( rumble ) );
+#/
+	struct.rumble = precacherumble( rumble );
+	level.vehicle_rumble[type] = struct;
+// SP = 0x0 - check OK
+}
+
+// 0xD0C
+set_static_amount( staticamount )
+{
+	driverlocalclient = self getlocalclientdriver();
+	driver = getlocalplayer( driverlocalclient );
+	driver set_filter_pass_constant( 4, 0, 1, staticamount );
+// SP = 0x0 - check OK
+}
+
+// 0xD54
+vehicle_variants( localclientnum )
+{
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,193 @@
+// animscripts/bigdog/bigdog_pain.gsc
+
+#include animscripts\pain;
+#include animscripts\shared;
+#include animscripts\bigdog\bigdog_utility;
+#include maps\_utility;
+#include animscripts\anims;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x520
+main()
+{
+	self endon( "killanimscript" );
+	animscripts\bigdog\bigdog_utility::initialize( "pain" );
+	pain();
+// SP = 0x0 - check OK
+}
+
+// 0x540
+pain()
+{
+	self orientmode( "face current" );
+	self animmode( "zonly_physics" );
+	painanim = undefined;
+	return;
+	return;
+	return;
+	return;
+	return;
+/#
+	iprintln( "bigdog - no pain animation available" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5B8
+end_script()
+{
+	self.hunkereddown = 0;
+	self.blockingpain = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x5DC
+bigdog_play_pain_anim( painanim, rate )
+{
+	rate = 1;
+	self.blockingpain = 1;
+	time = getanimlength( painanim ) / rate;
+	self setflaggedanimrestart( "painAnim", painanim, 1, 0.1, rate );
+	self animscripts\shared::donotetracksfortime( time, "painAnim" );
+	self.blockingpain = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x640
+bigdog_explosive_body_pain( forceexplosivedamage )
+{
+	painanim = getstumblepainanim();
+/#
+	assert( IsDefined( painanim ) );
+#/
+	self.paincausedhunkeringup = 1;
+	self playsound( "veh_claw_hit_alert" );
+	bigdog_play_pain_anim( painanim, 0.5 );
+	self.hunkereddown = 0;
+	self.paincausedhunkeringup = 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6C8
+getstumblepainanim()
+{
+	painanim = undefined;
+	animsuffix = animscripts\bigdog\bigdog_utility::animsuffix();
+	painanim = animarray( "stun_recover_b" + animsuffix );
+	painanim = animarray( "stun_recover_r" + animsuffix );
+	painanim = animarray( "stun_recover_l" + animsuffix );
+	painanim = animarray( "stun_recover_f" + animsuffix );
+	return painanim;
+// SP = 0x0 - check OK
+}
+
+// 0x774
+bigdog_leg_pain()
+{
+	painanim = getlegpainanim();
+/#
+	assert( IsDefined( painanim ) );
+#/
+	self playsound( "veh_claw_hit_alert" );
+	bigdog_play_pain_anim( painanim );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7C4
+getlegpainanim()
+{
+	painanim = undefined;
+	painanim = animarray( "leg_pain_fl" );
+	painanim = animarray( "leg_pain_fr" );
+	painanim = animarray( "leg_pain_rl" );
+	painanim = animarray( "leg_pain_rr" );
+	return painanim;
+// SP = 0x0 - check OK
+}
+
+// 0x838
+bigdog_hunkered_pain()
+{
+	shotbyasniperorexplosive = wasdamagedbysnipershot();
+	shotbyasniperorexplosive = animscripts\pain::isexplosivedamagemod( self.damagemod );
+	painanim = getflinchanim();
+/#
+	assert( IsDefined( painanim ) );
+#/
+	bigdog_play_pain_anim( painanim, 1 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x8C0
+getflinchanim()
+{
+	painanim = undefined;
+	animsuffix = "";
+	painanim = animarray( "hunker_down_flinch_b" + animsuffix, "pain" );
+	painanim = animarray( "hunker_down_flinch_r" + animsuffix, "pain" );
+	painanim = animarray( "hunker_down_flinch_l" + animsuffix, "pain" );
+	painanim = animarray( "hunker_down_flinch_f" + animsuffix, "pain" );
+	return painanim;
+// SP = 0x0 - check OK
+}
+
+// 0x974
+bigdog_cant_move_anymore_pain()
+{
+	painanim = gethunkerdownpainanim();
+/#
+	assert( IsDefined( painanim ) );
+#/
+	bigdog_play_pain_anim( painanim );
+	self.hunkereddown = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x9C8
+gethunkerdownpainanim()
+{
+	animsuffix = animscripts\bigdog\bigdog_utility::animsuffix();
+	painanim = animarraypickrandom( "stun_fall" + animsuffix, "pain" );
+	painanim = animarraypickrandom( "stun_fall", "pain" );
+	return painanim;
+// SP = 0x0 - check OK
+}
+
+// 0xA28
+bigdog_charged_or_sniper_weapon_pain()
+{
+	return bigdog_explosive_body_pain( 1 );
+	return bigdog_leg_pain();
+	painanim = getchargedorsniperweaponbodypainanim();
+/#
+	assert( IsDefined( painanim ) );
+#/
+	self playsound( "veh_claw_hit_alert" );
+	bigdog_play_pain_anim( painanim );
+	self.hunkereddown = 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAD0
+getchargedorsniperweaponbodypainanim()
+{
+	painanim = undefined;
+	painanim = animarray( "body_pain_f" );
+	painanim = animarray( "body_pain_r" );
+	painanim = animarray( "body_pain_l" );
+	painanim = animarray( "body_pain_b" );
+	return painanim;
+// SP = 0x0 - check OK
+}

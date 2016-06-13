@@ -1,0 +1,39 @@
+// maps/_ingamemenus.gsc
+
+#include maps\_cooplogic;
+#include maps\_utility;
+
+
+// 0x184
+init()
+{
+	level.xenon = GetDvar( #"0xE0DDE627" ) == "true";
+	level.consolegame = GetDvar( #"0xD1AF4972" ) == "true";
+	precachemenu( "loadout_splitscreen" );
+	precachemenu( "ObjectiveInfoMenu" );
+	precachemenu( "InGamePopupMenu" );
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x1E0
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onmenuresponse();
+// SP = 0x0 - check OK
+}
+
+// 0x204
+onmenuresponse()
+{
+	self waittill( "menuresponse", menu, response );
+	self closemenu();
+	self closeingamemenu();
+	self [[level.loadout]]( response );
+	level thread maps\_cooplogic::forceend();
+	self closemenu();
+	self closeingamemenu();
+	self closeingamemenu();
+// SP = 0x0 - check OK
+}

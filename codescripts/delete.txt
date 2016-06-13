@@ -1,0 +1,18 @@
+// codescripts/delete.gsc
+
+
+// 0x110
+main()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+	wait 0;
+/#
+	println( "" );
+	println( "*** trigger debug: delete.gsc is deleting trigger with ent#: " + self getentitynumber() + " at origin: " + self.origin );
+	println( "" );
+#/
+	self delete();
+// SP = 0x0 - check OK
+}

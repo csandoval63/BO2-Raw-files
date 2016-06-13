@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_counter_from_stools.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x124
+main()
+{
+	dosimpletraverse( "dierise_round_counter_from_stools", undefined, "zm_traverse_dierise" );
+// SP = 0x0 - check OK
+}

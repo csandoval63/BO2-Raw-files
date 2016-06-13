@@ -1,0 +1,177 @@
+// maps/_radiant_live_update.gsc
+
+#include maps\_debug;
+#include maps\_anim;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x3DC
+main()
+{
+/#
+	level.scr_anim["generic"]["Cover Crouch"][0] = %covercrouch_hide_idle;
+	level.scr_anim["generic"]["Cover Crouch"][1] = %covercrouch_twitch_1;
+	level.scr_anim["generic"]["Cover Crouch"][2] = %covercrouch_hide_2_aim;
+	level.scr_anim["generic"]["Cover Crouch"][3] = %covercrouch_hide_2_aim;
+	level.scr_anim["generic"]["Cover Crouch"][4] = %covercrouch_hide_2_aim;
+	level.scr_anim["generic"]["Cover Crouch"][5] = %covercrouch_hide_look;
+	level.node_offset = [];
+	level.node_offset["Cover Left"] = vector_scale( ( 0, 1, 0 ), 90 );
+	level.node_offset["Cover Right"] = vector_scale( ( 0, -1, 0 ), 90 );
+	wait 5;
+	spawners = getspawnerarray();
+	spawner = undefined;
+	i = 0;
+	spawner = spawners[i];
+	i++;
+	thread node_debug_render();
+	thread scriptstruct_debug_render();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x504
+scriptstruct_debug_render()
+{
+/#
+	level waittill( "obstacle", selected_struct );
+	level thread render_struct( selected_struct );
+	level notify( "stop_struct_render" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x540
+render_struct( selected_struct )
+{
+/#
+	self endon( "stop_struct_render" );
+	box( selected_struct.origin, vector_scale( ( -1, -1, -1 ), 16 ), vector_scale( ( 1, 1, 1 ), 16 ), 0, ( 1, 0.4, 0.4 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x59C
+node_debug_render()
+{
+/#
+	level waittill( "node_not_safe", node );
+	spawn_johnny_node_chaser( node );
+	level.johnny_node_chaser thread delete_timer();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5E8
+delete_timer()
+{
+/#
+	self endon( "stop_delete_timer" );
+	self endon( "death" );
+	time = 5;
+	print3d( self.origin, time, ( 1, 1, 1 ), 1, 0.8, 4 );
+	wait 0.2;
+	time -= 0.2;
+	self delete();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x64C
+animate_at_node( node )
+{
+/#
+	level.nodedrone thread animate_nodedrone_at_node( node );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x684
+spawn_johnny_node_chaser( node )
+{
+/#
+	maps\_debug::dynamic_ai_spawner_init();
+	spawner = level.enemy_spawner;
+	old_origin = spawner.origin;
+	old_angles = spawner.angles;
+	spawner.origin = node.origin;
+	spawner.angles = node.angles;
+	spawner.count = 50;
+	spawn = spawner spawn_ai();
+	spawner.origin = old_origin;
+	spawner.angles = old_angles;
+	level.johnny_node_chaser = spawn;
+	level.johnny_node_chaser forceteleport( node.origin, node.angles );
+	level.johnny_node_chaser.script_accuracy = 0;
+	level.johnny_node_chaser notify( "stop_delete_timer" );
+	level.johnny_node_chaser.goalradius = 16;
+	level.johnny_node_chaser thread keepupwithnode( node );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7A4
+keepupwithnode( node )
+{
+/#
+	self endon( "stop_delete_timer" );
+	self endon( "death" );
+	prev_org = ( 0, 0, 0 );
+	prev_ang = ( 0, 0, 0 );
+	prev_org = node.origin;
+	prev_ang = node.angles;
+	self setgoalnode( node );
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x828
+animate_nodedrone_at_node( node )
+{
+/#
+	angles = node.angles;
+	angles += level.node_offset[node.type];
+	self.origin = node.origin;
+	self.angles = angles;
+	self dontinterpolate();
+	self show();
+	self thread stay_animated_at_node( node );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x89C
+stay_animated_at_node( node )
+{
+/#
+	self.currentnode = node;
+	prev_org = ( 0, 0, 0 );
+	prev_ang = ( 0, 0, 0 );
+	prev_org = node.origin;
+	prev_ang = node.angles;
+	angles = node.angles;
+	angles += level.node_offset[self.currentnode.type];
+	self.origin = node.origin;
+	self.angles = angles;
+	self notify( "stop_loop" );
+	self anim_generic_loop( self, node.type, "stop_loop" );
+	prev_org = ( 0, 0, 0 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x988
+node_has_animations( node )
+{
+/#
+	return 1;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}

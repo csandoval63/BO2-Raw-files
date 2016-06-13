@@ -1,0 +1,97 @@
+// clientscripts/mp/_acousticsensor.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x2EC
+init( localclientnum )
+{
+	level._effect["acousticsensor_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["acousticsensor_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+	level.acousticsensors = [];
+	level.acousticsensorhandle = 0;
+	setlocalradarenabled( localclientnum, 0 );
+	level thread updateacousticsensors();
+// SP = 0x0 - check OK
+}
+
+// 0x35C
+addacousticsensor( handle, sensorent, owner )
+{
+	acousticsensor = spawnstruct();
+	acousticsensor.handle = handle;
+	acousticsensor.sensorent = sensorent;
+	acousticsensor.owner = owner;
+	size = level.acousticsensors.size;
+	level.acousticsensors[size] = acousticsensor;
+// SP = 0x0 - check OK
+}
+
+// 0x3AC
+removeacousticsensor( acousticsensorhandle )
+{
+	i = 0;
+	last = level.acousticsensors.size - 1;
+	level.acousticsensors[i].handle = level.acousticsensors[last].handle;
+	level.acousticsensors[i].sensorent = level.acousticsensors[last].sensorent;
+	level.acousticsensors[i].owner = level.acousticsensors[last].owner;
+	level.acousticsensors[last] = undefined;
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x444
+spawned( localclientnum )
+{
+	handle = level.acousticsensorhandle;
+	level.acousticsensorhandle++;
+	self thread watchshutdown( handle );
+	owner = self getowner( localclientnum );
+	addacousticsensor( handle, self, owner );
+	local_players_entity_thread( self, ::spawnedperclient );
+// SP = 0x0 - check OK
+}
+
+// 0x498
+spawnedperclient( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self thread clientscripts\mp\_fx::blinky_light( localclientnum, "tag_light", level._effect["acousticsensor_friendly_light"], level._effect["acousticsensor_enemy_light"] );
+// SP = 0x0 - check OK
+}
+
+// 0x4C8
+watchshutdown( handle )
+{
+	self waittill( "entityshutdown" );
+	removeacousticsensor( handle );
+// SP = 0x0 - check OK
+}
+
+// 0x4E4
+updateacousticsensors()
+{
+	self endon( "entityshutdown" );
+	localradarenabled = [];
+	previousacousticsensorcount = -1;
+	waitforclient( 0 );
+	localplayers = level.localplayers;
+	i = 0;
+	localradarenabled[i] = 0;
+	i++;
+	i = 0;
+	j = 0;
+	localradarenabled[j] = 1;
+	setlocalradarposition( j, level.acousticsensors[i].sensorent.origin );
+	j++;
+	i++;
+	i = 0;
+	setlocalradarenabled( i, localradarenabled[i] );
+	i++;
+	previousacousticsensorcount = level.acousticsensors.size;
+	wait 0.1;
+// SP = 0x0 - check OK
+}

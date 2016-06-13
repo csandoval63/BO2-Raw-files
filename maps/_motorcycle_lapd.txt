@@ -1,0 +1,43 @@
+// maps/_motorcycle_lapd.gsc
+
+#include animscripts\utility;
+#include maps\_vehicle_aianim;
+#include maps\_vehicle;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "vehicles" );
+#using_animtree ( "generic_human" );
+
+
+// 0x1BC
+main()
+{
+	build_aianims( ::setanims, ::set_vehicle_anims );
+// SP = 0x0 - check OK
+}
+
+// 0x1DC
+set_vehicle_anims( positions )
+{
+	return positions;
+// SP = 0x0 - check OK
+}
+
+// 0x1E8
+setanims()
+{
+	positions = [];
+	i = 0;
+	positions[i] = spawnstruct();
+	i++;
+	positions[0].sittag = "tag_driver";
+	positions[0].idle[0] = %ai_crew_motorcycle_ride;
+	positions[0].idle[1] = %ai_crew_motorcycle_ride_lookleft;
+	positions[0].idle[2] = %ai_crew_motorcycle_ride_lookright;
+	positions[0].idleoccurrence[0] = 1000;
+	positions[0].idleoccurrence[1] = 400;
+	positions[0].idleoccurrence[2] = 200;
+	return positions;
+// SP = 0x0 - check OK
+}

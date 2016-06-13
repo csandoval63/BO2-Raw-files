@@ -1,0 +1,25 @@
+// clientscripts/mp/_destructible.csc
+
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "mp_vehicles" );
+
+
+// 0x130
+init()
+{
+	level._client_flag_callbacks["scriptmover"][12] = ::destructible_car_animate;
+// SP = 0x0 - check OK
+}
+
+// 0x14C
+destructible_car_animate( localclientnum, set )
+{
+	return;
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	self useanimtree( -1 );
+	self setanim( %veh_car_destroy, 1, 0, 1 );
+// SP = 0x0 - check OK
+}

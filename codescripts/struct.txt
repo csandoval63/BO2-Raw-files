@@ -1,0 +1,34 @@
+// codescripts/struct.gsc
+
+
+// 0x110
+initstructs()
+{
+	level.struct = [];
+// SP = 0x0 - check OK
+}
+
+// 0x11C
+createstruct()
+{
+	struct = spawnstruct();
+	level.struct[level.struct.size] = struct;
+	return struct;
+// SP = 0x0 - check OK
+}
+
+// 0x144
+findstruct( position )
+{
+	foreach ( _ in level.struct_class_names )
+	{
+		foreach ( s_array in level.struct_class_names[key] )
+		{
+			foreach ( struct in s_array )
+			{
+				return struct;
+			}
+		}
+	}
+// SP = 0x0 - check OK
+}

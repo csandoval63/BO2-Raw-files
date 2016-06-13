@@ -1,0 +1,149 @@
+// clientscripts/mp/_footsteps.csc
+
+#include clientscripts\mp\_audio;
+
+
+// 0x548
+init()
+{
+	surfacearray = getsurfacestrings();
+	movementarray = [];
+	movementarray[movementarray.size] = "step_run";
+	movementarray[movementarray.size] = "land";
+	level.playerfootsounds = [];
+	movementarrayindex = 0;
+	movementtype = movementarray[movementarrayindex];
+	surfacearrayindex = 0;
+	surfacetype = surfacearray[surfacearrayindex];
+	index = 0;
+	firstperson = 0;
+	firstperson = 1;
+	islouder = 0;
+	islouder = 1;
+	createsoundaliasslot( movementtype, surfacetype, firstperson, islouder );
+	snd = buildandcachesoundalias( movementtype, surfacetype, firstperson, islouder );
+	index++;
+	surfacearrayindex++;
+	movementarrayindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x628
+checksurfacetypeiscorrect( movetype, surfacetype )
+{
+/#
+	println( "_footsteps.csc:" + surfacetype + " is an incorrect material override. " );
+	println( "Correct surface types: " );
+	println( "***Begin" );
+	arraykeys = getarraykeys( level.playerfootsounds[movetype] );
+	i = 0;
+	println( arraykeys[i] );
+	i++;
+	println( "***End" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6B8
+playerjump( client_num, player, surfacetype, firstperson, quiet, islouder )
+{
+	surfacetype = player.audiomaterialoverride;
+/#
+	checksurfacetypeiscorrect( "step_run", surfacetype );
+#/
+	sound_alias = level.playerfootsounds["step_run"][surfacetype][firstperson][islouder];
+	player playsound( client_num, sound_alias );
+// SP = 0x0 - check OK
+}
+
+// 0x718
+playerland( client_num, player, surfacetype, firstperson, quiet, damageplayer, islouder )
+{
+	surfacetype = player.audiomaterialoverride;
+/#
+	checksurfacetypeiscorrect( "land", surfacetype );
+#/
+	sound_alias = level.playerfootsounds["land"][surfacetype][firstperson][islouder];
+	player playsound( client_num, sound_alias );
+	volume = clientscripts\mp\_audio::get_vol_from_speed( player );
+	player playsound( client_num, player.step_sound, player.origin, volume );
+	player [[level.playerfalldamagesound]]( client_num, firstperson );
+	sound_alias = "fly_land_damage_npc";
+	sound_alias = "fly_land_damage_plr";
+	player playsound( client_num, sound_alias );
+// SP = 0x0 - check OK
+}
+
+// 0x804
+playerfoliage( client_num, player, firstperson, quiet )
+{
+	sound_alias = "fly_movement_foliage_npc";
+	sound_alias = "fly_movement_foliage_plr";
+	volume = clientscripts\mp\_audio::get_vol_from_speed( player );
+	player playsound( client_num, sound_alias, player.origin, volume );
+// SP = 0x0 - check OK
+}
+
+// 0x850
+createsoundaliasslot( movementtype, surfacetype, firstperson, islouder )
+{
+	isprecached = 0;
+	level.playerfootsounds[movementtype] = [];
+	level.playerfootsounds[movementtype][surfacetype] = [];
+	level.playerfootsounds[movementtype][surfacetype][firstperson] = [];
+// SP = 0x0 - check OK
+}
+
+// 0x8BC
+buildandcachesoundalias( movementtype, surfacetype, firstperson, islouder )
+{
+	sound_alias = "fly_" + movementtype;
+	sound_alias += "_plr_";
+	sound_alias += "_npc_";
+	sound_alias += surfacetype;
+	level.playerfootsounds[movementtype][surfacetype][firstperson][islouder] = sound_alias;
+	return sound_alias;
+// SP = 0x0 - check OK
+}
+
+// 0x914
+do_foot_effect( client_num, ground_type, foot_pos, on_fire )
+{
+	return;
+	ground_type = "fire";
+/#
+	print3d( foot_pos, ground_type, ( 0.5, 0.5, 0.8 ), 1, 3, 30 );
+#/
+	i = 0;
+	effect = "fly_step_" + ground_type;
+	playfx( client_num, level._effect[effect], foot_pos, foot_pos + vector_scale( ( 0, 0, 1 ), 100 ) );
+	return;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x9D4
+missing_ai_footstep_callback()
+{
+/#
+	type = self._aitype;
+	type = "unknown";
+	println( "*** Ai type : " + type + " has a client-script footstep script callback specified, but has no callback specified.  Call _footsteps::RegisterAITypeFootstepCB(\"" + self._aitype + "\", ::yourcbfunc); in your level main .csc file." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA18
+playaifootstep( client_num, pos, surface, notetrack, bone )
+{
+/#
+	println( "*** Client script footstep callback on an entity that doesn't have an _aitype defined.  Ignoring." );
+#/
+	footstepdoeverything();
+	return;
+	self missing_ai_footstep_callback();
+	footstepdoeverything();
+	return;
+	[[level._footstepcbfuncs[self._aitype]]]( client_num, pos, surface, notetrack, bone );
+// SP = 0x0 - check OK
+}

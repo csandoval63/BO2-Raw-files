@@ -1,0 +1,102 @@
+// maps/mp/gametypes_zm/_menus.gsc
+
+#include maps\mp\gametypes_zm\_rank;
+#include maps\mp\gametypes_zm\_globallogic;
+#include maps\mp\_utility;
+
+
+// 0x568
+init()
+{
+	precachestring( &"open_ingame_menu" );
+	game["menu_team"] = "team_marinesopfor";
+	game["menu_initteam_allies"] = "initteam_marines";
+	game["menu_initteam_axis"] = "initteam_opfor";
+	game["menu_class"] = "class";
+	game["menu_changeclass"] = "changeclass";
+	game["menu_changeclass_offline"] = "changeclass";
+	game["menu_wager_side_bet"] = "sidebet";
+	game["menu_wager_side_bet_player"] = "sidebet_player";
+	game["menu_changeclass_wager"] = "changeclass_wager";
+	game["menu_changeclass_custom"] = "changeclass_custom";
+	game["menu_changeclass_barebones"] = "changeclass_barebones";
+	foreach ( team in level.teams )
+	{
+		game["menu_changeclass_" + team] = "changeclass";
+	}
+	game["menu_controls"] = "ingame_controls";
+	game["menu_options"] = "ingame_options";
+	game["menu_leavegame"] = "popup_leavegame";
+	precachemenu( game["menu_controls"] );
+	precachemenu( game["menu_options"] );
+	precachemenu( game["menu_leavegame"] );
+	precachemenu( "scoreboard" );
+	precachemenu( "spectate" );
+	precachemenu( game["menu_team"] );
+	precachemenu( game["menu_changeclass_allies"] );
+	precachemenu( game["menu_initteam_allies"] );
+	precachemenu( game["menu_changeclass_axis"] );
+	precachemenu( game["menu_class"] );
+	precachemenu( game["menu_changeclass"] );
+	precachemenu( game["menu_initteam_axis"] );
+	precachemenu( game["menu_changeclass_offline"] );
+	precachemenu( game["menu_changeclass_wager"] );
+	precachemenu( game["menu_changeclass_custom"] );
+	precachemenu( game["menu_changeclass_barebones"] );
+	precachemenu( game["menu_wager_side_bet"] );
+	precachemenu( game["menu_wager_side_bet_player"] );
+	precachestring( &"MP_HOST_ENDED_GAME" );
+	precachestring( &"MP_HOST_ENDGAME_RESPONSE" );
+	level thread onplayerconnect();
+// SP = 0x0 - check OK
+}
+
+// 0x784
+onplayerconnect()
+{
+	level waittill( "connecting", player );
+	player thread onmenuresponse();
+// SP = 0x0 - check OK
+}
+
+// 0x7A8
+onmenuresponse()
+{
+	self endon( "disconnect" );
+	self waittill( "menuresponse", menu, response );
+	self closemenu();
+	self closeingamemenu();
+	self openmenu( game["menu_class"] );
+	self closemenu();
+	self closeingamemenu();
+	self openmenu( game["menu_team"] );
+	self openmenu( "changeclass_marines_splitscreen" );
+	self openmenu( "changeclass_opfor_splitscreen" );
+	level.skipvote = 1;
+	level thread maps\mp\gametypes_zm\_globallogic::forceend();
+	level thread maps\mp\gametypes_zm\_globallogic::killserverpc();
+	level thread maps\mp\gametypes_zm\_globallogic::forceend();
+	self closemenu();
+	self closeingamemenu();
+	self iprintln( &"MP_HOST_ENDGAME_RESPONSE" );
+	switch ( response )
+	{
+		case "autoassign":
+			self [[level.autoassign]]( 1 );
+			break;
+		case "spectator":
+			self [[level.spectator]]();
+			break;
+		default:
+			self [[level.teammenu]]( response );
+			break;
+	}
+	self closemenu();
+	self closeingamemenu();
+	kick( self getentitynumber() );
+	self.selectedclass = 1;
+	self [[level.class]]( response );
+	player = getplayerfromclientnum( int( response ) );
+	self setcurrentspectatorclient( player );
+// SP = 0x0 - check OK
+}

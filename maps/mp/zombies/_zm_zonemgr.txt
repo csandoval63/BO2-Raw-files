@@ -1,0 +1,739 @@
+// maps/mp/zombies/_zm_zonemgr.gsc
+
+#include maps\mp\zombies\_zm_zonemgr;
+#include maps\mp\gametypes_zm\_zm_gametype;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xDC0
+init()
+{
+/#
+	println( "ZM >> Zombiemode Server Scripts Init (_zm_zonemgr.gsc)" );
+#/
+	flag_init( "zones_initialized" );
+	level.zones = [];
+	level.zone_flags = [];
+	level.zone_scanning_active = 0;
+	level.create_spawner_list_func = ::create_spawner_list;
+// SP = 0x0 - check OK
+}
+
+// 0xE0C
+zone_is_enabled( zone_name )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE40
+get_player_zone()
+{
+	player_zone = undefined;
+	keys = getarraykeys( level.zones );
+	i = 0;
+	player_zone = keys[i];
+	i++;
+	return player_zone;
+// SP = 0x0 - check OK
+}
+
+// 0xE98
+get_zone_from_position( v_pos, ignore_enabled_check )
+{
+	zone = undefined;
+	scr_org = spawn( "script_origin", v_pos );
+	keys = getarraykeys( level.zones );
+	i = 0;
+	zone = keys[i];
+	i++;
+	scr_org delete();
+	return zone;
+// SP = 0x0 - check OK
+}
+
+// 0xF10
+get_zone_magic_boxes( zone_name )
+{
+	return undefined;
+	zone = level.zones[zone_name];
+/#
+	assert( IsDefined( zone_name ) );
+#/
+	return zone.magic_boxes;
+// SP = 0x0 - check OK
+}
+
+// 0xF58
+get_zone_zbarriers( zone_name )
+{
+	return undefined;
+	zone = level.zones[zone_name];
+/#
+	assert( IsDefined( zone_name ) );
+#/
+	return zone.zbarriers;
+// SP = 0x0 - check OK
+}
+
+// 0xFA0
+get_players_in_zone( zone_name, return_players )
+{
+	return 0;
+	zone = level.zones[zone_name];
+	num_in_zone = 0;
+	players_in_zone = [];
+	players = get_players();
+	i = 0;
+	j = 0;
+	num_in_zone++;
+	players_in_zone[players_in_zone.size] = players[j];
+	j++;
+	i++;
+	return players_in_zone;
+	return num_in_zone;
+// SP = 0x0 - check OK
+}
+
+// 0x1048
+player_in_zone( zone_name )
+{
+	return 0;
+	zone = level.zones[zone_name];
+	i = 0;
+	players = get_players();
+	j = 0;
+	return 1;
+	j++;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x10E4
+entity_in_zone( zone_name, ignore_enabled_check )
+{
+	return 0;
+	zone = level.zones[zone_name];
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x114C
+deactivate_initial_barrier_goals()
+{
+	special_goals = getstructarray( "exterior_goal", "targetname" );
+	i = 0;
+	special_goals[i].is_active = 0;
+	special_goals[i] trigger_off();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x11A8
+zone_init( zone_name )
+{
+	return;
+/#
+	println( "ZM >> zone_init (1) = " + zone_name );
+#/
+	level.zones[zone_name] = spawnstruct();
+	zone = level.zones[zone_name];
+	zone.is_enabled = 0;
+	zone.is_occupied = 0;
+	zone.is_active = 0;
+	zone.adjacent_zones = [];
+	zone.is_spawning_allowed = 0;
+	zone.volumes = [];
+	volumes = getentarray( zone_name, "targetname" );
+/#
+	println( "ZM >> zone_init (2) = " + volumes.size );
+#/
+	i = 0;
+	zone.volumes[zone.volumes.size] = volumes[i];
+	i++;
+/#
+	assert( IsDefined( zone.volumes[0] ), "zone_init: No volumes found for zone: " + zone_name );
+#/
+	spots = getstructarray( zone.volumes[0].target, "targetname" );
+	zone.spawn_locations = [];
+	zone.dog_locations = [];
+	zone.screecher_locations = [];
+	zone.avogadro_locations = [];
+	zone.inert_locations = [];
+	zone.quad_locations = [];
+	zone.leaper_locations = [];
+	zone.brutus_locations = [];
+	zone.mechz_locations = [];
+	zone.astro_locations = [];
+	zone.napalm_locations = [];
+	zone.zbarriers = [];
+	zone.magic_boxes = [];
+	barricades = getstructarray( "exterior_goal", "targetname" );
+	box_locs = getstructarray( "treasure_chest_use", "targetname" );
+	i = 0;
+	spots[i].zone_name = zone_name;
+	spots[i].is_enabled = 1;
+	spots[i].is_enabled = 0;
+	tokens = strtok( spots[i].script_noteworthy, " " );
+	foreach ( token in tokens )
+	{
+		zone.dog_locations[zone.dog_locations.size] = spots[i];
+		zone.screecher_locations[zone.screecher_locations.size] = spots[i];
+		zone.avogadro_locations[zone.avogadro_locations.size] = spots[i];
+		zone.inert_locations[zone.inert_locations.size] = spots[i];
+		zone.quad_locations[zone.quad_locations.size] = spots[i];
+		zone.leaper_locations[zone.leaper_locations.size] = spots[i];
+		zone.brutus_locations[zone.brutus_locations.size] = spots[i];
+		zone.mechz_locations[zone.mechz_locations.size] = spots[i];
+		zone.astro_locations[zone.astro_locations.size] = spots[i];
+		zone.napalm_locations[zone.napalm_locations.size] = spots[i];
+		zone.spawn_locations[zone.spawn_locations.size] = spots[i];
+	}
+	barricade_id = spots[i].script_string;
+	k = 0;
+	nodes = getnodearray( barricades[k].target, "targetname" );
+	j = 0;
+	spots[i].target = nodes[j].targetname;
+	j++;
+	k++;
+	i++;
+	i = 0;
+	targets = getentarray( barricades[i].target, "targetname" );
+	j = 0;
+	zone.zbarriers[zone.zbarriers.size] = targets[j];
+	j++;
+	i++;
+	i = 0;
+	chest_ent = getent( box_locs[i].script_noteworthy + "_zbarrier", "script_noteworthy" );
+	zone.magic_boxes[zone.magic_boxes.size] = box_locs[i];
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1710
+reinit_zone_spawners()
+{
+	zkeys = getarraykeys( level.zones );
+	i = 0;
+	zone = level.zones[zkeys[i]];
+	spots = getstructarray( zone.volumes[0].target, "targetname" );
+	zone.spawn_locations = [];
+	zone.dog_locations = [];
+	zone.screecher_locations = [];
+	zone.avogadro_locations = [];
+	zone.quad_locations = [];
+	zone.leaper_locations = [];
+	zone.brutus_locations = [];
+	zone.mechz_locations = [];
+	zone.astro_locations = [];
+	zone.napalm_locations = [];
+	j = 0;
+	spots[j].zone_name = zkeys[j];
+	spots[j].is_enabled = 1;
+	spots[j].is_enabled = 0;
+	tokens = strtok( spots[j].script_noteworthy, " " );
+	foreach ( token in tokens )
+	{
+		zone.dog_locations[zone.dog_locations.size] = spots[j];
+		zone.screecher_locations[zone.screecher_locations.size] = spots[j];
+		zone.avogadro_locations[zone.avogadro_locations.size] = spots[j];
+		zone.quad_locations[zone.quad_locations.size] = spots[j];
+		zone.leaper_locations[zone.leaper_locations.size] = spots[j];
+		zone.brutus_locations[zone.brutus_locations.size] = spots[j];
+		zone.mechz_locations[zone.mechz_locations.size] = spots[j];
+		zone.astro_locations[zone.astro_locations.size] = spots[j];
+		zone.napalm_locations[zone.napalm_locations.size] = spots[j];
+		zone.spawn_locations[zone.spawn_locations.size] = spots[j];
+	}
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x19CC
+enable_zone( zone_name )
+{
+/#
+	assert( IsDefined( level.zones[zone_name] ), "enable_zone: zone has not been initialized" );
+#/
+	return;
+	level.zones[zone_name].is_enabled = 1;
+	level.zones[zone_name].is_spawning_allowed = 1;
+	level notify( zone_name );
+	spawn_points = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+	i = 0;
+	spawn_points[i].locked = 0;
+	i++;
+	entry_points = getstructarray( zone_name + "_barriers", "script_noteworthy" );
+	i = 0;
+	entry_points[i].is_active = 1;
+	entry_points[i] trigger_on();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1AB4
+make_zone_adjacent( main_zone_name, adj_zone_name, flag_name )
+{
+	main_zone = level.zones[main_zone_name];
+	main_zone.adjacent_zones[adj_zone_name] = spawnstruct();
+	adj_zone = main_zone.adjacent_zones[adj_zone_name];
+	adj_zone.is_connected = 0;
+	adj_zone.flags_do_or_check = 0;
+	adj_zone.flags = flag_name;
+	adj_zone.flags[0] = flag_name;
+/#
+	assert( !(isarray( flag_name )), "make_zone_adjacent: can't mix single and arrays of flags" );
+#/
+	adj_zone = main_zone.adjacent_zones[adj_zone_name];
+	size = adj_zone.flags.size;
+	adj_zone.flags_do_or_check = 1;
+	adj_zone.flags[size] = flag_name;
+// SP = 0x0 - check OK
+}
+
+// 0x1B84
+add_zone_flags( wait_flag, add_flags )
+{
+	temp = add_flags;
+	add_flags = [];
+	add_flags[0] = temp;
+	keys = getarraykeys( level.zone_flags );
+	i = 0;
+	level.zone_flags[keys[i]] = arraycombine( level.zone_flags[keys[i]], add_flags, 1, 0 );
+	return;
+	i++;
+	level.zone_flags[wait_flag] = add_flags;
+// SP = 0x0 - check OK
+}
+
+// 0x1C14
+add_adjacent_zone( zone_name_a, zone_name_b, flag_name, one_way )
+{
+	one_way = 0;
+	flag_init( flag_name );
+	zone_init( zone_name_a );
+	zone_init( zone_name_b );
+	make_zone_adjacent( zone_name_a, zone_name_b, flag_name );
+	make_zone_adjacent( zone_name_b, zone_name_a, flag_name );
+// SP = 0x0 - check OK
+}
+
+// 0x1C84
+setup_zone_flag_waits()
+{
+	flags = [];
+	zkeys = getarraykeys( level.zones );
+	z = 0;
+	zone = level.zones[zkeys[z]];
+	azkeys = getarraykeys( zone.adjacent_zones );
+	az = 0;
+	azone = zone.adjacent_zones[azkeys[az]];
+	f = 0;
+	flags = add_to_array( flags, azone.flags[f], 0 );
+	f++;
+	az++;
+	z++;
+	i = 0;
+	level thread zone_flag_wait( flags[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1D68
+zone_flag_wait( flag_name )
+{
+	flag_init( flag_name );
+	flag_wait( flag_name );
+	flags_set = 0;
+	z = 0;
+	zkeys = getarraykeys( level.zones );
+	zone = level.zones[zkeys[z]];
+	az = 0;
+	azkeys = getarraykeys( zone.adjacent_zones );
+	azone = zone.adjacent_zones[azkeys[az]];
+	flags_set = 0;
+	f = 0;
+	flags_set = 1;
+	f++;
+	flags_set = 1;
+	f = 0;
+	flags_set = 0;
+	f++;
+	enable_zone( zkeys[z] );
+	azone.is_connected = 1;
+	enable_zone( azkeys[az] );
+	azone thread door_close_disconnect( flag_name );
+	az++;
+	z++;
+	keys = getarraykeys( level.zone_flags );
+	i = 0;
+	check_flag = level.zone_flags[keys[i]];
+	k = 0;
+	flag_set( check_flag[k] );
+	k++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1F6C
+door_close_disconnect( flag_name )
+{
+	wait 1;
+	self.is_connected = 0;
+	level thread zone_flag_wait( flag_name );
+// SP = 0x0 - check OK
+}
+
+// 0x1FA8
+connect_zones( zone_name_a, zone_name_b, one_way )
+{
+	one_way = 0;
+	zone_init( zone_name_a );
+	zone_init( zone_name_b );
+	enable_zone( zone_name_a );
+	enable_zone( zone_name_b );
+	level.zones[zone_name_a].adjacent_zones[zone_name_b] = spawnstruct();
+	level.zones[zone_name_a].adjacent_zones[zone_name_b].is_connected = 1;
+	level.zones[zone_name_b].adjacent_zones[zone_name_a] = spawnstruct();
+	level.zones[zone_name_b].adjacent_zones[zone_name_a].is_connected = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x207C
+manage_zones( initial_zone )
+{
+/#
+	assert( IsDefined( initial_zone ), "You must specify an initial zone to manage" );
+#/
+	deactivate_initial_barrier_goals();
+	zone_choke = 0;
+	spawn_points = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+	i = 0;
+/#
+	assert( IsDefined( spawn_points[i].script_noteworthy ), "player_respawn_point: You must specify a script noteworthy with the zone name" );
+#/
+	spawn_points[i].locked = 1;
+	i++;
+	[[level.zone_manager_init_func]]();
+/#
+	println( "ZM >> zone_init bbbb  (_zm_zonemgr.gsc) = " + initial_zone.size );
+#/
+/#
+	println( "ZM >> zone_init aaaa  (_zm_zonemgr.gsc) = " + initial_zone[0] );
+#/
+	i = 0;
+	zone_init( initial_zone[i] );
+	enable_zone( initial_zone[i] );
+	i++;
+/#
+	println( "ZM >> zone_init (_zm_zonemgr.gsc) = " + initial_zone );
+#/
+	zone_init( initial_zone );
+	enable_zone( initial_zone );
+	setup_zone_flag_waits();
+	zkeys = getarraykeys( level.zones );
+	level.zone_keys = zkeys;
+	level.newzones = [];
+	z = 0;
+	level.newzones[zkeys[z]] = spawnstruct();
+	z++;
+	oldzone = undefined;
+	flag_set( "zones_initialized" );
+	flag_wait( "begin_spawning" );
+/#
+	level thread _debug_zones();
+#/
+	z = 0;
+	level.newzones[zkeys[z]].is_active = 0;
+	level.newzones[zkeys[z]].is_occupied = 0;
+	z++;
+	a_zone_is_active = 0;
+	a_zone_is_spawning_allowed = 0;
+	level.zone_scanning_active = 1;
+	z = 0;
+	zone = level.zones[zkeys[z]];
+	newzone = level.newzones[zkeys[z]];
+	newzone.is_occupied = [[level.zone_occupied_func]]( zkeys[z] );
+	newzone.is_occupied = player_in_zone( zkeys[z] );
+	newzone.is_active = 1;
+	a_zone_is_active = 1;
+	a_zone_is_spawning_allowed = 1;
+	level notify( "newzoneActive", zkeys[z] );
+	oldzone = newzone;
+	azkeys = getarraykeys( zone.adjacent_zones );
+	az = 0;
+	level.newzones[azkeys[az]].is_active = 1;
+	a_zone_is_spawning_allowed = 1;
+	az++;
+	zone_choke++;
+	zone_choke = 0;
+	wait 0.05;
+	z++;
+	level.zone_scanning_active = 0;
+	z = 0;
+	level.zones[zkeys[z]].is_active = level.newzones[zkeys[z]].is_active;
+	level.zones[zkeys[z]].is_occupied = level.newzones[zkeys[z]].is_occupied;
+	z++;
+	level.zones[initial_zone[0]].is_active = 1;
+	level.zones[initial_zone[0]].is_occupied = 1;
+	level.zones[initial_zone[0]].is_spawning_allowed = 1;
+	level.zones[initial_zone].is_active = 1;
+	level.zones[initial_zone].is_occupied = 1;
+	level.zones[initial_zone].is_spawning_allowed = 1;
+	[[level.create_spawner_list_func]]( zkeys );
+/#
+	debug_show_spawn_locations();
+#/
+	level.active_zone_names = maps\mp\zombies\_zm_zonemgr::get_active_zone_names();
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x24E0
+debug_show_spawn_locations()
+{
+/#
+	host_player = gethostplayer();
+	foreach ( location in level.zombie_spawn_locations )
+	{
+		distance = distance( location.origin, host_player.origin );
+		color = ( 0, 0, 1 );
+		color = ( 1, 0, 0 );
+		debugstar( location.origin, GetDvarInt( #"0xBB9101B2" ), color );
+	}
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x258C
+old_manage_zones( initial_zone )
+{
+/#
+	assert( IsDefined( initial_zone ), "You must specify an initial zone to manage" );
+#/
+	deactivate_initial_barrier_goals();
+	spawn_points = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+	i = 0;
+/#
+	assert( IsDefined( spawn_points[i].script_noteworthy ), "player_respawn_point: You must specify a script noteworthy with the zone name" );
+#/
+	spawn_points[i].locked = 1;
+	i++;
+	[[level.zone_manager_init_func]]();
+/#
+	println( "ZM >> zone_init bbbb  (_zm_zonemgr.gsc) = " + initial_zone.size );
+#/
+/#
+	println( "ZM >> zone_init aaaa  (_zm_zonemgr.gsc) = " + initial_zone[0] );
+#/
+	i = 0;
+	zone_init( initial_zone[i] );
+	enable_zone( initial_zone[i] );
+	i++;
+/#
+	println( "ZM >> zone_init (_zm_zonemgr.gsc) = " + initial_zone );
+#/
+	zone_init( initial_zone );
+	enable_zone( initial_zone );
+	setup_zone_flag_waits();
+	zkeys = getarraykeys( level.zones );
+	level.zone_keys = zkeys;
+	flag_set( "zones_initialized" );
+	flag_wait( "begin_spawning" );
+/#
+	level thread _debug_zones();
+#/
+	z = 0;
+	level.zones[zkeys[z]].is_active = 0;
+	level.zones[zkeys[z]].is_occupied = 0;
+	z++;
+	a_zone_is_active = 0;
+	a_zone_is_spawning_allowed = 0;
+	z = 0;
+	zone = level.zones[zkeys[z]];
+	zone.is_occupied = [[level.zone_occupied_func]]( zkeys[z] );
+	zone.is_occupied = player_in_zone( zkeys[z] );
+	zone.is_active = 1;
+	a_zone_is_active = 1;
+	a_zone_is_spawning_allowed = 1;
+	azkeys = getarraykeys( zone.adjacent_zones );
+	az = 0;
+	level.zones[azkeys[az]].is_active = 1;
+	a_zone_is_spawning_allowed = 1;
+	az++;
+	z++;
+	level.zones[initial_zone[0]].is_active = 1;
+	level.zones[initial_zone[0]].is_occupied = 1;
+	level.zones[initial_zone[0]].is_spawning_allowed = 1;
+	level.zones[initial_zone].is_active = 1;
+	level.zones[initial_zone].is_occupied = 1;
+	level.zones[initial_zone].is_spawning_allowed = 1;
+	[[level.create_spawner_list_func]]( zkeys );
+	level.active_zone_names = maps\mp\zombies\_zm_zonemgr::get_active_zone_names();
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2900
+create_spawner_list( zkeys )
+{
+	level.zombie_spawn_locations = [];
+	level.inert_locations = [];
+	level.enemy_dog_locations = [];
+	level.zombie_screecher_locations = [];
+	level.zombie_avogadro_locations = [];
+	level.quad_locations = [];
+	level.zombie_leaper_locations = [];
+	level.zombie_astro_locations = [];
+	level.zombie_brutus_locations = [];
+	level.zombie_mechz_locations = [];
+	level.zombie_napalm_locations = [];
+	z = 0;
+	zone = level.zones[zkeys[z]];
+	i = 0;
+	level.zombie_spawn_locations[level.zombie_spawn_locations.size] = zone.spawn_locations[i];
+	i++;
+	x = 0;
+	level.inert_locations[level.inert_locations.size] = zone.inert_locations[x];
+	x++;
+	x = 0;
+	level.enemy_dog_locations[level.enemy_dog_locations.size] = zone.dog_locations[x];
+	x++;
+	x = 0;
+	level.zombie_screecher_locations[level.zombie_screecher_locations.size] = zone.screecher_locations[x];
+	x++;
+	x = 0;
+	level.zombie_avogadro_locations[level.zombie_avogadro_locations.size] = zone.avogadro_locations[x];
+	x++;
+	x = 0;
+	level.quad_locations[level.quad_locations.size] = zone.quad_locations[x];
+	x++;
+	x = 0;
+	level.zombie_leaper_locations[level.zombie_leaper_locations.size] = zone.leaper_locations[x];
+	x++;
+	x = 0;
+	level.zombie_astro_locations[level.zombie_astro_locations.size] = zone.astro_locations[x];
+	x++;
+	x = 0;
+	level.zombie_napalm_locations[level.zombie_napalm_locations.size] = zone.napalm_locations[x];
+	x++;
+	x = 0;
+	level.zombie_brutus_locations[level.zombie_brutus_locations.size] = zone.brutus_locations[x];
+	x++;
+	x = 0;
+	level.zombie_mechz_locations[level.zombie_mechz_locations.size] = zone.mechz_locations[x];
+	x++;
+	z++;
+// SP = 0x0 - check OK
+}
+
+// 0x2C54
+get_active_zone_names()
+{
+	ret_list = [];
+	return ret_list;
+	wait 0.05;
+	i = 0;
+	ret_list[ret_list.size] = level.zone_keys[i];
+	i++;
+	return ret_list;
+// SP = 0x0 - check OK
+}
+
+// 0x2CC0
+_init_debug_zones()
+{
+	current_y = 30;
+	current_x = 20;
+	xloc = [];
+	xloc[0] = 50;
+	xloc[1] = 60;
+	xloc[2] = 100;
+	xloc[3] = 130;
+	xloc[4] = 170;
+	zkeys = getarraykeys( level.zones );
+	i = 0;
+	zonename = zkeys[i];
+	zone = level.zones[zonename];
+	zone.debug_hud = [];
+	j = 0;
+	zone.debug_hud[j] = newdebughudelem();
+	zone.debug_hud[j].alignx = "right";
+	zone.debug_hud[j].alignx = "left";
+	zone.debug_hud[j].x = xloc[j];
+	zone.debug_hud[j].y = current_y;
+	j++;
+	current_y += 10;
+	zone.debug_hud[0] settext( zonename );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2DE4
+_destroy_debug_zones()
+{
+	zkeys = getarraykeys( level.zones );
+	i = 0;
+	zonename = zkeys[i];
+	zone = level.zones[zonename];
+	j = 0;
+	zone.debug_hud[j] destroy();
+	zone.debug_hud[j] = undefined;
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2E5C
+_debug_zones()
+{
+	enabled = 0;
+	setdvar( "zombiemode_debug_zones", "0" );
+	wasenabled = enabled;
+	enabled = GetDvarInt( #"0x10E35BC4" );
+	_init_debug_zones();
+	_destroy_debug_zones();
+	zkeys = getarraykeys( level.zones );
+	i = 0;
+	zonename = zkeys[i];
+	zone = level.zones[zonename];
+	text = zonename;
+	zone.debug_hud[0] settext( text );
+	text += " Enabled";
+	zone.debug_hud[1] settext( "Enabled" );
+	zone.debug_hud[1] settext( "" );
+	text += " Active";
+	zone.debug_hud[2] settext( "Active" );
+	zone.debug_hud[2] settext( "" );
+	text += " Occupied";
+	zone.debug_hud[3] settext( "Occupied" );
+	zone.debug_hud[3] settext( "" );
+	text += " SpawningAllowed";
+	zone.debug_hud[4] settext( "SpawningAllowed" );
+	zone.debug_hud[4] settext( "" );
+/#
+	println( "ZM >> DEBUG=" + text );
+#/
+	i++;
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x3060
+is_player_in_zone( zone_name )
+{
+	zone = level.zones[zone_name];
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}

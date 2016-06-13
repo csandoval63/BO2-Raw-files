@@ -1,0 +1,342 @@
+// maps/mp/bots/_bot_loadout.gsc
+
+#include maps\mp\gametypes\_rank;
+#include maps\mp\bots\_bot;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x8EC
+init()
+{
+	level endon( "game_ended" );
+	level.bot_banned_killstreaks = array( "KILLSTREAK_RCBOMB", "KILLSTREAK_QRDRONE", "KILLSTREAK_REMOTE_MISSILE", "KILLSTREAK_REMOTE_MORTAR", "KILLSTREAK_HELICOPTER_GUNNER" );
+	level waittill( "connected", player );
+	player thread on_bot_connect();
+// SP = 0x0 - check OK
+}
+
+// 0x948
+on_bot_connect()
+{
+	self endon( "disconnect" );
+	return;
+	wait 0.1;
+	wait 0.05;
+	self maps\mp\bots\_bot::bot_set_rank();
+	self botsetdefaultclass( 5, "class_assault" );
+	self botsetdefaultclass( 6, "class_smg" );
+	self botsetdefaultclass( 7, "class_lmg" );
+	self botsetdefaultclass( 8, "class_cqb" );
+	self botsetdefaultclass( 9, "class_sniper" );
+	self botsetdefaultclass( 5, "class_assault" );
+	self botsetdefaultclass( 6, "class_smg" );
+	self botsetdefaultclass( 7, "class_lmg" );
+	self botsetdefaultclass( 8, "class_cqb" );
+	self botsetdefaultclass( 9, "class_sniper" );
+	max_allocation = 10;
+	i = 1;
+	max_allocation--;
+	i++;
+	self bot_construct_loadout( max_allocation );
+	self.pers["bot_loadout"] = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xAA4
+bot_construct_loadout( allocation_max )
+{
+	return;
+	pixbeginevent( "bot_construct_loadout" );
+	item_list = bot_build_item_list();
+	bot_construct_class( 0, item_list, allocation_max );
+	bot_construct_class( 1, item_list, allocation_max );
+	bot_construct_class( 2, item_list, allocation_max );
+	bot_construct_class( 3, item_list, allocation_max );
+	bot_construct_class( 4, item_list, allocation_max );
+	killstreaks = item_list["killstreak1"];
+	killstreaks = arraycombine( killstreaks, item_list["killstreak2"], 1, 0 );
+	killstreaks = arraycombine( killstreaks, item_list["killstreak3"], 1, 0 );
+	bot_choose_weapon( 0, killstreaks );
+	bot_choose_weapon( 0, killstreaks );
+	bot_choose_weapon( 0, killstreaks );
+	self.claimed_items = undefined;
+	pixendevent();
+// SP = 0x0 - check OK
+}
+
+// 0xBC4
+bot_construct_class( class, items, allocation_max )
+{
+	allocation = 0;
+	claimed_count = bot_build_claimed_list( items );
+	self.claimed_items = [];
+	secondary_chance = 40;
+	remaining = allocation_max - allocation;
+	weapon = bot_choose_weapon( class, items["primary"] );
+	claimed_count["primary"]++;
+	allocation++;
+	bot_choose_weapon_option( class, "camo", 0 );
+	bot_choose_weapon_option( class, "reticle", 0 );
+	allocation += bot_choose_primary_attachments( class, weapon, allocation, allocation_max );
+	secondary_chance = 100;
+	remaining = allocation_max - allocation;
+	self botclassadditem( class, "BONUSCARD_OVERKILL" );
+	weapon = bot_choose_weapon( class, items["primary"] );
+	allocation++;
+	weapon = bot_choose_weapon( class, items["secondary"] );
+	bot_choose_weapon_option( class, "camo", 1 );
+	allocation++;
+	claimed_count["secondary"]++;
+	allocation += bot_choose_secondary_attachments( class, weapon, allocation, allocation_max );
+	perks_chance = 50;
+	lethal_chance = 30;
+	tactical_chance = 20;
+	perks_chance = 0;
+	lethal_chance = 0;
+	tactical_chance = 0;
+	return;
+	next_action = bot_chose_action( "perks", perks_chance, "lethal", lethal_chance, "tactical", tactical_chance, "none", 0 );
+	remaining = allocation_max - allocation;
+	self botclassadditem( class, "BONUSCARD_PERK_1_GREED" );
+	bot_choose_weapon( class, items["specialty1"] );
+	bot_choose_weapon( class, items["specialty1"] );
+	claimed_count["specialty1"] = 2;
+	allocation += 3;
+	remaining = allocation_max - allocation;
+	self botclassadditem( class, "BONUSCARD_PERK_2_GREED" );
+	bot_choose_weapon( class, items["specialty2"] );
+	bot_choose_weapon( class, items["specialty2"] );
+	claimed_count["specialty2"] = 2;
+	allocation += 3;
+	remaining = allocation_max - allocation;
+	self botclassadditem( class, "BONUSCARD_PERK_3_GREED" );
+	bot_choose_weapon( class, items["specialty3"] );
+	bot_choose_weapon( class, items["specialty3"] );
+	claimed_count["specialty3"] = 2;
+	allocation += 3;
+	remaining = allocation_max - allocation;
+	i = 0;
+	perks = [];
+	remaining = allocation_max - allocation;
+	perks[perks.size] = "specialty1";
+	perks[perks.size] = "specialty2";
+	perks[perks.size] = "specialty3";
+	perk = random( perks );
+	bot_choose_weapon( class, items[perk] );
+	claimed_count[perk]++;
+	allocation++;
+	i++;
+	remaining = allocation_max - allocation;
+	bot_choose_weapon( class, items["primarygrenade"] );
+	claimed_count["primarygrenade"]++;
+	allocation++;
+	self botclassadditem( class, "BONUSCARD_DANGER_CLOSE" );
+	allocation++;
+	bot_choose_weapon( class, items["primarygrenade"] );
+	claimed_count["primarygrenade"]++;
+	allocation++;
+	remaining = allocation_max - allocation;
+	weapon = bot_choose_weapon( class, items["specialgrenade"] );
+	claimed_count["specialgrenade"] = 1;
+	allocation += 1;
+	self botclassadditem( class, weapon );
+	claimed_count["specialgrenade"] = 2;
+	allocation += 2;
+	bot_choose_weapon( class, items["specialgrenade"] );
+	claimed_count["specialgrenade"]++;
+	allocation++;
+// SP = 0x0 - check OK
+}
+
+// 0x1148
+bot_make_choice( chance, claimed, max_claim )
+{
+	return randomint( 100 ) < chance;
+// SP = 0x0 - check OK
+}
+
+// 0x116C
+bot_chose_action( action1, chance1, action2, chance2, action3, chance3, action4, chance4 )
+{
+	chance1 = int( chance1 / 10 );
+	chance2 = int( chance2 / 10 );
+	chance3 = int( chance3 / 10 );
+	chance4 = int( chance4 / 10 );
+	actions = [];
+	i = 0;
+	actions[actions.size] = action1;
+	i++;
+	i = 0;
+	actions[actions.size] = action2;
+	i++;
+	i = 0;
+	actions[actions.size] = action3;
+	i++;
+	i = 0;
+	actions[actions.size] = action4;
+	i++;
+	return random( actions );
+// SP = 0x0 - check OK
+}
+
+// 0x124C
+bot_item_is_claimed( item )
+{
+	foreach ( claim in self.claimed_items )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1290
+bot_choose_weapon( class, items )
+{
+	return undefined;
+	start = randomint( items.size );
+	i = 0;
+	weapon = items[start];
+	start = ( start + 1 ) % items.size;
+	i++;
+	self.claimed_items[self.claimed_items.size] = weapon;
+	self botclassadditem( class, weapon );
+	return weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x1318
+bot_build_weapon_options_list( optiontype )
+{
+	level.botweaponoptionsid[optiontype] = [];
+	level.botweaponoptionsprob[optiontype] = [];
+	prob = 0;
+	row = 0;
+	index = level.botweaponoptionsid[optiontype].size;
+	level.botweaponoptionsid[optiontype][index] = int( tablelookupcolumnforrow( "mp/attachmentTable.csv", row, 0 ) );
+	prob += int( tablelookupcolumnforrow( "mp/attachmentTable.csv", row, 15 ) );
+	level.botweaponoptionsprob[optiontype][index] = prob;
+	row++;
+// SP = 0x0 - check OK
+}
+
+// 0x13C0
+bot_choose_weapon_option( class, optiontype, primary )
+{
+	level.botweaponoptionsid = [];
+	level.botweaponoptionsprob = [];
+	bot_build_weapon_options_list( "camo" );
+	bot_build_weapon_options_list( "reticle" );
+	return;
+	numoptions = level.botweaponoptionsprob[optiontype].size;
+	maxprob = level.botweaponoptionsprob[optiontype][numoptions - 1];
+	maxprob = ( maxprob + 4 ) * maxprob * ( 20 - ( self.pers["rank"] / 20 ) );
+	rnd = randomint( int( maxprob ) );
+	i = 0;
+	self botclasssetweaponoption( class, primary, optiontype, level.botweaponoptionsid[optiontype][i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x14BC
+bot_choose_primary_attachments( class, weapon, allocation, allocation_max )
+{
+	attachments = getweaponattachments( weapon );
+	remaining = allocation_max - allocation;
+	return 0;
+	attachment_action = bot_chose_action( "3_attachments", 25, "2_attachments", 35, "1_attachments", 35, "none", 5 );
+	a1 = random( attachments );
+	self botclassaddattachment( class, weapon, a1, "primaryattachment1" );
+	count = 1;
+	attachments = getweaponattachments( weapon, a1 );
+	a2 = random( attachments );
+	self botclassaddattachment( class, weapon, a2, "primaryattachment2" );
+	count++;
+	attachments = getweaponattachments( weapon, a1, a2 );
+	a3 = random( attachments );
+	self botclassadditem( class, "BONUSCARD_PRIMARY_GUNFIGHTER" );
+	self botclassaddattachment( class, weapon, a3, "primaryattachment3" );
+	return 4;
+	return count;
+	a1 = random( attachments );
+	self botclassaddattachment( class, weapon, a1, "primaryattachment1" );
+	attachments = getweaponattachments( weapon, a1 );
+	a2 = random( attachments );
+	self botclassaddattachment( class, weapon, a2, "primaryattachment2" );
+	return 2;
+	return 1;
+	a = random( attachments );
+	self botclassaddattachment( class, weapon, a, "primaryattachment1" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x16A4
+bot_choose_secondary_attachments( class, weapon, allocation, allocation_max )
+{
+	attachments = getweaponattachments( weapon );
+	remaining = allocation_max - allocation;
+	return 0;
+	attachment_action = bot_chose_action( "2_attachments", 10, "1_attachments", 40, "none", 50, "none", 0 );
+	a1 = random( attachments );
+	self botclassaddattachment( class, weapon, a1, "secondaryattachment1" );
+	attachments = getweaponattachments( weapon, a1 );
+	a2 = random( attachments );
+	self botclassadditem( class, "BONUSCARD_SECONDARY_GUNFIGHTER" );
+	self botclassaddattachment( class, weapon, a2, "secondaryattachment2" );
+	return 3;
+	return 1;
+	a = random( attachments );
+	self botclassaddattachment( class, weapon, a, "secondaryattachment1" );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x17C8
+bot_build_item_list()
+{
+	pixbeginevent( "bot_build_item_list" );
+	items = [];
+	i = 0;
+	row = tablelookuprownum( level.statstableid, 0, i );
+	slot = tablelookupcolumnforrow( level.statstableid, row, 13 );
+	number = int( tablelookupcolumnforrow( level.statstableid, row, 0 ) );
+	allocation = int( tablelookupcolumnforrow( level.statstableid, row, 12 ) );
+	name = tablelookupcolumnforrow( level.statstableid, row, 3 );
+	items[slot] = [];
+	items[slot][items[slot].size] = name;
+	i++;
+	pixendevent();
+	return items;
+// SP = 0x0 - check OK
+}
+
+// 0x18E8
+bot_item_is_banned( slot, item )
+{
+	return 1;
+	return 1;
+	return 0;
+	foreach ( banned in level.bot_banned_killstreaks )
+	{
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1974
+bot_build_claimed_list( items )
+{
+	claimed = [];
+	keys = getarraykeys( items );
+	foreach ( key in keys )
+	{
+		claimed[key] = 0;
+	}
+	return claimed;
+// SP = 0x0 - check OK
+}

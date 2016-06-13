@@ -1,0 +1,27 @@
+// codescripts/character_mp.gsc
+
+#include codescripts\character;
+
+
+// 0xEC
+setmodelfromarray( a )
+{
+	self setmodel( a[randomint( a.size )] );
+// SP = 0x0 - check OK
+}
+
+// 0x110
+precachemodelarray( a )
+{
+	i = 0;
+	precachemodel( a[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x140
+attachfromarray( a )
+{
+	self attach( codescripts\character::randomelement( a ), "", 1 );
+// SP = 0x0 - check OK
+}

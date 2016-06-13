@@ -1,0 +1,17 @@
+// maps/_gamemode.gsc
+
+
+// 0x74
+shouldsaveonstartup()
+{
+	gt = GetDvar( #"0x4F118387" );
+	switch ( gt )
+	{
+		case "vs":
+			return 0;
+			break;
+		default:
+	}
+	return 1;
+// SP = 0x0 - check OK
+}

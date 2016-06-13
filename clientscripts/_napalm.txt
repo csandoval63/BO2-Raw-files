@@ -1,0 +1,75 @@
+// clientscripts/_napalm.csc
+
+#include clientscripts\_airsupport;
+#include clientscripts\_vehicle;
+#include clientscripts\_utility_code;
+#include clientscripts\_utility;
+
+
+// 0x688
+startnapalm( localclientnum, pos, yaw, teamfaction, team, owner, exittype )
+{
+	init_napalmstrike();
+	players = level.localplayers;
+	i = 0;
+	callnapalmstrike( localclientnum, pos, yaw, teamfaction, team, owner, exittype );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+init_napalmstrike()
+{
+	level.fx_jet_trail = loadfx( "trail/fx_geotrail_jet_contrail" );
+	level.fx_airstrike_afterburner = loadfx( "vehicle/exhaust/fx_exhaust_jet_afterburner" );
+	level.fx_napalm_marker = loadfx( "weapon/napalm/fx_napalm_marker_mp" );
+	level.napalmstrikeinited = 1;
+	switch ( level.airsupportheightscale )
+	{
+		case 2:
+			level.airsupportbombtimer = 2.45;
+			level.airsupportfxtimer = 1;
+			break;
+		case 3:
+			level.airsupportbombtimer = 2.2;
+			level.airsupportfxtimer = 1.2;
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x798
+playplanefx( localclientnum )
+{
+	playfxontag( localclientnum, level.fx_airstrike_afterburner, self, "tag_engine" );
+	playfxontag( localclientnum, level.fx_jet_trail, self, "tag_right_wingtip" );
+	playfxontag( localclientnum, level.fx_jet_trail, self, "tag_left_wingtip" );
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+callnapalmstrike( localclientnum, coord, yaw, teamfaction, team, owner, exittype )
+{
+	direction = ( 0, yaw, 0 );
+	planeflyheight = 850;
+	planeflyheight *= level.airsupportheightscale;
+	startpoint = coord + vector_scale( anglestoforward( direction ), -1 * 24000 );
+	endpoint = coord + vector_scale( anglestoforward( direction ), 24000 );
+	startpoint = ( startpoint[0], startpoint[1], level.forceairsupportmapheight );
+	endpoint = ( endpoint[0], endpoint[1], level.forceairsupportmapheight );
+	coord = ( coord[0], coord[1], level.forceairsupportmapheight );
+	startpoint += ( 0, 0, planeflyheight );
+	endpoint += ( 0, 0, planeflyheight );
+	d = length( startpoint - endpoint );
+	flytime = d / 7000;
+	return;
+	planemodel = "t5_veh_jet_mig17";
+	thread flareplane( localclientnum, planemodel, team, owner, startpoint, endpoint, flytime, direction );
+	wait 3;
+	thread napalmplane( localclientnum, planemodel, team, owner, exittype, startpoint, endpoint, flytime, direction, yaw );
+// SP = 0x0 - check OK
+}
+
+// 0x8FC
+napalmplane( localclientnum, planemodel, team, owner, exittype, startpoint, endpoint, flytime, direction, yaw )
+{

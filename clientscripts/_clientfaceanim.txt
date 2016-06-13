@@ -1,0 +1,38 @@
+// clientscripts/_clientfaceanim.csc
+
+#include clientscripts\_clientfaceanim;
+#include clientscripts\_face_utility;
+#include clientscripts\_utility;
+
+
+// 0x1FC
+actor_facial_anim_flag_handler( localclientnum, set, newent )
+{
+/#
+	println( "*** SET flag face_disable - for ent " + self getentitynumber() + "[" + self.type + "]" );
+#/
+	self.face_disable = 1;
+	self notify( "face", "face_advance" );
+/#
+	println( "*** CLEARED flag face_disable - for ent " + self getentitynumber() + "[" + self.type + "]" );
+#/
+	self.face_disable = 0;
+	self notify( "face", "face_advance" );
+// SP = 0x0 - check OK
+}
+
+// 0x2A8
+init_clientfaceanim()
+{
+	register_clientflag_callback( "actor", 1, ::actor_facial_anim_flag_handler );
+	level._faceanimcbfunc = clientscripts\_clientfaceanim::doface;
+// SP = 0x0 - check OK
+}
+
+// 0x2D0
+doface( localclientnum )
+{
+	return;
+	self [[level._facecbfunc_generichuman]]( localclientnum );
+// SP = 0x0 - check OK
+}

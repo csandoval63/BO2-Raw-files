@@ -1,0 +1,223 @@
+// clientscripts/mp/mp_hydro.csc
+
+#include clientscripts\mp\mp_hydro_amb;
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\mp_hydro_fx;
+#include clientscripts\mp\_load;
+#include clientscripts\mp\_utility;
+
+
+// 0x7E8
+main()
+{
+	level.worldmapx = 0;
+	level.worldmapy = 0;
+	level.worldlat = 24.5581;
+	level.worldlong = 67.9817;
+	clientscripts\mp\_load::main();
+	clientscripts\mp\mp_hydro_fx::main();
+	thread clientscripts\mp\_audio::audio_init( 0 );
+	thread clientscripts\mp\mp_hydro_amb::main();
+	level.onplayerconnect = ::hydroplayerconnected;
+	registerclientfield( "world", "pre_wave", 1, 1, "int", ::playprewave, 0 );
+	registerclientfield( "world", "big_wave", 1, 1, "int", ::playbigwave, 0 );
+	setsaveddvar( "r_waterwavebase", 0 );
+	setsaveddvar( "r_waterwavewavelength", "290 1 1 1" );
+	setsaveddvar( "r_waterwaveangle", "91.43 0 0 0" );
+	setsaveddvar( "r_waterwavespeed", "2 2 2 2" );
+	setsaveddvar( "r_waterwaveamplitude", "1 0 0 0" );
+	setsaveddvar( "r_waterwavenormalscale", 0.25 );
+	setsaveddvar( "sm_sunsamplesizenear", 0.35 );
+	setdvar( "tu6_player_shallowWaterHeight", "10.5" );
+	setdvar( "bg_plantInWaterDepth", "11" );
+	setdvar( "tu7_cg_deathCamAboveWater", "8" );
+	setdvar( "scr_hydro_water_rush_speed", "4" );
+	setdvar( "scr_hydro_water_rush_up_time", "8" );
+	setdvar( "scr_hydro_water_rush_down_time", "4.5" );
+	waitforclient( 0 );
+/#
+	println( "*** Client : mp_hydro running..." );
+#/
+	level thread water_animation();
+// SP = 0x0 - check OK
+}
+
+// 0x980
+water_animation()
+{
+	framerate = 0.0166667;
+	color_u = 0;
+	color_v = 0;
+	dist_u = 0;
+	dist_v = 0;
+	level.water_multiplier = 1;
+	level.water_rate = 1;
+	multiplier = 1;
+	alpha = 0;
+	color_u_rate = 9.33333e-005;
+	color_v_rate = 0.00035;
+	dist_u_rate = -0.00014;
+	dist_v_rate = 0.00035;
+	multiplier = clamp( multiplier + level.water_rate, 1, level.water_multiplier );
+	alpha = clamp( alpha + framerate, 0, 1 );
+	multiplier = clamp( multiplier - level.water_rate, 1, multiplier );
+	alpha = clamp( alpha - framerate, 0, 1 );
+	color_u_rate *= multiplier;
+	color_v_rate *= multiplier;
+	dist_u_rate *= multiplier;
+	dist_v_rate *= multiplier;
+	color_u += color_u_rate;
+	color_v += color_v_rate;
+	dist_u += dist_u_rate;
+	dist_v += dist_v_rate;
+	str = color_u + "  " + color_v + " " + dist_u + " " + dist_v;
+	setsaveddvar( "r_waterWaveScriptShader0", str );
+	str = alpha + " " + alpha + " 0 0";
+	setsaveddvar( "r_waterWaveScriptShader1", str );
+	wait framerate;
+// SP = 0x0 - check OK
+}
+
+// 0xAF8
+hydroplayerconnected( localclientnum )
+{
+	level waittill( "snap_processed", snapshotlocalclientnum );
+	level thread water_killstreak_fx( localclientnum );
+	water_sheeting_triggers = getentarray( 0, "prone_water_fx", "targetname" );
+	foreach ( trigger in water_sheeting_triggers )
+	{
+		trigger thread water_prone_fx( localclientnum );
+	}
+	security_camera_balls = getentarray( localclientnum, "security_camera_ball", "targetname" );
+	foreach ( cameraball in security_camera_balls )
+	{
+		cameraball thread cameratrackplayer( localclientnum );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xBC8
+water_killstreak_fx( localclientnum )
+{
+	return;
+	ents = level.createfxexploders[2001];
+/#
+	assert( IsDefined( ents ) );
+#/
+	foreach ( ent in ents )
+	{
+		ent.loopfx = [];
+	}
+	airborne = 2 | 4 | 8;
+	level waittill( "snap_processed", snapshotlocalclientnum );
+	player = getlocalplayer( localclientnum );
+	foreach ( ent in ents )
+	{
+		ent.loopfx[localclientnum] = playfx( localclientnum, level._effect[ent.v["fxid"]], ent.v["origin"], ent.v["forward"], ent.v["up"] );
+		stopfx( localclientnum, ent.loopfx[localclientnum] );
+		ent.loopfx[localclientnum] = undefined;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xD34
+water_prone_fx( localclientnum )
+{
+	self waittill( "trigger", player );
+	clientnum = player getlocalclientnumber();
+	startwatersheetingfx( localclientnum );
+	stopwatersheetingfx( localclientnum, 2 );
+	wait 0.1;
+	stopwatersheetingfx( localclientnum, 2 );
+// SP = 0x0 - check OK
+}
+
+// 0xDEC
+playprewave( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+	level.water_multiplier = 1;
+	multiplier = GetDvarFloat( #"0xEF33F5E5" );
+	seconds = GetDvarFloat( #"0x25994707" );
+	diff = abs( multiplier - level.water_multiplier );
+	frames = 60 * seconds;
+	level.water_multiplier = multiplier;
+	level.water_rate = diff / frames;
+	multiplier = 1;
+	seconds = GetDvarFloat( #"0x71478E3A" );
+	diff = abs( multiplier - level.water_multiplier );
+	frames = 60 * seconds;
+	level.water_multiplier = multiplier;
+	level.water_rate = diff / frames;
+// SP = 0x0 - check OK
+}
+
+// 0xE9C
+playbigwave( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	return;
+	level notify( "playBigWaveSingleton" );
+	level endon( "playBigWaveSingleton" );
+	wave_1_origin = ( -188, -2267, 208 );
+	wave_2_origin = ( 128, -2267, 208 );
+	level thread waterlevel();
+	level thread waterwaves();
+	wait 0.05;
+	setripplewave( localclientnum, wave_1_origin[0] * -1, wave_1_origin[1] * -1, 800, 1.5, 0.07, 0, 5, 1800, 2100 );
+	setripplewave( localclientnum, wave_2_origin[0] * -1, wave_2_origin[1] * -1, 800, 1.5, 0.07, 0, 5, 1800, 2100 );
+// SP = 0x0 - check OK
+}
+
+// 0xFD0
+waterlevel()
+{
+	level endon( "playBigWaveSingleton" );
+	i = 1;
+	setsaveddvar( "R_WaterWaveBase", 0 + i * 0.205 );
+	setsaveddvar( "r_waterwavenormalscale", 0.25 + i * 0.0375 );
+	wait 0.025;
+	i++;
+	wait 2.5;
+	i = 100;
+	setsaveddvar( "R_WaterWaveBase", 0 + i * 0.205 );
+	setsaveddvar( "r_waterwavenormalscale", 0.25 + i * 0.0375 );
+	wait 0.015;
+	i--;
+// SP = 0x0 - check OK
+}
+
+// 0x108C
+waterwaves()
+{
+	level endon( "playBigWaveSingleton" );
+	i = 1;
+	amp = i + " 0 0 0";
+	setsaveddvar( "r_waterwaveamplitude", amp );
+	wait 0.15;
+	i++;
+	wait 2.8;
+	i = 16;
+	amp = i + " 0 0 0";
+	setsaveddvar( "r_waterwaveamplitude", amp );
+	wait 0.15;
+	i--;
+// SP = 0x0 - check OK
+}
+
+// 0x1110
+cameratrackplayer( localclientnum )
+{
+	pitch = self.angles[0];
+	roll = self.angles[2];
+	localplayer = getnonpredictedlocalplayer( 0 );
+	direction = localplayer.origin - self.origin;
+	angles = vectortoangles( direction );
+	flattenedangles = ( pitch, angles[1] + 90, roll );
+	self rotateto( flattenedangles, 0.5 );
+	wait 0.5;
+// SP = 0x0 - check OK
+}

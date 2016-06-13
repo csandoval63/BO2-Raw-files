@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_jump_down_176.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0xF0
+main()
+{
+	dosimpletraverse( "jump_down_176" );
+// SP = 0x0 - check OK
+}

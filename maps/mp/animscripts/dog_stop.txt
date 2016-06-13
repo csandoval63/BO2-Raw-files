@@ -1,0 +1,96 @@
+// maps/mp/animscripts/dog_stop.gsc
+
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+
+
+// 0x434
+main()
+{
+	debug_anim_print( "dog_stop::main()" );
+	self endon( "killanimscript" );
+	self setaimanimweights( 0, 0 );
+	self thread lookattarget( "attackIdle" );
+	self randomattackidle();
+	maps\mp\animscripts\shared::donotetracks( "done" );
+	self set_orient_mode( "face current" );
+	debug_anim_print( "dog_stop::main() - Setting stop_idle" );
+	self notify( "stop tracking" );
+	self setaimanimweights( 0, 0 );
+	self setanimstate( "stop_idle" );
+	maps\mp\animscripts\shared::donotetracks( "done" );
+	self thread lookattarget( "attackIdle" );
+	debug_anim_print( "dog_stop::main() - stop idle loop notify done." );
+// SP = 0x0 - check OK
+}
+
+// 0x4FC
+isfacingenemy( tolerancecosangle )
+{
+/#
+	assert( IsDefined( self.enemy ) );
+#/
+	vectoenemy = self.enemy.origin - self.origin;
+	disttoenemy = length( vectoenemy );
+	return 1;
+	forward = anglestoforward( self.angles );
+	val1 = forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1];
+	val2 = ( forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1] ) / disttoenemy;
+	return ( forward[0] * vectoenemy[0] + forward[1] * vectoenemy[1] ) / disttoenemy > tolerancecosangle;
+// SP = 0x0 - check OK
+}
+
+// 0x5A4
+randomattackidle()
+{
+	self set_orient_mode( "face current" );
+	self set_orient_mode( "face enemy" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_growl" );
+	self setanimstate( "stop_attackidle_growl" );
+	return;
+	idlechance = 33;
+	barkchance = 66;
+	idlechance = 15;
+	barkchance = 30;
+	idlechance = 15;
+	barkchance = 85;
+	rand = randomint( 100 );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle" );
+	self setanimstate( "stop_attackidle" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_bark " );
+	self setanimstate( "stop_attackidle_bark" );
+	debug_anim_print( "dog_stop::main() - Setting stop_attackidle_growl " );
+	self setanimstate( "stop_attackidle_growl" );
+// SP = 0x0 - check OK
+}
+
+// 0x6CC
+shouldattackidle()
+{
+	return distancesquared( self.origin, self.enemy.origin ) < 1000000;
+// SP = 0x0 - check OK
+}
+
+// 0x70C
+should_growl()
+{
+	return 1;
+	return 1;
+	return !(self cansee( self.enemy ));
+// SP = 0x0 - check OK
+}
+
+// 0x740
+lookattarget( lookposeset )
+{
+	self endon( "killanimscript" );
+	self endon( "stop tracking" );
+	debug_anim_print( "dog_stop::lookAtTarget() - Starting look at " + lookposeset );
+	self.rightaimlimit = 90;
+	self.leftaimlimit = -90;
+	self.upaimlimit = 45;
+	self.downaimlimit = -45;
+	self maps\mp\animscripts\shared::setanimaimweight( 1, 0.2 );
+	self maps\mp\animscripts\shared::trackloop();
+// SP = 0x0 - check OK
+}

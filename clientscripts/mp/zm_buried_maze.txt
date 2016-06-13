@@ -1,0 +1,57 @@
+// clientscripts/mp/zm_buried_maze.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+
+// 0x294
+init()
+{
+	init_maze_clientfields();
+	level._maze_structs = getstructarray( "maze_blocker", "targetname" );
+// SP = 0x0 - check OK
+}
+
+// 0x2B8
+init_maze_clientfields()
+{
+	blocker_locations = getstructarray( "maze_blocker", "targetname" );
+	level._maze_structs_indexed_for_callback = [];
+	foreach ( blocker in blocker_locations )
+	{
+		registerclientfield( "world", "maze_blocker_" + blocker.script_noteworthy, 12000, 1, "int", ::maze_effects, 0 );
+		level._maze_structs_indexed_for_callback["maze_blocker_" + blocker.script_noteworthy] = blocker;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x344
+maze_effects_thread( localclientnum, fieldname )
+{
+	self endon( "kill_maze_effects_thread" );
+	struct = level._maze_structs_indexed_for_callback[fieldname];
+	self thread kill_maze_effects_thread( localclientnum, struct );
+	struct.loopfx_ids = [];
+	struct.angles_to_foward = anglestoforward( struct.angles );
+	struct.angles_to_up = anglestoup( struct.angles );
+// SP = 0x0 - check OK
+}
+
+// 0x3A4
+kill_maze_effects_thread( localclientnum, struct )
+{
+	self waittill( "kill_maze_effects_thread" );
+	deletefx( localclientnum, struct.loopfx_ids[localclientnum] );
+	struct.loopfx_ids[localclientnum] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3F0
+maze_effects( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self notify( "kill_maze_effects_thread" );
+	self thread maze_effects_thread( localclientnum, fieldname );
+	self notify( "kill_maze_effects_thread" );
+// SP = 0x0 - check OK
+}

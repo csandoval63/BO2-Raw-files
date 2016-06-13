@@ -1,0 +1,976 @@
+// animscripts/bigdog/bigdog_init.gsc
+
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include animscripts\bigdog\bigdog_utility;
+#include animscripts\pain;
+#include animscripts\shared;
+#include animscripts\bigdog\bigdog_pain;
+#include maps\_gameskill;
+#include animscripts\bigdog\anims_table_bigdog;
+#include animscripts\move;
+#include animscripts\anims;
+#include animscripts\debug;
+#include animscripts\init;
+#include maps\_turret;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x1E38
+main()
+{
+	animscripts\init::firstinit();
+	anim._effect["bigdog_spark_big"] = loadfx( "env/electrical/fx_elec_bigdog_spark_lg_runner" );
+	anim._effect["bigdog_explosion"] = loadfx( "destructibles/fx_claw_exp_death" );
+	anim._effect["bigdog_panel_explosion_large"] = loadfx( "destructibles/fx_claw_exp_panel_lg" );
+	anim._effect["bigdog_panel_explosion_small"] = loadfx( "destructibles/fx_claw_exp_panel" );
+	anim._effect["bigdog_leg_explosion"] = loadfx( "destructibles/fx_claw_exp_leg_break" );
+	anim._effect["bigdog_leg_knee_hit_spark"] = loadfx( "env/electrical/fx_elec_bigdog_spark_os" );
+	anim._effect["bigdog_leg_knee_spark_left"] = loadfx( "electrical/fx_elec_claw_leg_joint_med_lft" );
+	anim._effect["bigdog_leg_knee_spark_right"] = loadfx( "electrical/fx_elec_claw_leg_joint_med" );
+	anim._effect["bigdog_smoke"] = loadfx( "destructibles/fx_claw_dmg_smk_lt" );
+	anim._effect["bigdog_dust_cloud"] = loadfx( "dirt/fx_dust_impact_claw" );
+	anim._effect["bigdog_lights_green"] = loadfx( "light/fx_vlight_claw_eye_grn" );
+	anim._effect["bigdog_lights_red"] = loadfx( "light/fx_vlight_claw_eye_red" );
+	anim._effect["bigdog_emped"] = loadfx( "electrical/fx_elec_sp_emp_stun_claw" );
+	anim.bigdog_globals = spawnstruct();
+	anim.bigdog_globals.bonemap = [];
+	anim.bigdog_globals.bonemap["jnt_f_l_balljoint"] = "FL";
+	anim.bigdog_globals.bonemap["jnt_f_l_knee_upper"] = "FL";
+	anim.bigdog_globals.bonemap["jnt_f_l_knee_lower"] = "FL";
+	anim.bigdog_globals.bonemap["jnt_f_l_ankle"] = "FL";
+	anim.bigdog_globals.bonemap["jnt_f_r_balljoint"] = "FR";
+	anim.bigdog_globals.bonemap["jnt_f_r_knee_upper"] = "FR";
+	anim.bigdog_globals.bonemap["jnt_f_r_knee_lower"] = "FR";
+	anim.bigdog_globals.bonemap["jnt_f_r_ankle"] = "FR";
+	anim.bigdog_globals.bonemap["jnt_r_l_balljoint"] = "RL";
+	anim.bigdog_globals.bonemap["jnt_r_l_knee_upper"] = "RL";
+	anim.bigdog_globals.bonemap["jnt_r_l_knee_lower"] = "RL";
+	anim.bigdog_globals.bonemap["jnt_r_l_ankle"] = "RL";
+	anim.bigdog_globals.bonemap["jnt_r_r_balljoint"] = "RR";
+	anim.bigdog_globals.bonemap["jnt_r_r_knee_upper"] = "RR";
+	anim.bigdog_globals.bonemap["jnt_r_r_knee_lower"] = "RR";
+	anim.bigdog_globals.bonemap["jnt_r_r_ankle"] = "RR";
+	anim.bigdog_globals.leghierarchy["FL"] = array( "jnt_f_l_balljoint", "jnt_f_l_knee_upper", "jnt_f_l_knee_lower", "jnt_f_l_ankle" );
+	anim.bigdog_globals.leghierarchy["FR"] = array( "jnt_f_r_balljoint", "jnt_f_r_knee_upper", "jnt_f_r_knee_lower", "jnt_f_r_ankle" );
+	anim.bigdog_globals.leghierarchy["RL"] = array( "jnt_r_l_balljoint", "jnt_r_l_knee_upper", "jnt_r_l_knee_lower", "jnt_r_l_ankle" );
+	anim.bigdog_globals.leghierarchy["RR"] = array( "jnt_r_r_balljoint", "jnt_r_r_knee_upper", "jnt_r_r_knee_lower", "jnt_r_r_ankle" );
+	anim.bigdog_globals.legdamagedmap["FL"] = "jnt_f_l_knee_upper_dmg";
+	anim.bigdog_globals.legdamagedmap["FR"] = "jnt_f_r_knee_upper_dmg";
+	anim.bigdog_globals.legdamagedmap["RL"] = "jnt_r_l_knee_upper_dmg";
+	anim.bigdog_globals.legdamagedmap["RR"] = "jnt_r_r_knee_upper_dmg";
+	anim.bigdog_globals.bodydamagedmap["left"] = array( "tag_panel_mid_l_lower_fx", "tag_panel_mid_l_upper_fx" );
+	anim.bigdog_globals.bodydamagedmap["right"] = array( "tag_panel_mid_r_lower_fx", "tag_panel_mid_r_upper_fx" );
+	anim.bigdog_globals.bodydamagedmap["front"] = array( "tag_panel_front_l_fx", "tag_panel_front_r_fx" );
+	anim.bigdog_globals.bodydamagedmap["back"] = array( "tag_panel_rear_l_fx", "tag_panel_rear_r_fx" );
+	anim.bigdog_globals.bodydamagetags = array( "tag_panel_mid_l_lower_fx", "tag_panel_mid_l_upper_fx", "tag_panel_mid_r_lower_fx", "tag_panel_mid_r_upper_fx", "tag_panel_front_l_fx", "tag_panel_front_r_fx", "tag_panel_rear_l_fx", "tag_panel_rear_r_fx" );
+	level.difficultysettings["bigdog_axis_grenade_cooloff"]["easy"] = 30;
+	level.difficultysettings["bigdog_axis_grenade_cooloff"]["normal"] = 25;
+	level.difficultysettings["bigdog_axis_grenade_cooloff"]["hardened"] = 20;
+	level.difficultysettings["bigdog_axis_grenade_cooloff"]["veteran"] = 10;
+	level.difficultysettings["bigdog_allies_burst_scale"]["easy"] = 1.5;
+	level.difficultysettings["bigdog_allies_burst_scale"]["normal"] = 1;
+	level.difficultysettings["bigdog_allies_burst_scale"]["hardened"] = 0.8;
+	level.difficultysettings["bigdog_allies_burst_scale"]["veteran"] = 0.75;
+	level.difficultysettings["bigdog_axis_burst_scale"]["easy"] = 0.75;
+	level.difficultysettings["bigdog_axis_burst_scale"]["normal"] = 1;
+	level.difficultysettings["bigdog_axis_burst_scale"]["hardened"] = 1.25;
+	level.difficultysettings["bigdog_axis_burst_scale"]["veteran"] = 1.5;
+	self.a = spawnstruct();
+	self.moveplaybackrate = 1;
+	self.usecombatscriptatcover = 1;
+	self.combatmode = "any_exposed_nodes_only";
+	self.badplaceawareness = 0;
+	self setcurrentweapon( "none" );
+	self setprimaryweapon( self.weapon );
+	self setsecondaryweapon( self.weapon );
+	self.a.weaponpos["right"] = "none";
+	self.a.weaponpos["left"] = "none";
+	self.audio_is_targeting = 1;
+	self.a.allow_shooting = 1;
+/#
+	thread animscripts\debug::updatedebuginfo();
+#/
+	self useanimtree( -1 );
+	self.animtype = "bigdog";
+	self.lastanimtype = self.animtype;
+	self animscripts\anims::clearanimcache();
+	setup_bigdog_anims( self.animtype );
+	self.a.pose = "stand";
+	self.a.prevpose = self.a.pose;
+	self.a.movement = "stop";
+	self.a.script = "init";
+	self.issniper = 0;
+	self.bulletsinclip = 0;
+	self.a.lastshoottime = 0;
+	self.a.misstime = 0;
+	self.ignoresuppression = 1;
+	self.sprint = 0;
+	self.walk = 1;
+	self.turnrate = 5;
+	self.turnanglethreshold = 15;
+	self.canmove = 1;
+	self.overrideactordamage = ::bigdog_damage_override;
+	self.turretindependent = 0;
+	self.parthealth = [];
+	self.parthealth["FL"] = self.health * 0.5;
+	self.parthealth["FR"] = self.health * 0.5;
+	self.parthealth["RL"] = self.health * 0.5;
+	self.parthealth["RR"] = self.health * 0.5;
+	self.parthealth["body"] = self.health * 1;
+	self.initialhealth = self.health;
+	self.initialhealthleg = self.health * 0.5;
+	self.initialhealthbody = self.health * 1;
+	self.health = 99999999;
+	partkeys = getarraykeys( self.parthealth );
+	self.hitcount = [];
+	foreach ( key in partkeys )
+	{
+		self.hitcount[key] = 0;
+	}
+	self.hitcount["total"] = 0;
+	self.launchercoolofftime = -1;
+	self.nonplayerdamagetime = -1;
+	self.nextmovetonextbestcovernodetime = GetTime() + randomintrange( 7000, 12000 );
+	self.minpaindamage = 2;
+	self.a.wounded = 0;
+	self.grenadeammo = 0;
+	self.hunkereddown = 0;
+	self.damageleg = "";
+	self.damagedlegs = [];
+	self.missinglegs = [];
+	self.bullethintshown = 0;
+	self.chargedbullethintshown = 0;
+	self.bodydamagedmap = anim.bigdog_globals.bodydamagedmap;
+	self.baseaccuracy = self.accuracy;
+	self.script_accuracy = 1;
+	self setphysparams( 28, 0, 70 );
+	animscripts\move::moveglobalsinit();
+	setup_bigdog_turret();
+	bonekeys = getarraykeys( anim.bigdog_globals.legdamagedmap );
+	foreach ( key in bonekeys )
+	{
+		self hidepart( anim.bigdog_globals.legdamagedmap[key] );
+	}
+	bigdog_lights_on();
+	self thread set_fight_dist();
+	self thread decay_hit_counts();
+	self thread walking_loop_audio();
+	self thread play_spawn_alarm();
+	self thread bigdog_kill_all_fx_on_death();
+	level.is_player_inside_arena = 0;
+	self thread handle_badplaces();
+// SP = 0x0 - check OK
+}
+
+// 0x26A8
+handle_badplaces()
+{
+	self endon( "death" );
+	bigdogusebiggerbadplace = self.bigdogusebiggerbadplace;
+	badplace_name = "bdog_" + self getentitynumber();
+	self.a.badplacename = badplace_name;
+	thresh2 = 2500;
+	radius = 100;
+	height = 300;
+	self.a.last_badplace_pos = self.origin;
+	badplace_cylinder( badplace_name + "1", -1, self.origin, radius, height, "all" );
+	origin = self.origin + vector_scale( anglestoforward( self.angles ), 100 );
+	badplace_cylinder( badplace_name + "2", -1, origin, radius, height, "all" );
+	wait 3;
+	bigdogusebiggerbadplace = self.bigdogusebiggerbadplace;
+	self.a.last_badplace_pos = self.origin;
+	badplace_delete( badplace_name + "1" );
+	badplace_delete( badplace_name + "2" );
+	wait 0.1;
+	badplace_cylinder( badplace_name, -1, self.origin, radius, height, "all" );
+	origin = self.origin + vector_scale( anglestoforward( self.angles ), 100 );
+	badplace_cylinder( badplace_name + "2", -1, origin, radius, height, "all" );
+// SP = 0x0 - check OK
+}
+
+// 0x2814
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x281C
+set_fight_dist()
+{
+	self endon( "death" );
+	wait 0.05;
+	self.pathenemylookahead = 96;
+	self.pathenemyfightdist = 96;
+// SP = 0x0 - check OK
+}
+
+// 0x2840
+setup_bigdog_anims( animtype )
+{
+/#
+	assert( isarray( anim.anim_array ) );
+#/
+	return;
+	anim.anim_array = animscripts\bigdog\anims_table_bigdog::setup_bigdog_anim_array( animtype, anim.anim_array );
+// SP = 0x0 - check OK
+}
+
+// 0x2890
+bigdog_chase_enemy_behavior()
+{
+	self endon( "death" );
+	curenemy = undefined;
+	curenemy = self.enemy;
+	self setgoalentity( curenemy );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2904
+setup_bigdog_turret()
+{
+	self detach( self.headmodel );
+	self.headmodel = "veh_t6_drone_claw_mk2_turret_alt";
+	self.turret = create_turret( self.origin, self.angles, self.team, "bigdog_dual_turret", self.headmodel, vector_scale( ( 0, 0, 1 ), 50 ) );
+	self.turret maketurretunusable();
+	self.turret maps\_turret::pause_turret( 0 );
+	self setontargetangle( 2 );
+/#
+	recordent( self.turret );
+#/
+	self.turret linkto( self, "tag_turret", ( 0, 0, 0 ), ( 0, 0, 0 ) );
+	self thread update_turret_target();
+	self thread fire_when_on_target();
+	self thread stopturretondeath();
+// SP = 0x0 - check OK
+}
+
+// 0x29D4
+update_turret_target()
+{
+	self endon( "death" );
+	self endon( "stop_fire_turret" );
+	paused = 0;
+	offset = ( 0, 0, 0 );
+	shouldshootatscriptedtarget = IsDefined( self.scripted_target );
+	self.turret set_turret_target( self.scripted_target );
+	self.fakeenemy = spawn( "script_origin", self.enemy.origin );
+	self thread delete_on_death( self.fakeenemy );
+	self.fakeenemy.origin = self.enemy.origin;
+	offset = ( randomint( 400 ), randomint( 400 ), randomint( 400 ) );
+	self.turret set_turret_target( self.fakeenemy, offset );
+	offset = getplayerstancebasedoffset( self.enemy );
+	self.turret set_turret_target( self.enemy, offset );
+/#
+	recordline( self.turret gettagorigin( "tag_flash" ), self.enemy.origin + offset, ( 1, 0, 0 ), "Script", self );
+	recordline( self.turret gettagorigin( "tag_laser" ), self.enemy.origin + offset, ( 1, 0, 0 ), "Script", self );
+#/
+	self.turret set_turret_target( self.enemy );
+/#
+	recordline( self.turret gettagorigin( "tag_flash" ), self.enemy.origin, ( 0, 1, 0 ), "Script", self );
+	recordline( self.turret gettagorigin( "tag_laser" ), self.enemy.origin, ( 1, 0, 0 ), "Script", self );
+#/
+	self.turret clear_turret_target();
+	self.turret clear_turret_target();
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x2C14
+getplayerstancebasedoffset( player )
+{
+	stance = player getstance();
+	offset = ( 0, 0, 0 );
+	switch ( stance )
+	{
+		case "crouch":
+			offset = vector_scale( ( 0, 0, 1 ), 40 );
+			break;
+		case "prone":
+			offset = vector_scale( ( 0, 0, 1 ), 20 );
+			break;
+		case "stand":
+			offset = ( randomintrange( -40, 40 ), randomintrange( -40, 40 ), 10 );
+			break;
+	}
+	return offset;
+// SP = 0x0 - check OK
+}
+
+// 0x2CA4
+canbigdogturretshoottarget( currenttarget )
+{
+	canshoottarget = 0;
+	currenttarget = self.turret get_turret_target();
+	currenttarget = self.enemy;
+	canshoottarget = bullettracepassed( self.turret gettagorigin( "tag_flash" ), currenttarget.origin + vector_scale( ( 0, 0, 1 ), 20 ), 1, self, currenttarget );
+	canshoottarget = bullettracepassed( self.turret gettagorigin( "tag_flash" ), currenttarget getshootatpos( self ), 1, self, currenttarget );
+	canshoottarget = 1;
+	return canshoottarget;
+// SP = 0x0 - check OK
+}
+
+// 0x2D8C
+fire_when_on_target()
+{
+	self endon( "death" );
+	self endon( "stop_fire_turret" );
+	weaponspinsettings = weaponspinsettings( "bigdog_dual_turret" );
+	spinuptime = weaponspinsettings["up"] / 1000;
+	turretspinning = 0;
+	self thread bigdog_targeting_audio();
+	wait 0.05;
+	self.turret waittill( "turret_on_target" );
+	waittime_scale = maps\_gameskill::getcurrentdifficultysetting( "bigdog_allies_burst_scale" );
+	bursttime_scale = maps\_gameskill::getcurrentdifficultysetting( "bigdog_axis_burst_scale" );
+	waittime_scale = maps\_gameskill::getcurrentdifficultysetting( "bigdog_axis_burst_scale" );
+	bursttime_scale = maps\_gameskill::getcurrentdifficultysetting( "bigdog_allies_burst_scale" );
+	currenttarget = self.turret get_turret_target();
+	canshoottarget = 0;
+	canshoottarget = 1;
+	self.turret setturretspinning( 1 );
+	wait spinuptime;
+	turretspinning = 1;
+	bursttime = randomfloatrange( 0.9, 1 ) * bursttime_scale;
+	waittime = randomfloatrange( 1, 1.4 ) * waittime_scale;
+	disttoenemy = distance( self.origin, self.enemy.origin );
+	distlerpval = min( 1, max( 0, ( disttoenemy - 300 ) / ( 600 - 300 ) ) );
+	waittime = lerpfloat( 0, waittime, distlerpval );
+	self.audio_is_targeting = 0;
+	self.turret maps\_turret::set_turret_burst_parameters( bursttime, bursttime, waittime, waittime );
+	self thread bigdog_fire_turret( bursttime );
+	self.turret setturretspinning( 0 );
+	turretspinning = 0;
+	wait bursttime;
+	waittime = 0.25;
+	bigdog_try_launcher();
+	wait waittime;
+	self.audio_is_targeting = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2FA8
+bigdog_has_target()
+{
+	return IsDefined( self.turret get_turret_target() );
+// SP = 0x0 - check OK
+}
+
+// 0x2FBC
+bigdog_fire_turret( bursttime )
+{
+	self endon( "death" );
+	self endon( "pain" );
+	self endon( "stop_fire_turret" );
+	self.turret notify( "fire_on_target" );
+	self.turret laseron();
+	self.turret maps\_turret::fire_turret_for_time( bursttime );
+	self.turret laseroff();
+// SP = 0x0 - check OK
+}
+
+// 0x300C
+stopturretondeath()
+{
+	self waittill( "death" );
+	self.turret maps\_turret::disable_turret();
+	wait 0.05;
+	self.turret delete();
+// SP = 0x0 - check OK
+}
+
+// 0x3054
+stopturretfortime( time )
+{
+	self endon( "death" );
+	self.a.allow_shooting = 0;
+	wait time;
+	self.a.allow_shooting = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x307C
+bigdog_lights_on()
+{
+	self.a.lightsfxent = bigdog_add_fx( "tag_neck", anim._effect["bigdog_lights_green"], undefined, 1 );
+	self.a.lightsfxent = bigdog_add_fx( "tag_neck", anim._effect["bigdog_lights_red"], undefined, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x30D4
+bigdog_lights_off()
+{
+	self.a.lightsfxent delete();
+// SP = 0x0 - check OK
+}
+
+// 0x30FC
+bigdog_add_fx( bonename, effect, sound, useangles, playonself )
+{
+	self.fx_ents = [];
+	playfxontag( effect, self, bonename );
+	fxorigin = self gettagorigin( bonename );
+	tempent = spawn( "script_model", fxorigin );
+	tempent.angles = self gettagangles( bonename );
+	tempent setmodel( "tag_origin" );
+	tempent linkto( self, bonename );
+	playfxontag( effect, tempent, "tag_origin" );
+	self.fx_ents[self.fx_ents.size] = tempent;
+	return tempent;
+	self playsound( sound );
+// SP = 0x0 - check OK
+}
+
+// 0x31D0
+bigdog_kill_all_fx_on_death()
+{
+	self waittill_any( "stop_bigdog_scripted_fx_threads", "death" );
+	fx_ents = self.fx_ents;
+	array_delete( fx_ents );
+	bigdog_lights_off();
+// SP = 0x0 - check OK
+}
+
+// 0x3210
+bigdog_emped_behavior()
+{
+	self endon( "death" );
+	self.turret laseroff();
+	self thread bigdog_emped_lights_blinking();
+	bigdog_add_fx( "tag_body_animate", anim._effect["bigdog_emped"], undefined, 1 );
+	self playsound( "veh_hunker_down_flinch_b" );
+	self thread stopturretfortime( 7.5 );
+	self.a.empedendtime = GetTime() + 7500;
+	self animcustom( ::bigdog_emp_anim );
+	wait 7.5;
+	self playsound( "veh_qrdrone_boot_bdog" );
+	wait 1;
+	self notify( "bigdog_emped_done" );
+	bigdog_lights_on();
+// SP = 0x0 - check OK
+}
+
+// 0x32C0
+bigdog_emp_anim()
+{
+	self endon( "death" );
+	empanim = animscripts\bigdog\bigdog_pain::gethunkerdownpainanim();
+/#
+	assert( IsDefined( empanim ) );
+#/
+	self setflaggedanimknoballrestart( "empAnim", empanim, %body, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "empAnim" );
+	self.hunkereddown = 1;
+	empanim = animscripts\bigdog\bigdog_pain::getflinchanim();
+/#
+	assert( IsDefined( empanim ) );
+#/
+	self setflaggedanimknoballrestart( "empAnim", empanim, %body, 1, 0.2, 0.7 );
+	self animscripts\shared::donotetracks( "empAnim" );
+	self waittill( "bigdog_emped_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x33A4
+bigdog_emped_lights_blinking()
+{
+	self endon( "death" );
+	self endon( "bigdog_emped_done" );
+	bigdog_lights_off();
+	wait 0.2;
+	bigdog_lights_on();
+	wait 0.2;
+// SP = 0x0 - check OK
+}
+
+// 0x33E4
+bigdog_damage_override( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, modelindex, psoffsettime, bonename )
+{
+	self.damageleg = "";
+	return 0;
+	return 0;
+	return 0;
+	isleghit = bigdog_is_leg_hit( bonename );
+	isbodyhit = bigdog_is_body_hit( bonename );
+	weaponchargeable = ischargedshotsniperrifle( weapon );
+	weaponischarged = attacker.chargeshotlevel >= 2;
+	weaponissniperrifle = weaponissniperweapon( weapon );
+	weaponisminigun = issubstr( weapon, "minigun" );
+	bigdog_bullet_hint_trigger( attacker, damage, meansofdeath, weapon, bonename, isleghit, isbodyhit, weaponchargeable, weaponischarged, weaponissniperrifle, weaponisminigun );
+	dobodydamage = 0;
+	doexplosivebodydamage = 0;
+	doonlylegdamage = 0;
+	returndamage = damage;
+	self thread bigdog_emped_behavior();
+	return 0;
+	damageyaw = angleclamp180( vectortoangles( vdir )[1] - self.angles[1] );
+	legshit = array( "FL", "FR" );
+	legshit = array( "FR", "RR" );
+	legshit = array( "FL", "RL" );
+	legshit = array( "RL", "RR" );
+	doexplosivebodydamage = 1;
+	dobodydamage = 1;
+	legshit = array( anim.bigdog_globals.bonemap[bonename] );
+	doonlylegdamage = 1;
+	dobodydamage = 1;
+/#
+	assert( !(isplayer( attacker )) );
+#/
+	legshit = array( anim.bigdog_globals.bonemap[bonename] );
+	doonlylegdamage = 1;
+	dobodydamage = 1;
+	return self.health;
+	bigdog_damage_leg( attacker, damage, meansofdeath, weapon, vpoint, vdir, legshit[randomintrange( 0, legshit.size )], bonename, weaponischarged );
+	returndamage = bigdog_try_pain( "body", attacker );
+	return returndamage;
+	return self.health;
+	returndamage = bigdog_try_pain( "body", attacker );
+	return returndamage;
+	bigdog_damage_leg( attacker, damage, meansofdeath, weapon, vpoint, vdir, legshit[0], bonename );
+	returndamage = bigdog_try_pain( legshit[0], attacker );
+	return returndamage;
+	return 0;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3798
+bigdog_is_leg_hit( bonename )
+{
+	return array( anim.bigdog_globals.bonemap[bonename] ).size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x37B8
+bigdog_is_body_hit( bonename )
+{
+	return array( anim.bigdog_globals.bonemap[bonename] ).size <= 0;
+// SP = 0x0 - check OK
+}
+
+// 0x37D8
+is_bullet_damage( attacker, meansofdeath )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3800
+shouldignorenonplayernonbigdogdamage( attacker, meansofdeath )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x385C
+bigdog_try_pain( location, attacker )
+{
+	returndamage = 0;
+	returndamage = self.minpaindamage + 1;
+	self.hitcount[location] = 0;
+	self.nonplayerdamagetime = GetTime() + 5000;
+	return returndamage;
+// SP = 0x0 - check OK
+}
+
+// 0x3890
+attackedbyplayer( attacker )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x38B4
+attackedbyplayerusingbigdogvehicle( inflictor, attacker )
+{
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3900
+attackedbyotherbigdog( attacker )
+{
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x395C
+attackedbyasd( attacker )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3990
+attackedbyhumanai( attacker )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x39C8
+bigdog_try_launcher()
+{
+	canuselauncher = bigdog_can_use_launcher();
+	self.grenadeammo = 0;
+	self.grenade_fire = 0;
+	self notify( "stop_grenade_launcher" );
+	animscripts\bigdog\bigdog_utility::setactivegrenadetimer( self.enemy );
+	selfcooloff = GetTime() >= self.launchercoolofftime;
+	globalcooloff = GetTime() >= anim.grenadetimers[self.activegrenadetimer];
+	self.launchercoolofftime = GetTime() + maps\_gameskill::getcurrentdifficultysetting( "bigdog_axis_grenade_cooloff" ) * 1000;
+	nextgrenadetimetouse = animscripts\combat_utility::getdesiredgrenadetimervalue();
+	animscripts\combat_utility::setgrenadetimer( self.activegrenadetimer, min( GetTime() + 5000, nextgrenadetimetouse ) );
+// SP = 0x0 - check OK
+}
+
+// 0x3A8C
+bigdog_can_use_launcher()
+{
+	return 0;
+	return 0;
+	return 0;
+	lastknownpos = self lastknownpos( self.enemy );
+	return 0;
+	return 0;
+	return 0;
+	yawtoenemy = getyawtospot( self.enemy.origin );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3B5C
+bigdog_launcher_fire()
+{
+	self endon( "death" );
+	self endon( "stop_grenade_launcher" );
+	return;
+	self.grenade_fire = 1;
+	self.grenadeammo = 1;
+	firedgrenade = firelauncher();
+	self.grenadeammo = 0;
+	self.grenade_fire = 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3BB8
+firelauncher()
+{
+	toenemy = self.enemy.origin - self.origin;
+	toenemy = ( toenemy[0], toenemy[1], 0 );
+	toenemy = vectornormalize( toenemy );
+	lastknownpos = self lastknownpos( self.enemy );
+	grenadetarget = self.enemy.origin + ( randomintrange( -200, 200 ), randomintrange( -200, 200 ), 0 );
+	grenadetarget = self.enemy.origin;
+	launchpos = self gettagorigin( "tag_grenade" );
+	launchpos += vector_scale( ( 0, 0, 1 ), 20 );
+	launchoffset = launchpos - self.origin;
+	tempvec = ( launchoffset[0], launchoffset[1], 0 );
+	launchoffset = ( length( tempvec ), 0, launchoffset[2] );
+/#
+	recordline( self.origin, launchpos, ( 1, 0, 0 ), "Script" );
+#/
+	throwvel = self checkgrenadethrowpos( launchoffset, "min time", grenadetarget );
+	throwvel = self checkgrenadethrowpos( launchoffset, "min energy", grenadetarget );
+	throwvel = self checkgrenadethrowpos( launchoffset, "max time", grenadetarget );
+	return 0;
+	self magicgrenademanual( launchpos, throwvel, 7.5 );
+	self playsoundontag( "wpn_claw_gren_fire_npc", "tag_neck" );
+	self notify( "grenade_fire_bigdog", grenadetarget );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3D48
+bigdog_damage_leg( attacker, damage, meansofdeath, weapon, vpoint, vdir, leg, bonename, weaponischarged )
+{
+	self.parthealth[leg] -= damage * 1.5;
+	moddamage = int( damage * 2 );
+	self.parthealth[leg] -= damage * 1;
+	self.parthealth[leg] -= damage * 0.6;
+/#
+	iprintln( "leg: " + leg + " health: " + self.parthealth[leg] );
+#/
+	self.damageleg = leg;
+	self.a.wounded = 1;
+	self notify( "wounded" );
+	bigdodsetcantmove( attacker, damage, meansofdeath, weapon, vpoint );
+	self.damagedlegs["FL"] = 1;
+	bigdog_add_fx( "jnt_f_l_knee_upper", anim._effect["bigdog_leg_knee_spark_left"] );
+	self.damagedlegs["FR"] = 1;
+	bigdog_add_fx( "jnt_f_r_knee_upper", anim._effect["bigdog_leg_knee_spark_right"] );
+	self.damagedlegs["RL"] = 1;
+	bigdog_add_fx( "jnt_r_l_knee_upper", anim._effect["bigdog_leg_knee_spark_left"] );
+	self.damagedlegs["RR"] = 1;
+	bigdog_add_fx( "jnt_r_r_knee_upper", anim._effect["bigdog_leg_knee_spark_right"] );
+	playfxontag( anim._effect["bigdog_leg_knee_hit_spark"], self, "jnt_r_r_knee_upper" );
+	playfxontag( anim._effect["bigdog_leg_knee_hit_spark"], self, "jnt_f_r_knee_upper" );
+	playfxontag( anim._effect["bigdog_leg_knee_hit_spark"], self, "jnt_r_l_knee_upper" );
+	playfxontag( anim._effect["bigdog_leg_knee_hit_spark"], self, "jnt_r_r_knee_upper" );
+	increase_hit_count( leg );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x404C
+bigdodsetcantmove( attacker, damage, meansofdeath, weapon, vpoint )
+{
+	self.canmove = 0;
+	self notify( "immobilized" );
+	bigdog_damage_body( attacker, int( self.parthealth["body"] / 2 ), meansofdeath, weapon, vpoint, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4094
+forcebigdogsetcanmoveifneeded()
+{
+	self.canmove = 0;
+	self.hunkereddown = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x40B4
+trytobreakoffleg( leg )
+{
+	i = 1;
+	self hidepart( anim.bigdog_globals.leghierarchy[leg][i] );
+	i++;
+	self showpart( anim.bigdog_globals.legdamagedmap[leg] );
+	bonename = anim.bigdog_globals.leghierarchy[leg][1];
+	bigdog_add_fx( bonename, anim._effect["bigdog_spark_big"], "wpn_bigdog_damaged" );
+	playfxontag( anim._effect["bigdog_leg_explosion"], self, bonename );
+	playsoundatposition( "wpn_bigdog_explode", self.origin );
+	self.missinglegs[leg] = "bottom";
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x417C
+isbigdoglegmissing( leg )
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4198
+hasenoughlegstomove()
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x41B0
+bigdog_damage_body( attacker, damage, meansofdeath, weapon, vpoint, ignoredamagescale )
+{
+	moddamage = 0;
+	moddamage = damage;
+	moddamage = int( damage * 1.5 );
+	moddamage = int( damage * 2 );
+	wasdamagedbyplayergrenade = weaponclass( weapon ) == "grenade";
+	wasdamagedbygodrod = weapon == "god_rod_sp";
+	moddamage = int( damage * 3 );
+	moddamage = int( damage * 0.4 );
+	self.parthealth["body"] -= moddamage;
+	return 1;
+/#
+	iprintln( "body: " + self.parthealth["body"] );
+#/
+	self thread playneardeathbodydamagefx();
+	self.a.wounded = 1;
+	self thread playbodydamagefx();
+	increase_hit_count( "body" );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4324
+getbodydamagedirection( point )
+{
+	yaw = animscripts\utility::getyawtospot( point );
+	direction = "front";
+	direction = "back";
+	direction = "right";
+	direction = "left";
+// SP = 0x0 - check OK
+}
+
+// 0x4394
+playneardeathbodydamagefx()
+{
+	self endon( "death" );
+	self endon( "stop_bigdog_scripted_fx_threads" );
+	return;
+	self.a.alreadyplayedneardeathfx = 1;
+	smokestacks = 0;
+	return;
+	boneindex = randomint( anim.bigdog_globals.bodydamagetags.size );
+	tag = anim.bigdog_globals.bodydamagetags[boneindex];
+	playsoundatposition( "wpn_bigdog_damaged", self.origin );
+	playfxontag( anim._effect["bigdog_panel_explosion_large"], self, tag );
+	bigdog_add_fx( tag, anim._effect["bigdog_smoke"] );
+	smokestacks++;
+	wait randomfloatrange( 3, 6 );
+// SP = 0x0 - check OK
+}
+
+// 0x4460
+playbodydamagefx()
+{
+	self endon( "death" );
+	boneindex = randomint( anim.bigdog_globals.bodydamagetags.size );
+	tag = anim.bigdog_globals.bodydamagetags[boneindex];
+	playsoundatposition( "wpn_bigdog_damaged", self.origin );
+	playfxontag( anim._effect["bigdog_panel_explosion_small"], self, tag );
+// SP = 0x0 - check OK
+}
+
+// 0x44C0
+increase_hit_count( bodypart )
+{
+	self.hitcount[bodypart] += 1;
+	self.hitcount["total"] += 1;
+// SP = 0x0 - check OK
+}
+
+// 0x44F4
+decay_hit_counts()
+{
+	self endon( "death" );
+	decayrate = 0.15;
+	keys = getarraykeys( self.hitcount );
+	foreach ( key in keys )
+	{
+		self.hitcount[key] = max( 0, self.hitcount[key] - decayrate );
+	}
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x4584
+bigdog_targeting_audio()
+{
+	self endon( "death" );
+	self.turret waittill( "fire_on_target" );
+	self.turret playsound( "wpn_bigdog_turret_lockon_npc" );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x45C0
+walking_loop_audio()
+{
+	self endon( "death" );
+	self thread stop_sounds_on_death();
+	self playloopsound( "blk_bigdog_loop", 0.1 );
+	self thread damaged_walking_audio();
+	wait_network_frame();
+// SP = 0x0 - check OK
+}
+
+// 0x4618
+stop_sounds_on_death()
+{
+	self waittill( "death" );
+	self stoploopsound( 0.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x463C
+damaged_walking_audio()
+{
+	self endon( "death" );
+	self stoploopsound( 0.1 );
+	wait 0.2;
+	self playloopsound( "blk_bigdog_vuln_loop", 0.1 );
+	self playsound( "" );
+// SP = 0x0 - check OK
+}
+
+// 0x4684
+play_spawn_alarm()
+{
+	self endon( "death" );
+	wait 0.5;
+	wait randomintrange( 1, 6 );
+	self playsound( "veh_claw_alert" );
+	wait 4;
+// SP = 0x0 - check OK
+}
+
+// 0x46C4
+play_speech_warning()
+{
+	level.bigdog_speak = 0;
+	level.bigdog_speak = 1;
+	self playsound( "veh_claw_speak_alert", "sound_complete" );
+	self waittill( "sound_complete" );
+	self playsound( "veh_claw_vo", "sound_complete" );
+	self waittill( "sound_complete" );
+	level.bigdog_speak = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4724
+play_ambient_vo()
+{
+	self endon( "death" );
+	speechvar = randomintrange( 0, 100 );
+	self thread play_speech_warning();
+	wait 5;
+// SP = 0x0 - check OK
+}
+
+// 0x4774
+bigdog_bullet_hint_trigger( attacker, damage, meansofdeath, weapon, bonename, isleghit, isbodyhit, weaponchargeable, weaponischarged, weaponissniperrifle, weaponisminigun )
+{
+	self.n_bullet_damage = 0;
+	return;
+	level thread show_bullet_charge_hint();
+	level.bullet_hint_timer = new_timer();
+	self.n_bullet_damage = 0;
+	self.chargedbullethintshown = 1;
+	self.n_bullet_damage += damage;
+	level.bullet_hint_timer = new_timer();
+	self.n_bullet_damage = 0;
+	self.bullethintshown = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4898
+show_bullet_damage_hint()
+{
+	screen_message_create( &"SCRIPT_HINT_BIGDOG_BULLET_DAMAGE" );
+	wait 3;
+	screen_message_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x48B8
+show_bullet_charge_hint()
+{
+	screen_message_create( &"SCRIPT_HINT_BIGDOG_CHARGED_SHOT" );
+	wait 3;
+	screen_message_delete();
+// SP = 0x0 - check OK
+}

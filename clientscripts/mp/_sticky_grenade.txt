@@ -1,0 +1,71 @@
+// clientscripts/mp/_sticky_grenade.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x304
+main()
+{
+	level._effect["grenade_enemy_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_red_os" );
+	level._effect["grenade_friendly_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_grn_os" );
+// SP = 0x0 - check OK
+}
+
+// 0x334
+spawned( localclientnum )
+{
+	return;
+	self thread fx_think( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x358
+fx_think( localclientnum )
+{
+	self notify( "light_disable" );
+	self endon( "entityshutdown" );
+	self endon( "light_disable" );
+	self waittill_dobj( localclientnum );
+	interval = 0.3;
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+	self fullscreen_fx( localclientnum );
+	self playsound( localclientnum, "wpn_semtex_alert" );
+	serverwait( localclientnum, interval, 0.01, "player_switch" );
+	interval = clamp( interval / 1.2, 0.08, 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x400
+start_light_fx( localclientnum )
+{
+	friend = self friendnotfoe( localclientnum );
+	player = getlocalplayer( localclientnum );
+	self.fx = playfxontag( localclientnum, level._effect["grenade_friendly_light"], self, "tag_fx" );
+	self.fx = playfxontag( localclientnum, level._effect["grenade_enemy_light"], self, "tag_fx" );
+// SP = 0x0 - check OK
+}
+
+// 0x46C
+stop_light_fx( localclientnum )
+{
+	stopfx( localclientnum, self.fx );
+	self.fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x49C
+fullscreen_fx( localclientnum )
+{
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	return;
+	parent = self getparententity();
+	parent playrumbleonentity( localclientnum, "buzz_high" );
+	animateui( localclientnum, "sticky_grenade_overlay_ss" + localclientnum, "overlay", "pulse", 0 );
+	animateui( localclientnum, "stuck_ss" + localclientnum, "sticky_grenade", "pulse", 0 );
+	animateui( localclientnum, "sticky_grenade_overlay" + localclientnum, "overlay", "pulse", 0 );
+	animateui( localclientnum, "stuck" + localclientnum, "sticky_grenade", "pulse", 0 );
+// SP = 0x0 - check OK
+}

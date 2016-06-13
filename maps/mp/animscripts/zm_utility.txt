@@ -1,0 +1,992 @@
+// maps/mp/animscripts/zm_utility.gsc
+
+#include maps\mp\_utility;
+#include maps\mp\animscripts\zm_shared;
+#include maps\mp\animscripts\utility;
+#include maps\mp\animscripts\shared;
+
+
+// 0x1028
+append_missing_legs_suffix( animstate )
+{
+	return animstate + "_crawl";
+	return animstate;
+// SP = 0x0 - check OK
+}
+
+// 0x1060
+initanimtree( animscript )
+{
+	self.a.special = "none";
+/#
+	assert( IsDefined( animscript ), "Animscript not specified in initAnimTree" );
+#/
+	self.a.script = animscript;
+// SP = 0x0 - check OK
+}
+
+// 0x10AC
+updateanimpose()
+{
+/#
+	assert( self.a.movement == "run", "UpdateAnimPose " + self.a.pose + " " + self.a.movement );
+#/
+	self.desired_anim_pose = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x110C
+initialize( animscript )
+{
+	self dodamage( self.health + 100, self.origin );
+	self.longdeathstarting = undefined;
+	self notify( "kill_long_death" );
+	self dodamage( self.health + 100, self.origin );
+	scriptfunc = self.a.postscriptfunc;
+	self.a.postscriptfunc = undefined;
+	[[scriptfunc]]( animscript );
+	self.a.nodeath = 0;
+	self.isholdinggrenade = undefined;
+	self.covernode = undefined;
+	self.changingcoverpos = 0;
+	self.a.scriptstarttime = GetTime();
+	self.a.atconcealmentnode = 0;
+	self.a.atconcealmentnode = 1;
+	initanimtree( animscript );
+	updateanimpose();
+// SP = 0x0 - check OK
+}
+
+// 0x1234
+getnodeyawtoorigin( pos )
+{
+	yaw = self.node.angles[1] - getyaw( pos );
+	yaw = self.angles[1] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1284
+getnodeyawtoenemy()
+{
+	pos = undefined;
+	pos = self.enemy.origin;
+	forward = anglestoforward( self.node.angles );
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, 150 );
+	pos = self.origin + forward;
+	yaw = self.node.angles[1] - getyaw( pos );
+	yaw = self.angles[1] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1328
+getcovernodeyawtoenemy()
+{
+	pos = undefined;
+	pos = self.enemy.origin;
+	forward = anglestoforward( self.covernode.angles + self.animarray["angle_step_out"][self.a.cornermode] );
+	forward = vector_scale( forward, 150 );
+	pos = self.origin + forward;
+	yaw = self.covernode.angles[1] + self.animarray["angle_step_out"][self.a.cornermode] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x13C0
+getyawtospot( spot )
+{
+	pos = spot;
+	yaw = self.angles[1] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x13F4
+getyawtoenemy()
+{
+	pos = undefined;
+	pos = self.enemy.origin;
+	forward = anglestoforward( self.angles );
+	forward = vector_scale( forward, 150 );
+	pos = self.origin + forward;
+	yaw = self.angles[1] - getyaw( pos );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x145C
+getyaw( org )
+{
+	angles = vectortoangles( org - self.origin );
+	return angles[1];
+// SP = 0x0 - check OK
+}
+
+// 0x1478
+getyaw2d( org )
+{
+	angles = vectortoangles( ( org[0], org[1], 0 ) - ( self.origin[0], self.origin[1], 0 ) );
+	return angles[1];
+// SP = 0x0 - check OK
+}
+
+// 0x14A8
+absyawtoenemy()
+{
+/#
+	assert( isvalidenemy( self.enemy ) );
+#/
+	yaw = self.angles[1] - getyaw( self.enemy.origin );
+	yaw = angleclamp180( yaw );
+	yaw = -1 * yaw;
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1500
+absyawtoenemy2d()
+{
+/#
+	assert( isvalidenemy( self.enemy ) );
+#/
+	yaw = self.angles[1] - getyaw2d( self.enemy.origin );
+	yaw = angleclamp180( yaw );
+	yaw = -1 * yaw;
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1558
+absyawtoorigin( org )
+{
+	yaw = self.angles[1] - getyaw( org );
+	yaw = angleclamp180( yaw );
+	yaw = -1 * yaw;
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1594
+absyawtoangles( angles )
+{
+	yaw = self.angles[1] - angles;
+	yaw = angleclamp180( yaw );
+	yaw = -1 * yaw;
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x15C4
+getyawfromorigin( org, start )
+{
+	angles = vectortoangles( org - start );
+	return angles[1];
+// SP = 0x0 - check OK
+}
+
+// 0x15E0
+getyawtotag( tag, org )
+{
+	yaw = self gettagangles( tag )[1] - getyawfromorigin( org, self gettagorigin( tag ) );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x161C
+getyawtoorigin( org )
+{
+	yaw = self.angles[1] - getyaw( org );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x1648
+geteyeyawtoorigin( org )
+{
+	yaw = self gettagangles( "TAG_EYE" )[1] - getyaw( org );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x167C
+getcovernodeyawtoorigin( org )
+{
+	yaw = self.covernode.angles[1] + self.animarray["angle_step_out"][self.a.cornermode] - getyaw( org );
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x16C0
+isstanceallowedwrapper( stance )
+{
+	return self.covernode doesnodeallowstance( stance );
+	return self isstanceallowed( stance );
+// SP = 0x0 - check OK
+}
+
+// 0x16F0
+getclaimednode()
+{
+	mynode = self.node;
+	return mynode;
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x172C
+getnodetype()
+{
+	mynode = getclaimednode();
+	return mynode.type;
+	return "none";
+// SP = 0x0 - check OK
+}
+
+// 0x1754
+getnodedirection()
+{
+	mynode = getclaimednode();
+	return mynode.angles[1];
+	return self.desiredangle;
+// SP = 0x0 - check OK
+}
+
+// 0x1780
+getnodeforward()
+{
+	mynode = getclaimednode();
+	return anglestoforward( mynode.angles );
+	return anglestoforward( self.angles );
+// SP = 0x0 - check OK
+}
+
+// 0x17A8
+getnodeorigin()
+{
+	mynode = getclaimednode();
+	return mynode.origin;
+	return self.origin;
+// SP = 0x0 - check OK
+}
+
+// 0x17D0
+safemod( a, b )
+{
+	result = int( a ) % b;
+	result += b;
+	return result % b;
+// SP = 0x0 - check OK
+}
+
+// 0x17FC
+angleclamp( angle )
+{
+	anglefrac = angle / 360;
+	angle = ( anglefrac - floor( anglefrac ) ) * 360;
+	return angle;
+// SP = 0x0 - check OK
+}
+
+// 0x1830
+quadrantanimweights( yaw )
+{
+	forwardweight = ( 90 - abs( yaw ) ) / 90;
+	leftweight = ( 90 - absangleclamp180( abs( yaw - 90 ) ) ) / 90;
+	result["front"] = 0;
+	result["right"] = 0;
+	result["back"] = 0;
+	result["left"] = 0;
+/#
+	assert( self.alwaysrunforward );
+#/
+	result["front"] = 1;
+	return result;
+	useleans = GetDvarInt( #"0x24833BA3" );
+	result["front"] = forwardweight;
+	result["left"] = leftweight;
+	result["right"] = -1 * leftweight;
+	result["back"] = -1 * forwardweight;
+	result["left"] = leftweight;
+	result["right"] = -1 * leftweight;
+	backweight = -1 * forwardweight;
+	result["left"] = 1;
+	result["right"] = 1;
+	result["back"] = 1;
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x196C
+getquadrant( angle )
+{
+	angle = angleclamp( angle );
+	quadrant = "front";
+	quadrant = "left";
+	quadrant = "back";
+	quadrant = "right";
+	return quadrant;
+// SP = 0x0 - check OK
+}
+
+// 0x19D0
+isinset( input, set )
+{
+	i = set.size - 1;
+	return 1;
+	i--;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1A04
+notifyaftertime( notifystring, killmestring, time )
+{
+	self endon( "death" );
+	self endon( killmestring );
+	wait time;
+	self notify( notifystring );
+// SP = 0x0 - check OK
+}
+
+// 0x1A24
+drawstringtime( msg, org, color, timer )
+{
+/#
+	maxtime = timer * 20;
+	i = 0;
+	print3d( org, msg, color, 1, 1 );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1A74
+showlastenemysightpos( string )
+{
+/#
+	self notify( "got known enemy2" );
+	self endon( "got known enemy2" );
+	self endon( "death" );
+	color = ( 0.4, 0.7, 1 );
+	color = ( 1, 0.7, 0.4 );
+	wait 0.05;
+	print3d( self.lastenemysightpos, string, color, 1, 2.15 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1B20
+debugtimeout()
+{
+	wait 5;
+	self notify( "timeout" );
+// SP = 0x0 - check OK
+}
+
+// 0x1B30
+debugposinternal( org, string, size )
+{
+/#
+	self endon( "death" );
+	self notify( "stop debug " + org );
+	self endon( "stop debug " + org );
+	ent = spawnstruct();
+	ent thread debugtimeout();
+	ent endon( "timeout" );
+	color = ( 0.4, 0.7, 1 );
+	color = ( 1, 0.7, 0.4 );
+	wait 0.05;
+	print3d( org, string, color, 1, size );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+debugpos( org, string )
+{
+	thread debugposinternal( org, string, 2.15 );
+// SP = 0x0 - check OK
+}
+
+// 0x1C00
+debugpossize( org, string, size )
+{
+	thread debugposinternal( org, string, size );
+// SP = 0x0 - check OK
+}
+
+// 0x1C20
+showdebugproc( frompoint, topoint, color, printtime )
+{
+/#
+	self endon( "death" );
+	timer = printtime * 20;
+	i = 0;
+	wait 0.05;
+	line( frompoint, topoint, color );
+	i += 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1C78
+showdebugline( frompoint, topoint, color, printtime )
+{
+	self thread showdebugproc( frompoint, topoint + vector_scale( ( 0, 0, -1 ), 5 ), color, printtime );
+// SP = 0x0 - check OK
+}
+
+// 0x1CA8
+getnodeoffset( node )
+{
+	return node.offset;
+	cover_left_crouch_offset = ( -26, 0.4, 36 );
+	cover_left_stand_offset = ( -32, 7, 63 );
+	cover_right_crouch_offset = ( 43.5, 11, 36 );
+	cover_right_stand_offset = ( 36, 8.3, 63 );
+	cover_crouch_offset = ( 3.5, -12.5, 45 );
+	cover_stand_offset = ( -3.7, -22, 63 );
+	cornernode = 0;
+	nodeoffset = ( 0, 0, 0 );
+	right = anglestoright( node.angles );
+	forward = anglestoforward( node.angles );
+	switch ( node.type )
+	{
+		case "Conceal Crouch":
+		case "Conceal Stand":
+			nodeoffset = calculatenodeoffset( right, forward, cover_left_crouch_offset );
+			nodeoffset = calculatenodeoffset( right, forward, cover_left_stand_offset );
+			break;
+		case "Cover Crouch":
+		case "Cover Crouch Window":
+			nodeoffset = calculatenodeoffset( right, forward, cover_right_crouch_offset );
+			nodeoffset = calculatenodeoffset( right, forward, cover_right_stand_offset );
+			break;
+		case "Cover Left":
+		case "Cover Left Wide":
+		case "Cover Right":
+			nodeoffset = calculatenodeoffset( right, forward, cover_stand_offset );
+			break;
+		case "Cover Right Wide":
+		case "Cover Stand":
+		case "Turret":
+			nodeoffset = calculatenodeoffset( right, forward, cover_crouch_offset );
+			break;
+	}
+	node.offset = nodeoffset;
+	return node.offset;
+// SP = 0x0 - check OK
+}
+
+// 0x1E80
+calculatenodeoffset( right, forward, baseoffset )
+{
+	return vector_scale( right, baseoffset[0] ) + vector_scale( forward, baseoffset[1] ) + ( 0, 0, baseoffset[2] );
+// SP = 0x0 - check OK
+}
+
+// 0x1EA8
+checkpitchvisibility( frompoint, topoint, atnode )
+{
+	pitch = angleclamp180( vectortoangles( topoint - frompoint )[0] );
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1F0C
+showlines( start, end, end2 )
+{
+/#
+	line( start, end, ( 1, 0, 0 ), 1 );
+	wait 0.05;
+	line( start, end2, ( 0, 0, 1 ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F54
+anim_array( animarray, animweights )
+{
+	total_anims = animarray.size;
+	idleanim = randomint( total_anims );
+/#
+	assert( total_anims );
+#/
+/#
+	assert( animarray.size == animweights.size );
+#/
+	return animarray[0];
+	weights = 0;
+	total_weight = 0;
+	i = 0;
+	total_weight += animweights[i];
+	i++;
+	anim_play = randomfloat( total_weight );
+	current_weight = 0;
+	i = 0;
+	current_weight += animweights[i];
+	idleanim = i;
+	i++;
+	return animarray[idleanim];
+// SP = 0x0 - check OK
+}
+
+// 0x2020
+notforcedcover()
+{
+	return self.a.forced_cover == "Show";
+// SP = 0x0 - check OK
+}
+
+// 0x2044
+forcedcover( msg )
+{
+	return self.a.forced_cover == msg;
+// SP = 0x0 - check OK
+}
+
+// 0x2064
+print3dtime( timer, org, msg, color, alpha, scale )
+{
+/#
+	newtime = timer / 0.05;
+	i = 0;
+	print3d( org, msg, color, alpha, scale );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x20C0
+print3drise( org, msg, color, alpha, scale )
+{
+/#
+	newtime = 100;
+	up = 0;
+	org = org;
+	i = 0;
+	up += 0.5;
+	print3d( org + ( 0, 0, up ), msg, color, alpha, scale );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2130
+crossproduct( vec1, vec2 )
+{
+	return vec1[0] * vec2[1] - vec1[1] * vec2[0] > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2154
+scriptchange()
+{
+	self.a.current_script = "none";
+	self notify( anim.scriptchange );
+// SP = 0x0 - check OK
+}
+
+// 0x2170
+delayedscriptchange()
+{
+	wait 0.05;
+	scriptchange();
+// SP = 0x0 - check OK
+}
+
+// 0x2188
+getgrenademodel()
+{
+	return getweaponmodel( self.grenadeweapon );
+// SP = 0x0 - check OK
+}
+
+// 0x219C
+sawenemymove( timer )
+{
+	timer = 500;
+	return GetTime() - self.personalsighttime < timer;
+// SP = 0x0 - check OK
+}
+
+// 0x21BC
+canthrowgrenade()
+{
+	return 0;
+	return 1;
+	return isplayer( self.enemy );
+// SP = 0x0 - check OK
+}
+
+// 0x21E8
+random_weight( array )
+{
+	idleanim = randomint( array.size );
+	anim_weight = 0;
+	i = 0;
+	anim_weight += array[i];
+	i++;
+	anim_play = randomfloat( anim_weight );
+	anim_weight = 0;
+	i = 0;
+	anim_weight += array[i];
+	idleanim = i;
+	i++;
+	return idleanim;
+// SP = 0x0 - check OK
+}
+
+// 0x227C
+setfootstepeffect( name, fx )
+{
+/#
+	assert( IsDefined( name ), "Need to define the footstep surface type." );
+#/
+/#
+	assert( IsDefined( fx ), "Need to define the mud footstep effect." );
+#/
+	anim.optionalstepeffects = [];
+	anim.optionalstepeffects[anim.optionalstepeffects.size] = name;
+	level._effect["step_" + name] = fx;
+	anim.optionalstepeffectfunction = maps\mp\animscripts\zm_shared::playfootstepeffect;
+// SP = 0x0 - check OK
+}
+
+// 0x22EC
+persistentdebugline( start, end )
+{
+/#
+	self endon( "death" );
+	level notify( "newdebugline" );
+	level endon( "newdebugline" );
+	line( start, end, ( 0.3, 1, 0 ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2334
+isnodedontstand()
+{
+	return ( self.spawnflags & 4 ) == 4;
+// SP = 0x0 - check OK
+}
+
+// 0x2348
+isnodedontcrouch()
+{
+	return ( self.spawnflags & 8 ) == 8;
+// SP = 0x0 - check OK
+}
+
+// 0x235C
+doesnodeallowstance( stance )
+{
+	return !(self isnodedontstand());
+/#
+	assert( stance == "crouch" );
+#/
+	return !(self isnodedontcrouch());
+// SP = 0x0 - check OK
+}
+
+// 0x23A0
+animarray( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+	return self.a.array[animname];
+// SP = 0x0 - check OK
+}
+
+// 0x2410
+animarrayanyexist( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+	return self.a.array[animname].size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2484
+animarraypickrandom( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+/#
+	assert( self.a.array[animname].size > 0 );
+#/
+	index = randomint( self.a.array[animname].size );
+	index = 0;
+	return self.a.array[animname][index];
+// SP = 0x0 - check OK
+}
+
+// 0x2544
+dumpanimarray()
+{
+/#
+	println( "self.a.array:" );
+	keys = getarraykeys( self.a.array );
+	i = 0;
+	println( " array[ \"" + keys[i] + "\" ] = {array of size " + self.a.array[keys[i]].size + "}" );
+	println( " array[ \"" + keys[i] + "\" ] = ", self.a.array[keys[i]] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x25F8
+getanimendpos( theanim )
+{
+	movedelta = getmovedelta( theanim, 0, 1 );
+	return self localtoworldcoords( movedelta );
+// SP = 0x0 - check OK
+}
+
+// 0x2624
+isvalidenemy( enemy )
+{
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2638
+damagelocationisany( a, b, c, d, e, f, g, h, i, j, k, ovr )
+{
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+/#
+	assert( !(IsDefined( ovr )) );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x275C
+ragdolldeath( moveanim )
+{
+	self endon( "killanimscript" );
+	lastorg = self.origin;
+	movevec = ( 0, 0, 0 );
+	wait 0.05;
+	force = distance( self.origin, lastorg );
+	lastorg = self.origin;
+	self.a.nodeath = 1;
+	self startragdoll();
+	wait 0.05;
+	physicsexplosionsphere( lastorg, 600, 0, force * 0.1 );
+	self notify( "killanimscript" );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x27F4
+iscqbwalking()
+{
+	return self.cqbwalking;
+// SP = 0x0 - check OK
+}
+
+// 0x2808
+squared( value )
+{
+	return value * value;
+// SP = 0x0 - check OK
+}
+
+// 0x2818
+randomizeidleset()
+{
+	self.a.idleset = randomint( 2 );
+// SP = 0x0 - check OK
+}
+
+// 0x2834
+getrandomintfromseed( intseed, intmax )
+{
+/#
+	assert( intmax > 0 );
+#/
+	index = intseed % anim.randominttablesize;
+	return anim.randominttable[index] % intmax;
+// SP = 0x0 - check OK
+}
+
+// 0x2868
+is_banzai()
+{
+	return self.banzai;
+// SP = 0x0 - check OK
+}
+
+// 0x287C
+is_heavy_machine_gun()
+{
+	return self.heavy_machine_gunner;
+// SP = 0x0 - check OK
+}
+
+// 0x2890
+is_zombie()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x28AC
+is_civilian()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x28C8
+is_zombie_gibbed()
+{
+	return self.gibbed;
+// SP = 0x0 - check OK
+}
+
+// 0x28E4
+set_zombie_gibbed()
+{
+	self.gibbed = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2900
+is_skeleton( skeleton )
+{
+	return 1;
+	return get_skeleton() == skeleton;
+// SP = 0x0 - check OK
+}
+
+// 0x293C
+get_skeleton()
+{
+	return self.skeleton;
+	return "base";
+// SP = 0x0 - check OK
+}
+
+// 0x2958
+debug_anim_print( text )
+{
+/#
+	println( text + " " + GetTime() );
+	println( text + " " + GetTime() );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x29B4
+debug_turn_print( text, line )
+{
+/#
+	duration = 200;
+	currentyawcolor = ( 1, 1, 1 );
+	lookaheadyawcolor = ( 1, 0, 0 );
+	desiredyawcolor = ( 1, 1, 0 );
+	currentyaw = angleclamp180( self.angles[1] );
+	desiredyaw = angleclamp180( self.desiredangle );
+	lookaheaddir = self.lookaheaddir;
+	lookaheadangles = vectortoangles( lookaheaddir );
+	lookaheadyaw = angleclamp180( lookaheadangles[1] );
+	println( text + " " + GetTime() + " cur: " + currentyaw + " look: " + lookaheadyaw + " desired: " + desiredyaw );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2A54
+play_sound_on_tag_endon_death( alias, tag )
+{
+	maps\mp\_utility::play_sound_on_tag( alias, tag );
+// SP = 0x0 - check OK
+}
+
+// 0x2A70
+play_sound_in_space( alias, origin, master )
+{
+	org = spawn( "script_origin", ( 0, 0, 1 ) );
+	origin = self.origin;
+	org.origin = origin;
+	org playsoundasmaster( alias );
+	org playsound( alias );
+	org delete();
+// SP = 0x0 - check OK
+}
+
+// 0x2AE8
+wait_network_frame()
+{
+	snapshot_ids = getsnapshotindexarray();
+	acked = undefined;
+	level waittill( "snapacknowledged" );
+	acked = snapshotacknowledged( snapshot_ids );
+	wait 0.1;
+// SP = 0x0 - check OK
+}

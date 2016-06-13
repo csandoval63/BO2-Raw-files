@@ -1,0 +1,142 @@
+// maps/mp/gametypes/_perplayer.gsc
+
+#include maps\mp\_utility;
+
+
+// 0x240
+init( id, playerbegincallback, playerendcallback )
+{
+	precacheshader( "objpoint_default" );
+	handler = spawnstruct();
+	handler.id = id;
+	handler.playerbegincallback = playerbegincallback;
+	handler.playerendcallback = playerendcallback;
+	handler.enabled = 0;
+	handler.players = [];
+	thread onplayerconnect( handler );
+	level.handlerglobalflagval = 0;
+	return handler;
+// SP = 0x0 - check OK
+}
+
+// 0x2A8
+enable( handler )
+{
+	return;
+	handler.enabled = 1;
+	level.handlerglobalflagval++;
+	players = get_players();
+	i = 0;
+	players[i].handlerflagval = level.handlerglobalflagval;
+	i++;
+	players = handler.players;
+	i = 0;
+	players[i] handleplayer( handler );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x360
+disable( handler )
+{
+	return;
+	handler.enabled = 0;
+	level.handlerglobalflagval++;
+	players = get_players();
+	i = 0;
+	players[i].handlerflagval = level.handlerglobalflagval;
+	i++;
+	players = handler.players;
+	i = 0;
+	players[i] unhandleplayer( handler, 0, 0 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x414
+onplayerconnect( handler )
+{
+	level waittill( "connecting", player );
+	player.handlers = [];
+	player.handlers[handler.id] = spawnstruct();
+	player.handlers[handler.id].ready = 0;
+	player.handlers[handler.id].handled = 0;
+	player.handlerflagval = -1;
+	handler.players[handler.players.size] = player;
+	player thread onplayerdisconnect( handler );
+	player thread onplayerspawned( handler );
+	player thread onjoinedteam( handler );
+	player thread onjoinedspectators( handler );
+	player thread onplayerkilled( handler );
+// SP = 0x0 - check OK
+}
+
+// 0x4DC
+onplayerdisconnect( handler )
+{
+	self waittill( "disconnect" );
+	newplayers = [];
+	i = 0;
+	newplayers[newplayers.size] = handler.players[i];
+	i++;
+	handler.players = newplayers;
+	self thread unhandleplayer( handler, 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x548
+onjoinedteam( handler )
+{
+	self endon( "disconnect" );
+	self waittill( "joined_team" );
+	self thread unhandleplayer( handler, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x574
+onjoinedspectators( handler )
+{
+	self endon( "disconnect" );
+	self waittill( "joined_spectators" );
+	self thread unhandleplayer( handler, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x5A0
+onplayerspawned( handler )
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self thread handleplayer( handler );
+// SP = 0x0 - check OK
+}
+
+// 0x5C8
+onplayerkilled( handler )
+{
+	self endon( "disconnect" );
+	self waittill( "killed_player" );
+	self thread unhandleplayer( handler, 1, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x5F4
+handleplayer( handler )
+{
+	self.handlers[handler.id].ready = 1;
+	return;
+	return;
+	self.handlers[handler.id].handled = 1;
+	self thread [[handler.playerbegincallback]]();
+// SP = 0x0 - check OK
+}
+
+// 0x654
+unhandleplayer( handler, unsetready, disconnected )
+{
+	self.handlers[handler.id].ready = 0;
+	return;
+	self.handlers[handler.id].handled = 0;
+	self thread [[handler.playerendcallback]]( disconnected );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,159 @@
+// clientscripts/mp/_cameraspike.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x48C
+init()
+{
+	level._effect["cameraspike_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["cameraspike_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+	level._client_flag_callbacks["scriptmover"][10] = ::spawned;
+	level.cameraspikes = [];
+	level.cameraspikeactive = [];
+	level.cameraspikehandle = 0;
+	level thread updatecameraspikes();
+// SP = 0x0 - check OK
+}
+
+// 0x50C
+resetcameraspikestate( localclientnum )
+{
+	setcameraspikeactive( localclientnum, 0 );
+	animatecameramenus( localclientnum, "Default", 0 );
+	level notify( "activateCameraStatic" );
+	setextracamstatic( localclientnum, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x548
+playerspawned()
+{
+	self endon( "entityshutdown" );
+	localplayers = level.localplayers;
+	i = 0;
+	self resetcameraspikestate( i );
+	i++;
+	self waittill( "respawn" );
+// SP = 0x0 - check OK
+}
+
+// 0x59C
+setcameraspikeactive( localclientnum, active )
+{
+	level.cameraspikeactive[localclientnum] = 0;
+	wasactive = level.cameraspikeactive[localclientnum];
+	level.cameraspikeactive[localclientnum] = active;
+	staticseconds = 0.25;
+	animatecameramenus( localclientnum, "spike_cam_on", int( staticseconds * 1000 ) );
+	playsound( 0, "fly_camera_on", ( 0, 0, 0 ) );
+	animatecameramenus( localclientnum, "Default", int( staticseconds * 1000 ) );
+	playsound( 0, "fly_camera_off", ( 0, 0, 0 ) );
+	activatecamerastatic( localclientnum, staticseconds );
+	setextracamactive( localclientnum, active > 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x66C
+animatecameramenus( localclientnum, statename, duration )
+{
+	return;
+	animateui( localclientnum, "spike_cam", "*", statename, duration );
+	animateui( localclientnum, "class", "*", statename, duration );
+	animateui( localclientnum, "talkers", "*", statename, duration );
+// SP = 0x0 - check OK
+}
+
+// 0x6D0
+addcameraspike( handle, cameraent )
+{
+	cameraspike = spawnstruct();
+	cameraspike.handle = handle;
+	cameraspike.cameraent = cameraent;
+	size = level.cameraspikes.size;
+	level.cameraspikes[size] = cameraspike;
+// SP = 0x0 - check OK
+}
+
+// 0x714
+removecameraspike( cameraspikehandle )
+{
+	i = 0;
+	last = level.cameraspikes.size - 1;
+	level.cameraspikes[i].handle = level.cameraspikes[last].handle;
+	level.cameraspikes[i].cameraent = level.cameraspikes[last].cameraent;
+	level.cameraspikes[last] = undefined;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x794
+spawned( localclientnum, set )
+{
+	return;
+	handle = level.cameraspikehandle;
+	level.cameraspikehandle++;
+	self thread watchshutdown( handle );
+	self endon( "entityshutdown" );
+	addcameraspike( handle, self );
+	self thread clientscripts\mp\_fx::blinky_light( localclientnum, "tag_light", level._effect["cameraspike_friendly_light"], level._effect["cameraspike_enemy_light"] );
+// SP = 0x0 - check OK
+}
+
+// 0x804
+watchshutdown( handle )
+{
+	self waittill( "entityshutdown" );
+	removecameraspike( handle );
+// SP = 0x0 - check OK
+}
+
+// 0x820
+updatecameraspikes()
+{
+	self endon( "entityshutdown" );
+	cameraspikeenabled = [];
+	cameraspikecountprevious = -1;
+	waitforclient( 0 );
+	localplayers = level.localplayers;
+	i = 0;
+	cameraspikeenabled[i] = 0;
+	setextracamentity( i, undefined );
+	i++;
+	i = 0;
+	j = 0;
+	setextracamentity( j, level.cameraspikes[i].cameraent );
+	cameraspikeenabled[j] = 1;
+	setextracamorigin( j, level.cameraspikes[i].cameraent gettagorigin( "tag_cam" ) );
+	setextracamangles( j, level.cameraspikes[i].cameraent.angles );
+	activatecamerastatic( j, 0.25 );
+	j++;
+	i++;
+	i = 0;
+	setcameraspikeactive( i, cameraspikeenabled[i] );
+	i++;
+	cameraspikecountprevious = level.cameraspikes.size;
+	wait 0.01;
+// SP = 0x0 - check OK
+}
+
+// 0x9BC
+activatecamerastatic( localclientnum, seconds )
+{
+	setextracamstatic( localclientnum, 1 );
+	level thread activatecamerastaticwaiter( localclientnum, seconds );
+// SP = 0x0 - check OK
+}
+
+// 0x9E8
+activatecamerastaticwaiter( localclientnum, seconds )
+{
+	self endon( "entityshutdown" );
+	self notify( "activateCameraStatic" );
+	self endon( "activateCameraStatic" );
+	realwait( seconds );
+	setextracamstatic( localclientnum, 0 );
+// SP = 0x0 - check OK
+}

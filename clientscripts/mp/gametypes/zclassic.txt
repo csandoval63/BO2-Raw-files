@@ -1,0 +1,31 @@
+// clientscripts/mp/gametypes/zclassic.csc
+
+
+// 0x128
+main()
+{
+	level._zombie_gamemodeprecache = ::onprecachegametype;
+	level._zombie_gamemodemain = ::onstartgametype;
+/#
+	println( " ************ ZCLASSIC MAIN" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x158
+onprecachegametype()
+{
+/#
+	println( " ************ ZCLASSIC PRECACHE" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x170
+onstartgametype()
+{
+/#
+	println( " ************ ZCLASSIC MAIN MAIN" );
+#/
+// SP = 0x0 - check OK
+}

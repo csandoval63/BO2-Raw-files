@@ -1,0 +1,13 @@
+// maps/mp/animscripts/traverse/zm_jump_down_fast_40.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x11C
+main()
+{
+	dosimpletraverse( "jump_down_fast_40" );
+	dosimpletraverse( "jump_down_40" );
+// SP = 0x0 - check OK
+}

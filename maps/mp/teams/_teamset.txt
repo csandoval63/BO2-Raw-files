@@ -1,0 +1,20 @@
+// maps/mp/teams/_teamset.gsc
+
+
+// 0xE0
+init()
+{
+	game["flagmodels"] = [];
+	game["carry_flagmodels"] = [];
+	game["carry_icon"] = [];
+	game["flagmodels"]["neutral"] = "mp_flag_neutral";
+// SP = 0x0 - check OK
+}
+
+// 0x128
+customteam_init()
+{
+	setdvar( "g_TeamName_Allies", GetDvar( #"0x8D1F0A47" ) );
+	setdvar( "g_TeamName_Axis", GetDvar( #"0x4C4BAFC2" ) );
+// SP = 0x0 - check OK
+}

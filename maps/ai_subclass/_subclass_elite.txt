@@ -1,0 +1,39 @@
+// maps/ai_subclass/_subclass_elite.gsc
+
+#include animscripts\ai_subclass\anims_table_elite;
+#include animscripts\utility;
+#include animscripts\combat_utility;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x1C4
+subclass_elite()
+{
+	return;
+	return;
+	enable_elite();
+// SP = 0x0 - check OK
+}
+
+// 0x1F0
+enable_elite()
+{
+	self.subclass = "elite";
+	self.a.disablewoundedset = 1;
+	self.a.userifleanimsforsmg = 1;
+	self.elite = 1;
+	self animscripts\ai_subclass\anims_table_elite::setup_elite_anim_array();
+// SP = 0x0 - check OK
+}
+
+// 0x238
+disable_elite()
+{
+/#
+	assert( is_true( self.elite ) );
+#/
+	self.subclass = "regular";
+	self animscripts\ai_subclass\anims_table_elite::reset_self_elite_anim_array();
+// SP = 0x0 - check OK
+}

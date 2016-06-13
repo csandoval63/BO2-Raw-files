@@ -1,0 +1,16 @@
+// clientscripts/mp/zombies/_zm_ffotd.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0xA0
+main_start()
+{
+// SP = 0x0 - check OK
+}
+
+// 0xA8
+main_end()
+{
+// SP = 0x0 - check OK
+}

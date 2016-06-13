@@ -1,0 +1,49 @@
+// maps/mp/_serverfaceanim_mp.gsc
+
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x1E8
+init()
+{
+	level waittill( "connecting", player );
+	player thread onplayerspawned();
+// SP = 0x0 - check OK
+}
+
+// 0x20C
+onplayerspawned()
+{
+	self endon( "disconnect" );
+	self waittill( "spawned_player" );
+	self thread init_serverfaceanim();
+// SP = 0x0 - check OK
+}
+
+// 0x230
+init_serverfaceanim()
+{
+	self.do_face_anims = 1;
+	level.face_event_handler = spawnstruct();
+	level.face_event_handler.events = [];
+	level.face_event_handler.events["death"] = "face_death";
+	level.face_event_handler.events["grenade danger"] = "face_alert";
+	level.face_event_handler.events["bulletwhizby"] = "face_alert";
+	level.face_event_handler.events["projectile_impact"] = "face_alert";
+	level.face_event_handler.events["explode"] = "face_alert";
+	level.face_event_handler.events["alert"] = "face_alert";
+	level.face_event_handler.events["shoot"] = "face_shoot_single";
+	level.face_event_handler.events["melee"] = "face_melee";
+	level.face_event_handler.events["damage"] = "face_pain";
+	level thread wait_for_face_event();
+// SP = 0x0 - check OK
+}
+
+// 0x30C
+wait_for_face_event()
+{
+	level waittill( "face", face_notify, ent );
+	ent sendfaceevent( level.face_event_handler.events[face_notify] );
+// SP = 0x0 - check OK
+}

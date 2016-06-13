@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_gap7_to_top_ledge.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x108
+main()
+{
+	dosimpletraverse( "dierise_gap7_to_top_ledge" );
+// SP = 0x0 - check OK
+}

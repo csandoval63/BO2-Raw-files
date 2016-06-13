@@ -1,0 +1,384 @@
+// animscripts/debug.gsc
+
+#include animscripts\utility;
+#include common_scripts\utility;
+
+
+// 0xA58
+maindebug()
+{
+/#
+	level thread sendaimonitorkeys();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA6C
+sendaimonitorkeys()
+{
+/#
+	dvarval = GetDvar( #"0xC0693041" );
+	println( "DVAR NOT DEFINED" );
+	sendentinfokeys();
+	sendanimscriptkeys();
+	sendcodestatekeys();
+	setdvar( "ai_monitorNeedsKeys", 0 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xAE4
+sendentinfokeys()
+{
+/#
+	keys = array( "Targetname", "Script_noteworthy", "Enemy", "&newline", "Health", "Goal Radius", "&newline", "Current Weapon", "Primary Weapon", "Secondary Weapon", "Sidearm", "&newline", "Current Stance", "Allowed Stances", "&newline", "Ignore All", "Ignore Me", "&newline", "disableTurns", "disableArrivals", "disableExits", "disablePain", "ignoreSuppression", "&newline", "allowShooting", "grenadeAwareness", "takeDamage", "&newline", "CQB", "Heat", "Sprint", "&newline", "ScriptOrientMode", "CodeOrientMode", "MoveMode", "FixedNode", "&newline", "Movement", "PathEnemyFightDist", "WeaponClass" );
+	keynames = "";
+	i = 0;
+	keynames += keys[i] + "\n";
+	i++;
+	sendaiscriptkeys( "entinfo", keynames );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xBD8
+getstancestring()
+{
+/#
+	stancestring = "";
+	stancestring += "S";
+	stancestring += "C";
+	stancestring += "P";
+	return stancestring;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xC44
+getval( variable )
+{
+/#
+	return variable;
+	return "undefined";
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xC64
+sendentinfovals()
+{
+/#
+	enemynum = self.enemy getentitynumber();
+	enemynum = undefined;
+	vals = array( getval( self.targetname ), getval( self.script_noteworthy ), getval( enemynum ), getval( self.health ), getval( self.goalradius ), getval( self.weapon ), getval( self.primaryweapon ), getval( self.secondaryweapon ), getval( self.sidearm ), getval( self.a.pose ), getval( self getstancestring() ), getval( self.ignoreall ), getval( self.ignoreme ), getval( self.disableturns ), getval( self.disablearrivals ), getval( self.disableexits ), getval( self.diablepain ), getval( self.ignoresuppression ), getval( self.a.allow_shooting ), getval( self.grenadeawareness ), getval( self.takedamage ), getval( !(self animscripts\utility::weaponanims() == "pistol") ), getval( self.heat ), getval( self.sprint ), getval( self getorientmode( "script" ) ), getval( self getorientmode( "code" ) ), getval( self.movemode ), getval( self.fixednode ), getval( self.a.movement ), getval( self.pathenemyfightdist ), getval( self.weaponclass ) );
+	valstring = "";
+	i = 0;
+	valstring += vals[i] + "\n";
+	i++;
+	self sendaiscriptvals( "entinfo", valstring );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEAC
+sendanimscriptkeys()
+{
+/#
+	sendaiscriptkeys( "animscript", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEC8
+sendcodestatekeys()
+{
+/#
+	sendaiscriptkeys( "codestate", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xEE4
+isdebugon()
+{
+/#
+	return anim.debugent == self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF10
+drawdebuglineinternal( frompoint, topoint, color, durationframes )
+{
+/#
+	i = 0;
+	line( frompoint, topoint, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF54
+drawdebugline( frompoint, topoint, color, durationframes )
+{
+/#
+	thread drawdebuglineinternal( frompoint, topoint, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF88
+debugline( frompoint, topoint, color, durationframes )
+{
+/#
+	i = 0;
+	line( frompoint, topoint, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xFD0
+drawdebugcross( atpoint, radius, color, durationframes )
+{
+/#
+	atpoint_high = atpoint + ( 0, 0, radius );
+	atpoint_low = atpoint + ( 0, 0, -1 * radius );
+	atpoint_left = atpoint + ( 0, radius, 0 );
+	atpoint_right = atpoint + ( 0, -1 * radius, 0 );
+	atpoint_forward = atpoint + ( radius, 0, 0 );
+	atpoint_back = atpoint + ( -1 * radius, 0, 0 );
+	thread debugline( atpoint_high, atpoint_low, color, durationframes );
+	thread debugline( atpoint_left, atpoint_right, color, durationframes );
+	thread debugline( atpoint_forward, atpoint_back, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x106C
+updatedebuginfo()
+{
+/#
+	self endon( "death" );
+	self.debuginfo = spawnstruct();
+	self.debuginfo.enabled = GetDvarInt( #"0x40CDA2CF" ) > 0;
+	debugclearstate();
+	waittillframeend;
+	updatedebuginfointernal();
+	sendentinfovals();
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x10CC
+updatedebuginfointernal()
+{
+/#
+	doinfo = 1;
+	doinfo = GetDvarInt( #"0x40CDA2CF" ) > 0;
+	ai_entnum = GetDvarInt( #"0xC8569254" );
+	doinfo = 0;
+	self.debuginfo.shouldclearonanimscriptchange = 1;
+	self.debuginfo.enabled = doinfo;
+	drawdebuginfo( doinfo );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x116C
+drawdebuginfo( debuglevel )
+{
+/#
+	allowedstancesstr = "";
+	facemotion = "";
+	allowedstancesstr += "s";
+	allowedstancesstr += "c";
+	allowedstancesstr += "p";
+	drawdebugenttext( "(" + self getentitynumber() + ") : " + self.a.pose + " (" + allowedstancesstr + ") : " + self.a.movement + " : " + self.movemode + " : " + self.goalradius + " : " + self.pathenemyfightdist + " : " + self.subclass + " : " + self.animtype + " : KCM" + self.keepclaimednode + " : KCMV" + self.keepclaimednodeifvalid, self, level.color_debug["cyan"], "Animscript" );
+	extrainfostr = "";
+	extrainfostr += self.combatmode + " ";
+	extrainfostr += "ignoreAll ";
+	extrainfostr += "ignoreMe ";
+	extrainfostr += "pacifist ";
+	extrainfostr += "ignoreSuppression ";
+	extrainfostr += "!allow_shooting ";
+	extrainfostr += "cqb ";
+	extrainfostr += "heat ";
+	extrainfostr += "walk ";
+	extrainfostr += "sprint ";
+	extrainfostr += "!arrivals ";
+	extrainfostr += "!exits ";
+	extrainfostr += "wounded ";
+	extrainfostr += "!grenadeAwareness ";
+	extrainfostr += "!takedamage ";
+	extrainfostr += "!allowPain ";
+	extrainfostr += "delayedDeath ";
+	extrainfostr += "disableTurns ";
+	extrainfostr = extrainfostr + "CD-" + ( self.a.script_suffix + " " );
+	extrainfostr += self.a.special;
+	extrainfostr += " blockingpain-" + self.blockingpain;
+	extrainfostr += " reacquire-" + self.reacquire_state;
+	extrainfostr += "\n";
+	extrainfostr += " WeaponClass-" + self.weaponclass;
+	extrainfostr += " BulletsInClip-" + self.bulletsinclip;
+	extrainfostr += " Rockets-" + self.a.rockets;
+	drawdebugenttext( extrainfostr, self, level.color_debug["grey"], "Animscript" );
+	drawdebugenttext( self.primaryweapon + " : " + self.secondaryweapon + " : " + self.sidearm + " (" + self.weapon + ")", self, level.color_debug["grey"], "Animscript" );
+	i = 0;
+	statestring = self.debuginfo.states[i].statename;
+	statestring = ( ( statestring + " (" ) + ( GetTime() - self.debuginfo.states[i].statetime ) ) / ( 1000 + ")" );
+	statestring += ": " + self.debuginfo.states[i].extrainfo;
+	linecolor = level.color_debug["white"];
+	statestring += " [end";
+	linecolor = ( 1, 0.75, 0.75 );
+	statestring += ": " + self.debuginfo.states[i].exitreason;
+	statestring += "]";
+	linecolor = ( 0.75, 1, 0.75 );
+	drawdebugenttext( indent( self.debuginfo.states[i].statelevel ) + "-" + statestring, self, linecolor, "Animscript" );
+	i++;
+	drawdebugenttext( " ", self, level.color_debug["grey"], "Animscript" );
+	debugcleanstatestack();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x16D4
+drawdebugenttext( text, ent, color, channel )
+{
+/#
+/#
+	assert( IsDefined( ent ) );
+#/
+	ent.debuganimscriptlevel = 0;
+	ent.debuganimscripttime = GetTime();
+	indentlevel = vector_scale( vector_scale( ( 0, 0, -1 ), 10 ), ent.debuganimscriptlevel );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 70 ) + indentlevel, text, color );
+	ent.debuganimscriptlevel++;
+	recordenttext( text, ent, color, channel );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1784
+debugpushstate( statename, extrainfo )
+{
+/#
+	ai_entnum = GetDvarInt( #"0xC8569254" );
+/#
+	assert( IsDefined( self.debuginfo.states ) );
+#/
+/#
+	assert( IsDefined( statename ) );
+#/
+	state = spawnstruct();
+	state.statename = statename;
+	state.statelevel = self.debuginfo.statelevel;
+	state.statetime = GetTime();
+	state.statevalid = 1;
+	self.debuginfo.statelevel++;
+	state.extrainfo = extrainfo + " ";
+	self.debuginfo.states[self.debuginfo.states.size] = state;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x185C
+debugaddstateinfo( statename, extrainfo )
+{
+/#
+	ai_entnum = GetDvarInt( #"0xC8569254" );
+/#
+	assert( IsDefined( self.debuginfo.states ) );
+#/
+	i = self.debuginfo.states.size - 1;
+/#
+	assert( IsDefined( self.debuginfo.states[i] ) );
+#/
+	self.debuginfo.states[i].extrainfo = "";
+	self.debuginfo.states[i].extrainfo += extrainfo + " ";
+	i--;
+	lastindex = self.debuginfo.states.size - 1;
+/#
+	assert( IsDefined( self.debuginfo.states[lastindex] ) );
+#/
+	self.debuginfo.states[lastindex].extrainfo = "";
+	self.debuginfo.states[lastindex].extrainfo += extrainfo + " ";
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x19F4
+debugpopstate( statename, exitreason )
+{
+/#
+	ai_entnum = GetDvarInt( #"0xC8569254" );
+/#
+	assert( IsDefined( self.debuginfo.states ) );
+#/
+	i = 0;
+	self.debuginfo.states[i].statevalid = 0;
+	self.debuginfo.states[i].exitreason = exitreason;
+	self.debuginfo.statelevel = self.debuginfo.states[i].statelevel;
+	j = i + 1;
+	self.debuginfo.states[j].statevalid = 0;
+	j++;
+	i++;
+	i = self.debuginfo.states.size - 1;
+	self.debuginfo.states[i].statevalid = 0;
+	self.debuginfo.states[i].exitreason = exitreason;
+	self.debuginfo.statelevel--;
+	i--;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1BC8
+debugclearstate()
+{
+/#
+	self.debuginfo.states = [];
+	self.debuginfo.statelevel = 0;
+	self.debuginfo.shouldclearonanimscriptchange = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1BF0
+debugshouldclearstate()
+{
+/#
+	return 1;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1C20
+debugcleanstatestack()
+{
+/#
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = self.debuginfo.states[i];
+	i++;
+	self.debuginfo.states = newarray;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1C80
+indent( depth )
+{
+/#
+	indent = "";
+	i = 0;
+	indent += " ";
+	i++;
+	return indent;
+#/
+// SP = 0x0 - check OK
+}

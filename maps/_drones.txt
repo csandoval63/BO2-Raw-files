@@ -1,0 +1,1826 @@
+// maps/_drones.gsc
+
+#include maps\_drones;
+#include maps\_damagefeedback;
+#include maps\_friendlyfire;
+#include maps\_names;
+#include maps\_spawner;
+#include common_scripts\utility;
+#include animscripts\shared;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+#include animscripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "fakeshooters" );
+
+
+// 0x2C98
+init()
+{
+/#
+#/
+	level.drones = spawnstruct();
+	effect = loadfx( "impacts/fx_flesh_hit" );
+	drones_set_impact_effect( effect );
+	effect = loadfx( "weapon/muzzleflashes/fx_standard_flash" );
+	drones_set_muzzleflash( effect );
+	level.drones.step_height = 100;
+	level.drones.trace_height = 400;
+	drones_init_max();
+	drones_set_friendly_fire( 0 );
+	drones_disable_sound( 0 );
+	drones_set_max_ragdolls( 8 );
+	set_anim_array();
+	level.drones.team = [];
+	level.drones.team["axis"] = struct_arrayspawn();
+	level.drones.team["allies"] = struct_arrayspawn();
+	level.drones.drone_spawners = [];
+	level.drones.axis_triggers = getentarray( "drone_axis", "targetname" );
+	level.drones.allies_triggers = getentarray( "drone_allies", "targetname" );
+	array_thread( level.drones.axis_triggers, ::drones_setup_spawner, 1 );
+	array_thread( level.drones.allies_triggers, ::drones_setup_spawner, 1 );
+	level.drones.axis_structs = getstructarray( "drone_axis", "targetname" );
+	level.drones.allies_structs = getstructarray( "drone_allies", "targetname" );
+	array_thread( level.drones.axis_structs, ::drones_setup_spawner, 0 );
+	array_thread( level.drones.allies_structs, ::drones_setup_spawner, 0 );
+	flag_init( "drones_stop_looped_anims" );
+	flag_init( "reached_drone_spawn_cap" );
+	level.drones.max_per_frame = 10;
+	level.drones.spawned_this_frame = 0;
+	level thread reset_drone_throttle();
+	level.drones.respawn_death_delay_min = 1;
+	level.drones.respawn_death_delay_max = 3;
+	level.drones.respawners = [];
+	level.drone_spawnfunction["axis"] = ::spawn_random_axis_drone;
+	level.drone_spawnfunction["allies"] = ::spawn_random_allies_drone;
+	level.drones.anim_idle[0] = %stand_alert_1;
+	level.drones.anim_idle[1] = %stand_alert_2;
+	level.drones.anim_idle[2] = %stand_alert_3;
+	level.drones.funcs = [];
+// SP = 0x0 - check OK
+}
+
+// 0x2F70
+drones_add_custom_func( str_func_name, func_custom )
+{
+/#
+	assert( IsDefined( str_func_name ), "str_func_name is a required parameter for drones_add_custom_func!" );
+#/
+/#
+	assert( IsDefined( func_custom ), "func_custom is a required parameter for drones_add_custom_func!" );
+#/
+	level.drones.funcs[str_func_name] = func_custom;
+// SP = 0x0 - check OK
+}
+
+// 0x2FB4
+get_min_value( value, is_integer )
+{
+	values = strtok( value, " " );
+/#
+	assert( values.size > 0, "_drones a non-number value was encountered: \"" + value + "\"" );
+#/
+	is_integer = 1;
+	return int( values[0] );
+	return float( values[0] );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3024
+get_max_value( value, is_integer )
+{
+	values = strtok( value, " " );
+/#
+	assert( values.size > 0, "_drones a non-number value was encountered: \"" + value + "\"" );
+#/
+	is_integer = 1;
+	return int( values[1] );
+	return float( values[1] );
+	return int( values[0] );
+	return float( values[0] );
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x30C4
+drones_system_initialized()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x30E4
+drones_get_trigger_from_script_string( script_string_name )
+{
+	drone_trigger = undefined;
+	i = 0;
+	drone_trigger_array = getentarray( "drone_axis", "targetname" );
+	drone_trigger_array = getentarray( "drone_allies", "targetname" );
+	j = 0;
+	e_ent = drone_trigger_array[j];
+	drone_trigger = drone_trigger_array[j];
+	j++;
+	i++;
+	return drone_trigger;
+// SP = 0x0 - check OK
+}
+
+// 0x3184
+drones_get_data_from_script_string( script_string_name )
+{
+	foreach ( s_data in level.drones.drone_spawners )
+	{
+		return s_data;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x31D8
+drones_init_max()
+{
+	max_drones = 64;
+	max_drones = 16;
+	max_drones = level.drones.max_drones;
+	drones_set_max( max_drones );
+// SP = 0x0 - check OK
+}
+
+// 0x321C
+drones_set_max( max_drones )
+{
+	level.drones = spawnstruct();
+	level.drones.max_drones = max_drones;
+// SP = 0x0 - check OK
+}
+
+// 0x3248
+drones_set_impact_effect( effect_handle )
+{
+	level.drones = spawnstruct();
+	level.drones.impact_fx = effect_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x3274
+drones_set_muzzleflash( effect_handle )
+{
+	level.drones = spawnstruct();
+	level.drones.muzzleflash = effect_handle;
+// SP = 0x0 - check OK
+}
+
+// 0x32A0
+drones_set_friendly_fire( friendly_fire )
+{
+	level.drones.friendly_fire = friendly_fire;
+// SP = 0x0 - check OK
+}
+
+// 0x32B4
+drones_disable_sound( disable_sound )
+{
+	level.drones.sounds_disabled = disable_sound;
+// SP = 0x0 - check OK
+}
+
+// 0x32C8
+save_target_links()
+{
+	foreach ( s_child in self.a_targeted )
+	{
+		s_child.a_targeted = level.struct_class_names["targetname"][s_child.target];
+		s_child save_target_links();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3338
+drones_setup_spawner( is_trigger )
+{
+	data = drones_get_spawner( self.targetname, self.target );
+	data.parent_trigger = self;
+	data.parent_script_struct = self;
+	data.dr_group = self.dr_group;
+	data.dr_need_player = self.dr_need_player;
+	data.dr_player_trace = self.dr_player_trace;
+	data.dr_populate = self.dr_populate;
+	data.dr_respawn = self.dr_respawn;
+	data.n_delay_min = get_min_value( self.dr_delay, 0 );
+	data.n_delay_max = get_max_value( self.dr_delay, 0 );
+	data.n_wait_min = get_min_value( self.dr_wait, 0 );
+	data.n_wait_max = get_max_value( self.dr_wait, 0 );
+	data.n_wave_count_min = get_min_value( self.dr_wave_count );
+	data.n_wave_count_max = get_max_value( self.dr_wave_count );
+	data.n_wave_size_min = get_min_value( self.dr_wave_size );
+	data.n_wave_size_max = get_max_value( self.dr_wave_size );
+	data.script_allowdeath = self.script_allowdeath;
+	data.script_int = self.script_int;
+	data.script_ender = self.script_ender;
+	data.script_noteworthy = self.script_noteworthy;
+	data.script_string = self.script_string;
+	data.weaponinfo = self.weaponinfo;
+	level thread drone_spawner_wait_for_activation( data );
+	return data;
+// SP = 0x0 - check OK
+}
+
+// 0x34C8
+drones_get_spawner( targetname, target )
+{
+	data = spawnstruct();
+	data.parent_trigger = undefined;
+	data.parent_script_struct = undefined;
+	data.a_targeted = getstructarray( target, "targetname" );
+/#
+	assert( IsDefined( data.a_targeted ) );
+#/
+/#
+	assert( IsDefined( data.a_targeted[0] ) );
+#/
+	data save_target_links();
+	data.team = "allies";
+	data.team = "axis";
+	data.paused = 1;
+	data.drone_run_cycle_override = undefined;
+	data.speed_modifier_min = undefined;
+	data.speed_modifier_max = undefined;
+	data.delete_spawner = 0;
+	level.drones.drone_spawners[level.drones.drone_spawners.size] = data;
+	return data;
+// SP = 0x0 - check OK
+}
+
+// 0x35A0
+drone_spawner_wait_for_activation( drones )
+{
+	level endon( drones.script_ender );
+	drones.parent_trigger endon( "death" );
+	drones.parent_trigger waittill( "trigger" );
+	drones.paused = 0;
+	drones.parent_script_struct waittill( "trigger" );
+	drones.paused = 0;
+	level thread drone_spawner_active( drones );
+// SP = 0x0 - check OK
+}
+
+// 0x360C
+drone_spawner_active( drones )
+{
+	repeat_times = 9999999;
+	repeat_times = randomintrange( drones.n_wave_count_min, drones.n_wave_count_max + 1 );
+	spawn_min = 1;
+	spawn_max = spawn_min;
+	spawn_min = drones.n_wave_size_min;
+	spawn_max = drones.n_wave_size_max;
+	drones.parent_trigger endon( "stop_drone_loop" );
+	wait randomfloatrange( drones.n_delay_min, drones.n_delay_max );
+	level thread pre_populate_drones( drones, spawn_min, spawn_max, drones.team );
+	wait_time = get_drone_spawn_wait( drones );
+	wait wait_time;
+	i = 0;
+	return;
+	level notify( "new drone Spawn wave" );
+	spawn_size = spawn_min;
+	spawn_size = randomintrange( spawn_min, spawn_max + 1 );
+	level thread drone_spawngroup( drones, drones.a_targeted, spawn_size, drones.team, 0 );
+	respawn_wait_loop = 1;
+	delay = get_drone_spawn_wait( drones );
+	wait delay;
+	respawn_wait_loop = 0;
+	drones.parent_trigger waittill( "trigger" );
+	wait 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x37DC
+get_drone_spawn_wait( drone_data )
+{
+	min_spawn_wait = 1;
+	max_spawn_wait = 1;
+	min_spawn_wait = drone_data.n_wait_min;
+	max_spawn_wait = drone_data.n_wait_max;
+	return randomfloatrange( min_spawn_wait, max_spawn_wait );
+	return min_spawn_wait;
+// SP = 0x0 - check OK
+}
+
+// 0x3828
+drone_spawngroup( drones, spawnpoint, spawnsize, team, start_ahead )
+{
+	spawncount = spawnpoint.size;
+	spawncount = spawnsize;
+	spawnpoint = array_randomize( spawnpoint );
+	spawncount = spawnpoint.size;
+	offsets = [];
+	offsets = generate_offsets( spawncount );
+	i = 0;
+	wait randomfloatrange( 0.1, 1 );
+	wait_network_frame();
+	spawnpoint[i] thread drone_spawn( team, offsets[i], start_ahead, drones );
+	wait randomfloatrange( 0.8, 1.1 );
+	wait randomfloatrange( 0.5, 0.9 );
+	spawnpoint[spawnpoint.size - 1] thread drone_spawn( team, offsets[i], start_ahead, drones );
+	level._numtriggerspawned++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x3994
+drones_respawner_created( drone_struct )
+{
+	i = 0;
+	return;
+	i++;
+	trigger_alive = 0;
+	i = 0;
+	spawner = level.drones.drone_spawners[i];
+	j = 0;
+	trigger_alive = 1;
+	j++;
+	i++;
+	level.drones.respawners[level.drones.respawners.size] = drone_struct;
+// SP = 0x0 - check OK
+}
+
+// 0x3A4C
+drones_respawner_used( drone_spawner )
+{
+	drone_structs = drone_spawner.a_targeted;
+	i = 0;
+	struct = drone_structs[i];
+	j = 0;
+	arrayremovevalue( level.drones.respawners, struct );
+	return 1;
+	j++;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3AC8
+generate_offsets( spawncount )
+{
+	offsets = [];
+	delta = 0.5 / spawncount;
+	i = 0;
+	id = randomint( spawncount * 2 );
+	offsets[i] = id * delta;
+	i++;
+	return offsets;
+// SP = 0x0 - check OK
+}
+
+// 0x3B1C
+drone_spawn( team, offset, distance_down_path, drones )
+{
+	distance_down_path = 0;
+	level endon( "new drone Spawn wave" );
+	level endon( drones.script_ender );
+	level endon( self.script_ender );
+	check_drone_throttle();
+	wait 0.2;
+	total_drones = level.drones.team["axis"].array.size + level.drones.team["allies"].array.size;
+	return;
+	spawnoffset = offset * 2 - 1;
+	spawnoffset = 0;
+	spawnpos = self get_drone_spawn_pos( distance_down_path );
+	angles = ( 0, 0, 0 );
+	angles = self.angles;
+	right = anglestoright( angles );
+	spawnpos += vector_scale( right, spawnoffset * self.radius );
+	level.drones.spawned_this_frame++;
+	guy = spawn( "script_model", bullettrace( spawnpos, spawnpos + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self )["position"] );
+	guy.dronerunoffset = spawnoffset;
+	guy.angles = self.angles;
+	guy.angles = vectortoangles( self.a_targeted[0].origin - guy.origin );
+/#
+	assert( IsDefined( level.drone_spawnfunction[team] ) );
+#/
+	override_class = undefined;
+	index = randomint( drones.unique_guys.size );
+	spawner = drones.unique_guys[index];
+	override_class = spawner.classname;
+	guy [[level.drone_spawnfunction[team]]]( self );
+	guy [[level.drone_spawnfunction[team]]]( override_class );
+	guy [[level.drone_spawnfunction[team]]]();
+	guy drone_assign_weapon( team, self, drones );
+	guy.targetname = "drone";
+	guy.script_noteworthy = self.script_noteworthy;
+	guy makefakeai();
+	guy setcheapflag( 1 );
+	guy.team = team;
+	guy.script_allowdeath = drones.script_allowdeath;
+	guy useanimtree( -1 );
+	guy.drone_run_cycle_override = drones.drone_run_cycle_override;
+	guy drone_set_run_cycle();
+	guy.dronerunrate = level.drone_run_rate;
+	modifier = 1 + randomfloatrange( drones.speed_modifier_min, drones.speed_modifier_max );
+	guy.dronerunrate *= modifier;
+	guy.dronerunrate *= level.drone_run_rate_multiplier;
+	guy thread drone_think( self, level.drones.new_target_node );
+	level thread drone_respawn_after_death( guy, self, team, offset, self.script_ender, drones );
+	level thread drone_respawn_after_death( guy, self, team, offset, undefined, drones );
+// SP = 0x0 - check OK
+}
+
+// 0x3ECC
+get_drone_spawn_pos( required_distance )
+{
+	node = self;
+	spawn_pos = node.origin;
+	level.drones.new_target_node = undefined;
+	return spawn_pos;
+	next_node = node;
+	dist_so_far = 0;
+	return spawn_pos;
+	next_node = getstruct( node.target, "targetname" );
+	dir = next_node.origin - node.origin;
+	dir_norm = vectornormalize( dir );
+	dist_to_next_node = distance( node.origin, next_node.origin );
+	frac = ( required_distance - dist_so_far ) / dist_to_next_node;
+	spawn_pos += dir * frac;
+	dist_so_far += dist_to_next_node;
+	spawn_pos += dir;
+	level.drones.new_target_node = next_node;
+	node = next_node;
+	return spawn_pos;
+// SP = 0x0 - check OK
+}
+
+// 0x3FC8
+drone_assign_weapon( team, start_struct, drones )
+{
+	self setcurrentweapon( start_struct.weaponinfo );
+	self setcurrentweapon( drones.weaponinfo );
+	self setcurrentweapon( undefined );
+	return;
+	randweapon = randomint( level.drone_weaponlist_allies.size );
+	self setcurrentweapon( level.drone_weaponlist_allies[randweapon] );
+/#
+	assert( IsDefined( self.weapon ), "_drones::couldn't assign weapon from level.drone_weaponlist because the array value is undefined." );
+#/
+	randweapon = randomint( level.drone_weaponlist_axis.size );
+	self setcurrentweapon( level.drone_weaponlist_axis[randweapon] );
+/#
+	assert( IsDefined( self.weapon ), "_drones::couldn't assign weapon from level.drone_weaponlist because the array value is undefined." );
+#/
+	self attach( self.weaponmodel, "tag_weapon_right" );
+	self useweaponhidetags( self.weapon );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x4110
+drone_allies_assignweapon_american()
+{
+	array = [];
+	array[array.size] = "m16_sp";
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x4138
+drone_allies_assignweapon_british()
+{
+	array = [];
+	array[array.size] = "m16_sp";
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x4160
+drone_allies_assignweapon_russian()
+{
+	array = [];
+	array[array.size] = "ak47_sp";
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x4188
+drone_axis_assignweapon_german()
+{
+	array = [];
+	array[array.size] = "ak47_sp";
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x41B0
+drone_axis_assignweapon_japanese()
+{
+	array = [];
+	array[array.size] = "ak47_sp";
+	return array[randomint( array.size )];
+// SP = 0x0 - check OK
+}
+
+// 0x41D8
+check_drone_throttle()
+{
+	can_spawn = 0;
+	flag_set( "reached_drone_spawn_cap" );
+	flag_waitopen( "reached_drone_spawn_cap" );
+	wait 0.05;
+	can_spawn = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x423C
+reset_drone_throttle()
+{
+	waittillframeend;
+	flag_clear( "reached_drone_spawn_cap" );
+	level.drones.spawned_this_frame = 0;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x426C
+drone_respawn_after_death( guy, start_struct, team, offset, ender, drones )
+{
+	min_respawn_time = level.drones.respawn_death_delay_min;
+	max_respawn_time = level.drones.respawn_death_delay_max;
+	level endon( ender );
+	guy waittill( "death" );
+	wait randomfloatrange( min_respawn_time, max_respawn_time );
+	drones_respawner_created( start_struct );
+	start_struct thread drone_spawn( team, offset, 0, drones );
+// SP = 0x0 - check OK
+}
+
+// 0x42DC
+spawnpoint_playersview()
+{
+	level.cos80 = cos( 80 );
+	players = get_players();
+	player_view_count = 0;
+	success = 0;
+	i = 0;
+	forwardvec = anglestoforward( players[i].angles );
+	normalvec = vectornormalize( self.origin - players[i] getorigin() );
+	vecdot = vectordot( forwardvec, normalvec );
+	success = bullettracepassed( players[i] geteye(), self.origin + vector_scale( ( 0, 0, 1 ), 48 ), 0, self );
+	player_view_count++;
+	i++;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x43B4
+drone_setname()
+{
+	self endon( "drone_death" );
+	wait 0.25;
+	return;
+	return;
+	maps\_names::setup_names();
+	self.name = self.script_friendname;
+	self maps\_names::get_name();
+/#
+	assert( IsDefined( self.name ) );
+#/
+	subtext = undefined;
+	subtext = &"";
+	switch ( self.weapon )
+	{
+		case "BAR":
+			subtext = &"";
+			break;
+		case "SVT40":
+		case "commando_sp":
+		case "lee_enfield":
+		case "m1carbine":
+		case "m1garand":
+		case "m1garand_wet":
+			subtext = &"WEAPON_RIFLEMAN";
+			break;
+		case "mosin_rifle":
+		case "ppsh":
+			subtext = &"WEAPON_SUBMACHINEGUNNER";
+			break;
+		case "thompson":
+		case "thompson_wet":
+		default:
+			subtext = &"WEAPON_SUPPORTGUNNER";
+			break;
+	}
+	subtext = &"WEAPON_MEDICPLACEHOLDER";
+/#
+	assert( IsDefined( subtext ) );
+#/
+	self setlookattext( self.name, &"" );
+// SP = 0x0 - check OK
+}
+
+// 0x4520
+drone_think( firstnode, override_target_node )
+{
+	self endon( "death" );
+	self.health = 100;
+	self thread drone_setname();
+	level thread maps\_friendlyfire::friendly_fire_think( self );
+	self thread drones_clear_variables();
+	structarray_add( level.drones.team[self.team], self );
+	level notify( "new_drone" );
+	self.turrettarget = spawn( "script_origin", self.origin + vector_scale( ( 0, 0, 1 ), 50 ) );
+	self.turrettarget linkto( self );
+	self endon( "drone_death" );
+	self thread [[level.drones.think_func]]();
+	self thread [[level.drones.death_func]]();
+	self thread drone_fakedeath();
+	self.no_death_sink = 0;
+	self.no_death_sink = 1;
+	self drone_runchain( override_target_node );
+	self drone_runchain( firstnode );
+	wait 0.05;
+	self.running = undefined;
+	level notify( "drone_at_last_node", self );
+	self thread drone_loop_anim( firstnode );
+// SP = 0x0 - check OK
+}
+
+// 0x468C
+drone_loop_anim( s_reference )
+{
+	self endon( "death" );
+	self endon( "drone_death" );
+	anim_idle[0] = random( level.drones.anims[s_reference.dr_animation] );
+	anim_idle[0] = level.drones.anims[s_reference.dr_animation];
+	self animscripted( "drone_idle_anim", self.origin, self.angles, level.drones.anim_idle[randomint( level.drones.anim_idle.size )] );
+	self waittillmatch( "drone_idle_anim" );
+	return "end";
+	self animscripted( "drone_idle_anim", self.origin, self.angles, anim_idle[randomint( anim_idle.size )] );
+	self waittillmatch( "drone_idle_anim" );
+	return "end";
+// SP = 0x0 - check OK
+}
+
+// 0x47B0
+drone_mortardeath( direction )
+{
+	self useanimtree( -1 );
+	switch ( direction )
+	{
+		case "back":
+			self thread drone_dodeath( %death_explosion_up10 );
+			break;
+		case "forward":
+			self thread drone_dodeath( %death_explosion_forward13 );
+			break;
+		case "left":
+			self thread drone_dodeath( %death_explosion_back13 );
+			break;
+		case "right":
+			self thread drone_dodeath( %death_explosion_left11 );
+			break;
+		case "up":
+			self thread drone_dodeath( %death_explosion_right13 );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x4868
+drone_flamedeath()
+{
+	self useanimtree( -1 );
+	self thread drone_fakedeath( 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4890
+drone_fakedeath( instant, flamedeath )
+{
+	instant = 0;
+	self endon( "delete" );
+	self endon( "drone_death" );
+	self setcandamage( 1 );
+	self waittill( "damage", amount, attacker );
+	/* Error: unknown opcode (0x74) */
+// SP = 0x0 - check OK
+}
+
+// 0x4AD4
+drone_delayed_bulletdeath( waittime )
+{
+	waittime = 0;
+	self endon( "delete" );
+	self endon( "drone_death" );
+	self.dontdelete = 1;
+	wait waittime;
+	self thread drone_fakedeath( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4B14
+do_death_sound()
+{
+	camp = level.campaign;
+	team = self.team;
+	alias = undefined;
+	alias = "dds_generic_death_american";
+	alias = "dds_generic_death_japanese";
+	alias = "dds_generic_death_russian";
+	alias = "dds_generic_death_german";
+	alias = "dds_generic_death_vietnamese ";
+	self thread play_sound_in_space( alias );
+// SP = 0x0 - check OK
+}
+
+// 0x4BE8
+drone_dodeath( deathanim, deathremovenotify )
+{
+	self endon( "delete" );
+	return;
+	self.dead = 1;
+	self moveto( self.origin, 0.05, 0, 0 );
+	tracedeath = 0;
+	tracedeath = 1;
+	self.running = undefined;
+	self notify( "drone_death" );
+	self notify( "stop_shooting" );
+	self unlink();
+	self useanimtree( -1 );
+	self thread drone_dodeath_impacts();
+	do_death_sound();
+	cancelrunningdeath = 0;
+	offset = getcycleoriginoffset( self.angles, deathanim );
+	endanimationlocation = self.origin + offset;
+	endanimationlocation = physicstrace( endanimationlocation + vector_scale( ( 0, 0, 1 ), 128 ), endanimationlocation - vector_scale( ( 0, 0, 1 ), 128 ) );
+	d1 = abs( endanimationlocation[2] - self.origin[2] );
+	cancelrunningdeath = 1;
+	forwardvec = anglestoforward( self.angles );
+	rightvec = anglestoright( self.angles );
+	upvec = anglestoup( self.angles );
+	relativeoffset = vector_scale( ( 1, 0, 0 ), 50 );
+	secondpos = endanimationlocation;
+	secondpos += vector_scale( forwardvec, relativeoffset[0] );
+	secondpos += vector_scale( rightvec, relativeoffset[1] );
+	secondpos += vector_scale( upvec, relativeoffset[2] );
+	secondpos = physicstrace( secondpos + vector_scale( ( 0, 0, 1 ), 128 ), secondpos - vector_scale( ( 0, 0, 1 ), 128 ) );
+	d2 = abs( secondpos[2] - self.origin[2] );
+	cancelrunningdeath = 1;
+	deathanim = %ai_death_collapse_in_place;
+	self animscripted( "drone_death_anim", self.origin, self.angles, deathanim, "deathplant" );
+	self thread drone_drop_weapon( "drone_death_anim", deathanim );
+	self thread drone_ragdoll( "drone_death_anim", deathanim );
+	self waittillmatch( "drone_death_anim" );
+	return "end";
+	return;
+	self setcontents( 0 );
+	level waittill( deathremovenotify );
+	wait 3;
+	return;
+	self moveto( self.origin - vector_scale( ( 0, 0, 1 ), 100 ), 7 );
+	wait 3;
+	return;
+	self.dontdelete = undefined;
+	self thread drone_delete();
+// SP = 0x0 - check OK
+}
+
+// 0x4E6C
+drone_drop_weapon( drone_death_anim_flag, deathanim )
+{
+	self waittillmatch( drone_death_anim_flag );
+	return "dropgun";
+	wait 0.2;
+	self detach( self.weaponmodel, "tag_weapon_right" );
+// SP = 0x0 - check OK
+}
+
+// 0x4ED0
+drone_ragdoll( drone_death_anim_flag, deathanim )
+{
+	time = getanimlength( deathanim );
+	wait time * 0.8;
+	self waittillmatch( drone_death_anim_flag );
+	return "start_ragdoll";
+	self add_to_ragdoll_bucket();
+// SP = 0x0 - check OK
+}
+
+// 0x4F44
+drone_dodeath_impacts()
+{
+	self endon( "death" );
+	self endon( "drone_death" );
+	bone[0] = "J_Knee_LE";
+	bone[1] = "J_Ankle_LE";
+	bone[2] = "J_Clavicle_LE";
+	bone[3] = "J_Shoulder_LE";
+	bone[4] = "J_Elbow_LE";
+	impacts = 1 + randomint( 2 );
+	i = 0;
+	playfxontag( level.drones.impact_fx, self, bone[randomint( bone.size )] );
+	self playsound( "prj_bullet_impact_small_flesh" );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x4FF8
+drone_runchain( point_start )
+{
+	self.v_destination = undefined;
+	self.dontdelete = 1;
+	timer_min = get_min_value( point_start.dr_death_timer, 0 );
+	timer_max = get_max_value( point_start.dr_death_timer, 0 );
+	time = timer_min;
+	time = randomfloatrange( timer_min, timer_max );
+	self thread drone_delayed_bulletdeath( time );
+	self.dontdelete = undefined;
+	self thread drone_delete( 0.01 );
+	self.dontdelete = undefined;
+	self thread drone_delete( point_start.script_delete );
+	point_end = point_start.a_targeted;
+	index = randomint( point_end.size );
+	self.v_destination = bullettrace( point_end[index].origin, point_end[index].origin + vector_scale( ( 0, 0, -1 ), 100000 ), 0, self )["position"];
+/#
+	assert( point_end[index].radius > 0 );
+#/
+	self.dronerunoffset = -1 + randomfloat( 2 );
+	point_end[index].angles = ( 0, 0, 0 );
+	forwardvec = anglestoforward( point_end[index].angles );
+	rightvec = anglestoright( point_end[index].angles );
+	upvec = anglestoup( point_end[index].angles );
+	relativeoffset = ( 0, self.dronerunoffset * point_end[index].radius, 0 );
+	self.v_destination += vector_scale( forwardvec, relativeoffset[0] );
+	self.v_destination += vector_scale( rightvec, relativeoffset[1] );
+	self.v_destination += vector_scale( upvec, relativeoffset[2] );
+	self process_event( point_start );
+	randomanimrate = 0.9 + randomfloat( 1.1 - 0.9 );
+	self thread drone_loop_run_anim( randomanimrate );
+	self drone_runto();
+	point_start = point_end[index];
+	self process_event( point_start );
+	self thread drone_delete( point_start.script_delete );
+// SP = 0x0 - check OK
+}
+
+// 0x52AC
+drones_clear_variables()
+{
+	self.voice = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x52C0
+drone_delete( delaytime )
+{
+	self endon( "death" );
+	wait delaytime;
+	return;
+	self notify( "drone_death" );
+	self notify( "drone_idle_anim" );
+	structarray_remove( level.drones.team[self.team], self );
+	self.turrettarget delete();
+	self.temp_target delete();
+	self detachall();
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x537C
+process_event( s_start )
+{
+	return;
+	self endon( "death" );
+	self endon( "drone_death" );
+	self notify( "stop_shooting" );
+	self useanimtree( -1 );
+	d = distance( self.origin, self.v_destination );
+	self.dronerunrate = 200;
+	self.n_travel_time = d / self.dronerunrate;
+	self.lowheight = 0;
+	self turn_to_face_point( self.v_destination, self.n_travel_time );
+	skip = 0;
+	skip = 1;
+	switch ( s_start.dr_event )
+	{
+		case "cover_crouch":
+			self drone_event_shoot( s_start, 0, 0 );
+			break;
+		case "cover_crouch_fire":
+			self drone_event_shoot( s_start, 0, 1 );
+			break;
+		case "cover_stand":
+			self.n_shots_to_fire = 999999;
+			self drone_event_shoot( s_start, 0, 0 );
+			break;
+		case "flamedeath":
+			self drone_event_shoot( s_start, 1 );
+			break;
+		case "low_height":
+			self thread drone_event_run_and_shoot( 0 );
+			break;
+		case "mortardeath_back":
+			self thread drone_event_run_and_shoot( 1 );
+			break;
+		case "mortardeath_forward":
+			drone_event_looped_anim( s_start, self.v_destination );
+			skip = 1;
+			break;
+		case "mortardeath_left":
+			self.lowheight = 1;
+			break;
+		case "mortardeath_right":
+			self thread drone_mortardeath( "up" );
+		case "mortardeath_up":
+			self thread drone_mortardeath( "forward" );
+		case "play_looped_anim":
+			self thread drone_mortardeath( "back" );
+		case "run_and_shoot":
+			self thread drone_mortardeath( "left" );
+		case "run_and_shoot_burst":
+			self thread drone_mortardeath( "right" );
+		case "run_fast":
+			self thread drone_cover( s_start.dr_event );
+			self waittill( "drone out of cover" );
+			self setflaggedanimknob( "cover_exit", %coverstand_trans_out_m, 1, 0.1, 1 );
+			self waittillmatch( "cover_exit" );
+			return "end";
+			break;
+		case "shoot":
+			self thread drone_cover( s_start.dr_event );
+			self waittill( "drone out of cover" );
+			self setflaggedanimknob( "cover_exit", %covercrouch_run_out_m, 1, 0.1, 1 );
+			self waittillmatch( "cover_exit" );
+			return "end";
+			break;
+		case "shoot_bullets":
+			self thread drone_cover_fire( s_start.dr_event );
+			self waittill( "drone out of cover" );
+			self setflaggedanimknob( "cover_exit", %covercrouch_run_out_m, 1, 0.5, 1 );
+			self waittillmatch( "cover_exit" );
+			return "end";
+			break;
+		case "shoot_burst":
+			self thread drone_flamedeath();
+			break;
+		case "shoot_forever":
+			self drone_set_run_cycle();
+			self.running = 0;
+			d = distance( self.origin, self.v_destination );
+			self.n_travel_time = d / self.dronerunrate;
+			break;
+		default:
+			event_params = strtok( s_start.dr_event, "," );
+			params = event_params;
+			event_param = event_params[0];
+			arrayremovevalue( params, event_params[0] );
+			self [[level.drones.funcs[event_param]]]( s_start, self.v_destination, params );
+/#
+			assertmsg( "The event \"" + s_start.dr_event + "\" is not a valid drone event.  If you are trying to use a custom event function, make sure it has been defined in level.drones.funcs" );
+#/
+			break;
+	}
+/#
+	assert( IsDefined( level.drones.anims[s_start.dr_animation] ), "There is no animation defined for level.drones.anims[ \"" + s_start.dr_animation + "\" ].  dr_animation defined at: " + s_start.origin );
+#/
+	anim_custom = level.drones.anims[s_start.dr_animation];
+	anim_custom = anim_custom[randomint( anim_custom.size )];
+	self.is_playing_custom_anim = 1;
+	self.running = undefined;
+	angles = vectortoangles( self.v_destination - self.origin );
+	offset = getcycleoriginoffset( angles, anim_custom );
+	endpos = self.origin + offset;
+	endpos = physicstrace( endpos + vector_scale( ( 0, 0, 1 ), 64 ), endpos - ( 0, 0, level.drones.trace_height ) );
+	t = getanimlength( anim_custom );
+/#
+	assert( t > 0 );
+#/
+	self moveto( endpos, t, 0, 0 );
+	self clearanim( self.drone_run_cycle, 0.2 );
+	self notify( "stop_drone_loop_run_anim" );
+	self setflaggedanimknobrestart( "drone_custom_anim", anim_custom );
+	self waittillmatch( "drone_custom_anim" );
+	return "end";
+	self.origin = endpos;
+	self notify( "custom_anim_done" );
+	d = distance( self.origin, self.v_destination );
+	self.n_travel_time = d / self.dronerunrate;
+	self.is_playing_custom_anim = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x58E8
+drone_runto()
+{
+	return;
+	percentage = 0;
+	startingpos = self.origin;
+	oldz = startingpos[2];
+	i = 0;
+	percentage += 0.1;
+	x = ( self.v_destination[0] - startingpos[0] ) * percentage + startingpos[0];
+	y = ( self.v_destination[1] - startingpos[1] ) * percentage + startingpos[1];
+	percentagemark = physicstrace( ( x, y, self.v_destination[2] + 64 ), ( x, y, self.v_destination[2] - level.drones.trace_height ) );
+	percentagemark = physicstrace( ( x, y, self.v_destination[2] + level.drones.trace_height ), ( x, y, self.v_destination[2] - level.drones.trace_height ) );
+	percentagemark = ( percentagemark[0], percentagemark[1], oldz );
+	oldz = percentagemark[2];
+	self moveto( percentagemark, self.n_travel_time * 0.1, 0, 0 );
+	wait self.n_travel_time * 0.1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5A50
+drone_event_shoot( s_start, b_shoot_bullets, b_shoot_burst )
+{
+	self endon( "death" );
+	b_shoot_bullets = 0;
+	b_shoot_burst = 0;
+	self.n_shots_to_fire = s_start.script_int;
+	e_target = undefined;
+	e_target = getent( s_start.script_string, "targetname" );
+/#
+	assert( IsDefined( e_target ), "No target for drone event @ " + s_start.origin + ".  GetEnt failed looking for \"" + s_start.script_string + "\"" );
+#/
+	target_offset = anglestoforward( self.angles ) * 300;
+	shootpos = self.origin + target_offset;
+	self.temp_target.origin = shootpos;
+	self.temp_target = spawn( "script_origin", shootpos );
+	e_target = self.temp_target;
+	self drone_shoot_bullets( e_target );
+	self drone_shoot_blanks( e_target, b_shoot_burst );
+	self clearanim( %combat_directions, 0.2 );
+	self clearanim( %exposed_reload, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x5B80
+drone_shoot_bullets( e_target )
+{
+	self endon( "death" );
+	self useanimtree( -1 );
+	self.running = undefined;
+	self thread drone_aim_at_target( e_target, "stop_shooting" );
+	v_tag_flash = self.origin + vector_scale( ( 0, 0, 1 ), 50 );
+	self.n_shots_to_fire = 1;
+	i = 0;
+	self setflaggedanimknoballrestart( "reloadanim", %exposed_reload, %root, 1, 0.4 );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self waittillmatch( "reloadanim" );
+	return "end";
+	self set3flaggedanimknobs( "no flag", "aim", "stand", 1, 0.3, 1 );
+	wait 1 + randomfloat( 2 );
+	v_tag_flash = self gettagorigin( "tag_flash" );
+	magicbullet( self.weapon, v_tag_flash, e_target.origin, self );
+	self.bulletsinclip--;
+	wait 1 + randomfloat( 2 );
+	i++;
+	self.n_shots_to_fire = undefined;
+	self notify( "stop_shooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x5CAC
+drone_shoot_blanks( e_target, b_shoot_burst )
+{
+	self endon( "death" );
+	self notify( "stop_shooting" );
+	self endon( "stop_shooting" );
+	b_shoot_burst = 0;
+	self useanimtree( -1 );
+	self.running = undefined;
+	self thread drone_aim_at_target( e_target, "stop_shooting" );
+	shootanimlength = 0;
+	self.n_shots_to_fire = 1;
+	n_shots_fired = 0;
+	numattached = self getattachsize();
+	attachname = [];
+	i = 0;
+	attachname[i] = self getattachmodelname( i );
+	i++;
+	self setflaggedanimknoballrestart( "reloadanim", %exposed_reload, %root, 1, 0.4 );
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	self waittillmatch( "reloadanim" );
+	return "end";
+	self set3flaggedanimknobs( "no flag", "aim", "stand", 1, 0.3, 1 );
+	wait 1 + randomfloat( 2 );
+	return;
+	n_shots = randomint( 4 ) + 1;
+	n_shots = self.n_shots_to_fire - n_shots_fired;
+	n_shots = self.bulletsinclip;
+	i = 0;
+	return;
+	self set3flaggedanimknobsrestart( "shootinganim", "shoot", "stand", 1, 0.05, 1 );
+	blank_shot_fx( b_shoot_burst );
+	self.bulletsinclip -= 3;
+	self.bulletsinclip--;
+	n_shots_fired++;
+	shootanimlength = GetTime();
+	self waittillmatch( "shootinganim" );
+	return "end";
+	shootanimlength = ( GetTime() - shootanimlength ) / 1000;
+	wait shootanimlength - 0.1 + randomfloat( 0.3 );
+	return;
+	i++;
+	self.n_shots_to_fire = undefined;
+	self notify( "stop_shooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x5ED4
+drone_event_run_and_shoot( b_shoot_burst )
+{
+	old_cycle = self.drone_run_cycle;
+	self drone_set_run_cycle( %run_n_gun_f );
+	self.running = 0;
+	self thread drone_loop_run_anim();
+	self thread drone_run_and_shoot_blanks( b_shoot_burst );
+	self waittill( "stop_shooting" );
+	self thread drone_set_run_cycle( old_cycle );
+// SP = 0x0 - check OK
+}
+
+// 0x5F28
+drone_run_and_shoot_blanks( b_shoot_burst )
+{
+	self endon( "death" );
+	self endon( "stop_shooting" );
+	n_shots = 1;
+	n_shots = 3;
+	wait 0.25 + randomfloat( 2 );
+	blank_shot_fx( b_shoot_burst );
+// SP = 0x0 - check OK
+}
+
+// 0x5F78
+blank_shot_fx( b_shoot_burst )
+{
+	self endon( "death" );
+	str_wpn_sound = "wpn_mosin_fire";
+	n_shots = 1;
+	n_shots = 3;
+	i = 0;
+	playfxontag( level.drones.muzzleflash, self, "tag_flash" );
+	self playsound( str_wpn_sound );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5FF0
+drone_event_looped_anim( s_start, v_destination )
+{
+	self endon( "death" );
+	flag_init( "drones_stop_looped_anims" );
+/#
+	assert( IsDefined( level.drones.anims[s_start.dr_animation] ), "There is no animation defined for level.drones.anims[ \"" + s_start.dr_animation + "\" ].  dr_animation defined at: " + s_start.origin );
+#/
+	anim_custom = level.drones.anims[s_start.dr_animation];
+	anim_custom = anim_custom[randomint( anim_custom.size )];
+	self.is_playing_custom_anim = 1;
+	self.running = undefined;
+	angles = vectortoangles( v_destination - self.origin );
+	offset = getcycleoriginoffset( angles, anim_custom );
+	endpos = self.origin + offset;
+	endpos = physicstrace( endpos + vector_scale( ( 0, 0, 1 ), 64 ), endpos - ( 0, 0, level.drones.trace_height ) );
+	t = getanimlength( anim_custom );
+/#
+	assert( t > 0 );
+#/
+	self moveto( endpos, t, 0, 0 );
+	self clearanim( self.drone_run_cycle, 0.2 );
+	self notify( "stop_drone_loop_run_anim" );
+	self setanim( anim_custom, 1, 0.2 );
+	flag_wait( "drones_stop_looped_anims" );
+	wait randomfloatrange( 0.1, 0.5 );
+	self clearanim( anim_custom, 0.2 );
+	self.drone_run_cycle = drone_pick_run_anim();
+	self.origin = endpos;
+	self notify( "custom_anim_done" );
+	self.is_playing_custom_anim = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x61B8
+drone_loop_run_anim( animratemod )
+{
+	return;
+	self notify( "stop_drone_loop_run_anim" );
+	self endon( "stop_drone_loop_run_anim" );
+	self endon( "delete" );
+	self endon( "drone_death" );
+	self.running = 1;
+	animratemod = 1;
+	animrate = self.dronerunrate / self.drone_run_cycle_speed;
+	self setflaggedanimknobrestart( "drone_run_anim", self.drone_run_cycle, 1, 0.2, animrate );
+	self waittillmatch( "drone_run_anim" );
+	return "end";
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x6254
+drone_debugline( frompoint, topoint, color, durationframes )
+{
+/#
+	i = 0;
+	line( frompoint, topoint, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x629C
+turn_to_face_point( point, n_time )
+{
+	desiredangles = vectortoangles( point - self.origin );
+	n_time = 0.5;
+	n_time = 0.5;
+	return;
+	self rotateto( ( 0, desiredangles[1], 0 ), n_time, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x6308
+set3flaggedanimknobs( animflag, animarray, pose, weight, blendtime, rate )
+{
+	return;
+	self setanimknob( %combat_directions, weight, blendtime, rate );
+	self setflaggedanimknob( animflag, level.drones.animarray[animarray][pose]["up"], 1, blendtime, 1 );
+	self setanimknob( level.drones.animarray[animarray][pose]["straight"], 1, blendtime, 1 );
+	self setanimknob( level.drones.animarray[animarray][pose]["down"], 1, blendtime, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x63A8
+set3flaggedanimknobsrestart( animflag, animarray, pose, weight, blendtime, rate )
+{
+	return;
+	self setanimknobrestart( %combat_directions, weight, blendtime, rate );
+	self setflaggedanimknobrestart( animflag, level.drones.animarray[animarray][pose]["up"], 1, blendtime, 1 );
+	self setanimknobrestart( level.drones.animarray[animarray][pose]["straight"], 1, blendtime, 1 );
+	self setanimknobrestart( level.drones.animarray[animarray][pose]["down"], 1, blendtime, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x6448
+apply_vertical_blend( offset )
+{
+	unstraightanim = %combat_down;
+	self setanim( %combat_up, 0.01, 0, 1 );
+	offset *= -1;
+	unstraightanim = %combat_up;
+	self setanim( %combat_down, 0.01, 0, 1 );
+	offset = 1;
+	unstraight = offset;
+	unstraight = 0.99;
+	unstraight = 0.01;
+	straight = 1 - unstraight;
+	self setanim( unstraightanim, unstraight, 0, 1 );
+	self setanim( %combat_straight, straight, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x651C
+drone_aim_at_target( target, stopstring )
+{
+	self endon( stopstring );
+	targetpos = target.origin;
+	turn_to_face_point( targetpos );
+	offset = get_target_vertical_offset( targetpos );
+	apply_vertical_blend( offset );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x6570
+get_target_vertical_offset( v_target_pos )
+{
+	dir = vectornormalize( v_target_pos - self.origin );
+	return dir[2];
+// SP = 0x0 - check OK
+}
+
+// 0x6598
+set_anim_array()
+{
+	level.drones.animarray["aim"]["stand"]["down"] = %stand_aim_down;
+	level.drones.animarray["aim"]["stand"]["straight"] = %stand_aim_straight;
+	level.drones.animarray["aim"]["stand"]["up"] = %stand_aim_up;
+	level.drones.animarray["aim"]["crouch"]["down"] = %crouch_aim_down;
+	level.drones.animarray["aim"]["crouch"]["straight"] = %crouch_aim_straight;
+	level.drones.animarray["aim"]["crouch"]["up"] = %crouch_aim_up;
+	level.drones.animarray["auto"]["stand"]["down"] = %stand_shoot_auto_down;
+	level.drones.animarray["auto"]["stand"]["straight"] = %stand_shoot_auto_straight;
+	level.drones.animarray["auto"]["stand"]["up"] = %stand_shoot_auto_up;
+	level.drones.animarray["auto"]["crouch"]["down"] = %crouch_shoot_auto_down;
+	level.drones.animarray["auto"]["crouch"]["straight"] = %crouch_shoot_auto_straight;
+	level.drones.animarray["auto"]["crouch"]["up"] = %crouch_shoot_auto_up;
+	level.drones.animarray["shoot"]["stand"]["down"] = %stand_shoot_down;
+	level.drones.animarray["shoot"]["stand"]["straight"] = %stand_shoot_straight;
+	level.drones.animarray["shoot"]["stand"]["up"] = %stand_shoot_up;
+	level.drones.animarray["shoot"]["crouch"]["down"] = %crouch_shoot_down;
+	level.drones.animarray["shoot"]["crouch"]["straight"] = %crouch_shoot_straight;
+	level.drones.animarray["shoot"]["crouch"]["up"] = %crouch_shoot_up;
+// SP = 0x0 - check OK
+}
+
+// 0x67E0
+drone_cover_fire( type )
+{
+	self endon( "drone_stop_cover" );
+	self endon( "drone_death" );
+	self endon( "death" );
+	drone_cover( type );
+	self setanimknob( %stand_aim_straight, 1, 0.3, 1 );
+	wait 0.3;
+	forwardvec = anglestoforward( self.angles );
+	rightvec = anglestoright( self.angles );
+	upvec = anglestoup( self.angles );
+	relativeoffset = vector_scale( ( 1, 0, 0 ), 300 );
+	shootpos = self.origin;
+	shootpos += vector_scale( forwardvec, relativeoffset[0] );
+	shootpos += vector_scale( rightvec, relativeoffset[1] );
+	shootpos += vector_scale( upvec, relativeoffset[2] );
+	self.temp_target delete();
+	self.temp_target = spawn( "script_origin", shootpos );
+	self.bulletsinclip = randomint( 4 ) + 3;
+	self thread drone_shoot_blanks( self.temp_target, 1 );
+	self waittill( "stop_shooting" );
+// SP = 0x0 - check OK
+}
+
+// 0x68E8
+drone_cover( type )
+{
+	self endon( "drone_stop_cover" );
+	self.a = spawnstruct();
+	self.running = undefined;
+	self.a.array = [];
+	self.a.array["hide_idle"] = %coverstand_hide_idle;
+	self.a.array["hide_idle_twitch"] = array( %coverstand_hide_idle_twitch01, %coverstand_hide_idle_twitch02, %coverstand_hide_idle_twitch03, %coverstand_hide_idle_twitch04, %coverstand_hide_idle_twitch05 );
+	self.a.array["hide_idle_flinch"] = array( %coverstand_react01, %coverstand_react02, %coverstand_react03, %coverstand_react04 );
+	self setflaggedanimknobrestart( "cover_approach", %coverstand_trans_in_m, 1, 0.3, 1 );
+	self waittillmatch( "cover_approach" );
+	return "end";
+	self thread drone_cover_think();
+	self.a.array["hide_idle"] = %covercrouch_hide_idle;
+	self.a.array["hide_idle_twitch"] = array( %covercrouch_twitch_1, %covercrouch_twitch_2, %covercrouch_twitch_3, %covercrouch_twitch_4 );
+	self setflaggedanimknobrestart( "cover_approach", %covercrouch_run_in_m, 1, 0.3, 1 );
+	self waittillmatch( "cover_approach" );
+	return "end";
+	self thread drone_cover_think();
+	self.a.array["hide_idle"] = %covercrouch_hide_idle;
+	self.a.array["hide_idle_twitch"] = array( %covercrouch_twitch_1, %covercrouch_twitch_2, %covercrouch_twitch_3, %covercrouch_twitch_4 );
+	self setanimknob( %covercrouch_hide_idle, 1, 0.4, 1 );
+	wait 0.4;
+	self drone_cover_think( 1 + randomint( 3 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x6AF8
+drone_cover_think( max_loops )
+{
+	self endon( "drone_stop_cover" );
+	max_loops = -1;
+	loops = 0;
+	usetwitch = randomint( 2 ) == 0;
+	idleanim = animarraypickrandom( "hide_idle_twitch" );
+	idleanim = animarray( "hide_idle" );
+	self drone_playidleanimation( idleanim, usetwitch );
+	loops++;
+// SP = 0x0 - check OK
+}
+
+// 0x6B78
+drone_playidleanimation( idleanim, needsrestart )
+{
+	self endon( "drone_stop_cover" );
+	self setflaggedanimknobrestart( "idle", idleanim, 1, 0.1, 1 );
+	self setflaggedanimknob( "idle", idleanim, 1, 0.1, 1 );
+	self.a.covermode = "Hide";
+	self waittillmatch( "idle" );
+	return "end";
+// SP = 0x0 - check OK
+}
+
+// 0x6BE0
+drone_get_explosion_death_dir( self_pos, self_angle, explosion_pos, up_distance )
+{
+	return "up";
+	p1 = self_pos - vectornormalize( anglestoforward( self_angle ) ) * 10000;
+	p2 = self_pos + vectornormalize( anglestoforward( self_angle ) ) * 10000;
+	p_intersect = pointonsegmentnearesttopoint( p1, p2, explosion_pos );
+	side_away_dist = distance2d( p_intersect, explosion_pos );
+	side_close_dist = distance2d( p_intersect, self_pos );
+	angle = atan( side_away_dist / side_close_dist );
+	dot_product = vectordot( anglestoforward( self_angle ), vectornormalize( explosion_pos - self_pos ) );
+	angle = 180 - angle;
+	return "back";
+	return "forward";
+	self_right_angle = vectornormalize( anglestoright( self_angle ) );
+	right_point = self_pos + self_right_angle * ( up_distance * 0.5 );
+	return "left";
+	return "right";
+// SP = 0x0 - check OK
+}
+
+// 0x6D28
+animarray( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+	return self.a.array[animname];
+// SP = 0x0 - check OK
+}
+
+// 0x6D98
+animarrayanyexist( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+	return self.a.array[animname].size > 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6E0C
+animarraypickrandom( animname )
+{
+/#
+	assert( IsDefined( self.a.array ) );
+#/
+/#
+	dumpanimarray();
+/#
+	assert( IsDefined( self.a.array[animname] ), "self.a.array[ \"" + animname + "\" ] is undefined" );
+#/
+#/
+/#
+	assert( self.a.array[animname].size > 0 );
+#/
+	index = randomint( self.a.array[animname].size );
+	index = 0;
+	return self.a.array[animname][index];
+// SP = 0x0 - check OK
+}
+
+// 0x6ECC
+dumpanimarray()
+{
+/#
+	println( "self.a.array:" );
+	keys = getarraykeys( self.a.array );
+	i = 0;
+	println( " array[ \"" + keys[i] + "\" ] = {array of size " + self.a.array[keys[i]].size + "}" );
+	println( " array[ \"" + keys[i] + "\" ] = ", self.a.array[keys[i]] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6F80
+drone_pick_run_anim()
+{
+	return level.drone_run_cycle_override[randomint( level.drone_run_cycle_override.size )];
+	return level.drone_run_cycle_override;
+	return self.drone_run_cycle_override[randomint( self.drone_run_cycle_override.size )];
+	return self.drone_run_cycle_override;
+	dronerunanims = array( %run_n_gun_f, %run_lowready_f, %ai_militia_run_lowready_f_02, %ai_militia_run_lowready_f_03, %ai_sprint_f_05 );
+	index = randomint( dronerunanims.size );
+	return dronerunanims[index];
+// SP = 0x0 - check OK
+}
+
+// 0x704C
+drone_set_run_cycle( runanim )
+{
+	runanim = drone_pick_run_anim();
+	self.drone_run_cycle = runanim;
+	self.drone_run_cycle_speed = drone_run_anim_speed( runanim );
+	self.dronerunrate = self.drone_run_cycle_speed;
+// SP = 0x0 - check OK
+}
+
+// 0x7088
+drone_run_anim_speed( runanim )
+{
+	run_cycle_delta = getmovedelta( runanim, 0, 1 );
+	run_cycle_dist = length( run_cycle_delta );
+	run_cycle_length = getanimlength( runanim );
+	run_cycle_speed = run_cycle_dist / run_cycle_length;
+	return run_cycle_speed;
+// SP = 0x0 - check OK
+}
+
+// 0x70CC
+drones_get_triggers( script_string_trigger_name )
+{
+	triggers = [];
+	ents = level.drones.axis_triggers;
+	i = 0;
+	triggers[triggers.size] = ents[i];
+	i++;
+	ents = level.drones.allies_triggers;
+	i = 0;
+	triggers[triggers.size] = ents[i];
+	i++;
+	return triggers;
+// SP = 0x0 - check OK
+}
+
+// 0x718C
+drones_set_max_ragdolls( max_ragdolls )
+{
+	level.drones.max_ragdolls = max_ragdolls;
+// SP = 0x0 - check OK
+}
+
+// 0x71A0
+drone_available_ragdoll( force_remove )
+{
+	level.drones.ragdoll_bucket = [];
+	num_in_bucket = clean_up_ragdoll_bucket();
+	return 1;
+	self.dontdelete = undefined;
+	level.drones.ragdoll_bucket[0] maps\_drones::drone_delete();
+	level.drones.ragdoll_bucket[0] delete();
+	arrayremoveindex( level.drones.ragdoll_bucket, 0 );
+	return 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x7264
+add_to_ragdoll_bucket()
+{
+	level.drones.ragdoll_bucket = [];
+	self.ragdoll_start_time = GetTime();
+	level.drones.ragdoll_bucket[level.drones.ragdoll_bucket.size] = self;
+	self startragdoll();
+// SP = 0x0 - check OK
+}
+
+// 0x72A8
+clean_up_ragdoll_bucket()
+{
+	current_time = GetTime();
+	new_bucket = [];
+	i = 0;
+	ragdoll_time = ( current_time - level.drones.ragdoll_bucket[i].ragdoll_start_time ) / 1000;
+	new_bucket[new_bucket.size] = level.drones.ragdoll_bucket[i];
+	level.drones.ragdoll_bucket[i].dontdelete = undefined;
+	level.drones.ragdoll_bucket[i] maps\_drones::drone_delete();
+	level.drones.ragdoll_bucket[i] delete();
+	i++;
+	level.drones.ragdoll_bucket = new_bucket;
+	return level.drones.ragdoll_bucket.size;
+// SP = 0x0 - check OK
+}
+
+// 0x73A8
+drones_pause( script_string_name, paused )
+{
+	i = 0;
+	level.drones.drone_spawners[i].paused = paused;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7410
+drones_speed_modifier( script_string_name, min_speed, max_speed )
+{
+	i = 0;
+	level.drones.drone_spawners[i].speed_modifier_min = min_speed;
+	level.drones.drone_spawners[i].speed_modifier_max = max_speed;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x748C
+drones_setup_unique_anims( script_string_name, anim_array )
+{
+	i = 0;
+	level.drones.drone_spawners[i].drone_run_cycle_override = anim_array;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x74F4
+drones_set_respawn_death_delay( min_delay, max_delay )
+{
+	level.drones.respawn_death_delay_min = min_delay;
+	level.drones.respawn_death_delay_max = max_delay;
+// SP = 0x0 - check OK
+}
+
+// 0x7518
+pre_populate_drones( drones, spawn_min, spawn_max, team )
+{
+	level notify( "new drone Spawn wave" );
+	path_size = undefined;
+	i = 0;
+	size = calc_drone_path_size( drones.a_targeted[i] );
+	path_size = size;
+	i++;
+	dist = 0;
+	spawn_size = spawn_min;
+	spawn_size = randomintrange( spawn_min, spawn_max + 1 );
+	level thread drone_spawngroup( drones, drones.a_targeted, spawn_size, team, dist );
+	dist += 320;
+// SP = 0x0 - check OK
+}
+
+// 0x75D4
+calc_drone_path_size( node )
+{
+	size = 0;
+	next_node_struct = getstruct( node.target, "targetname" );
+	size += distance( node.origin, next_node_struct.origin );
+	node = getstruct( node.target, "targetname" );
+	return size;
+// SP = 0x0 - check OK
+}
+
+// 0x764C
+drones_start( script_string_name )
+{
+	i = 0;
+	spawner = level.drones.drone_spawners[i];
+	spawner.parent_trigger notify( "trigger" );
+	spawner.parent_script_struct notify( "trigger" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x76C8
+drones_delete( script_string_name )
+{
+	i = 0;
+	spawner = level.drones.drone_spawners[i];
+	spawner.delete_spawner = 1;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7720
+drones_assign_spawner( script_string_name, spawner_guy )
+{
+	i = 0;
+	spawner = level.drones.drone_spawners[i];
+	spawner.unique_guys = [];
+	spawner.unique_guys[spawner.unique_guys.size] = spawner_guy;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x7794
+drone_notify( param0, param1, param2 )
+{
+	self notify( param0, param1, param2 );
+	iprintlnbold( param0 );
+// SP = 0x0 - check OK
+}
+
+// 0x77B8
+drones_death_notify_wrapper( attacker, damagetype )
+{
+	level drone_notify( "face", "death", self );
+	self drone_notify( "death", attacker, damagetype );
+// SP = 0x0 - check OK
+}
+
+// 0x77EC
+drone_add_spawner()
+{
+	return;
+	return;
+	level.drones = spawnstruct();
+	level.drones.axis_classnames = [];
+	level.drones.allies_classnames = [];
+	side = drone_spawner_side( self.classname );
+	i = 0;
+	return;
+	i++;
+	level.drones.axis_classnames[level.drones.axis_classnames.size] = self.classname;
+	i = 0;
+	return;
+	i++;
+	level.drones.allies_classnames[level.drones.allies_classnames.size] = self.classname;
+// SP = 0x0 - check OK
+}
+
+// 0x790C
+drone_spawner_side( name )
+{
+	test = tolower( name );
+	return "ALLIES";
+	return "ALLIES";
+	return "AXIS";
+	return "AXIS";
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x7988
+drone_get_axis_spawner_class()
+{
+	drone_class = undefined;
+	index = randomint( level.drones.axis_classnames.size );
+	drone_class = level.drones.axis_classnames[index];
+	return drone_class;
+// SP = 0x0 - check OK
+}
+
+// 0x79DC
+drone_get_allies_spawner_class()
+{
+	drone_class = undefined;
+	index = randomint( level.drones.allies_classnames.size );
+	drone_class = level.drones.allies_classnames[index];
+	return drone_class;
+// SP = 0x0 - check OK
+}
+
+// 0x7A30
+spawn_random_axis_drone( override_class )
+{
+	class = override_class;
+	class = drone_get_axis_spawner_class();
+/#
+	assert( IsDefined( class ), "CANT FIND AXIS DRONE TO SPAWN" );
+#/
+	self getdronemodel( class );
+	self setcurrentweapon( self.weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x7A84
+spawn_random_allies_drone( override_class )
+{
+	class = override_class;
+	class = drone_get_allies_spawner_class();
+/#
+	assert( IsDefined( class ), "CANT FIND ALLIES DRONE TO SPAWN" );
+#/
+	self getdronemodel( class );
+	self.dr_ai_classname = class;
+	self setcurrentweapon( self.weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x7AE0
+drones_get_array( str_team )
+{
+	array = [];
+	axis_drones = level.drones.team["axis"].array;
+	i = 0;
+	array[array.size] = axis_drones[i];
+	i++;
+	allies_drones = level.drones.team["allies"].array;
+	i = 0;
+	array[array.size] = allies_drones[i];
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x7BC8
+drones_delete_spawned( str_noteworthy )
+{
+	a_m_drones = getentarray( "drone", "targetname" );
+	foreach ( m_drone in a_m_drones )
+	{
+		m_drone.dontdelete = undefined;
+		m_drone thread drone_delete();
+		wait 0.05;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x7C5C
+drones_set_cheap_flag( script_string_name, b_use_cheap_flag )
+{
+	i = 0;
+	spawner = level.drones.drone_spawners[i];
+	spawner.b_use_cheap_flag = b_use_cheap_flag;
+	i++;
+// SP = 0x0 - check OK
+}

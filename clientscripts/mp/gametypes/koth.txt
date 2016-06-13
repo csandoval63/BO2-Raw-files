@@ -1,0 +1,49 @@
+// clientscripts/mp/gametypes/koth.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x2A0
+main()
+{
+	level.hardpoints = [];
+	level.visuals = [];
+	level.hardpointfx = [];
+	registerclientfield( "world", "hardpoint", 1, 5, "int", ::hardpoint, 0 );
+	level._effect["zoneEdgeMarker"] = loadfx( "maps/mp_maps/fx_mp_koth_marker_neutral_1" );
+	level._effect["zoneEdgeMarkerWndw"] = loadfx( "maps/mp_maps/fx_mp_koth_marker_neutral_wndw" );
+// SP = 0x0 - check OK
+}
+
+// 0x304
+onprecachegametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x30C
+hardpoint( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	hardpoints = getstructarray( "koth_zone_center", "targetname" );
+	foreach ( point in hardpoints )
+	{
+		level.hardpoints[point.script_index] = point;
+	}
+	foreach ( point in level.hardpoints )
+	{
+		level.visuals[point.script_index] = getstructarray( point.target, "targetname" );
+	}
+	level [[level.overridemapdefinedhardpointsfunc]]();
+	foreach ( fx in level.hardpointfx[localclientnum] )
+	{
+		stopfx( localclientnum, fx );
+	}
+	level.hardpointfx[localclientnum] = [];
+	foreach ( visual in level.visuals[newval] )
+	{
+		forward = anglestoforward( visual.angles );
+		forward = ( 0, 0, 0 );
+		level.hardpointfx[localclientnum][level.hardpointfx[localclientnum].size] = playfx( localclientnum, level._effect[visual.script_fxid], visual.origin, forward );
+	}
+// SP = 0x0 - check OK
+}

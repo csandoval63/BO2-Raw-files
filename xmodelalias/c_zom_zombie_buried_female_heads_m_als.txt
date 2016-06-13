@@ -1,0 +1,11 @@
+// xmodelalias/c_zom_zombie_buried_female_heads_m_als.gsc
+
+
+// 0xC8
+main()
+{
+	a[0] = "c_zom_zombie_buried_sgirl_head1_mp";
+	a[1] = "c_zom_zombie_buried_sgirl_head2_mp";
+	return a;
+// SP = 0x0 - check OK
+}

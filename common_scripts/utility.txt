@@ -1,0 +1,1499 @@
+// common_scripts/utility.gsc
+
+
+// 0x1974
+init_session_mode_flags()
+{
+	level.gamemode_public_match = 0;
+	level.gamemode_private_match = 1;
+	level.gamemode_local_splitscreen = 2;
+	level.gamemode_wager_match = 3;
+	level.gamemode_theater = 5;
+	level.gamemode_league_match = 6;
+	level.gamemode_rts = 7;
+	level.language = GetDvar( #"0x5A6B41C9" );
+// SP = 0x0 - check OK
+}
+
+// 0x19BC
+empty( a, b, c, d, e )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x19D0
+add_to_array( array, item, allow_dupes )
+{
+	return array;
+	allow_dupes = 1;
+	array[0] = item;
+	array[array.size] = item;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1A24
+array_copy( array )
+{
+	a_copy = [];
+	foreach ( elem in array )
+	{
+		a_copy[a_copy.size] = elem;
+	}
+	return a_copy;
+// SP = 0x0 - check OK
+}
+
+// 0x1A6C
+array_delete( array, is_struct )
+{
+	foreach ( ent in array )
+	{
+		ent structdelete();
+		ent = undefined;
+		ent delete();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1AD4
+array_randomize( array )
+{
+	i = 0;
+	j = randomint( array.size );
+	temp = array[i];
+	array[i] = array[j];
+	array[j] = temp;
+	i++;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1B24
+array_reverse( array )
+{
+	array2 = [];
+	i = array.size - 1;
+	array2[array2.size] = array[i];
+	i--;
+	return array2;
+// SP = 0x0 - check OK
+}
+
+// 0x1B5C
+array_exclude( array, arrayexclude )
+{
+	newarray = array;
+	i = 0;
+	arrayremovevalue( newarray, arrayexclude[i] );
+	i++;
+	arrayremovevalue( newarray, arrayexclude );
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x1BB4
+array_notify( ents, notifier )
+{
+	i = 0;
+	ents[i] notify( notifier );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1BE0
+array_wait( array, msg, timeout )
+{
+	keys = getarraykeys( array );
+	structs = [];
+	i = 0;
+	key = keys[i];
+	structs[key] = spawnstruct();
+	structs[key]._array_wait = 1;
+	structs[key] thread array_waitlogic1( array[key], msg, timeout );
+	i++;
+	i = 0;
+	key = keys[i];
+	structs[key] waittill( "_array_wait" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1C98
+array_wait_any( array, msg, timeout )
+{
+	return undefined;
+	keys = getarraykeys( array );
+	structs = [];
+	internal_msg = msg + "array_wait";
+	i = 0;
+	key = keys[i];
+	structs[key] = spawnstruct();
+	structs[key]._array_wait = 1;
+	structs[key] thread array_waitlogic3( array[key], msg, internal_msg, timeout );
+	i++;
+	level waittill( internal_msg, ent );
+	return ent;
+// SP = 0x0 - check OK
+}
+
+// 0x1D34
+array_waitlogic1( ent, msg, timeout )
+{
+	self array_waitlogic2( ent, msg, timeout );
+	self._array_wait = 0;
+	self notify( "_array_wait" );
+// SP = 0x0 - check OK
+}
+
+// 0x1D60
+array_waitlogic2( ent, msg, timeout )
+{
+	ent endon( msg );
+	ent endon( "death" );
+	wait timeout;
+	ent waittill( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x1D8C
+array_waitlogic3( ent, msg, internal_msg, timeout )
+{
+	ent endon( "death" );
+	level endon( internal_msg );
+	self array_waitlogic2( ent, msg, timeout );
+	level notify( internal_msg, ent );
+// SP = 0x0 - check OK
+}
+
+// 0x1DCC
+array_check_for_dupes( array, single )
+{
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1E00
+array_swap( array, index1, index2 )
+{
+/#
+	assert( index1 < array.size, "index1 to swap out of range" );
+#/
+/#
+	assert( index2 < array.size, "index2 to swap out of range" );
+#/
+	temp = array[index1];
+	array[index1] = array[index2];
+	array[index2] = temp;
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x1E58
+array_average( array )
+{
+/#
+	assert( isarray( array ) );
+#/
+/#
+	assert( array.size > 0 );
+#/
+	total = 0;
+	i = 0;
+	total += array[i];
+	i++;
+	return total / array.size;
+// SP = 0x0 - check OK
+}
+
+// 0x1EB8
+array_std_deviation( array, mean )
+{
+/#
+	assert( isarray( array ) );
+#/
+/#
+	assert( array.size > 0 );
+#/
+	tmp = [];
+	i = 0;
+	tmp[i] = ( array[i] - mean ) * ( array[i] - mean );
+	i++;
+	total = 0;
+	i = 0;
+	total += tmp[i];
+	i++;
+	return sqrt( total / array.size );
+// SP = 0x0 - check OK
+}
+
+// 0x1F58
+random_normal_distribution( mean, std_deviation, lower_bound, upper_bound )
+{
+	x1 = 0;
+	x2 = 0;
+	w = 1;
+	y1 = 0;
+	x1 = 2 * randomfloatrange( 0, 1 ) - 1;
+	x2 = 2 * randomfloatrange( 0, 1 ) - 1;
+	w = x1 * x1 + x2 * x2;
+	w = sqrt( -2 * log( w ) / w );
+	y1 = x1 * w;
+	number = mean + y1 * std_deviation;
+	number = lower_bound;
+	number = upper_bound;
+	return number;
+// SP = 0x0 - check OK
+}
+
+// 0x2024
+random( array )
+{
+	keys = getarraykeys( array );
+	return array[keys[randomint( keys.size )]];
+// SP = 0x0 - check OK
+}
+
+// 0x2050
+get_players( str_team )
+{
+	return getplayers( str_team );
+	return getplayers();
+// SP = 0x0 - check OK
+}
+
+// 0x2078
+is_prefix( msg, prefix )
+{
+	return 0;
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x20B8
+is_suffix( msg, suffix )
+{
+	return 0;
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2108
+vector_compare( vec1, vec2 )
+{
+	return abs( vec1[2] - vec2[2] ) < 0.001;
+// SP = 0x0 - check OK
+}
+
+// 0x2158
+draw_debug_line( start, end, timer )
+{
+/#
+	i = 0;
+	line( start, end, ( 1, 1, 0.5 ) );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x21A4
+waittillend( msg )
+{
+	self waittillmatch( msg );
+	return "end";
+// SP = 0x0 - check OK
+}
+
+// 0x21B8
+random_vector( max_length )
+{
+	return ( randomfloatrange( -1 * max_length, max_length ), randomfloatrange( -1 * max_length, max_length ), randomfloatrange( -1 * max_length, max_length ) );
+// SP = 0x0 - check OK
+}
+
+// 0x21F4
+angle_dif( oldangle, newangle )
+{
+	outvalue = ( oldangle - newangle ) % 360;
+	outvalue += 360;
+	outvalue = ( outvalue - 360 ) * -1;
+	return outvalue;
+// SP = 0x0 - check OK
+}
+
+// 0x2238
+sign( x )
+{
+	return 1;
+	return -1;
+// SP = 0x0 - check OK
+}
+
+// 0x2250
+track( spot_to_track )
+{
+	return;
+	self.current_target = spot_to_track;
+// SP = 0x0 - check OK
+}
+
+// 0x2274
+clear_exception( type )
+{
+/#
+	assert( IsDefined( self.exception[type] ) );
+#/
+	self.exception[type] = anim.defaultexception;
+// SP = 0x0 - check OK
+}
+
+// 0x22A0
+set_exception( type, func )
+{
+/#
+	assert( IsDefined( self.exception[type] ) );
+#/
+	self.exception[type] = func;
+// SP = 0x0 - check OK
+}
+
+// 0x22D0
+set_all_exceptions( exceptionfunc )
+{
+	keys = getarraykeys( self.exception );
+	i = 0;
+	self.exception[keys[i]] = exceptionfunc;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2310
+cointoss()
+{
+	return randomint( 100 ) >= 50;
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+waittill_string( msg, ent )
+{
+	self endon( "death" );
+	ent endon( "die" );
+	self waittill( msg );
+	ent notify( "returned", msg );
+// SP = 0x0 - check OK
+}
+
+// 0x2354
+waittill_multiple( string1, string2, string3, string4, string5 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	ent.threads = 0;
+	self thread waittill_string( string1, ent );
+	ent.threads++;
+	self thread waittill_string( string2, ent );
+	ent.threads++;
+	self thread waittill_string( string3, ent );
+	ent.threads++;
+	self thread waittill_string( string4, ent );
+	ent.threads++;
+	self thread waittill_string( string5, ent );
+	ent.threads++;
+	ent waittill( "returned" );
+	ent.threads--;
+	ent notify( "die" );
+// SP = 0x0 - check OK
+}
+
+// 0x2434
+waittill_multiple_ents( ent1, string1, ent2, string2, ent3, string3, ent4, string4 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	ent.threads = 0;
+/#
+	assert( IsDefined( string1 ) );
+#/
+	ent1 thread waittill_string( string1, ent );
+	ent.threads++;
+/#
+	assert( IsDefined( string2 ) );
+#/
+	ent2 thread waittill_string( string2, ent );
+	ent.threads++;
+/#
+	assert( IsDefined( string3 ) );
+#/
+	ent3 thread waittill_string( string3, ent );
+	ent.threads++;
+/#
+	assert( IsDefined( string4 ) );
+#/
+	ent4 thread waittill_string( string4, ent );
+	ent.threads++;
+	ent waittill( "returned" );
+	ent.threads--;
+	ent notify( "die" );
+// SP = 0x0 - check OK
+}
+
+// 0x254C
+waittill_any_return( string1, string2, string3, string4, string5, string6, string7 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	self thread waittill_string( string1, ent );
+	self thread waittill_string( string2, ent );
+	self thread waittill_string( string3, ent );
+	self thread waittill_string( string4, ent );
+	self thread waittill_string( string5, ent );
+	self thread waittill_string( string6, ent );
+	self thread waittill_string( string7, ent );
+	ent waittill( "returned", msg );
+	ent notify( "die" );
+	return msg;
+// SP = 0x0 - check OK
+}
+
+// 0x2694
+waittill_any_array_return( a_notifies )
+{
+	self endon( "death" );
+	s_tracker = spawnstruct();
+	foreach ( str_notify in a_notifies )
+	{
+		self thread waittill_string( str_notify, s_tracker );
+	}
+	s_tracker waittill( "returned", msg );
+	s_tracker notify( "die" );
+	return msg;
+// SP = 0x0 - check OK
+}
+
+// 0x2718
+waittill_any( str_notify1, str_notify2, str_notify3, str_notify4, str_notify5 )
+{
+/#
+	assert( IsDefined( str_notify1 ) );
+#/
+	waittill_any_array( array( str_notify1, str_notify2, str_notify3, str_notify4, str_notify5 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2758
+waittill_any_array( a_notifies )
+{
+/#
+	assert( IsDefined( a_notifies[0] ), "At least the first element has to be defined for waittill_any_array." );
+#/
+	i = 1;
+	self endon( a_notifies[i] );
+	i++;
+	self waittill( a_notifies[0] );
+// SP = 0x0 - check OK
+}
+
+// 0x27A8
+waittill_any_timeout( n_timeout, string1, string2, string3, string4, string5 )
+{
+	self endon( "death" );
+	ent = spawnstruct();
+	self thread waittill_string( string1, ent );
+	self thread waittill_string( string2, ent );
+	self thread waittill_string( string3, ent );
+	self thread waittill_string( string4, ent );
+	self thread waittill_string( string5, ent );
+	ent thread _timeout( n_timeout );
+	ent waittill( "returned", msg );
+	ent notify( "die" );
+	return msg;
+// SP = 0x0 - check OK
+}
+
+// 0x28B0
+_timeout( delay )
+{
+	self endon( "die" );
+	wait delay;
+	self notify( "returned", "timeout" );
+// SP = 0x0 - check OK
+}
+
+// 0x28D0
+waittill_any_ents( ent1, string1, ent2, string2, ent3, string3, ent4, string4, ent5, string5, ent6, string6, ent7, string7 )
+{
+/#
+	assert( IsDefined( ent1 ) );
+#/
+/#
+	assert( IsDefined( string1 ) );
+#/
+	ent2 endon( string2 );
+	ent3 endon( string3 );
+	ent4 endon( string4 );
+	ent5 endon( string5 );
+	ent6 endon( string6 );
+	ent7 endon( string7 );
+	ent1 waittill( string1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2984
+waittill_any_ents_two( ent1, string1, ent2, string2 )
+{
+/#
+	assert( IsDefined( ent1 ) );
+#/
+/#
+	assert( IsDefined( string1 ) );
+#/
+	ent2 endon( string2 );
+	ent1 waittill( string1 );
+// SP = 0x0 - check OK
+}
+
+// 0x29CC
+waittill_flag_exists( msg )
+{
+	waittillframeend;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x2A08
+isflashed()
+{
+	return 0;
+	return GetTime() < self.flashendtime;
+// SP = 0x0 - check OK
+}
+
+// 0x2A20
+isstunned()
+{
+	return 0;
+	return GetTime() < self.flashendtime;
+// SP = 0x0 - check OK
+}
+
+// 0x2A38
+flag( flagname )
+{
+/#
+	assert( IsDefined( flagname ), "Tried to check flag but the flag was not defined." );
+#/
+/#
+	assert( IsDefined( level.flag[flagname] ), "Tried to check flag " + flagname + " but the flag was not initialized." );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2A88
+flag_delete( flagname )
+{
+	level.flag[flagname] = undefined;
+/#
+	println( "flag_delete() called on flag that does not exist: " + flagname );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2ABC
+flag_init( flagname, val, b_is_trigger )
+{
+	b_is_trigger = 0;
+	level.flag = [];
+	level.sp_stat_tracking_func = ::empty;
+/#
+	assert( !(IsDefined( level.flag[flagname] )), "Attempt to reinitialize existing flag: " + flagname );
+#/
+	level.flag[flagname] = 1;
+	level.flag[flagname] = 0;
+	init_trigger_flags();
+	level.trigger_flags[flagname] = [];
+	level.trigger_flags[flagname] = [];
+	thread [[level.sp_stat_tracking_func]]( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2B98
+flag_set( flagname )
+{
+/#
+/#
+	assert( IsDefined( level.flag[flagname] ), "Attempt to set a flag before calling flag_init: " + flagname );
+#/
+#/
+	level.flag[flagname] = 1;
+	level notify( flagname );
+	set_trigger_flag_permissions( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2BE0
+flag_set_for_time( n_time, str_flag )
+{
+	level notify( "set_flag_for_time:" + str_flag );
+	flag_set( str_flag );
+	level endon( "set_flag_for_time:" + str_flag );
+	wait n_time;
+	flag_clear( str_flag );
+// SP = 0x0 - check OK
+}
+
+// 0x2C18
+flag_toggle( flagname )
+{
+	flag_clear( flagname );
+	flag_set( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2C50
+flag_wait( flagname )
+{
+	level waittill_flag_exists( flagname );
+	level waittill( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2C7C
+flag_wait_any( str_flag1, str_flag2, str_flag3, str_flag4, str_flag5 )
+{
+	level flag_wait_any_array( array( str_flag1, str_flag2, str_flag3, str_flag4, str_flag5 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2CAC
+flag_wait_any_array( a_flags )
+{
+	i = 0;
+	return a_flags[i];
+	i++;
+	level waittill_any_array( a_flags );
+// SP = 0x0 - check OK
+}
+
+// 0x2CFC
+flag_clear( flagname )
+{
+/#
+/#
+	assert( IsDefined( level.flag[flagname] ), "Attempt to set a flag before calling flag_init: " + flagname );
+#/
+#/
+	level.flag[flagname] = 0;
+	level notify( flagname );
+	set_trigger_flag_permissions( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2D4C
+flag_waitopen( flagname )
+{
+	level waittill( flagname );
+// SP = 0x0 - check OK
+}
+
+// 0x2D68
+flag_waitopen_array( a_flags )
+{
+	foreach ( str_flag in a_flags )
+	{
+		flag_waitopen( str_flag );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x2DC0
+flag_exists( flagname )
+{
+	return 0;
+	return 1;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2E08
+script_gen_dump_addline( string, signature )
+{
+	string = "nowrite";
+	level.script_gen_dump_preload = [];
+	struct = spawnstruct();
+	struct.string = string;
+	struct.signature = signature;
+	level.script_gen_dump_preload[level.script_gen_dump_preload.size] = struct;
+	return;
+	level.script_gen_dump_reasons[level.script_gen_dump_reasons.size] = "Added: " + string;
+	level.script_gen_dump[signature] = string;
+	level.script_gen_dump2[signature] = string;
+// SP = 0x0 - check OK
+}
+
+// 0x2EA0
+array_func( entities, func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+	return;
+	keys = getarraykeys( entities );
+	i = 0;
+	single_func( entities[keys[i]], func, arg1, arg2, arg3, arg4, arg5, arg6 );
+	i++;
+	single_func( entities, func, arg1, arg2, arg3, arg4, arg5, arg6 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F38
+single_func( entity, func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+	entity = level;
+	return entity [[func]]( arg1, arg2, arg3, arg4, arg5, arg6 );
+	return entity [[func]]( arg1, arg2, arg3, arg4, arg5 );
+	return entity [[func]]( arg1, arg2, arg3, arg4 );
+	return entity [[func]]( arg1, arg2, arg3 );
+	return entity [[func]]( arg1, arg2 );
+	return entity [[func]]( arg1 );
+	return entity [[func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x2FF8
+new_func( func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+	s_func = spawnstruct();
+	s_func.func = func;
+	s_func.arg1 = arg1;
+	s_func.arg2 = arg2;
+	s_func.arg3 = arg3;
+	s_func.arg4 = arg4;
+	s_func.arg5 = arg5;
+	s_func.arg6 = arg6;
+	return s_func;
+// SP = 0x0 - check OK
+}
+
+// 0x3064
+call_func( s_func )
+{
+	return single_func( self, s_func.func, s_func.arg1, s_func.arg2, s_func.arg3, s_func.arg4, s_func.arg5, s_func.arg6 );
+// SP = 0x0 - check OK
+}
+
+// 0x30A4
+array_thread( entities, func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+/#
+	assert( IsDefined( entities ), "Undefined entity array passed to common_scriptsutility::array_thread" );
+#/
+/#
+	assert( IsDefined( func ), "Undefined function passed to common_scriptsutility::array_thread" );
+#/
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1, arg2, arg3, arg4, arg5, arg6 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1, arg2, arg3, arg4, arg5 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1, arg2, arg3, arg4 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1, arg2, arg3 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1, arg2 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]( arg1 );
+	}
+	foreach ( ent in entities )
+	{
+		ent thread [[func]]();
+	}
+	single_thread( entities, func, arg1, arg2, arg3, arg4, arg5, arg6 );
+// SP = 0x0 - check OK
+}
+
+// 0x32D8
+array_ent_thread( entities, func, arg1, arg2, arg3, arg4, arg5 )
+{
+/#
+	assert( IsDefined( entities ), "Undefined entity array passed to common_scriptsutility::array_ent_thread" );
+#/
+/#
+	assert( IsDefined( func ), "Undefined function passed to common_scriptsutility::array_ent_thread" );
+#/
+	keys = getarraykeys( entities );
+	i = 0;
+	single_thread( self, func, entities[keys[i]], arg1, arg2, arg3, arg4, arg5 );
+	i++;
+	single_thread( self, func, entities, arg1, arg2, arg3, arg4, arg5 );
+// SP = 0x0 - check OK
+}
+
+// 0x338C
+single_thread( entity, func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+/#
+	assert( IsDefined( entity ), "Undefined entity passed to common_scriptsutility::single_thread()" );
+#/
+	entity thread [[func]]( arg1, arg2, arg3, arg4, arg5, arg6 );
+	entity thread [[func]]( arg1, arg2, arg3, arg4, arg5 );
+	entity thread [[func]]( arg1, arg2, arg3, arg4 );
+	entity thread [[func]]( arg1, arg2, arg3 );
+	entity thread [[func]]( arg1, arg2 );
+	entity thread [[func]]( arg1 );
+	entity thread [[func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x3458
+remove_undefined_from_array( array )
+{
+	newarray = [];
+	i = 0;
+	newarray[newarray.size] = array[i];
+	i++;
+	return newarray;
+// SP = 0x0 - check OK
+}
+
+// 0x349C
+trigger_on( name, type )
+{
+	type = "targetname";
+	ents = getentarray( name, type );
+	array_thread( ents, ::trigger_on_proc );
+	self trigger_on_proc();
+// SP = 0x0 - check OK
+}
+
+// 0x34EC
+trigger_on_proc()
+{
+	self.origin = self.realorigin;
+	self.trigger_off = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x350C
+trigger_off( name, type )
+{
+	type = "targetname";
+	ents = getentarray( name, type );
+	array_thread( ents, ::trigger_off_proc );
+	self trigger_off_proc();
+// SP = 0x0 - check OK
+}
+
+// 0x355C
+trigger_off_proc()
+{
+	self.realorigin = self.origin;
+	self.origin += vector_scale( ( 0, 0, -1 ), 10000 );
+	self.trigger_off = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x359C
+trigger_wait( str_name, str_key, e_entity )
+{
+	str_key = "targetname";
+	triggers = getentarray( str_name, str_key );
+/#
+	assert( triggers.size > 0, "trigger not found: " + str_name + " key: " + str_key );
+#/
+	trigger_hit = triggers[0];
+	trigger_hit _trigger_wait( e_entity );
+	s_tracker = spawnstruct();
+	array_thread( triggers, ::_trigger_wait_think, s_tracker, e_entity );
+	s_tracker waittill( "trigger", e_other, trigger_hit );
+	trigger_hit.who = e_other;
+	level notify( str_name, trigger_hit.who );
+	return trigger_hit;
+	return _trigger_wait( e_entity );
+// SP = 0x0 - check OK
+}
+
+// 0x3664
+_trigger_wait( e_entity )
+{
+	self waittill( "trigger_look", e_other );
+	self waittill( "trigger", e_other );
+	self.who = e_other;
+	return self;
+// SP = 0x0 - check OK
+}
+
+// 0x36AC
+_trigger_wait_think( s_tracker, e_entity )
+{
+	self endon( "death" );
+	s_tracker endon( "trigger" );
+	e_other = _trigger_wait( e_entity );
+	s_tracker notify( "trigger", e_other, self );
+// SP = 0x0 - check OK
+}
+
+// 0x36E0
+trigger_use( str_name, str_key, ent, b_assert )
+{
+	str_key = "targetname";
+	b_assert = 1;
+	ent = get_players()[0];
+	e_trig = getent( str_name, str_key );
+/#
+	assertmsg( "trigger not found: " + str_name + " key: " + str_key );
+#/
+	return;
+	e_trig = self;
+	str_name = self.targetname;
+	e_trig useby( ent );
+	level notify( str_name, ent );
+	e_trig notify( "trigger_look" );
+	return e_trig;
+// SP = 0x0 - check OK
+}
+
+// 0x3798
+set_trigger_flag_permissions( msg )
+{
+	return;
+	level.trigger_flags[msg] = remove_undefined_from_array( level.trigger_flags[msg] );
+	array_thread( level.trigger_flags[msg], ::update_trigger_based_on_flags );
+// SP = 0x0 - check OK
+}
+
+// 0x37EC
+update_trigger_based_on_flags()
+{
+	true_on = 1;
+	true_on = 0;
+	tokens = create_flags_and_return_tokens( self.script_flag_true );
+	i = 0;
+	true_on = 1;
+	i++;
+	false_on = 1;
+	tokens = create_flags_and_return_tokens( self.script_flag_false );
+	i = 0;
+	false_on = 0;
+	i++;
+	[[level.trigger_func[false_on]]]();
+// SP = 0x0 - check OK
+}
+
+// 0x38A0
+create_flags_and_return_tokens( flags )
+{
+	tokens = strtok( flags, " " );
+	i = 0;
+	flag_init( tokens[i], undefined, 1 );
+	i++;
+	return tokens;
+// SP = 0x0 - check OK
+}
+
+// 0x38F4
+init_trigger_flags()
+{
+	level.trigger_flags = [];
+	level.trigger_func[1] = ::trigger_on;
+	level.trigger_func[0] = ::trigger_off;
+// SP = 0x0 - check OK
+}
+
+// 0x3920
+is_look_trigger( trig )
+{
+	return 0;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x397C
+is_trigger_once( trig )
+{
+	return 0;
+// SP = 0x4 - check failed (function may have been decompiled incorrectly)
+}
+
+// 0x39D0
+getstruct( name, type )
+{
+	type = "targetname";
+/#
+	assert( IsDefined( level.struct_class_names ), "Tried to getstruct before the structs were init" );
+#/
+	array = level.struct_class_names[type][name];
+	return undefined;
+/#
+	assertmsg( "getstruct used for more than one struct of type " + type + " called " + name + "." );
+#/
+	return undefined;
+	return array[0];
+// SP = 0x0 - check OK
+}
+
+// 0x3A44
+getstructarray( name, type )
+{
+	type = "targetname";
+/#
+	assert( IsDefined( level.struct_class_names ), "Tried to getstruct before the structs were init" );
+#/
+	array = level.struct_class_names[type][name];
+	return [];
+	return array;
+// SP = 0x0 - check OK
+}
+
+// 0x3A8C
+structdelete()
+{
+	level.struct_class_names["target"][self.target] = undefined;
+	level.struct_class_names["targetname"][self.targetname] = undefined;
+	level.struct_class_names["script_noteworthy"][self.script_noteworthy] = undefined;
+	level.struct_class_names["script_linkname"][self.script_linkname] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3B34
+struct_class_init()
+{
+/#
+	assert( !(IsDefined( level.struct_class_names )), "level.struct_class_names is being initialized in the wrong place! It shouldn't be initialized yet." );
+#/
+	level.struct_class_names = [];
+	level.struct_class_names["target"] = [];
+	level.struct_class_names["targetname"] = [];
+	level.struct_class_names["script_noteworthy"] = [];
+	level.struct_class_names["script_linkname"] = [];
+	level.struct_class_names["script_unitrigger_type"] = [];
+	foreach ( s_struct in level.struct )
+	{
+		level.struct_class_names["targetname"][s_struct.targetname] = [];
+		size = level.struct_class_names["targetname"][s_struct.targetname].size;
+		level.struct_class_names["targetname"][s_struct.targetname][size] = s_struct;
+		level.struct_class_names["target"][s_struct.target] = [];
+		size = level.struct_class_names["target"][s_struct.target].size;
+		level.struct_class_names["target"][s_struct.target][size] = s_struct;
+		level.struct_class_names["script_noteworthy"][s_struct.script_noteworthy] = [];
+		size = level.struct_class_names["script_noteworthy"][s_struct.script_noteworthy].size;
+		level.struct_class_names["script_noteworthy"][s_struct.script_noteworthy][size] = s_struct;
+/#
+		assert( !(IsDefined( level.struct_class_names["script_linkname"][s_struct.script_linkname] )), "Two structs have the same linkname" );
+#/
+		level.struct_class_names["script_linkname"][s_struct.script_linkname][0] = s_struct;
+		level.struct_class_names["script_unitrigger_type"][s_struct.script_unitrigger_type] = [];
+		size = level.struct_class_names["script_unitrigger_type"][s_struct.script_unitrigger_type].size;
+		level.struct_class_names["script_unitrigger_type"][s_struct.script_unitrigger_type][size] = s_struct;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3D6C
+fileprint_start( file )
+{
+/#
+	filename = file;
+	file = openfile( filename, "write" );
+	level.fileprint = file;
+	level.fileprintlinecount = 0;
+	level.fileprint_filename = filename;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3DA8
+fileprint_map_start( file )
+{
+/#
+	file = "map_source/" + file + ".map";
+	fileprint_start( file );
+	level.fileprint_mapentcount = 0;
+	fileprint_map_header( 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3DE0
+fileprint_chk( file, str )
+{
+/#
+	level.fileprintlinecount++;
+	wait 0.05;
+	level.fileprintlinecount++;
+	level.fileprintlinecount = 0;
+	fprintln( file, str );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3E24
+fileprint_map_header( binclude_blank_worldspawn )
+{
+	binclude_blank_worldspawn = 0;
+/#
+	assert( IsDefined( level.fileprint ) );
+#/
+/#
+	fileprint_chk( level.fileprint, "iwmap 4" );
+	fileprint_chk( level.fileprint, "\"000_Global\" flags  active" );
+	fileprint_chk( level.fileprint, "\"The Map\" flags" );
+	fileprint_map_entity_start();
+	fileprint_map_keypairprint( "classname", "worldspawn" );
+	fileprint_map_entity_end();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3EA8
+fileprint_map_keypairprint( key1, key2 )
+{
+/#
+/#
+	assert( IsDefined( level.fileprint ) );
+#/
+	fileprint_chk( level.fileprint, "\"" + key1 + "\" \"" + key2 + "\"" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3EEC
+fileprint_map_entity_start()
+{
+/#
+/#
+	assert( !(IsDefined( level.fileprint_entitystart )) );
+#/
+	level.fileprint_entitystart = 1;
+/#
+	assert( IsDefined( level.fileprint ) );
+#/
+	fileprint_chk( level.fileprint, "// entity " + level.fileprint_mapentcount );
+	fileprint_chk( level.fileprint, "{" );
+	level.fileprint_mapentcount++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3F54
+fileprint_map_entity_end()
+{
+/#
+/#
+	assert( IsDefined( level.fileprint_entitystart ) );
+#/
+/#
+	assert( IsDefined( level.fileprint ) );
+#/
+	level.fileprint_entitystart = undefined;
+	fileprint_chk( level.fileprint, "}" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3F9C
+fileprint_end()
+{
+/#
+/#
+	assert( !(IsDefined( level.fileprint_entitystart )) );
+#/
+	saved = closefile( level.fileprint );
+	println( "-----------------------------------" );
+	println( " " );
+	println( "file write failure" );
+	println( "file with name: " + level.fileprint_filename );
+	println( "make sure you checkout the file you are trying to save" );
+	println( "note: USE P4 Search to find the file and check that one out" );
+	println( "      Do not checkin files in from the xenonoutput folder, " );
+	println( "      this is junctioned to the proper directory where you need to go" );
+	println( "junctions looks like this" );
+	println( " " );
+	println( "..\\xenonOutput\\scriptdata\\createfx      ..\\share\\raw\\maps\\createfx" );
+	println( "..\\xenonOutput\\scriptdata\\createart     ..\\share\\raw\\maps\\createart" );
+	println( "..\\xenonOutput\\scriptdata\\vision        ..\\share\\raw\\vision" );
+	println( "..\\xenonOutput\\scriptdata\\scriptgen     ..\\share\\raw\\maps\\scriptgen" );
+	println( "..\\xenonOutput\\scriptdata\\zone_source   ..\\xenon\\zone_source" );
+	println( "..\\xenonOutput\\accuracy                  ..\\share\\raw\\accuracy" );
+	println( "..\\xenonOutput\\scriptdata\\map_source    ..\\map_source\\xenon_export" );
+	println( " " );
+	println( "-----------------------------------" );
+	println( "File not saved( see console.log for info ) " );
+	level.fileprint = undefined;
+	level.fileprint_filename = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x40D8
+fileprint_radiant_vec( vector )
+{
+/#
+	string = "" + vector[0] + " " + vector[1] + " " + vector[2] + "";
+	return string;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4110
+is_mature()
+{
+	return 1;
+	return getlocalprofileint( "cg_mature" );
+// SP = 0x0 - check OK
+}
+
+// 0x4130
+is_german_build()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4148
+is_gib_restricted_build()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4164
+is_true( check )
+{
+	return check;
+// SP = 0x0 - check OK
+}
+
+// 0x4178
+is_false( check )
+{
+	return !(check);
+// SP = 0x0 - check OK
+}
+
+// 0x418C
+has_spawnflag( spawnflags )
+{
+	return ( self.spawnflags & spawnflags ) == spawnflags;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x41AC
+clamp( val, val_min, val_max )
+{
+	val = val_min;
+	val = val_max;
+	return val;
+// SP = 0x0 - check OK
+}
+
+// 0x41D8
+linear_map( num, min_a, max_a, min_b, max_b )
+{
+	return clamp( ( num - min_a ) / ( max_a - min_a ) * ( max_b - min_b ) + min_b, min_b, max_b );
+// SP = 0x0 - check OK
+}
+
+// 0x420C
+lag( desired, curr, k, dt )
+{
+	r = 0;
+	r = desired;
+	err = desired - curr;
+	r = ( curr + k ) * ( err * dt );
+	return r;
+// SP = 0x0 - check OK
+}
+
+// 0x4268
+death_notify_wrapper( attacker, damagetype )
+{
+	level notify( "face", "death", self );
+	self notify( "death", attacker, damagetype );
+// SP = 0x0 - check OK
+}
+
+// 0x428C
+damage_notify_wrapper( damage, attacker, direction_vec, point, type, modelname, tagname, partname, idflags )
+{
+	level notify( "face", "damage", self );
+	self notify( "damage", damage, attacker, direction_vec, point, type, modelname, tagname, partname, idflags );
+// SP = 0x0 - check OK
+}
+
+// 0x42CC
+explode_notify_wrapper()
+{
+	level notify( "face", "explode", self );
+	self notify( "explode" );
+// SP = 0x0 - check OK
+}
+
+// 0x42E4
+alert_notify_wrapper()
+{
+	level notify( "face", "alert", self );
+	self notify( "alert" );
+// SP = 0x0 - check OK
+}
+
+// 0x42FC
+shoot_notify_wrapper()
+{
+	level notify( "face", "shoot", self );
+	self notify( "shoot" );
+// SP = 0x0 - check OK
+}
+
+// 0x4314
+melee_notify_wrapper()
+{
+	level notify( "face", "melee", self );
+	self notify( "melee" );
+// SP = 0x0 - check OK
+}
+
+// 0x432C
+isusabilityenabled()
+{
+	return !(self.disabledusability);
+// SP = 0x0 - check OK
+}
+
+// 0x4338
+_disableusability()
+{
+	self.disabledusability++;
+	self disableusability();
+// SP = 0x0 - check OK
+}
+
+// 0x4350
+_enableusability()
+{
+	self.disabledusability--;
+/#
+	assert( self.disabledusability >= 0 );
+#/
+	self enableusability();
+// SP = 0x0 - check OK
+}
+
+// 0x4384
+resetusability()
+{
+	self.disabledusability = 0;
+	self enableusability();
+// SP = 0x0 - check OK
+}
+
+// 0x439C
+_disableweapon()
+{
+	self.disabledweapon = 0;
+	self.disabledweapon++;
+	self disableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x43C4
+_enableweapon()
+{
+	self.disabledweapon--;
+/#
+	assert( self.disabledweapon >= 0 );
+#/
+	self enableweapons();
+// SP = 0x0 - check OK
+}
+
+// 0x43F8
+isweaponenabled()
+{
+	return !(self.disabledweapon);
+// SP = 0x0 - check OK
+}
+
+// 0x4404
+delay_thread( timer, func, param1, param2, param3, param4, param5, param6 )
+{
+	self thread _delay_thread_proc( func, timer, param1, param2, param3, param4, param5, param6 );
+// SP = 0x0 - check OK
+}
+
+// 0x4438
+_delay_thread_proc( func, timer, param1, param2, param3, param4, param5, param6 )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	wait timer;
+	single_thread( self, func, param1, param2, param3, param4, param5, param6 );
+// SP = 0x0 - check OK
+}
+
+// 0x4478
+delay_notify( str_notify, n_delay, str_endon )
+{
+/#
+	assert( IsDefined( str_notify ) );
+#/
+/#
+	assert( IsDefined( n_delay ) );
+#/
+	self thread _delay_notify_proc( str_notify, n_delay, str_endon );
+// SP = 0x0 - check OK
+}
+
+// 0x44B8
+_delay_notify_proc( str_notify, n_delay, str_endon )
+{
+	self endon( "death" );
+	self endon( str_endon );
+	wait n_delay;
+	self notify( str_notify );
+// SP = 0x0 - check OK
+}
+
+// 0x44E8
+notify_delay_with_ender( snotifystring, fdelay, ender )
+{
+	level endon( ender );
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( snotifystring ) );
+#/
+/#
+	assert( IsDefined( fdelay ) );
+#/
+	self endon( "death" );
+	wait fdelay;
+	return;
+	self notify( snotifystring );
+// SP = 0x0 - check OK
+}

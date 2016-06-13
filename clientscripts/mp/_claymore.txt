@@ -1,0 +1,24 @@
+// clientscripts/mp/_claymore.csc
+
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x158
+init( localclientnum )
+{
+	level._effect["fx_claymore_laser"] = loadfx( "weapon/claymore/fx_claymore_laser" );
+// SP = 0x0 - check OK
+}
+
+// 0x178
+spawned( localclientnum )
+{
+	self endon( "entityshutdown" );
+	self waittill_dobj( localclientnum );
+	wait 0.1;
+	self.claymorelaserfxid = playfxontag( localclientnum, level._effect["fx_claymore_laser"], self, "tag_fx" );
+	self waittill( "stunned" );
+	stopfx( localclientnum, self.claymorelaserfxid );
+// SP = 0x0 - check OK
+}

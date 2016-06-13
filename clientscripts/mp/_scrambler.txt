@@ -1,0 +1,217 @@
+// clientscripts/mp/_scrambler.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_rewindobjects;
+#include clientscripts\mp\_utility;
+
+
+// 0x6BC
+init()
+{
+	level._effect["scrambler_enemy_light"] = loadfx( "misc/fx_equip_light_red" );
+	level._effect["scrambler_friendly_light"] = loadfx( "misc/fx_equip_light_green" );
+	level.scramblerhandle = 1;
+	level.scramblervoouterradius = 1440000;
+	level.scramblerinnerradius = 250000;
+	level.scramblesound = "mpl_scrambler_static";
+	level.globalscramblesound = "mpl_cuav_static";
+	level.scramblesoundalert = "mpl_scrambler_alert";
+	level.scramblesoundping = "mpl_scrambler_ping";
+	level.scramblesoundburst = "mpl_scrambler_burst";
+	level._client_flag_callbacks["missile"][3] = ::spawnedscrambler;
+	level._client_flag_callbacks["scriptmover"][11] = ::spawnedglobalscramber;
+	level.scramblers = [];
+	level.playerpersistent = [];
+	localclientnum = 0;
+	waitforclient( localclientnum );
+	level thread scramblerupdate( localclientnum );
+	level thread checkforplayerswitch();
+// SP = 0x0 - check OK
+}
+
+// 0x794
+spawnedscrambler( localclientnum, set )
+{
+	return;
+	return;
+	self spawned( localclientnum, set, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x7C0
+spawnedglobalscramber( localclientnum, set )
+{
+	return;
+	return;
+	self spawned( localclientnum, set, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x7EC
+spawned( localclientnum, set, islocalized )
+{
+	return;
+	return;
+	scramblerhandle = level.scramblerhandle;
+	level.scramblerhandle++;
+	size = level.scramblers.size;
+	level.scramblers[size] = spawnstruct();
+	level.scramblers[size].scramblerhandle = scramblerhandle;
+	level.scramblers[size].cent = self;
+	level.scramblers[size].team = self.team;
+	level.scramblers[size].islocalized = islocalized;
+	level.scramblers[size].sndent = spawn( 0, self.origin, "script_origin" );
+	level.scramblers[size].sndid = -1;
+	level.scramblers[size].sndpingent = spawn( 0, self.origin, "script_origin" );
+	level.scramblers[size].sndpingid = -1;
+	players = level.localplayers;
+	owner = self getowner( localclientnum );
+	local_players_entity_thread( self, ::spawnedperclient, islocalized, scramblerhandle );
+	level thread cleanupscramblerondelete( self, scramblerhandle, islocalized, localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x914
+spawnedperclient( localclientnum, islocalized, scramblerhandle )
+{
+	player = getlocalplayer( localclientnum );
+	isenemy = self isenemyscrambler( localclientnum );
+	owner = self getowner( localclientnum );
+	scramblerindex = undefined;
+	i = 0;
+	scramblerindex = i;
+	i++;
+	return;
+	player addfriendlyscrambler( self.origin[0], self.origin[1], scramblerhandle );
+	level.scramblers[scramblerindex].sndid = level.scramblers[scramblerindex].sndent playloopsound( level.scramblesoundalert );
+	playsound( 0, level.scramblesoundburst, level.scramblers[scramblerindex].sndent.origin );
+	level.scramblers[scramblerindex].sndpingid = level.scramblers[scramblerindex].sndpingent playloopsound( level.scramblesoundping );
+	scramblesound = level.scramblesound;
+	scramblesound = level.globalscramblesound;
+	level.scramblers[scramblerindex].sndid = level.scramblers[scramblerindex].sndent playloopsound( scramblesound );
+	self thread clientscripts\mp\_fx::blinky_light( localclientnum, "tag_light", level._effect["scrambler_friendly_light"], level._effect["scrambler_enemy_light"] );
+// SP = 0x0 - check OK
+}
+
+// 0xAD4
+scramblerupdate( localclientnum )
+{
+	nearestenemy = level.scramblervoouterradius;
+	nearestfriendly = level.scramblervoouterradius;
+	players = level.localplayers;
+	localclientnum = 0;
+	player = players[localclientnum];
+	level.playerpersistent[localclientnum] = spawnstruct();
+	level.playerpersistent[localclientnum].previousteam = player.team;
+	player removeallfriendlyscramblers();
+	teamchanged = 1;
+	level.playerpersistent[localclientnum].previousteam = player.team;
+	teamchanged = 0;
+	enemyscrambleramount = 0;
+	friendlyscrambleramount = 0;
+	nearestenemy = level.scramblervoouterradius;
+	nearestfriendly = level.scramblervoouterradius;
+	isglobalscrambler = 0;
+	disttoscrambler = level.scramblervoouterradius;
+	nearestenemyscramblercent = undefined;
+	i = 0;
+	level.scramblers[i].cent.reenable = 1;
+	player removefriendlyscrambler( level.scramblers[i].scramblerhandle );
+	teamchanged = 1;
+	level.scramblers[i].cent.reenable = 0;
+	disttoscrambler = distancesquared( player.origin, level.scramblers[i].cent.origin );
+	isglobalscrambler = 1;
+	isenemy = level.scramblers[i].cent isenemyscrambler( localclientnum );
+	scramblerteamchanged = 1;
+	level.scramblers[i].team = level.scramblers[i].cent.team;
+	scramblerteamchanged = 0;
+	level.scramblers[i] restartsound( isenemy );
+	nearestenemyscramblercent = level.scramblers[i].cent;
+	nearestenemy = disttoscrambler;
+	player removefriendlyscrambler( level.scramblers[i].scramblerhandle );
+	nearestfriendly = disttoscrambler;
+	owner = level.scramblers[i].cent getowner( localclientnum );
+	player addfriendlyscrambler( level.scramblers[i].cent.origin[0], level.scramblers[i].cent.origin[1], level.scramblers[i].scramblerhandle );
+	i++;
+	enemyvoscrambleramount = ( 1 - nearestenemy ) - level.scramblerinnerradius / ( level.scramblervoouterradius - level.scramblerinnerradius );
+	enemyvoscrambleramount = 0;
+	friendlyscrambleramount = 1;
+	friendlyscrambleramount = ( 1 - nearestfriendly ) - level.scramblerinnerradius / ( level.scramblervoouterradius - level.scramblerinnerradius );
+	player setfriendlyscrambleramount( friendlyscrambleramount );
+	player setnearestenemyscrambler( nearestenemyscramblercent );
+	player clearnearestenemyscrambler();
+	player setenemyglobalscrambler( 1 );
+	player setenemyglobalscrambler( 0 );
+	enemyvoscrambleramount = 1;
+	setdvarfloat( "snd_futz", enemyvoscrambleramount );
+	localclientnum++;
+	wait 0.25;
+	waitforallclients();
+// SP = 0x0 - check OK
+}
+
+// 0xF94
+cleanupscramblerondelete( scramblerent, scramblerhandle, islocalized, localclientnum )
+{
+	scramblerent waittill( "entityshutdown" );
+	players = level.localplayers;
+	j = 0;
+	size = level.scramblers.size;
+	playsound( 0, level.scramblesoundburst, level.scramblers[j].sndent.origin );
+	level.scramblers[j].sndent delete();
+	level.scramblers[j].sndent = self.scramblers[size - 1].sndent;
+	level.scramblers[j].sndpingent delete();
+	level.scramblers[j].sndpingent = self.scramblers[size - 1].sndpingent;
+	level.scramblers[j].cent = level.scramblers[size - 1].cent;
+	level.scramblers[j].scramblerhandle = level.scramblers[size - 1].scramblerhandle;
+	level.scramblers[j].team = level.scramblers[size - 1].team;
+	level.scramblers[j].islocalized = level.scramblers[size - 1].islocalized;
+	level.scramblers[size - 1] = undefined;
+	j++;
+	i = 0;
+	players[i] removefriendlyscrambler( scramblerhandle );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1118
+isenemyscrambler( localclientnum )
+{
+/#
+	return 1;
+#/
+	enemy = !(friendnotfoe( localclientnum ));
+	return enemy;
+// SP = 0x0 - check OK
+}
+
+// 0x114C
+checkforplayerswitch()
+{
+	level waittill( "player_switch" );
+	waittillframeend;
+	players = level.localplayers;
+	localclientnum = 0;
+	j = 0;
+	ent = level.scramblers[j].cent;
+	ent thread clientscripts\mp\_fx::stop_blinky_light( localclientnum );
+	ent thread clientscripts\mp\_fx::blinky_light( localclientnum, "tag_light", level._effect["scrambler_friendly_light"], level._effect["scrambler_enemy_light"] );
+	isenemy = ent isenemyscrambler( localclientnum );
+	level.scramblers[j] restartsound( isenemy );
+	j++;
+	localclientnum++;
+// SP = 0x0 - check OK
+}
+
+// 0x11FC
+restartsound( isenemy )
+{
+	self.sndent stoploopsound( 0.1 );
+	self.sndid = -1;
+	self.sndid = self.sndent playloopsound( level.scramblesoundalert );
+	islocalized = self.islocalized;
+	scramblesound = level.scramblesound;
+	scramblesound = level.globalscramblesound;
+	self.sndid = self.sndent playloopsound( scramblesound );
+// SP = 0x0 - check OK
+}

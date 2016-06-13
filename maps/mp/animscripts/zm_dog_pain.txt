@@ -1,0 +1,13 @@
+// maps/mp/animscripts/zm_dog_pain.gsc
+
+#include maps\mp\animscripts\utility;
+
+
+// 0xD4
+main()
+{
+	debug_anim_print( "dog_pain::main() " );
+	self endon( "killanimscript" );
+	self setaimanimweights( 0, 0 );
+// SP = 0x0 - check OK
+}

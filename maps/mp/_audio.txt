@@ -1,0 +1,110 @@
+// maps/mp/_audio.gsc
+
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x2C0
+init()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2C8
+wait_until_first_player()
+{
+	players = get_players();
+	level waittill( "first_player_ready" );
+	players = get_players();
+	i = 0;
+	players[i] thread monitor_player_sprint();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x320
+stand_think( trig )
+{
+	killtext = "kill_stand_think" + trig getentitynumber();
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( killtext );
+	trig playsound( trig.script_label );
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x378
+monitor_player_sprint()
+{
+	self endon( "disconnect" );
+	self thread monitor_player_movement();
+	self._is_sprinting = 0;
+	self waittill( "sprint_begin" );
+	self._is_sprinting = 1;
+	self waittill( "sprint_end" );
+	self._is_sprinting = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3B8
+monitor_player_movement()
+{
+	self endon( "disconnect" );
+	org_1 = self.origin;
+	wait 1;
+	org_2 = self.origin;
+	distancemoved = distancesquared( org_1, org_2 );
+	self.player_is_moving = 1;
+	self.player_is_moving = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x414
+thread_enter_exit_sound( trig )
+{
+	self endon( "death" );
+	self endon( "disconnect" );
+	trig.touchingplayers[self getentitynumber()] = 1;
+	self playsound( trig.script_sound );
+	self thread stand_think( trig );
+	wait 0.1;
+	self notify( "kill_stand_think" + trig getentitynumber() );
+	self playsound( trig.script_noteworthy );
+	trig.touchingplayers[self getentitynumber()] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4CC
+thread_step_trigger()
+{
+	self.script_activated = 1;
+	self.touchingplayers = [];
+	i = 0;
+	self.touchingplayers[i] = 0;
+	i++;
+	self waittill( "trigger", who );
+	who thread thread_enter_exit_sound( self );
+// SP = 0x0 - check OK
+}
+
+// 0x548
+disable_bump_trigger( triggername )
+{
+	triggers = getentarray( "audio_bump_trigger", "targetname" );
+	i = 0;
+	triggers[i].script_activated = 0;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5B0
+get_player_index_number( player )
+{
+	players = get_players();
+	i = 0;
+	return i;
+	i++;
+	return 1;
+// SP = 0x0 - check OK
+}

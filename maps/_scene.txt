@@ -1,0 +1,1978 @@
+// maps/_scene.gsc
+
+#include maps\_vehicle;
+#include maps\_anim;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+#using_animtree ( "€GSC
+" );
+#using_animtree ( "€GSC
+" );
+#using_animtree ( "€GSC
+" );
+#using_animtree ( "€GSC
+" );
+
+
+// 0x343C
+_scene_init()
+{
+	precacherumble( "anim_light" );
+	precacherumble( "anim_med" );
+	precacherumble( "anim_heavy" );
+	precachestring( &"hud_shrink_ammo" );
+	precachestring( &"hud_expand_ammo" );
+	level._default_player_height = int( GetDvar( #"0x357C3ABD" ) );
+	triggers = get_triggers();
+	foreach ( trig in triggers )
+	{
+		a_scenes = strtok( trig.script_run_scene, " ,;" );
+		foreach ( str_scene in a_scenes )
+		{
+			add_trigger_function( trig, ::run_scene, str_scene );
+		}
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3528
+precache_assets( b_skip_precache_models )
+{
+	b_skip_precache_models = 0;
+/#
+	assert( IsDefined( level.a_scenes ), "There are no scenes to precache. Make sure to call add_scene() before calling this function." );
+#/
+	a_scene_names = getarraykeys( level.a_scenes );
+	i = 0;
+	str_scene = a_scene_names[i];
+	s_scene_info = level.a_scenes[str_scene];
+	has_different = _has_different_generic_anims( str_scene );
+/#
+	assert( !(has_different), "Since scene, " + str_scene + ", is a generic, all asset must use the same aniamtion." );
+#/
+	a_anim_keys = getarraykeys( s_scene_info.a_anim_info );
+	j = 0;
+	str_animname = a_anim_keys[j];
+	s_asset_info = s_scene_info.a_anim_info[str_animname];
+	level.scr_model[str_animname] = s_asset_info.str_model;
+	precachemodel( s_asset_info.str_model );
+	level.scr_animtree[str_animname] = s_asset_info.anim_tree;
+	str_animname = "generic";
+	animation = s_asset_info.animation;
+	level.scr_anim[str_animname][str_scene][0] = animation;
+	level.scr_anim[str_animname][str_scene] = animation;
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x36BC
+run_scene( str_scene, n_lerp_time, b_test_run, clientside_linkto )
+{
+	b_test_run = 0;
+	clientside_linkto = 1;
+	level.scene_sys notify( "_delete_scene_" + str_scene );
+	level.scene_sys notify( "_stop_scene_" + str_scene );
+	level.scene_sys endon( "_delete_scene_" + str_scene );
+	level.scene_sys endon( "_stop_scene_" + str_scene );
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for run_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	level.a_scenes[str_scene].a_ai_anims = [];
+	level.a_scenes[str_scene].a_model_anims = [];
+	flag_clear( str_scene + "_started" );
+	flag_clear( str_scene + "_first_frame" );
+	flag_clear( str_scene + "_done" );
+	waittillframeend;
+	level.scene_sys notify( "_start_scene_" + str_scene );
+	s_scene_info = level.a_scenes[str_scene];
+	align_object = s_scene_info _get_align_object( str_scene );
+	setenablenode( align_object, 0 );
+	align_object notify( str_scene );
+	a_active_anims = align_object _assemble_assets( str_scene, clientside_linkto, b_test_run );
+	align_object thread _anim_stopped_notify( str_scene, a_active_anims );
+	foreach ( e_asset in a_active_anims )
+	{
+		e_asset anim_stopanimscripted();
+		e_asset thread _animate_asset( str_scene, align_object, n_lerp_time, b_test_run );
+	}
+	foreach ( callback in level.a_scenes[str_scene].a_start_funcs )
+	{
+		single_thread( level, callback.func, callback.arg1, callback.arg2, callback.arg3, callback.arg4, callback.arg5, callback.arg6 );
+	}
+	align_object waittill( str_scene );
+	level thread _end_scene( str_scene, b_test_run );
+// SP = 0x0 - check OK
+}
+
+// 0x3924
+_end_scene( str_scene, b_test_run )
+{
+	b_test_run = 0;
+	flag_set( str_scene + "_done" );
+	level.scene_sys endon( "_delete_scene_" + str_scene );
+	waittillframeend;
+	delete_scene( str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x3968
+run_scene_and_delete( str_scene, n_lerp_time )
+{
+	run_scene( str_scene, n_lerp_time );
+	delete_scene( str_scene, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3990
+run_scene_first_frame( str_scene, b_skip_ai, b_clear_anim, clientside_linkto )
+{
+	b_skip_ai = 0;
+	clientside_linkto = 1;
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for run_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	s_scene_info = level.a_scenes[str_scene];
+	align_object = s_scene_info _get_align_object( str_scene );
+	setenablenode( align_object, 0 );
+	a_active_anims = align_object _assemble_assets( str_scene, clientside_linkto, 0, b_skip_ai, 1 );
+	flag_set( str_scene + "_first_frame" );
+	foreach ( e_asset in a_active_anims )
+	{
+		e_asset _run_anim_first_frame_on_asset( str_scene, align_object, b_clear_anim );
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x3A90
+end_scene( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for end_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Invalid scene name '" + str_scene + "' passed to end_scene()" );
+#/
+	s_scene_info = level.a_scenes[str_scene];
+	__new = [];
+	foreach ( __value in s_scene_info.a_ai_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	s_scene_info.a_ai_anims = __new;
+	foreach ( ai_anim in s_scene_info.a_ai_anims )
+	{
+		ai_anim anim_stopanimscripted( 0.2 );
+	}
+	__new = [];
+	foreach ( __value in s_scene_info.a_model_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	s_scene_info.a_model_anims = __new;
+	foreach ( m_anim in s_scene_info.a_model_anims )
+	{
+		m_anim anim_stopanimscripted( 0.2 );
+	}
+	level thread _end_scene( str_scene );
+	level.scene_sys endon( "_start_scene_" + str_scene );
+	waittillframeend;
+	level.scene_sys notify( "_stop_scene_" + str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x3C70
+add_scene_properties( str_scene, str_align_targetname )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for add_scene_properties()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	level.a_scenes[str_scene].align_object = undefined;
+	level.a_scenes[str_scene].str_align_targetname = str_align_targetname;
+	level.a_scenes[str_scene].do_not_align = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3CD8
+add_asset_properties( str_animname, str_scene, v_origin, v_angles )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_asset_properties()" );
+#/
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for add_asset_properties()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene].a_anim_info[str_animname] ), "Asset with this animname, " + str_animname + ", does not exist in scene, " + str_scene );
+#/
+	level.a_scenes[str_scene].a_anim_info[str_animname].v_origin = v_origin;
+	level.a_scenes[str_scene].a_anim_info[str_animname].v_angles = v_angles;
+// SP = 0x0 - check OK
+}
+
+// 0x3D88
+add_generic_ai_to_scene( ai_generic, str_scene )
+{
+/#
+	assert( IsDefined( ai_generic ), "ai_generic is a required argument for add_generic_ai_to_scene()" );
+#/
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for add_generic_ai_to_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene].a_anim_info["generic"] ), "Make sure the actor info is setup properly for scene, " + str_scene + ", with add_actor_anim() or add_multiple_generic_actors()" );
+#/
+	level.a_scenes[str_scene].a_ai_anims = [];
+	level.a_scenes[str_scene].a_ai_anims = [];
+	flag_clear( str_scene + "_started" );
+	flag_clear( str_scene + "_first_frame" );
+	s_scene_info = level.a_scenes[str_scene];
+	s_asset_info = s_scene_info.a_anim_info["generic"];
+	ai_generic thread _setup_asset_for_scene( s_asset_info, s_scene_info );
+	level.a_scenes[str_scene].a_ai_anims[level.a_scenes[str_scene].a_ai_anims.size] = ai_generic;
+// SP = 0x0 - check OK
+}
+
+// 0x3EB4
+add_generic_prop_to_scene( m_generic, str_scene, anim_tree )
+{
+/#
+	assert( IsDefined( m_generic ), "m_generic is a required argument for add_generic_prop_to_scene()" );
+#/
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for add_generic_prop_to_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene].a_anim_info["generic"] ), "Make sure the prop info is setup properly for scene, " + str_scene + ", with add_prop_anim() or add_multiple_generic_props_from_radiant()" );
+#/
+	level.a_scenes[str_scene].a_model_anims = [];
+	level.a_scenes[str_scene].a_model_anims = [];
+	flag_clear( str_scene + "_started" );
+	flag_clear( str_scene + "_first_frame" );
+	s_asset_info = level.a_scenes[str_scene].a_anim_info["generic"];
+	m_generic.str_name = s_asset_info.str_name;
+	m_generic.do_delete = s_asset_info.do_delete;
+	m_generic.str_tag = s_asset_info.str_tag;
+	m_generic init_anim_model( s_asset_info.str_name, s_asset_info.is_simple_prop, anim_tree );
+	i = 0;
+	m_generic hidepart( s_asset_info.a_parts[i] );
+	i++;
+	n_model_anims_size = level.a_scenes[str_scene].a_model_anims.size;
+	level.a_scenes[str_scene].a_model_anims[n_model_anims_size] = m_generic;
+// SP = 0x0 - check OK
+}
+
+// 0x404C
+get_model_or_models_from_scene( str_scene, str_name )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for get_model_or_models_from_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	waittill_scene_spawned( str_scene );
+	s_scene_info = level.a_scenes[str_scene];
+	model_or_models = [];
+	model_or_models = s_scene_info.a_model_anims;
+	model_or_models = [];
+	foreach ( s_asset_info in s_scene_info.a_anim_info )
+	{
+		model_or_models = s_asset_info _get_models_from_radiant( str_scene );
+	}
+	foreach ( m_check in s_scene_info.a_model_anims )
+	{
+		model_or_models[model_or_models.size] = m_check;
+	}
+	model_or_models = model_or_models[0];
+	return model_or_models;
+// SP = 0x0 - check OK
+}
+
+// 0x418C
+get_ais_from_scene( str_scene, str_animname )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for get_model_or_models_from_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	waittill_scene_spawned( str_scene );
+	level.a_scenes[str_scene].a_ai_anims = [];
+	__new = [];
+	foreach ( __value in level.a_scenes[str_scene].a_ai_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	level.a_scenes[str_scene].a_ai_anims = __new;
+	return level.a_scenes[str_scene].a_ai_anims;
+	foreach ( ai_actor in level.a_scenes[str_scene].a_ai_anims )
+	{
+		return ai_actor;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x42D8
+get_scene_start_pos( str_scene, str_name )
+{
+	a_anim_info = level.a_scenes[str_scene].a_anim_info;
+	align = level.a_scenes[str_scene] _get_align_object( str_scene );
+	return getstartorigin( align.origin, align.angles, a_anim_info[str_name].animation );
+// SP = 0x0 - check OK
+}
+
+// 0x432C
+get_scene_start_angles( str_scene, str_name )
+{
+	a_anim_info = level.a_scenes[str_scene].a_anim_info;
+	align = level.a_scenes[str_scene] _get_align_object( str_scene );
+	return getstartangles( align.origin, align.angles, a_anim_info[str_name].animation );
+// SP = 0x0 - check OK
+}
+
+// 0x4380
+scene_wait( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for delete_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	flag_wait( str_scene + "_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x43D0
+waittill_scene_spawned( str_scene )
+{
+	flag_wait_either( str_scene + "_started", str_scene + "_first_frame" );
+// SP = 0x0 - check OK
+}
+
+// 0x43F0
+skip_scene( str_scene, b_delete )
+{
+	b_delete = 0;
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for skip_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	flag_set( str_scene + "_started" );
+	flag_set( str_scene + "_done" );
+	level.a_scenes[str_scene].b_skip = 1;
+	delete_scene( str_scene, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4480
+is_scene_skipped( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for skip_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	return level.a_scenes[str_scene].b_skip;
+// SP = 0x0 - check OK
+}
+
+// 0x44DC
+delete_models_from_scene( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for delete_models_from_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	_delete_models( str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x4528
+delete_ais_from_scene( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for delete_models_from_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	_delete_ais( str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x4574
+delete_scene( str_scene, b_cleanup_vars, b_cleanup_more )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for delete_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+	_delete_scene( str_scene, 1, b_cleanup_vars, undefined, b_cleanup_more );
+// SP = 0x0 - check OK
+}
+
+// 0x45CC
+delete_scene_all( str_scene, b_cleanup_vars, b_keep_radiant_ents, b_cleanup_more )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for delete_scene()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[str_scene] ), "Make sure this scene, " + str_scene + ", is added by using add_scene()" );
+#/
+/#
+	assert( !(is_scene_deleted( str_scene )), "Attempting to delete a scene that's already been deleted." );
+#/
+	_delete_scene( str_scene, 0, b_cleanup_vars, b_keep_radiant_ents, b_cleanup_more );
+// SP = 0x0 - check OK
+}
+
+// 0x4640
+_delete_scene( str_scene, b_specific_ents, b_cleanup_vars, b_keep_radiant_ents, b_cleanup_more )
+{
+	_delete_models( str_scene, b_specific_ents, b_keep_radiant_ents );
+	_delete_ais( str_scene, b_specific_ents );
+	end_scene( str_scene );
+	a_str_animnames = getarraykeys( level.a_scenes[str_scene].a_anim_info );
+	foreach ( str_name in a_str_animnames )
+	{
+		level.scr_anim[str_name][str_scene] = undefined;
+		level.scr_anim[str_name] = undefined;
+	}
+	level.a_scenes[str_scene] = undefined;
+	level.a_scenes[str_scene] = "scene deleted";
+	flag_delete( str_scene + "_started" );
+	flag_delete( str_scene + "_first_frame" );
+	flag_delete( str_scene + "_done" );
+	level notify( str_scene + "_deleted" );
+	level.scene_sys endon( "_start_scene_" + str_scene );
+	waittillframeend;
+	level.scene_sys notify( "_delete_scene_" + str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x4780
+_delayed_delete_scene_looped_anims( str_animname, str_scene )
+{
+	wait 0.25;
+	level.scr_anim[str_animname][str_scene] = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x47A0
+is_scene_deleted( str_scene )
+{
+	return level.a_scenes[str_scene] == "scene deleted";
+// SP = 0x0 - check OK
+}
+
+// 0x47C8
+_has_different_generic_anims( str_scene )
+{
+	has_different = 0;
+	a_anim_info = level.a_scenes[str_scene].a_anim_info;
+	a_anim_keys = getarraykeys( a_anim_info );
+	i = 0;
+	anim_current = a_anim_info[a_anim_keys[i]].animation;
+	j = i + 1;
+	anim_check = a_anim_info[a_anim_keys[j]].animation;
+	has_different = 1;
+	j++;
+	i++;
+	return has_different;
+// SP = 0x0 - check OK
+}
+
+// 0x485C
+_add_anim_to_current_scene()
+{
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[self.str_name] = self;
+	self thread _preprocess_notetracks();
+// SP = 0x0 - check OK
+}
+
+// 0x4888
+_get_align_object( str_scene )
+{
+	align_object = level;
+	align_object = self.align_object;
+	align_object = getstruct( self.str_align_targetname, "targetname" );
+	align_object = getnode( self.str_align_targetname, "targetname" );
+	align_object.is_node = 1;
+	align_object = getent( self.str_align_targetname, "targetname" );
+	s_align = spawnstruct();
+	s_align.origin = align_object.origin;
+	s_align.angles = align_object.angles;
+	s_align.angles = ( 0, 0, 0 );
+	align_object = s_align;
+/#
+	assert( IsDefined( align_object ), "Could not find a struct, node, or entity with the targetname, " + self.str_align_targetname + ", in the map for scene, " + str_scene );
+#/
+	level.a_scenes[str_scene].align_object = align_object;
+	return align_object;
+// SP = 0x0 - check OK
+}
+
+// 0x4978
+_assemble_assets( str_scene, clientside_linkto, b_test_run, b_skip_ai, b_first_frame )
+{
+	b_skip_ai = 0;
+	s_scene_info = level.a_scenes[str_scene];
+	foreach ( s_asset_info in s_scene_info.a_anim_info )
+	{
+		m_model = getent( s_asset_info.str_name, "targetname" );
+		b_model_exists = !(m_model._scene_deleting);
+		s_asset_info _assemble_non_existent_model( str_scene, b_first_frame, clientside_linkto );
+		s_asset_info _assemble_already_exist_model( str_scene, b_first_frame, clientside_linkto );
+		s_asset_info _assemble_multiple_ais( str_scene, b_test_run, clientside_linkto );
+		s_asset_info _assemble_single_ai( str_scene, str_anim_key, b_test_run, clientside_linkto );
+	}
+	a_active_anims = [];
+	__new = [];
+	foreach ( __value in s_scene_info.a_ai_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	s_scene_info.a_ai_anims = __new;
+	a_active_anims = arraycombine( a_active_anims, s_scene_info.a_ai_anims, 1, 0 );
+	__new = [];
+	foreach ( __value in s_scene_info.a_model_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	s_scene_info.a_model_anims = __new;
+	a_active_anims = arraycombine( a_active_anims, s_scene_info.a_model_anims, 1, 0 );
+	return a_active_anims;
+// SP = 0x0 - check OK
+}
+
+// 0x4BDC
+_assemble_non_existent_model( str_scene, b_first_frame, clientside_linkto )
+{
+	m_ready = _spawn_vehicle_for_anim();
+	level.scr_model[self.str_name] = level.player_interactive_model;
+	m_ready = spawn( "script_model", ( 0, 0, 0 ), undefined, 1 );
+	m_ready assign_model( self.str_name );
+	m_ready init_anim_model( self.str_name, self.is_simple_prop );
+	m_ready.targetname = self.str_name;
+	m_ready enableclientlinkto();
+	m_ready disableclientlinkto();
+	s_scene_info = level.a_scenes[str_scene];
+	m_ready thread _setup_asset_for_scene( self, s_scene_info, b_first_frame );
+	level.scene_sys.a_active_anim_models[self.str_name] = m_ready;
+	level.a_scenes[str_scene].a_model_anims = [];
+	level.a_scenes[str_scene].a_model_anims[level.a_scenes[str_scene].a_model_anims.size] = m_ready;
+// SP = 0x0 - check OK
+}
+
+// 0x4CFC
+_viewmodel_delay_hide( n_time )
+{
+	n_time = 0.25;
+	wait n_time;
+	self hideviewmodel();
+// SP = 0x0 - check OK
+}
+
+// 0x4D24
+_setup_asset_for_scene( s_asset_info, s_scene_info, b_first_frame )
+{
+	b_first_frame = 0;
+	self.str_name = s_asset_info.str_name;
+	self.animname = s_asset_info.str_name;
+	self.do_delete = s_asset_info.do_delete;
+	self.str_tag = s_asset_info.str_tag;
+	foreach ( str_part in s_asset_info.a_parts )
+	{
+		self hidepart( str_part );
+	}
+	self useweaponhidetags( self.str_weapon_name );
+	_setup_ai_for_scene( s_asset_info, s_scene_info );
+	_setup_vehicle_for_scene( s_asset_info, s_scene_info );
+	player = get_players()[s_asset_info.n_player_number];
+	player _setup_player_for_scene( s_asset_info, s_scene_info, self );
+	_setup_model_for_scene( s_asset_info, s_scene_info, b_first_frame );
+// SP = 0x0 - check OK
+}
+
+// 0x4E68
+_setup_ai_for_scene( s_asset_info, s_scene_info )
+{
+	self.allowdeath = 0;
+	self setcandamage( 0 );
+	self.allowdeath = 1;
+	self setcandamage( 1 );
+	self.do_hide_weapon = s_asset_info.do_hide_weapon;
+	self.do_give_back_weapon = s_asset_info.do_give_back_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x4ECC
+_setup_vehicle_for_scene( s_asset_info, s_scene_info )
+{
+	self.takedamage = 0;
+	self.takedamage = 1;
+	self.supportsanimscripted = undefined;
+	self.supportsanimscripted = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4F30
+_setup_model_for_scene( s_asset_info, s_scene_info, b_first_frame )
+{
+	self.takedamage = 0;
+	self setlookattext( "", &"" );
+	self notify( "no_friendly_fire" );
+	self.takedamage = 0;
+	self.takedamage = 1;
+	wait_network_frame();
+	self disconnectpaths();
+	self connectpaths();
+	self.b_disconnect_paths_after_scene = 1;
+	self.b_disconnect_paths_after_scene = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4FFC
+_setup_player_for_scene( s_asset_info, s_scene_info, m_player_model )
+{
+	luinotifyevent( &"hud_shrink_ammo" );
+	s_asset_info thread _link_to_player_model( self, m_player_model, s_scene_info, m_player_model._scene_first_link );
+	m_player_model.n_player_number = s_asset_info.n_player_number;
+/#
+	println( "PLAYER ANIM: keeping viewarms" );
+#/
+	self showviewmodel();
+	self enableweapons();
+	self enableusability();
+	self enableoffhandweapons();
+	self setlowready( 1 );
+	self showviewmodel();
+	self enableweapons();
+	self disableusability();
+	self disableoffhandweapons();
+	self disableusability();
+	self disableoffhandweapons();
+	self disableweapons( 1 );
+	self thread _viewmodel_delay_hide();
+	self.m_scene_model = m_player_model;
+	self.s_scene_info = s_asset_info;
+// SP = 0x0 - check OK
+}
+
+// 0x5130
+_link_to_player_model( player, m_player_model, s_scene_info, b_first_link )
+{
+	b_first_link = 1;
+	player hide_hud();
+	player._scene_old_draw_friendly_names = int( GetDvar( #"0xFB2AD76D" ) );
+	setsaveddvar( "cg_drawFriendlyNames", 0 );
+	player enableinvulnerability();
+	m_player_model hide();
+	m_player_model.origin = player.origin;
+	m_player_model.angles = player.angles;
+	wait_network_frame();
+	player startcameratween( 0.2 );
+	player._scene_old_player_height = getdvarfloatdefault( "player_standingViewHeight", level._default_player_height );
+	setsaveddvar( "player_standingViewHeight", level._default_player_height );
+	m_player_model useplayerfootsteptable();
+	player notify( "scene_link" );
+	waittillframeend;
+	player playerlinktodelta( m_player_model, "tag_player", self.n_view_fraction, self.n_right_arc, self.n_left_arc, self.n_top_arc, self.n_bottom_arc, self.use_tag_angles, self.b_auto_center );
+	player setplayerviewratescale( 100 );
+	player playerlinktoabsolute( m_player_model, "tag_player" );
+	wait 0.2;
+	m_player_model show();
+// SP = 0x0 - check OK
+}
+
+// 0x52B4
+switch_player_scene_to_delta()
+{
+/#
+	assert( IsDefined( self.m_scene_model ), "switch_player_scene_to_delta can only be called on an active scene." );
+#/
+	self playerlinktodelta( self.m_scene_model, "tag_player", self.s_scene_info.n_view_fraction, self.s_scene_info.n_right_arc, self.s_scene_info.n_left_arc, self.s_scene_info.n_top_arc, self.s_scene_info.n_bottom_arc, self.s_scene_info.use_tag_angles, self.s_scene_info.b_auto_center );
+	self setplayerviewratescale( 100 );
+// SP = 0x0 - check OK
+}
+
+// 0x5328
+_switch_to_delta( m_player_model )
+{
+	player = level.players[m_player_model.n_player_number];
+	player switch_player_scene_to_delta();
+// SP = 0x0 - check OK
+}
+
+// 0x5350
+_assemble_already_exist_model( str_scene, b_first_frame, clientside_linkto )
+{
+	a_models = [];
+	a_models = level.scene_sys.a_active_anim_models[self.str_name];
+	m_model = level.scene_sys.a_active_anim_models[self.str_name];
+	a_models[a_models.size] = m_model;
+	m_model._scene_first_link = 0;
+	a_models = self _get_models_from_radiant( str_scene );
+	a_models = maps\_vehicle::spawn_vehicles_from_targetname( self.str_name, 1 );
+	foreach ( veh in a_models )
+	{
+		veh._radiant_ent = 1;
+	}
+	sp_model = _get_spawner( self.str_name, str_scene, self.str_spawner );
+	b_fake_ai = !(self.is_cheap);
+	b_spawn_collision = !(!(self.b_spawn_collision));
+	m_drone = sp_model spawn_drone( b_fake_ai, undefined, b_spawn_collision, b_fake_ai, 0 );
+	m_drone.targetname = self.str_name + "_drone";
+	a_models[0] = m_drone;
+	foreach ( e_model in a_models )
+	{
+		e_model makevehicleunusable();
+	}
+	n_models_array_size = a_models.size;
+/#
+	assert( n_models_array_size > 0, "Could not find any models with this animname or targetname, " + self.str_name + ", anywhere in the level" );
+#/
+	level.scene_sys.a_active_anim_models[self.str_name] = [];
+	s_scene_info = level.a_scenes[str_scene];
+	i = 0;
+	m_exist = a_models[i];
+	s_asset_info = level.a_scenes[str_scene].a_anim_info[self.str_name];
+	m_exist init_anim_model( self.str_name, self.is_simple_prop, s_asset_info.anim_tree );
+	m_exist enableclientlinkto();
+	m_exist disableclientlinkto();
+	m_exist thread _setup_asset_for_scene( self, s_scene_info, b_first_frame );
+	level.scene_sys.a_active_anim_models[self.str_name][i] = m_exist;
+	level.scene_sys.a_active_anim_models[self.str_name] = m_exist;
+	level.a_scenes[str_scene].a_model_anims = [];
+	level.a_scenes[str_scene].a_model_anims[level.a_scenes[str_scene].a_model_anims.size] = m_exist;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x5684
+_assemble_multiple_ais( str_scene, b_test_run, clientside_linkto )
+{
+	a_ai_spawned = getentarray( self.str_name + "_ai", "targetname" );
+	does_spawner_exist = 0;
+	a_ai_spawners = getentarray( self.str_name, "targetname" );
+	does_spawner_exist = 1;
+	foreach ( sp_guy in a_ai_spawners )
+	{
+		n_spawner_count = sp_guy.count;
+		j = 0;
+/#
+		sp_guy.count++;
+#/
+		ai = simple_spawn_single( sp_guy );
+/#
+		assert( isalive( ai ), "Failed to spawn AI '" + self.str_name + "' for scene '" + str_scene + "'. Make sure player cannot see the spawn point or the spawner has spawnflag SCRIPT_FORCESPAWN set." );
+#/
+		ai.b_scene_spawned = 1;
+		a_ai_spawned[a_ai_spawned.size] = ai;
+		j++;
+	}
+	does_ai_exist = a_ai_spawned.size > 0;
+/#
+	assert( does_spawner_exist, "Could not find any AIs or spawners with this targetname, " + self.str_name + ", for the scene, " + str_scene );
+#/
+	s_scene_info = level.a_scenes[str_scene];
+	foreach ( ai_spawned in a_ai_spawned )
+	{
+		ai_spawned enableclientlinkto();
+		ai_spawned disableclientlinkto();
+		ai_spawned thread _setup_asset_for_scene( self, s_scene_info );
+		level.a_scenes[str_scene].a_ai_anims = [];
+		level.a_scenes[str_scene].a_ai_anims[level.a_scenes[str_scene].a_ai_anims.size] = ai_spawned;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x586C
+_assemble_single_ai( str_scene, str_anim_key, b_test_run, clientside_linkto )
+{
+	a_all_ai_in_level = getaispeciesarray();
+	ai_found = undefined;
+	foreach ( ai in a_all_ai_in_level )
+	{
+/#
+		assert( !(IsDefined( ai_found )), "More than one AI in the level has the same animname, " + self.str_name + ", for scene, " + str_scene );
+#/
+		ai_found = ai;
+	}
+	sp_guy = _get_spawner( str_anim_key, str_scene, self.str_spawner );
+/#
+	assert( self.b_optional, "Couldn't find spawner with name '" + str_anim_key + "' for scene '" + str_scene + "'." );
+#/
+	ai_found = init_hero( sp_guy.targetname );
+/#
+	sp_guy.count++;
+/#
+	assert( self.b_optional, "Trying to spawn AI '" + str_anim_key + "' for scene '" + str_scene + "' with zero spawner count! Might need a higher count value on the spawner." );
+#/
+#/
+	ai_found = simple_spawn_single( sp_guy, undefined, undefined, undefined, undefined, undefined, undefined, b_test_run );
+	ai_found.b_scene_spawned = 1;
+	ai_found dontinterpolate();
+/#
+	assert( self.b_optional, "Failed to spawn AI '" + str_anim_key + "' for scene '" + str_scene + "'. Make sure player cannot see the spawn point or the spawner has spawnflag SCRIPT_FORCESPAWN set." );
+#/
+	s_scene_info = level.a_scenes[str_scene];
+	ai_found enableclientlinkto();
+	ai_found disableclientlinkto();
+	ai_found thread _setup_asset_for_scene( self, s_scene_info );
+	ai_found.targetname = str_anim_key + "_ai";
+	level.a_scenes[str_scene].a_ai_anims = [];
+	level.a_scenes[str_scene].a_ai_anims[level.a_scenes[str_scene].a_ai_anims.size] = ai_found;
+// SP = 0x0 - check OK
+}
+
+// 0x5B18
+_get_spawner( str_name, str_scene, str_name_override )
+{
+	str_name = str_name_override;
+	a_spawners = getspawnerarray( str_name, "targetname" );
+	return a_spawners[0];
+/#
+/#
+	assertmsg( "More than one spawner in Radiant has the same name, '" + str_name + "', for scene, '" + str_scene + "'." );
+#/
+#/
+	level.a_scene_ai_spawners = getspawnerarray();
+	sp = undefined;
+/#
+	b_found = 0;
+#/
+	foreach ( sp_guy in level.a_scene_ai_spawners )
+	{
+		sp = sp_guy;
+/#
+/#
+		assert( !(b_found), "More than one spawner in Radiant has the same name, '" + str_name + "', for scene, '" + str_scene + "'." );
+#/
+		b_found = 1;
+#/
+	}
+	level thread _delete_scene_ai_spawner_array();
+	return sp;
+// SP = 0x0 - check OK
+}
+
+// 0x5C48
+_anim_stopped_notify( str_scene, a_active_anims )
+{
+	self endon( str_scene );
+	array_wait( a_active_anims, "_anim_stopped" );
+	self notify( str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x5C6C
+_watch_for_stop_anim( str_scene, align_object )
+{
+	self endon( "death" );
+	level.scene_sys endon( "_delete_scene_" + str_scene );
+	self waittill( "_scene_stopped" );
+	align_object notify( str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x5C98
+_animate_asset( str_scene, align_object, n_lerp_time, b_test_run )
+{
+	b_test_run = 0;
+	self endon( "death" );
+	self thread _watch_for_stop_anim( str_scene, align_object );
+	s_scene_info = level.a_scenes[str_scene];
+	old_free_vehicle = self.dontfreeme;
+	self.dontfreeme = 1;
+	self _run_anim_reach_on_asset( str_scene, align_object );
+	array_wait( s_scene_info.a_ai_anims, "goal" );
+	self gun_remove();
+	self gun_recall();
+	flag_set( str_scene + "_started" );
+	self _run_anim_loop_on_asset( str_scene, align_object, n_lerp_time );
+	self _run_anim_single_on_asset( str_scene, align_object, n_lerp_time );
+	self.dontfreeme = old_free_vehicle;
+// SP = 0x0 - check OK
+}
+
+// 0x5DF8
+_run_anim_reach_on_asset( str_scene, align_object )
+{
+	s_scene_info = level.a_scenes[str_scene];
+	align_object thread anim_generic_reach( self, str_scene );
+	align_object thread anim_reach( self, str_scene );
+	align_object thread anim_generic_reach_aligned( self, str_scene, self.str_tag );
+	align_object thread anim_reach_aligned( self, str_scene, self.str_tag );
+// SP = 0x0 - check OK
+}
+
+// 0x5EA8
+_run_anim_loop_on_asset( str_scene, align_object, n_lerp_time )
+{
+	s_scene_info = level.a_scenes[str_scene];
+	self ent_flag_set( "playing_scripted_anim" );
+	align_object anim_generic_loop( self, str_scene );
+	align_object anim_loop( self, str_scene );
+	self thread _scene_link( align_object, self.str_tag );
+	align_object anim_generic_loop_aligned( self, str_scene, self.str_tag, undefined, n_lerp_time );
+	align_object anim_loop_aligned( self, str_scene, self.str_tag, undefined, undefined, n_lerp_time );
+	self unlink();
+// SP = 0x0 - check OK
+}
+
+// 0x5FA8
+_run_anim_single_on_asset( str_scene, align_object, n_lerp_time )
+{
+/#
+	println( "ERROR: Trying to run deleted scene " + str_scene + "!" );
+#/
+	return;
+	s_scene_info = level.a_scenes[str_scene];
+	self ent_flag_set( "playing_scripted_anim" );
+	self._anim_rate = 10;
+	align_object anim_generic( self, str_scene );
+	align_object anim_single( self, str_scene );
+	self thread _scene_link( align_object, self.str_tag );
+	self thread _scene_set_goal( align_object, str_scene );
+	align_object anim_generic_aligned( self, str_scene, self.str_tag, n_lerp_time );
+	align_object anim_single_aligned( self, str_scene, self.str_tag, undefined, n_lerp_time );
+	self unlink();
+	self disconnectpaths();
+	setenablenode( align_object, 1 );
+	self._anim_rate = undefined;
+	self ent_flag_clear( "playing_scripted_anim" );
+// SP = 0x0 - check OK
+}
+
+// 0x616C
+_scene_set_goal( align_object, str_scene )
+{
+	self endon( "death" );
+	self endon( "goal_changed" );
+	align_object waittill( str_scene );
+	wait 0.05;
+	self setgoalnode( align_object );
+	self setgoalpos( self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x61E8
+_scene_link( align_object, str_tag )
+{
+	self endon( "death" );
+	self._scene_linking = 1;
+	self linkto( align_object, str_tag );
+	waittillframeend;
+	self._scene_linking = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x6214
+_run_anim_first_frame_on_asset( str_scene, align_object, b_clear_anim )
+{
+	b_clear_anim = 0;
+	s_scene_info = level.a_scenes[str_scene];
+	self.allowdeath = 0;
+	self setcandamage( 0 );
+	self anim_first_frame( self, str_scene );
+	self linkto( align_object, self.str_tag );
+	align_object anim_first_frame( self, str_scene, self.str_tag );
+	self thread _clear_anim_first_frame();
+// SP = 0x0 - check OK
+}
+
+// 0x62C4
+_clear_anim_first_frame()
+{
+	wait_network_frame();
+	self stopanimscripted();
+// SP = 0x0 - check OK
+}
+
+// 0x62E0
+_get_models_from_radiant( str_scene )
+{
+	a_models = [];
+	m_exist = undefined;
+	level.from_radiant_count = 0;
+	a_models = getentarray( self.str_name, "targetname" );
+	level.a_script_models = [];
+	level.a_script_models["script_model"] = getentarray( "script_model", "classname" );
+	level.a_script_models["script_vehicle"] = getentarray( "script_vehicle", "classname" );
+	level.a_script_models["script_brushmodel"] = getentarray( "script_brushmodel", "classname" );
+	level.a_script_models_time = GetTime();
+	m_exist = _get_models_from_radiant_internals( "script_vehicle" );
+	m_exist = _get_models_from_radiant_internals( "script_model" );
+	m_exist = _get_models_from_radiant_internals( "script_brushmodel" );
+	m_exist._radiant_ent = 1;
+	a_models[a_models.size] = m_exist;
+	level thread _delete_scene_script_model_array();
+/#
+	println( "*****RADIANT COUNT = " + level.from_radiant_count );
+#/
+	return a_models;
+// SP = 0x0 - check OK
+}
+
+// 0x6414
+_get_models_from_radiant_internals( str_key_type )
+{
+	my_array = level.a_script_models[str_key_type];
+	m_in_radiant = undefined;
+	foreach ( m_in_radiant in my_array )
+	{
+		return m_in_radiant;
+		return m_in_radiant;
+		return m_in_radiant;
+		level.from_radiant_count++;
+	}
+	return undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x64B4
+_delete_scene_script_model_array()
+{
+	level notify( "kill_del_scr_array_thread" );
+	level endon( "kill_del_scr_array_thread" );
+	wait 0.05;
+	level.a_script_models = undefined;
+	level.a_script_models_time = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x64E8
+_delete_scene_ai_spawner_array()
+{
+	level notify( "kill_del_ai_array_thread" );
+	level endon( "kill_del_ai_array_thread" );
+	wait 0.05;
+	level.a_scene_ai_spawners = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x6508
+_delete_models( str_scene, b_specific_models, b_keep_radiant_ents )
+{
+	b_specific_models = 0;
+	return;
+	return;
+	foreach ( model in level.a_scenes[str_scene].a_model_anims )
+	{
+		model enableclientlinkto();
+		player = get_players()[model.n_player_number];
+		player _reset_player_after_anim();
+		model thread _delete_at_frame_end();
+		model disconnectpaths();
+	}
+	__new = [];
+	foreach ( __value in level.scene_sys.a_active_anim_models )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	level.scene_sys.a_active_anim_models = __new;
+	__new = [];
+	foreach ( __value in level.a_scenes[str_scene].a_model_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	level.a_scenes[str_scene].a_model_anims = __new;
+// SP = 0x0 - check OK
+}
+
+// 0x670C
+_delete_at_frame_end()
+{
+	self endon( "death" );
+	self endon( "drone_corpse" );
+	self._scene_deleting = 1;
+	level.scene_sys.a_active_anim_models[self.animname] = undefined;
+	waittillframeend;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x6740
+_reset_player_after_anim()
+{
+	self.s_scene_info = undefined;
+	self.m_scene_model = undefined;
+	self startcameratween( 0.2 );
+	setsaveddvar( "player_standingViewHeight", self._scene_old_player_height );
+	self player_enable_weapons();
+	self showviewmodel();
+	self setlowready( 0 );
+	self disableinvulnerability();
+	self resetplayerviewratescale();
+	self enableusability();
+	self enableoffhandweapons();
+	self show_hud();
+	setsaveddvar( "cg_drawFriendlyNames", self._scene_old_draw_friendly_names );
+// SP = 0x0 - check OK
+}
+
+// 0x680C
+_delete_ais( str_scene, b_specific_ais )
+{
+	return;
+	return;
+	b_specific_ais = 0;
+	foreach ( ai in level.a_scenes[str_scene].a_ai_anims )
+	{
+		ai enableclientlinkto();
+		ai thread _delete_at_frame_end();
+		ai gun_recall();
+		ai setcandamage( 1 );
+	}
+	__new = [];
+	foreach ( __value in level.a_scenes[str_scene].a_ai_anims )
+	{
+		__new[__key] = __value;
+		__new[__new.size] = __value;
+	}
+	level.a_scenes[str_scene].a_ai_anims = __new;
+// SP = 0x0 - check OK
+}
+
+// 0x6958
+add_scene( str_scene, str_align_targetname, do_reach, do_generic, do_loop, do_not_align )
+{
+	level.scene_sys = spawnstruct();
+	level.scene_sys.str_current_scene = undefined;
+	level.scene_sys.a_active_anim_models = [];
+	level.a_scenes = [];
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for add_scene()" );
+#/
+/#
+	assert( !(IsDefined( level.a_scenes[str_scene] )), "Scene, " + str_scene + ", has already been declared." );
+#/
+	flag_init( str_scene + "_started" );
+	flag_init( str_scene + "_first_frame" );
+	flag_init( str_scene + "_done" );
+	s_scene_info = spawnstruct();
+	s_scene_info.str_scene = str_scene;
+	s_scene_info.a_anim_info = [];
+	s_scene_info.str_align_targetname = str_align_targetname;
+	s_scene_info.do_not_align = 1;
+	s_scene_info.do_reach = do_reach;
+	s_scene_info.do_generic = do_generic;
+	s_scene_info.do_loop = do_loop;
+	s_scene_info.do_not_align = do_not_align;
+	level.a_scenes[str_scene] = s_scene_info;
+	level.scene_sys.str_current_scene = str_scene;
+// SP = 0x0 - check OK
+}
+
+// 0x6AEC
+add_scene_loop( str_scene, str_align_targetname, do_reach, do_generic, do_not_align )
+{
+	add_scene( str_scene, str_align_targetname, do_reach, do_generic, 1, do_not_align );
+// SP = 0x0 - check OK
+}
+
+// 0x6B14
+add_actor_anim( str_animname, animation, do_hide_weapon, do_give_back_weapon, do_delete, do_not_allow_death, str_tag, str_spawner )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_actor_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( IsDefined( animation ), "animation is a required argument for add_actor_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+	_basic_actor_setup( str_animname, animation, do_delete );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].do_hide_weapon = do_hide_weapon;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].do_give_back_weapon = do_give_back_weapon;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].do_not_allow_death = do_not_allow_death;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_spawner = str_spawner;
+// SP = 0x0 - check OK
+}
+
+// 0x6C38
+add_actor_spawner( str_animname, str_spawner )
+{
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_spawner = str_spawner;
+// SP = 0x0 - check OK
+}
+
+// 0x6C60
+add_optional_actor_anim( str_animname, animation, do_hide_weapon, do_give_back_weapon, do_delete, do_not_allow_death, str_tag, str_spawner )
+{
+	add_actor_anim( str_animname, animation, do_hide_weapon, do_give_back_weapon, do_delete, do_not_allow_death, str_tag, str_spawner );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_optional = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6CB0
+add_multiple_generic_actors( str_name, animation, do_hide_weapon, do_give_back_weapon, do_delete, do_not_allow_death )
+{
+/#
+	assert( IsDefined( str_name ), "str_name is a required argument for add_actor_generic_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( IsDefined( animation ), "animation is a required argument for add_actor_generic_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+	add_actor_anim( str_name, animation, do_hide_weapon, do_give_back_weapon, do_delete, do_not_allow_death );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_name].has_multiple_ais = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6D2C
+add_actor_model_anim( str_animname, animation, str_model, do_delete, str_tag, a_parts, str_spawner, b_spawn_collision, b_play_dead, do_not_allow_death )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_actor_model_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( IsDefined( animation ), "animation is a required argument for add_actor_model_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+	a_parts = array( a_parts );
+	_basic_actor_setup( str_animname, animation, do_delete );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_model = str_model;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].a_parts = a_parts;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_spawner = str_spawner;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_spawn_collision = b_spawn_collision;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].do_not_allow_death = 0;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_play_dead = b_play_dead;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].is_cheap = 1;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].is_model = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x6F00
+add_cheap_actor_model_anim( str_animname, animation, str_model, do_delete, str_tag, a_parts, str_spawner )
+{
+	level._add_cheap_actor_model_anim = 1;
+	add_actor_model_anim( str_animname, animation, str_model, do_delete, str_tag, a_parts, str_spawner );
+	level._add_cheap_actor_model_anim = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x6F38
+_basic_actor_setup( str_name, animation, do_delete )
+{
+/#
+	assert( !(IsDefined( level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_name] )), "Actor, " + str_name + ", has already been declared for the scene, " + level.scene_sys.str_current_scene );
+#/
+	s_actor = spawnstruct();
+	s_actor.str_name = str_name;
+	s_actor.animation = animation;
+	s_actor.anim_tree = -1;
+	s_actor.do_delete = do_delete;
+	s_actor _add_anim_to_current_scene();
+// SP = 0x0 - check OK
+}
+
+// 0x6FD0
+add_prop_anim( str_animname, animation, str_model, do_delete, is_simple_prop, a_parts, str_tag, b_connect_paths )
+{
+	a_parts = array( a_parts );
+	_basic_prop_setup( str_animname, animation, do_delete, is_simple_prop, "add_prop_anim()" );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_model = str_model;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].a_parts = a_parts;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_connect_paths = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x70B0
+add_multiple_generic_props_from_radiant( str_name, animation, do_delete, is_simple_prop, a_parts )
+{
+	a_parts = array( a_parts );
+	_basic_prop_setup( str_name, animation, do_delete, is_simple_prop, "add_multiple_props_from_radiant" );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_name].a_parts = a_parts;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_name].has_multiple_props = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x7138
+add_weapon_anim( str_animname, animation, str_weapon_name, do_delete, is_simple_prop, str_tag )
+{
+/#
+	assert( IsDefined( str_weapon_name ), "str_weapon_name is a required argument for add_weapon_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+	str_model = getweaponmodel( str_weapon_name );
+	_basic_prop_setup( str_animname, animation, do_delete, is_simple_prop, "add_weapon_anim()" );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_model = str_model;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_weapon_name = str_weapon_name;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].is_weapon = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x720C
+_basic_prop_setup( str_animname, animation, do_delete, is_simple_prop, str_function_name, animtree )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for " + str_function_name + " in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( IsDefined( animation ), "animation is a required argument for " + str_function_name + " in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( !(IsDefined( level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname] )), "Prop, " + str_animname + ", has already been declared for the scene, " + level.scene_sys.str_current_scene );
+#/
+	s_prop_anim = spawnstruct();
+	s_prop_anim.str_name = str_animname;
+	s_prop_anim.animation = animation;
+	s_prop_anim.do_delete = do_delete;
+	s_prop_anim.is_simple_prop = is_simple_prop;
+	s_prop_anim.anim_tree = animtree;
+	s_prop_anim.anim_tree = -1;
+	s_prop_anim.is_model = 1;
+	s_prop_anim _add_anim_to_current_scene();
+// SP = 0x0 - check OK
+}
+
+// 0x7324
+add_player_anim( str_animname, animation, do_delete, n_player_number, str_tag, do_delta, n_view_fraction, n_right_arc, n_left_arc, n_top_arc, n_bottom_arc, use_tag_angles, b_auto_center, b_use_camera_tween, b_keep_weapons )
+{
+	n_player_number = 0;
+	do_delta = 0;
+	n_view_fraction = 1;
+	n_right_arc = 180;
+	n_left_arc = 180;
+	n_top_arc = 180;
+	n_bottom_arc = 180;
+	use_tag_angles = 1;
+	b_auto_center = 1;
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_player_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( IsDefined( animation ), "animation is a required argument for add_player_anim() in scene, " + level.scene_sys.str_current_scene );
+#/
+/#
+	assert( !(IsDefined( level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname] )), "Player model, " + str_animname + ", has already been declared for the scene, " + level.scene_sys.str_current_scene );
+#/
+	s_player = spawnstruct();
+	s_player.str_name = str_animname;
+	s_player.animation = animation;
+	s_player.anim_tree = -1;
+	s_player.n_player_number = n_player_number;
+	s_player.str_tag = str_tag;
+	s_player.do_delete = do_delete;
+	s_player.do_delta = do_delta;
+	s_player.b_use_camera_tween = b_use_camera_tween;
+	s_player.b_keep_weapons = b_keep_weapons;
+	s_player.n_view_fraction = n_view_fraction;
+	s_player.n_right_arc = n_right_arc;
+	s_player.n_left_arc = n_left_arc;
+	s_player.n_top_arc = n_top_arc;
+	s_player.n_bottom_arc = n_bottom_arc;
+	s_player.use_tag_angles = use_tag_angles;
+	s_player.b_auto_center = b_auto_center;
+	s_player.is_model = 1;
+	s_player _add_anim_to_current_scene();
+// SP = 0x0 - check OK
+}
+
+// 0x751C
+set_player_anim_use_lowready( str_animname )
+{
+/#
+	assert( IsDefined( str_animname ), "SCENE: required param str_animname missing for _scene::set_player_anim_use_lowready()" );
+#/
+/#
+	assert( IsDefined( level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname] ), "SCENE: add_player_anim before setting anim to use low ready" );
+#/
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_use_low_ready = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x757C
+add_vehicle_anim( str_animname, animation, do_delete, a_parts, str_tag, b_animate_origin, str_vehicletype, str_model, str_destructibledef, do_not_allow_death )
+{
+	a_parts = array( a_parts );
+	_basic_prop_setup( str_animname, animation, do_delete, 0, "add_vehicle_anim()", -1 );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].a_parts = a_parts;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_vehicletype = str_vehicletype;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_model = str_model;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_destructibledef = str_destructibledef;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].do_not_allow_death = do_not_allow_death;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_animate_origin = b_animate_origin;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].is_vehicle = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x76F4
+_spawn_vehicle_for_anim()
+{
+	veh = spawnvehicle( self.str_model, self.str_name, self.str_vehicletype, ( 0, 0, 0 ), ( 0, 0, 0 ), self.str_destructibledef );
+	maps\_vehicle::vehicle_init( veh );
+	return veh;
+// SP = 0x0 - check OK
+}
+
+// 0x7728
+set_vehicle_unusable_in_scene( str_animname )
+{
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].not_usable = 1;
+/#
+	assert( 0, "Non vehicle made unusable in scene: " + level.scene_sys.str_current_scene + " with animname: " + str_animname );
+#/
+/#
+	assert( 0, "Couldn't find vehicle in scene: " + level.scene_sys.str_current_scene + " with animname: " + str_animname );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x77F0
+add_horse_anim( str_animname, animation, do_delete, a_parts, str_tag, b_animate_origin )
+{
+	a_parts = array( a_parts );
+	_basic_prop_setup( str_animname, animation, do_delete, 0, "add_horse_anim()", -1 );
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].a_parts = a_parts;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].str_tag = str_tag;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].b_animate_origin = b_animate_origin;
+	level.a_scenes[level.scene_sys.str_current_scene].a_anim_info[str_animname].is_vehicle = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x78D0
+add_notetrack_attach( str_animname, str_notetrack, str_model, str_tag, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_attach()" );
+#/
+/#
+	assert( IsDefined( str_model ), "str_model is a required argument for add_notetrack_attach()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_attach( str_animname, str_notetrack, str_model, str_tag, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7938
+add_notetrack_detach( str_animname, str_notetrack, str_model, str_tag, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_detach()" );
+#/
+/#
+	assert( IsDefined( str_model ), "str_model is a required argument for add_notetrack_detach()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_detach( str_animname, str_notetrack, str_model, str_tag, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x79A0
+add_notetrack_level_notify( str_animname, str_notetrack, str_notify, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_level_notify()" );
+#/
+/#
+	assert( IsDefined( str_notify ), "str_notify is a required argument for add_notetrack_level_notify()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_level_notify( str_animname, str_notetrack, str_notify, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7A08
+add_notetrack_custom_function( str_animname, str_notetrack, func_pointer, b_any_scene, passnote )
+{
+	passnote = 0;
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_custom_function()" );
+#/
+/#
+	assert( IsDefined( func_pointer ), "func_pointer is a required argument for add_notetrack_custom_function()" );
+#/
+	str_scene = undefined;
+	str_scene = b_any_scene;
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname, str_scene );
+	addnotetrack_customfunction( str_animname, str_notetrack, func_pointer, str_scene, passnote );
+// SP = 0x0 - check OK
+}
+
+// 0x7A9C
+add_scene_custom_function( func, arg1, arg2, arg3, arg4, arg5, arg6 )
+{
+/#
+	assert( IsDefined( func ), "func_pointer is a required argument for add_notetrack_custom_function()" );
+#/
+	str_scene = level.scene_sys.str_current_scene;
+	level.a_scenes[str_scene].a_start_funcs = [];
+	s_callback = spawnstruct();
+	s_callback.func = func;
+	s_callback.arg1 = arg1;
+	s_callback.arg2 = arg2;
+	s_callback.arg3 = arg3;
+	s_callback.arg4 = arg4;
+	s_callback.arg5 = arg5;
+	s_callback.arg6 = arg6;
+	level.a_scenes[str_scene].a_start_funcs[level.a_scenes[str_scene].a_start_funcs.size] = s_callback;
+// SP = 0x0 - check OK
+}
+
+// 0x7B68
+add_notetrack_exploder( str_animname, str_notetrack, n_exploder, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_exploder()" );
+#/
+/#
+	assert( IsDefined( n_exploder ), "n_exploder is a required argument for add_notetrack_exploder()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_exploder( str_animname, str_notetrack, n_exploder, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7BD0
+add_notetrack_stop_exploder( str_animname, str_notetrack, n_exploder, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_stop_exploder()" );
+#/
+/#
+	assert( IsDefined( n_exploder ), "n_exploder is a required argument for add_notetrack_stop_exploder()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_stop_exploder( str_animname, str_notetrack, n_exploder, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7C38
+add_notetrack_flag( str_animname, str_notetrack, str_flag, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_flag()" );
+#/
+/#
+	assert( IsDefined( str_flag ), "str_flag is a required argument for add_notetrack_flag()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	flag_init( str_flag );
+	addnotetrack_flag( str_animname, str_notetrack, str_flag, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7CBC
+add_notetrack_fov( str_animname, str_notetrack, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_fov()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_fov( str_animname, str_notetrack, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7D08
+add_notetrack_fov_new( str_animname, str_notetrack, n_fov, n_time, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_fov()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_fov_new( str_animname, str_notetrack, n_fov, n_time, b_any_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x7D5C
+add_notetrack_fx_on_tag( str_animname, str_notetrack, str_effect, str_tag, b_on_threader, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_fx_on_tag()" );
+#/
+/#
+	assert( IsDefined( str_effect ), "str_effect is a required argument for add_notetrack_fx_on_tag()" );
+#/
+/#
+	assert( IsDefined( str_tag ), "str_tag is a required argument for add_notetrack_fx_on_tag()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_fxontag( str_animname, str_scene, str_notetrack, str_effect, str_tag, b_on_threader );
+// SP = 0x0 - check OK
+}
+
+// 0x7DE0
+add_notetrack_sound( str_animname, str_notetrack, str_soundalias, b_any_scene )
+{
+/#
+	assert( IsDefined( str_animname ), "str_animname is a required argument for add_notetrack_sound()" );
+#/
+/#
+	assert( IsDefined( str_soundalias ), "str_soundalias is a required argument for add_notetrack_sound()" );
+#/
+	str_scene = _get_scene_name_for_notetrack( b_any_scene );
+	str_animname = _get_animname_for_notetrack( str_animname );
+	addnotetrack_sound( str_animname, str_notetrack, str_scene, str_soundalias );
+// SP = 0x0 - check OK
+}
+
+// 0x7E48
+is_scene_defined( str_scene )
+{
+/#
+	assert( IsDefined( str_scene ), "str_scene is a required argument for is_scene_defined()" );
+#/
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x7E7C
+_get_scene_name_for_notetrack( b_any_scene )
+{
+	b_any_scene = 0;
+	return level.scene_sys.str_current_scene;
+	return b_any_scene;
+// SP = 0x0 - check OK
+}
+
+// 0x7EB4
+_get_animname_for_notetrack( str_animname, str_scene )
+{
+	str_scene = level.scene_sys.str_current_scene;
+	str_animname = "generic";
+	return str_animname;
+// SP = 0x0 - check OK
+}
+
+// 0x7EFC
+_preprocess_notetracks()
+{
+	str_scene = level.scene_sys.str_current_scene;
+	waittill_asset_loaded( "xanim", string( self.animation ) );
+	return;
+	notetracks = getnotetracksindelta( self.animation, 0.5, 9999 );
+	n_anim_length = getanimlength( self.animation );
+	a_fov = [];
+	foreach ( info in notetracks )
+	{
+		str_notetrack = info[1];
+		str_notetrack_no_comment = strtok( str_notetrack, "#" )[0];
+		a_tokens = strtok( str_notetrack_no_comment, " " );
+		n_notetrack_time = linear_map( info[2], 0, 1, 0, n_anim_length );
+		switch ( a_tokens[0] )
+		{
+			case "exploder":
+				n_exploder = int( a_tokens[1] );
+				add_notetrack_exploder( self.str_name, str_notetrack, n_exploder, 1 );
+			case "fov":
+				n_exploder = int( a_tokens[1] );
+				add_notetrack_stop_exploder( self.str_name, str_notetrack, n_exploder, 1 );
+			case "rumble":
+				switch ( a_tokens[1] )
+				{
+					case "fast":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_time_scale_slow, str_scene );
+						break;
+					case "med":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_time_scale_med, str_scene );
+						break;
+					case "off":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_time_scale_fast, str_scene );
+						break;
+					case "slow":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_time_scale_off, str_scene );
+						break;
+				}
+				break;
+			case "stop_exploder":
+				switch ( a_tokens[1] )
+				{
+					case "heavy":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_rumble_light, str_scene );
+						break;
+					case "light":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_rumble_med, str_scene );
+						break;
+					case "med":
+						add_notetrack_custom_function( self.str_name, str_notetrack, ::_scene_rumble_heavy, str_scene );
+						break;
+				}
+				break;
+			case "timescale":
+				a_tokens[1] = -1;
+				a_fov[a_fov.size] = array( str_notetrack, float( a_tokens[1] ), float( n_notetrack_time ) );
+				break;
+		}
+	}
+	_preprocess_fov_notetracks( a_fov, str_scene );
+// SP = 0x0 - check OK
+}
+
+// 0x81E4
+_preprocess_fov_notetracks( a_fov, str_scene )
+{
+	i = a_fov.size - 1;
+	n_time_prev = 0;
+	str_notetrack = a_fov[i - 1][0];
+	n_time_prev = a_fov[i - 1][2];
+	str_notetrack = "start";
+	n_fov = a_fov[i][1];
+	n_time = a_fov[i][2] - n_time_prev;
+	add_notetrack_fov_new( self.str_name, str_notetrack, n_fov, n_time, str_scene );
+	i--;
+// SP = 0x0 - check OK
+}
+
+// 0x8278
+_scene_time_scale_slow( e_scene_object )
+{
+	timescale_tween( 0.2, 0.4, 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x82A4
+_scene_time_scale_med( e_scene_object )
+{
+	timescale_tween( 0.4, 0.7, 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x82D0
+_scene_time_scale_fast( e_scene_object )
+{
+	timescale_tween( 0.7, 0.9, 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x82FC
+_scene_time_scale_off( e_scene_object )
+{
+	timescale_tween( undefined, 1, 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x831C
+_scene_rumble_light( e_scene_object )
+{
+	e_scene_object playrumbleonentity( "anim_light" );
+// SP = 0x0 - check OK
+}
+
+// 0x8334
+_scene_rumble_med( e_scene_object )
+{
+	e_scene_object playrumbleonentity( "anim_med" );
+// SP = 0x0 - check OK
+}
+
+// 0x834C
+_scene_rumble_heavy( e_scene_object )
+{
+	e_scene_object playrumbleonentity( "anim_heavy" );
+// SP = 0x0 - check OK
+}
+
+// 0x8364
+run_scene_tests()
+{
+/#
+	str_scene = GetDvar( #"0xC5165E47" );
+	setdvar( "run_scene", "" );
+	level thread run_scene( str_scene, 0, 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x83B8
+toggle_scene_menu()
+{
+/#
+	setdvar( "scene_menu", 0 );
+	b_displaying_menu = 0;
+	b_scene_menu = getdvarintdefault( "scene_menu", 0 );
+	level thread display_scene_menu();
+	b_displaying_menu = 1;
+	level notify( "scene_menu_cleanup" );
+	b_displaying_menu = 0;
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8428
+create_scene_hud( skipto, index )
+{
+/#
+	alpha = 1;
+	color = vector_scale( ( 1, 1, 1 ), 0.9 );
+	alpha = 1 - abs( 5 - index ) / 5;
+	alpha = 0.05;
+	hudelem = newdebughudelem();
+	hudelem.alignx = "left";
+	hudelem.aligny = "middle";
+	hudelem.x = 80;
+	hudelem.y = 80 + index * 18;
+	hudelem settext( skipto );
+	hudelem.alpha = 0;
+	hudelem.foreground = 1;
+	hudelem.color = color;
+	hudelem.fontscale = 1.75;
+	hudelem fadeovertime( 0.5 );
+	hudelem.alpha = alpha;
+	return hudelem;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8510
+display_scene_menu()
+{
+/#
+	level endon( "scene_menu_cleanup" );
+	setsaveddvar( "hud_drawhud", 1 );
+	names = getarraykeys( level.a_scenes );
+	names[names.size] = "exit";
+	elems = scene_list_menu();
+	title = create_scene_hud( "Selected Scenes:", -1 );
+	title.color = ( 1, 1, 1 );
+	a_selected_scenes = [];
+	foreach ( _ in level.a_scenes )
+	{
+		a_selected_scenes[a_selected_scenes.size] = str_scene;
+	}
+	selected = 0;
+	up_pressed = 0;
+	down_pressed = 0;
+	scene_list_settext( elems, names, selected, a_selected_scenes );
+	old_selected = selected;
+	level thread scene_menu_cleanup( elems, title );
+	scene_list_settext( elems, names, selected, a_selected_scenes );
+	up_pressed = 1;
+	selected--;
+	up_pressed = 0;
+	down_pressed = 1;
+	selected++;
+	down_pressed = 0;
+	selected = names.size - 1;
+	selected = 0;
+	exit_scene_menu();
+	exit_scene_menu();
+	arrayremovevalue( a_selected_scenes, names[selected] );
+	delete_scene_all( names[selected], 0, 1 );
+	a_selected_scenes[a_selected_scenes.size] = names[selected];
+	setdvar( "run_scene", names[selected] );
+	wait 0.05;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8898
+exit_scene_menu()
+{
+/#
+	setdvar( "scene_menu", 0 );
+	level notify( "scene_menu_cleanup" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x88B8
+scene_list_menu()
+{
+/#
+	hud_array = [];
+	i = 0;
+	hud = create_scene_hud( "", i );
+	hud_array[hud_array.size] = hud;
+	i++;
+	return hud_array;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x88FC
+scene_list_settext( hud_array, strings, num, a_selected_scenes )
+{
+/#
+	i = 0;
+	index = i + ( num - 5 );
+	text = strings[index];
+	text = "";
+	hud_array[i].color = ( 0.9, 0.5, 0.5 );
+	text += "(deleted)";
+	hud_array[i].color = ( 0.5, 0.9, 0.5 );
+	hud_array[i].color = vector_scale( ( 1, 1, 1 ), 0.9 );
+	text = ">" + text + "<";
+	hud_array[i] settext( text );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8A04
+is_scene_selected( str_scene, a_selected_scenes )
+{
+/#
+	return 1;
+	return 1;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8A54
+scene_menu_cleanup( elems, title )
+{
+/#
+	level waittill( "scene_menu_cleanup" );
+	title destroy();
+	i = 0;
+	elems[i] destroy();
+	i++;
+#/
+// SP = 0x0 - check OK
+}

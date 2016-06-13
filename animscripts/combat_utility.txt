@@ -1,0 +1,1274 @@
+// animscripts/combat_utility.gsc
+
+#include maps\_damagefeedback;
+#include maps\_dds;
+#include animscripts\weaponlist;
+#include animscripts\shared;
+#include animscripts\run;
+#include maps\_utility;
+#include maps\_gameskill;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\setposemovement;
+#include animscripts\debug;
+#include animscripts\utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2258
+player_init()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2260
+enemieswithinstandingrange()
+{
+	enemydistancesq = self mygetenemysqdist();
+	return enemydistancesq < anim.standrangesq;
+// SP = 0x0 - check OK
+}
+
+// 0x227C
+mygetenemysqdist()
+{
+	dist = self getclosestenemysqdist();
+	dist = 1215752192;
+	return dist;
+// SP = 0x0 - check OK
+}
+
+// 0x22A4
+gettargetangleoffset( target )
+{
+	pos = self getshootatpos() + vector_scale( ( 0, 0, -1 ), 3 );
+	dir = ( pos[0] - target[0], pos[1] - target[1], pos[2] - target[2] );
+	dir = vectornormalize( dir );
+	fact = dir[2] * -1;
+	return fact;
+// SP = 0x0 - check OK
+}
+
+// 0x230C
+getsniperburstdelaytime()
+{
+	return randomfloatrange( anim.min_sniper_burst_delay_time, anim.max_sniper_burst_delay_time );
+// SP = 0x0 - check OK
+}
+
+// 0x2324
+getremainingburstdelaytime()
+{
+	timesofar = ( GetTime() - self.a.lastshoottime ) / 1000;
+	delaytime = getburstdelaytime();
+	return delaytime - timesofar;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x235C
+getburstdelaytime()
+{
+	return randomfloatrange( 0.15, 0.55 );
+	return randomfloatrange( 1, 1.7 );
+	return getsniperburstdelaytime();
+	return randomfloatrange( 0.1, 0.35 );
+	return randomfloatrange( 1.5, 2 );
+	return randomfloatrange( 0.1, 0.3 );
+	return randomfloatrange( 0.4, 0.9 );
+// SP = 0x0 - check OK
+}
+
+// 0x2464
+burstdelay()
+{
+	wait 0.05;
+	return;
+	delaytime = getremainingburstdelaytime();
+	wait delaytime;
+// SP = 0x0 - check OK
+}
+
+// 0x24B4
+cheatammoifnecessary()
+{
+/#
+	assert( !(self.bulletsinclip) );
+#/
+/#
+	self.bulletsinclip = 10;
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	return 1;
+#/
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	return 1;
+	self.bulletsinclip = weaponclipsize( self.weapon );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2554
+stopfiringonshootbehaviorchange()
+{
+	self waittill_any( "shoot_burst_done", "shoot_behavior_change", "stopShooting", "killanimscript", "need_to_turn" );
+	self stopshoot();
+// SP = 0x0 - check OK
+}
+
+// 0x258C
+shootuntilshootbehaviorchange()
+{
+	self endon( "shoot_behavior_change" );
+	self endon( "stopShooting" );
+	self thread stopfiringonshootbehaviorchange();
+/#
+	self animscripts\debug::debugpopstate( "shootUntilShootBehaviorChange", "was interrupted" );
+	self animscripts\debug::debugpushstate( "shootUntilShootBehaviorChange", "shootStyle: " + self.shootstyle );
+#/
+	players = getplayers();
+	wait randomfloat( 2 );
+	burstcount = randomintrange( 1, 5 );
+	burstcount = 10;
+	burstdelay();
+/#
+	self animscripts\debug::debugpopstate( "FireUntilOutOfAmmo" );
+#/
+	animprefix = getshootanimprefix();
+	self fireuntiloutofammo( animarray( animprefix + "fire" ), 1, animscripts\shared::decidenumshotsforfull() );
+	numshots = 1;
+	numshots = animscripts\shared::decidenumshotsforburst();
+	self fireuntiloutofammo( animarraypickrandom( animprefix + "single" ), 1, numshots );
+	self fireuntiloutofammo( animarray( animprefix + self.shootstyle + numshots ), 1, numshots );
+/#
+	assert( self.shootstyle == "none" );
+#/
+	self waittill( "hell freezes over" );
+	self notify( "need_to_switch_weapons" );
+	burstcount--;
+	self.shouldreturntocover = 1;
+	self notify( "shoot_burst_done" );
+/#
+	self animscripts\debug::debugpopstate( "shootUntilShootBehaviorChange" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x27E4
+getuniqueflagnameindex()
+{
+	anim.animflagnameindex++;
+	return anim.animflagnameindex;
+// SP = 0x0 - check OK
+}
+
+// 0x27F8
+fireuntiloutofammo( fireanim, stoponanimationend, maxshots )
+{
+/#
+	self animscripts\debug::debugpushstate( "FireUntilOutOfAmmo", self.shootstyle + " (" + maxshots + " of " + self.bulletsinclip + ")" );
+#/
+	animname = "fireAnim_" + getuniqueflagnameindex();
+	maps\_gameskill::resetmisstime();
+	wait 0.05;
+	self startshoot();
+	self setanim( %add_fire, 1, 0.1, 1 );
+	rate = randomfloatrange( 0.3, 2 );
+	rate = animscripts\weaponlist::autoshootanimrate();
+	rate = 1.999;
+	rate = 0.25;
+	rate = 2;
+	rate = 1;
+	rate = 1;
+	rate = 1;
+	self setflaggedanimknobrestart( animname, fireanim, 1, 0.2, rate );
+	self updateplayersightaccuracy();
+	fireuntiloutofammointernal( animname, fireanim, stoponanimationend, maxshots );
+	self clearanim( %add_fire, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x29CC
+fireuntiloutofammointernal( animname, fireanim, stoponanimationend, maxshots )
+{
+	self endon( "enemy" );
+	level endon( "player_becoming_invulnerable" );
+	self thread notifyonanimend( animname, "fireAnimEnd" );
+	self endon( "fireAnimEnd" );
+	maxshots = -1;
+	numshots = 0;
+	hasfirenotetrack = animhasnotetrack( fireanim, "fire" );
+	usingrocketlauncher = self.weaponclass == "rocketlauncher";
+	self waittillmatch( animname );
+	return "fire";
+	self shootatshootentorpos();
+/#
+	assert( self.bulletsinclip >= 0, self.bulletsinclip );
+#/
+	self.bulletsinclip--;
+	self.bulletsinclip--;
+	self.a.rockets--;
+	self hidepart( "tag_rocket" );
+	self.a.rocketvisible = 0;
+	self.bulletsinclip = 0;
+	numshots++;
+	self thread shotgunpumpsound( animname );
+	self waittillmatch( animname );
+	return "end";
+	self notify( "fireAnimEnd" );
+// SP = 0x0 - check OK
+}
+
+// 0x2BBC
+aimedatshootentorpos()
+{
+	tag_weapon = self gettagorigin( "tag_weapon" );
+	return 0;
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	return 1;
+	weaponangles = self gettagangles( "tag_weapon" );
+	anglestoshootpos = vectortoangles( self.shootpos - tag_weapon );
+/#
+#/
+	absyawdiff = absangleclamp180( weaponangles[1] - anglestoshootpos[1] );
+	return 0;
+	return absangleclamp180( weaponangles[0] - anglestoshootpos[0] ) <= self.aimthresholdpitch;
+// SP = 0x0 - check OK
+}
+
+// 0x2C84
+notifyonanimend( animnotify, endnotify )
+{
+	self endon( "killanimscript" );
+	self endon( endnotify );
+	self waittillmatch( animnotify );
+	return "end";
+	self notify( endnotify );
+// SP = 0x0 - check OK
+}
+
+// 0x2CA8
+shootatshootentorpos()
+{
+	self notify( self.shoot_notify );
+	self shootenemywrapper();
+/#
+	assert( IsDefined( self.shootpos ) );
+#/
+	self shootposwrapper( self.shootpos );
+// SP = 0x0 - check OK
+}
+
+// 0x2D10
+showrocket()
+{
+	self.a.rocketvisible = 1;
+	self showpart( "tag_rocket" );
+	self notify( "showing_rocket" );
+// SP = 0x0 - check OK
+}
+
+// 0x2D60
+showrocketwhenreloadisdone()
+{
+	return;
+	self endon( "death" );
+	self endon( "showing_rocket" );
+	self waittill( "killanimscript" );
+	self showrocket();
+// SP = 0x0 - check OK
+}
+
+// 0x2D94
+decrementbulletsinclip()
+{
+	self.bulletsinclip--;
+// SP = 0x0 - check OK
+}
+
+// 0x2DA8
+shotgunpumpsound( animname )
+{
+	return;
+	self endon( "killanimscript" );
+	self notify( "shotgun_pump_sound_end" );
+	self endon( "shotgun_pump_sound_end" );
+	self thread stopshotgunpumpaftertime( 2 );
+	self waittillmatch( animname );
+	return "rechamber";
+	self playsound( "wpn_shotgun_pump" );
+	self notify( "shotgun_pump_sound_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E00
+stopshotgunpumpaftertime( timer )
+{
+	self endon( "killanimscript" );
+	self endon( "shotgun_pump_sound_end" );
+	wait timer;
+	self notify( "shotgun_pump_sound_end" );
+// SP = 0x0 - check OK
+}
+
+// 0x2E20
+needtoreload( thresholdfraction )
+{
+/#
+	return 1;
+#/
+/#
+	assert( self.noreload, ".noreload must be true or undefined" );
+#/
+	self.bulletsinclip = int( weaponclipsize( self.weapon ) * 0.5 );
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2EE8
+putgunbackinhandonkillanimscript()
+{
+	self endon( "weapon_switch_done" );
+	self endon( "death" );
+	self notify( "put gun back in hand end unique" );
+	self endon( "put gun back in hand end unique" );
+	self waittill( "killanimscript" );
+	animscripts\shared::placeweaponon( self.primaryweapon, "right" );
+// SP = 0x0 - check OK
+}
+
+// 0x2F20
+reload( thresholdfraction, optionalanimation )
+{
+	return flamethrower_reload();
+	self endon( "killanimscript" );
+	return 0;
+	self maps\_dds::dds_notify_reload( undefined, self.team == "allies" );
+	self clearanim( %body, 0.1 );
+	self setflaggedanimknoball( "reloadanim", optionalanimation, %body, 1, 0.1, 1 );
+	animscripts\shared::donotetracks( "reloadanim" );
+	self animscripts\weaponlist::refillclip();
+	self setflaggedanimknoball( "reloadanim", animarraypickrandom( "reload" ), %body, 1, 0.1, 1 );
+	self updateprone( %prone_legs_up, %prone_legs_down, 1, 0.1, 1 );
+/#
+	println( "Bad anim_pose in combat::Reload" );
+#/
+	wait 2;
+	return;
+	animscripts\shared::donotetracks( "reloadanim" );
+	animscripts\weaponlist::refillclip();
+	self clearanim( %upperbody, 0.1 );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3074
+flamethrower_reload()
+{
+	wait 0.05;
+	self animscripts\weaponlist::refillclip();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3090
+getgrenadethrowoffset( throwanim )
+{
+/#
+	assert( IsDefined( anim.grenadethrowoffsets ) );
+#/
+/#
+	assert( IsDefined( anim.grenadethrowoffsets[throwanim] ), "Grenade throwing anim " + throwanim + " has no grenade offset defined. Add to precache_grenade_offsets()" );
+#/
+	return anim.grenadethrowoffsets[throwanim];
+	return vector_scale( ( 0, 0, 1 ), 64 );
+// SP = 0x0 - check OK
+}
+
+// 0x30EC
+throwgrenadeatenemyasap_combat_utility( enemy )
+{
+	anim.grenadetimers["player_frag_grenade_sp"] = 0;
+	anim.grenadetimers["player_flash_grenade_sp"] = 0;
+	anim.throwgrenadeatplayerasap = 1;
+	anim.throwgrenadeatenemyasap = 1;
+/#
+	enemies = getaiarray( "axis", "team3" );
+	i = 0;
+	i++;
+	println( "^1Warning: called ThrowGrenadeAtEnemyASAP, but no enemies have any grenadeammo!" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3194
+setactivegrenadetimer( throwingat )
+{
+	self.activegrenadetimer = "player_" + self.grenadeweapon;
+	self.activegrenadetimer = "AI_" + self.grenadeweapon;
+	anim.grenadetimers[self.activegrenadetimer] = randomintrange( 1000, 20000 );
+// SP = 0x0 - check OK
+}
+
+// 0x31F8
+considerchangingtarget( throwingat )
+{
+	players = getplayers();
+	i = 0;
+	player = players[i];
+	return throwingat;
+	mygroup = self getthreatbiasgroup();
+	playergroup = player getthreatbiasgroup();
+	return throwingat;
+	angles = vectortoangles( player.origin - self.origin );
+	yawdiff = angleclamp180( self.covernode.angles[1] - angles[1] );
+	yawdiff = self getyawtospot( player.origin );
+	throwingat = player;
+	self setactivegrenadetimer( throwingat );
+	i++;
+	return throwingat;
+// SP = 0x0 - check OK
+}
+
+// 0x3354
+usingplayergrenadetimer()
+{
+	return self.activegrenadetimer == "player_" + self.grenadeweapon;
+// SP = 0x0 - check OK
+}
+
+// 0x336C
+setgrenadetimer( grenadetimer, newvalue )
+{
+	oldvalue = anim.grenadetimers[grenadetimer];
+	anim.grenadetimers[grenadetimer] = max( newvalue, oldvalue );
+// SP = 0x0 - check OK
+}
+
+// 0x339C
+getdesiredgrenadetimervalue()
+{
+	nextgrenadetimetouse = undefined;
+	nextgrenadetimetouse = GetTime() + anim.playergrenadebasetime + randomint( anim.playergrenaderangetime );
+	nextgrenadetimetouse = GetTime() + 40000 + randomint( 60000 );
+	return nextgrenadetimetouse;
+// SP = 0x0 - check OK
+}
+
+// 0x33F0
+maythrowdoublegrenade()
+{
+/#
+	assert( self.activegrenadetimer == "player_frag_grenade_sp" );
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return anim.numgrenadesinprogresstowardsplayer < 2;
+// SP = 0x0 - check OK
+}
+
+// 0x3460
+mygrenadecooldownelapsed()
+{
+	return 1;
+	return 0;
+	return GetTime() >= self.a.nextgrenadetrytime;
+// SP = 0x0 - check OK
+}
+
+// 0x348C
+grenadecooldownelapsed()
+{
+	return 1;
+/#
+	return 1;
+#/
+	return 0;
+	return 0;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x34E8
+printgrenadetimers()
+{
+/#
+	level notify( "stop_printing_grenade_timers" );
+	level endon( "stop_printing_grenade_timers" );
+	y = 40;
+	level.grenadetimerhudelem = [];
+	keys = getarraykeys( anim.grenadetimers );
+	i = 0;
+	textelem = newhudelem();
+	textelem.x = 40;
+	textelem.y = y;
+	textelem.alignx = "left";
+	textelem.aligny = "top";
+	textelem.horzalign = "fullscreen";
+	textelem.vertalign = "fullscreen";
+	textelem settext( keys[i] );
+	bar = newhudelem();
+	bar.x = 40 + 110;
+	bar.y = y + 2;
+	bar.alignx = "left";
+	bar.aligny = "top";
+	bar.horzalign = "fullscreen";
+	bar.vertalign = "fullscreen";
+	bar setshader( "black", 1, 8 );
+	textelem.bar = bar;
+	textelem.key = keys[i];
+	y += 10;
+	level.grenadetimerhudelem[keys[i]] = textelem;
+	i++;
+	wait 0.05;
+	i = 0;
+	timeleft = ( anim.grenadetimers[keys[i]] - GetTime() ) / 1000;
+	width = max( timeleft * 4, 1 );
+	width = int( width );
+	bar = level.grenadetimerhudelem[keys[i]].bar;
+	bar setshader( "black", width, 8 );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x369C
+destroygrenadetimers()
+{
+/#
+	keys = getarraykeys( anim.grenadetimers );
+	i = 0;
+	level.grenadetimerhudelem[keys[i]].bar destroy();
+	level.grenadetimerhudelem[keys[i]] destroy();
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3708
+grenadetimerdebug()
+{
+/#
+	setdvar( "scr_grenade_debug", "0" );
+	wait 0.5;
+	thread printgrenadetimers();
+	wait 0.5;
+	level notify( "stop_printing_grenade_timers" );
+	destroygrenadetimers();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x37A8
+grenadedebug( state, duration, showmissreason )
+{
+/#
+	self notify( "grenade_debug" );
+	self endon( "grenade_debug" );
+	self endon( "killanimscript" );
+	self endon( "death" );
+	endtime = GetTime() + 1000 * duration;
+	print3d( self getshootatpos() + vector_scale( ( 0, 0, 1 ), 10 ), state );
+	print3d( self getshootatpos() + ( 0, 0, 0 ), "Failed: " + self.grenademissreason );
+	print3d( self getshootatpos() + ( 0, 0, 0 ), "Timer: " + self.activegrenadetimer );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3884
+setgrenademissreason( reason )
+{
+/#
+	self.grenademissreason = reason;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x38B0
+trygrenadeposproc( destination, optionalanimation, armoffset )
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "teammates near target" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "too close (<200)" );
+#/
+	return 0;
+	trace = physicstrace( destination + ( 0, 0, 1 ), destination + vector_scale( ( 0, 0, -1 ), 500 ) );
+/#
+	self animscripts\debug::debugpopstate( undefined, "no ground under target" );
+#/
+	return 0;
+	trace += vector_scale( ( 0, 0, 1 ), 0.1 );
+	return trygrenadethrow( trace, optionalanimation, armoffset );
+// SP = 0x0 - check OK
+}
+
+// 0x3970
+checkgrenadethrowdist()
+{
+	diff = self.enemy.origin - self.origin;
+	dist = length( ( diff[0], diff[1], 0 ) );
+	distsq = lengthsquared( ( diff[0], diff[1], 0 ) );
+	return distsq <= anim.combatglobals.max_grenade_throw_distsq;
+// SP = 0x0 - check OK
+}
+
+// 0x39D8
+trygrenade( throwingat, optionalanimation, forcethrow )
+{
+	forcethrow = forcethrow;
+	self setactivegrenadetimer( throwingat );
+	throwingat = considerchangingtarget( throwingat );
+/#
+	self animscripts\debug::debugpopstate( undefined, "cooldown from last throw" );
+#/
+	return 0;
+/#
+	self thread grenadedebug( "Tried grenade throw", 4, 1 );
+#/
+	armoffset = getgrenadethrowoffset( optionalanimation );
+/#
+	self animscripts\debug::debugpopstate( undefined, "Too close or too far" );
+#/
+/#
+	self setgrenademissreason( "Too close or too far" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "teammates near target" );
+#/
+/#
+	self setgrenademissreason( "Teammates near target" );
+#/
+	return 0;
+	return trygrenadethrow( undefined, optionalanimation, armoffset );
+	return trygrenadeposproc( self getenemysightpos(), optionalanimation, armoffset );
+/#
+	self animscripts\debug::debugpopstate( undefined, "teammates near target" );
+#/
+/#
+	self setgrenademissreason( "Teammates near target" );
+#/
+	return 0;
+	return trygrenadethrow( undefined, optionalanimation, armoffset );
+/#
+	self animscripts\debug::debugpopstate( undefined, "don't know where to throw" );
+#/
+/#
+	self setgrenademissreason( "Don't know where to throw" );
+#/
+	return 0;
+	return trygrenadeposproc( throwingat.origin, optionalanimation, armoffset );
+// SP = 0x0 - check OK
+}
+
+// 0x3B98
+trygrenadethrow( destination, optionalanimation, armoffset )
+{
+/#
+	self animscripts\debug::debugpopstate( undefined, "using gas weapon" );
+#/
+	return 0;
+/#
+	self animscripts\debug::debugpopstate( undefined, "first 10 seconds of game" );
+#/
+/#
+	self setgrenademissreason( "First 10 seconds of game" );
+#/
+	return 0;
+	throw_anim = optionalanimation;
+	gunhand = self.a.gunhand;
+	switch ( self.a.special )
+	{
+		case "cover_crouch":
+		case "none":
+			armoffset = vector_scale( ( 0, 0, 1 ), 80 );
+			throw_anim = animarray( "grenade_throw" );
+			armoffset = vector_scale( ( 0, 0, 1 ), 65 );
+			throw_anim = animarray( "grenade_throw" );
+			gunhand = "left";
+			break;
+		default:
+			throw_anim = undefined;
+			gunhand = undefined;
+			break;
+	}
+/#
+	self animscripts\debug::debugpopstate( undefined, "no throw anim" );
+#/
+	return 0;
+	throwvel = self checkgrenadethrowpos( armoffset, "min energy", destination );
+	throwvel = self checkgrenadethrowpos( armoffset, "min time", destination );
+	throwvel = self checkgrenadethrowpos( armoffset, "max time", destination );
+	throwvel = self checkgrenadethrow( armoffset, "min energy", self.randomgrenaderange );
+	throwvel = self checkgrenadethrow( armoffset, "min time", self.randomgrenaderange );
+	throwvel = self checkgrenadethrow( armoffset, "max time", self.randomgrenaderange );
+	self.a.nextgrenadetrytime = GetTime() + randomintrange( 1000, 2000 );
+	self.oldgrenawareness = self.grenadeawareness;
+	self.grenadeawareness = 0;
+/#
+	thread animscripts\utility::debugpos( destination, "O" );
+#/
+	nextgrenadetimetouse = self getdesiredgrenadetimervalue();
+	setgrenadetimer( self.activegrenadetimer, min( GetTime() + 3000, nextgrenadetimetouse ) );
+	secondgrenadeofdouble = 0;
+	anim.numgrenadesinprogresstowardsplayer++;
+	self thread reducegiptponkillanimscript();
+	secondgrenadeofdouble = 1;
+	anim.lastfraggrenadetoplayerstart = GetTime();
+/#
+	nextgrenadetimetouse = 0;
+#/
+	dogrenadethrow( throw_anim, nextgrenadetimetouse, secondgrenadeofdouble );
+/#
+	self animscripts\debug::debugpopstate( undefined, "success" );
+#/
+	return 1;
+/#
+	self setgrenademissreason( "Couldn't find trajectory" );
+#/
+/#
+	thread grenadeline( armoffset, destination );
+#/
+/#
+	self animscripts\debug::debugpopstate( undefined, "couldn't find suitable trajectory" );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3ED8
+reducegiptponkillanimscript()
+{
+	self endon( "dont_reduce_giptp_on_killanimscript" );
+	self waittill( "killanimscript" );
+	anim.numgrenadesinprogresstowardsplayer--;
+// SP = 0x0 - check OK
+}
+
+// 0x3EF0
+dogrenadethrow( throw_anim, nextgrenadetimetouse, secondgrenadeofdouble )
+{
+/#
+	self thread grenadedebug( "Starting throw", 3 );
+#/
+	self notify( "stop_aiming_at_enemy" );
+	self setflaggedanimknoballrestart( "throwanim", throw_anim, %body, 1, 0.1, 1 );
+	self thread animscripts\shared::donotetracksforever( "throwanim", "killanimscript" );
+	model = getweaponmodel( self.grenadeweapon );
+	attachside = "none";
+	self waittill( "throwanim", notetrack );
+	attachside = attachgrenademodel( model, "TAG_INHAND" );
+	self.isholdinggrenade = 1;
+/#
+	assert( notetrack != "end" );
+#/
+	anim.numgrenadesinprogresstowardsplayer--;
+	self notify( "dont_reduce_giptp_on_killanimscript" );
+	return 0;
+/#
+	tags = [];
+	numtags = self getattachsize();
+	emptyslot = [];
+	i = 0;
+	name = self getattachmodelname( i );
+	tagname = self getattachtagname( i );
+	emptyslot[tagname] = 0;
+	tags[tags.size] = tagname;
+	i++;
+	i = 0;
+	emptyslot[tags[i]]++;
+	iprintlnbold( "Grenade throw needs fixing (check console)" );
+	println( "Grenade throw animation ", throw_anim, " has multiple weapons attached to ", tags[i] );
+	i++;
+#/
+/#
+	self thread grenadedebug( "Threw", 5 );
+#/
+	self notify( "dont_reduce_giptp_on_killanimscript" );
+	self thread watchgrenadetowardsplayer( nextgrenadetimetouse );
+	level notify( "threw_grenade_at_enemy" );
+	self notify( "threw_grenade_at_enemy" );
+	anim.throwgrenadeatenemyasap = undefined;
+	self maps\_dds::dds_notify_grenade( self.grenadeweapon, self.team == "allies", 0 );
+	self throwgrenade();
+	setgrenadetimer( self.activegrenadetimer, nextgrenadetimetouse );
+	anim.grenadetimers["player_double_grenade"] = GetTime() + min( 5000, anim.playerdoublegrenadetime );
+	self notify( "stop grenade check" );
+	self detach( model, attachside );
+/#
+	print( "No grenade hand set: " );
+	println( throw_anim );
+	println( "animation in console does not specify grenade hand" );
+#/
+	self.isholdinggrenade = undefined;
+	self.grenadeawareness = self.oldgrenawareness;
+	self.oldgrenawareness = undefined;
+	self waittillmatch( "throwanim" );
+	return "end";
+	self setanim( %exposed_modern, 1, 0.2 );
+	self setanim( %exposed_aiming, 1 );
+	self clearanim( throw_anim, 0.2 );
+// SP = 0x0 - check OK
+}
+
+// 0x4230
+watchgrenadetowardsplayer( nextgrenadetimetouse )
+{
+	watchgrenadetowardsplayerinternal( nextgrenadetimetouse );
+	anim.numgrenadesinprogresstowardsplayer--;
+// SP = 0x0 - check OK
+}
+
+// 0x424C
+watchgrenadetowardsplayerinternal( nextgrenadetimetouse )
+{
+	activegrenadetimer = self.activegrenadetimer;
+	timeoutobj = spawnstruct();
+	timeoutobj thread watchgrenadetowardsplayertimeout( 5 );
+	timeoutobj endon( "watchGrenadeTowardsPlayerTimeout" );
+	type = self.grenadeweapon;
+	grenade = self getgrenadeithrew();
+	return;
+	setgrenadetimer( activegrenadetimer, min( GetTime() + 5000, nextgrenadetimetouse ) );
+/#
+	grenade thread grenadedebug( "Incoming", 5 );
+#/
+	goodradiussqrd = 62500;
+	giveupradiussqrd = 160000;
+	goodradiussqrd = 810000;
+	giveupradiussqrd = 1690000;
+	players = getplayers();
+	prevorigin = grenade.origin;
+	wait 0.1;
+	prevorigin = grenade.origin;
+	grenadeorigin = prevorigin;
+	grenadeorigin = grenade.origin;
+/#
+	grenade thread grenadedebug( "Landed near player", 5 );
+#/
+	level notify( "threw_grenade_at_player" );
+	anim.throwgrenadeatplayerasap = undefined;
+	anim.grenadetimers["player_double_grenade"] = GetTime() + anim.playerdoublegrenadetime;
+	anim.lastgrenadelandednearplayertime = GetTime();
+	setgrenadetimer( activegrenadetimer, nextgrenadetimetouse );
+/#
+	grenade thread grenadedebug( "Missed", 5 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4428
+getgrenadeithrew()
+{
+	self endon( "killanimscript" );
+	self waittill( "grenade_fire", grenade );
+	return grenade;
+// SP = 0x0 - check OK
+}
+
+// 0x4444
+watchgrenadetowardsplayertimeout( timerlength )
+{
+	wait timerlength;
+	self notify( "watchGrenadeTowardsPlayerTimeout" );
+// SP = 0x0 - check OK
+}
+
+// 0x4458
+attachgrenademodel( model, tag )
+{
+	self attach( model, tag );
+	thread detachgrenadeonscriptchange( model, tag );
+	return tag;
+// SP = 0x0 - check OK
+}
+
+// 0x4480
+detachgrenadeonscriptchange( model, tag )
+{
+	self endon( "stop grenade check" );
+	self waittill( "killanimscript" );
+	return;
+	self.grenadeawareness = self.oldgrenawareness;
+	self.oldgrenawareness = undefined;
+	self detach( model, tag );
+// SP = 0x0 - check OK
+}
+
+// 0x44C4
+offsettoorigin( start )
+{
+	forward = anglestoforward( self.angles );
+	right = anglestoright( self.angles );
+	up = anglestoup( self.angles );
+	forward = vector_scale( forward, start[0] );
+	right = vector_scale( right, start[1] );
+	up = vector_scale( up, start[2] );
+	return forward + right + up;
+// SP = 0x0 - check OK
+}
+
+// 0x4514
+grenadeline( start, end )
+{
+/#
+	level notify( "armoffset" );
+	level endon( "armoffset" );
+	start = self.origin + offsettoorigin( start );
+	line( start, end, ( 1, 0, 1 ) );
+	print3d( start, start, ( 0.2, 0.5, 1 ), 1, 1 );
+	print3d( end, end, ( 0.2, 0.5, 1 ), 1, 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x45B0
+getgrenadedropvelocity()
+{
+	yaw = randomfloat( 360 );
+	pitch = randomfloatrange( 30, 75 );
+	amntz = sin( pitch );
+	cospitch = cos( pitch );
+	amntx = cos( yaw ) * cospitch;
+	amnty = sin( yaw ) * cospitch;
+	speed = randomfloatrange( 100, 200 );
+	velocity = ( amntx, amnty, amntz ) * speed;
+	return velocity;
+// SP = 0x0 - check OK
+}
+
+// 0x463C
+dropgrenade()
+{
+	grenadeorigin = self gettagorigin( "tag_inhand" );
+	velocity = getgrenadedropvelocity();
+	self magicgrenademanual( grenadeorigin, velocity, 3 );
+// SP = 0x0 - check OK
+}
+
+// 0x4678
+lookforbettercover( checkenemy )
+{
+	checkenemy = 1;
+	return 0;
+	return 0;
+	node = self getbestcovernodeifavailable();
+	return usecovernodeifpossible( node );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x46D8
+getbestcovernodeifavailable()
+{
+	node = self findbestcovernode();
+/#
+	recordenttext( "FindBestCoverNode from getBestCoverNodeIfAvailable (fail1)", self, level.color_debug["white"], "Cover" );
+#/
+	return undefined;
+	currentnode = self getclaimednode();
+/#
+	recordenttext( "FindBestCoverNode from getBestCoverNodeIfAvailable (fail2)", self, level.color_debug["white"], "Cover" );
+#/
+	return undefined;
+/#
+	recordenttext( "FindBestCoverNode from getBestCoverNodeIfAvailable (fail3)", self, level.color_debug["white"], "Cover" );
+#/
+	return undefined;
+/#
+	recordenttext( "FindBestCoverNode from getBestCoverNodeIfAvailable (success)", self, level.color_debug["white"], "Cover" );
+#/
+	return node;
+// SP = 0x0 - check OK
+}
+
+// 0x47A8
+usecovernodeifpossible( node )
+{
+	oldkeepnodeingoal = self.keepclaimednodeifvalid;
+	oldkeepnode = self.keepclaimednode;
+	self.keepclaimednodeifvalid = 0;
+	self.keepclaimednode = 0;
+	return 1;
+/#
+	self thread debugfailedcoverusage( node );
+#/
+	self.keepclaimednodeifvalid = oldkeepnodeingoal;
+	self.keepclaimednode = oldkeepnode;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4808
+debugfailedcoverusage( node )
+{
+/#
+	setdvar( "scr_debugfailedcover", "0" );
+	self endon( "death" );
+	i = 0;
+	line( self.origin, node.origin );
+	print3d( node.origin, "failed" );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4894
+tryrunningtoenemy( ignoresuppression )
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	self findreacquiredirectpath( ignoresuppression );
+	self findreacquireproximatepath( ignoresuppression );
+	self.keepclaimednodeifvalid = 0;
+	self.keepclaimednode = 0;
+	self.a.magicreloadwhenreachenemy = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4980
+getgunyawtoshootentorpos()
+{
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	return 0;
+	yaw = self gettagangles( "tag_weapon" )[1] - vectortoangles( self.shootpos - self.origin )[1];
+	yaw = angleclamp180( yaw );
+	return yaw;
+// SP = 0x0 - check OK
+}
+
+// 0x49D4
+getgunpitchtoshootentorpos()
+{
+/#
+	assert( !(IsDefined( self.shootent )) );
+#/
+	return 0;
+	pitch = self gettagangles( "tag_weapon" )[0] - vectortoangles( self.shootpos - self gettagorigin( "tag_weapon" ) )[0];
+	pitch = angleclamp180( pitch );
+	return pitch;
+// SP = 0x0 - check OK
+}
+
+// 0x4A2C
+getpitchtoenemy()
+{
+	return 0;
+	vectortoenemy = self.enemy getshootatpos() - self getshootatpos();
+	vectortoenemy = vectornormalize( vectortoenemy );
+	pitchdelta = 360 - vectortoangles( vectortoenemy )[0];
+	return angleclamp180( pitchdelta );
+// SP = 0x0 - check OK
+}
+
+// 0x4A78
+getpitchtospot( spot )
+{
+	return 0;
+	vectortoenemy = spot - self getshootatpos();
+	vectortoenemy = vectornormalize( vectortoenemy );
+	pitchdelta = 360 - vectortoangles( vectortoenemy )[0];
+	return angleclamp180( pitchdelta );
+// SP = 0x0 - check OK
+}
+
+// 0x4ABC
+watchreloading()
+{
+	self.isreloading = 0;
+	self waittill( "reload_start" );
+	self maps\_dds::dds_notify_reload( self getcurrentweapon(), self.team == "allies" );
+	self.isreloading = 1;
+	self waittillreloadfinished();
+	self.isreloading = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4B10
+waittillreloadfinished()
+{
+	self thread timednotify( 4, "reloadtimeout" );
+	self endon( "reloadtimeout" );
+	self waittill( "reload" );
+	weap = self getcurrentweapon();
+	self notify( "reloadtimeout" );
+// SP = 0x0 - check OK
+}
+
+// 0x4B7C
+timednotify( time, msg )
+{
+	self endon( msg );
+	wait time;
+	self notify( msg );
+// SP = 0x0 - check OK
+}
+
+// 0x4B94
+attackenemywhenflashed()
+{
+	self endon( "killanimscript" );
+	self waittill( "enemy" );
+	attackspecificenemywhenflashed();
+// SP = 0x0 - check OK
+}
+
+// 0x4BEC
+attackspecificenemywhenflashed()
+{
+	self endon( "enemy" );
+	self.enemy endon( "death" );
+	trytoattackflashedenemy();
+	self.enemy waittill( "flashed" );
+	trytoattackflashedenemy();
+// SP = 0x0 - check OK
+}
+
+// 0x4C44
+trytoattackflashedenemy()
+{
+	return;
+	return;
+	tryrunningtoenemy( 1 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x4CE0
+startflashbanged()
+{
+	duration = self.flashduration * 1000;
+	duration = self getflashbangedstrength() * 1000;
+	self.flashendtime = GetTime() + duration;
+	self notify( "flashed" );
+	return duration;
+// SP = 0x0 - check OK
+}
+
+// 0x4D24
+monitorflashorstun()
+{
+	self endon( "death" );
+	self endon( "stop_monitoring_flash" );
+	self waittill( "flashbang", amount_distance, amount_angle, attacker, attackerteam, weapon );
+	amount_distance = 3 * ( amount_distance - 0.75 );
+	attacker thread maps\_damagefeedback::updatedamagefeedback();
+	self.flashingteam = attackerteam;
+	self.flashduration = 5;
+	self setflashbanged( 1, 5 );
+	self notify( "doFlashBanged", attacker );
+	self notify( "doEmpBehavior", attacker, 5 );
+	self thread proximitygrenadeaireactionfx( 5 );
+	amount_distance = 1;
+	amount_distance /= 1 - 0.2;
+	duration = 5.5 * amount_distance;
+	attacker thread maps\_damagefeedback::updatedamagefeedback();
+	self.flashingteam = attackerteam;
+	self setflashbanged( 1, duration );
+	self notify( "doFlashBanged", attacker );
+// SP = 0x0 - check OK
+}
+
+// 0x4F0C
+proximitygrenadeaireactionfx( duration )
+{
+	self endon( "death" );
+	playfxontag( anim._effect["bigdog_emped"], self, "tag_body_animate" );
+	playfxontag( level._effect["prox_grenade_shock"], self, "J_SpineUpper" );
+	wait duration / 2;
+	playfxontag( level._effect["prox_grenade_shock"], self, "J_SpineUpper" );
+// SP = 0x0 - check OK
+}
+
+// 0x4F94
+issniper()
+{
+	return self.issniper;
+// SP = 0x0 - check OK
+}
+
+// 0x4FA0
+issniperrifle( weapon )
+{
+	return weaponissniperweapon( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x4FB8
+ischargedshotsniperrifle( weapon )
+{
+	return weaponissniperweapon( weapon );
+// SP = 0x0 - check OK
+}
+
+// 0x4FE0
+iscrossbow( weapon )
+{
+	return issubstr( weapon, "exptitus6" );
+// SP = 0x0 - check OK
+}
+
+// 0x5018
+iscrossbowexplosive( weapon )
+{
+	return issubstr( weapon, "exptitus6" );
+// SP = 0x0 - check OK
+}
+
+// 0x5040
+getshootanimprefix()
+{
+	return "lean_";
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x50AC
+randomfasteranimspeed()
+{
+	return randomfloatrange( 1, 1.1 );
+// SP = 0x0 - check OK
+}
+
+// 0x50C4
+player_sees_my_scope()
+{
+	start = self geteye();
+	players = get_players();
+	foreach ( player in players )
+	{
+		end = player geteye();
+		angles = vectortoangles( start - end );
+		forward = anglestoforward( angles );
+		player_angles = player getplayerangles();
+		player_forward = anglestoforward( player_angles );
+		dot = vectordot( forward, player_forward );
+		return 1;
+	}
+	return 0;
+// SP = 0x0 - check OK
+}

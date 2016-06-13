@@ -1,0 +1,184 @@
+// maps/mp/zm_buried_sq_ftl.gsc
+
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zm_buried_sq_ftl;
+#include maps\mp\zm_buried_sq;
+#include maps\mp\zombies\_zm_buildables;
+#include maps\mp\zombies\_zm_sidequests;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x6F0
+init()
+{
+	flag_init( "ftl_lantern_charged" );
+	declare_sidequest_stage( "sq", "ftl", ::init_stage, ::stage_logic, ::exit_stage );
+// SP = 0x0 - check OK
+}
+
+// 0x72C
+init_stage()
+{
+	level.sq_ftl_lantern_fuel = 0;
+	level thread stage_vo_max();
+	level thread stage_vo_ric();
+	level._cur_stage_name = "ftl";
+	clientnotify( "ftl" );
+// SP = 0x0 - check OK
+}
+
+// 0x774
+stage_logic()
+{
+/#
+	iprintlnbold( "FTL Started" );
+#/
+	max_fill_lantern_watcher();
+	ric_fill_lantern_watcher();
+	flag_wait( "ftl_lantern_charged" );
+	thread stage_vo_filled_max();
+	thread stage_vo_filled_ric();
+	sq_ftl_show_marker();
+	wait_for_buildable( "buried_sq_oillamp" );
+	wait_network_frame();
+	stage_completed( "sq", level._cur_stage_name );
+// SP = 0x0 - check OK
+}
+
+// 0x80C
+exit_stage( success )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x818
+stage_vo_max()
+{
+	sq_ftl_maxis_vo_on_holder( "vox_maxi_sidequest_pl_0" );
+	sq_ftl_maxis_vo_on_holder( "vox_maxi_sidequest_pl_1" );
+	sq_ftl_maxis_vo_on_holder( "vox_maxi_sidequest_pl_3" );
+	level waittill( "sq_ftl_lantern_inc" );
+	sq_ftl_maxis_vo_on_holder( "vox_maxi_sidequest_pl_2" );
+// SP = 0x0 - check OK
+}
+
+// 0x858
+sq_ftl_maxis_vo_on_holder( str_vox )
+{
+	player = sq_ftl_get_lantern_holder();
+	maxissay( str_vox, player );
+// SP = 0x0 - check OK
+}
+
+// 0x888
+sq_ftl_show_marker()
+{
+	m_marker = getent( "sq_lantern_symbol", "targetname" );
+	m_marker.origin += vector_scale( ( 0, 0, 1 ), 2 );
+	level.sq_lamp_generator_unitrig.origin = level.sq_lamp_generator_unitrig.realorigin;
+// SP = 0x0 - check OK
+}
+
+// 0x8D0
+sq_ftl_get_lantern_holder()
+{
+	players = get_players();
+	foreach ( player in players )
+	{
+		return player;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x940
+stage_vo_filled_max()
+{
+	maps\mp\zm_buried_sq_ftl::sq_ftl_maxis_vo_on_holder( "vox_maxi_sidequest_ll_0" );
+// SP = 0x0 - check OK
+}
+
+// 0x954
+stage_vo_ric()
+{
+	richtofensay( "vox_zmba_sidequest_pl_0", 12 );
+	level waittill( "sq_ftl_lantern_inc" );
+	richtofensay( "vox_zmba_sidequest_pl_1", 6 );
+// SP = 0x0 - check OK
+}
+
+// 0x980
+stage_vo_filled_ric()
+{
+	richtofensay( "vox_zmba_sidequest_ll_0", 10 );
+	richtofensay( "vox_zmba_sidequest_ll_1", 7 );
+// SP = 0x0 - check OK
+}
+
+// 0x9A8
+max_fill_lantern_watcher()
+{
+	a_zombies = getaispeciesarray( level.zombie_team, "zombie" );
+	array_thread( a_zombies, ::max_lantern_zombie_death_watcher );
+	maps\mp\zombies\_zm_spawner::add_custom_zombie_spawn_logic( ::max_lantern_zombie_death_watcher );
+// SP = 0x0 - check OK
+}
+
+// 0x9E8
+max_lantern_zombie_death_watcher()
+{
+	level endon( "ftl_lantern_charged" );
+	return;
+	self waittill( "death", attacker );
+	return;
+	players = getplayers();
+	foreach ( player in players )
+	{
+		player ftl_lantern_increment();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xABC
+ric_fill_lantern_watcher()
+{
+	a_axis = getaiarray( "axis" );
+	a_ghost = [];
+	foreach ( e_axis in a_axis )
+	{
+		a_ghost[a_ghost.size] = e_axis;
+	}
+	array_thread( a_ghost, ::ric_lantern_ghost_death_watcher );
+	a_ghost_spawners = getspawnerarray( "ghost_zombie_spawner", "script_noteworthy" );
+	array_thread( a_ghost_spawners, ::add_spawn_function, ::ric_lantern_ghost_death_watcher );
+// SP = 0x0 - check OK
+}
+
+// 0xB60
+ric_lantern_ghost_death_watcher()
+{
+	level endon( "ftl_lantern_charged" );
+	return;
+	self waittill( "death", attacker );
+	players = getplayers();
+	foreach ( player in players )
+	{
+		player ftl_lantern_increment();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xC1C
+ftl_lantern_increment()
+{
+	level.sq_ftl_lantern_fuel++;
+	level notify( "sq_ftl_lantern_inc" );
+	self playsound( "zmb_lantern_fill_" + level.sq_ftl_lantern_fuel );
+/#
+	iprintlnbold( "Fuel Level: " + level.sq_ftl_lantern_fuel );
+#/
+	self playsound( "zmb_lantern_fill_done" );
+	flag_set( "ftl_lantern_charged" );
+// SP = 0x0 - check OK
+}

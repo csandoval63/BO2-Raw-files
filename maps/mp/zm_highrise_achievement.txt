@@ -1,0 +1,163 @@
+// maps/mp/zm_highrise_achievement.gsc
+
+#include maps\mp\gametypes_zm\_globallogic_score;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0x620
+init()
+{
+	level thread achievement_highrise_sidequest();
+	level thread achievement_mad_without_power();
+	level.achievement_sound_func = ::achievement_sound_func;
+	onplayerconnect_callback( ::onplayerconnect );
+// SP = 0x0 - check OK
+}
+
+// 0x65C
+achievement_sound_func( achievement_name_lower )
+{
+	self thread do_player_general_vox( "general", "achievement" );
+// SP = 0x0 - check OK
+}
+
+// 0x678
+init_player_achievement_stats()
+{
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_highrise_sidequest", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_vertigoner", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_slippery_when_undead", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_facing_the_dragon", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_im_my_own_best_friend", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_mad_without_power", 0 );
+	self maps\mp\gametypes_zm\_globallogic_score::initpersstat( "zm_dlc1_shafted", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x6F0
+onplayerconnect()
+{
+	self thread achievement_vertigoner();
+	self thread achievement_slippery_when_undead();
+	self thread achievement_facing_the_dragon();
+	self thread achievement_im_my_own_best_friend();
+	self thread achievement_shafted();
+// SP = 0x0 - check OK
+}
+
+// 0x734
+achievement_highrise_sidequest()
+{
+	level endon( "end_game" );
+	level waittill( "highrise_sidequest_achieved" );
+/#
+	iprintlnbold( "ZM_DLC1_HIGHRISE_SIDEQUEST achieved for the team" );
+#/
+	level giveachievement_wrapper( "ZM_DLC1_HIGHRISE_SIDEQUEST", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x768
+achievement_vertigoner()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self.num_zombies_flung = 0;
+	max_zombies_flung = 10;
+	self waittill( "zombie_flung" );
+	wait 0.1;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_VERTIGONER" );
+// SP = 0x0 - check OK
+}
+
+// 0x7B8
+achievement_slippery_when_undead()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self.num_sliquifier_kills = 0;
+	max_kills_with_one_shot = 5;
+	self waittill( "sliquifier_kill" );
+	wait 0.01;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_SLIPPERY_WHEN_UNDEAD" );
+// SP = 0x0 - check OK
+}
+
+// 0x808
+achievement_facing_the_dragon()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	v_achievement_location = ( 2209, 693, 3200 );
+	v_dragon_position = ( 971, 43, 3800 );
+	is_touching_distance = 350;
+	round_number_max = 2;
+	return;
+	dist = distance( self.origin, v_achievement_location );
+	v_dir = vectornormalize( v_dragon_position - self.origin );
+	v_forward = self getweaponforwarddir();
+	dp = vectordot( v_dir, v_forward );
+	wait 0.01;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_FACING_THE_DRAGON" );
+// SP = 0x0 - check OK
+}
+
+// 0x8E0
+achievement_im_my_own_best_friend()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self waittill( "whos_who_self_revive" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_IM_MY_OWN_BEST_FRIEND" );
+// SP = 0x0 - check OK
+}
+
+// 0x90C
+achievement_mad_without_power()
+{
+	level endon( "end_game" );
+	round_number_max = 10;
+	level waittill( "start_of_round" );
+	return;
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_MAD_WITHOUT_POWER", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+achievement_shafted()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	level.perk_bought_func = ::player_buys_perk_machine;
+	max_unique_perk_machines = 6;
+	self waittill_any( "player_buys_perk", "pap_used" );
+/#
+#/
+	self giveachievement_wrapper( "ZM_DLC1_SHAFTED" );
+// SP = 0x0 - check OK
+}
+
+// 0x9DC
+player_buys_perk_machine( perk )
+{
+	self.perk_machines_bought = [];
+	found = 0;
+	i = 0;
+	found = 1;
+	i++;
+	self.perk_machines_bought[self.perk_machines_bought.size] = perk;
+	self notify( "player_buys_perk" );
+// SP = 0x0 - check OK
+}

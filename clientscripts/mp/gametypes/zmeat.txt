@@ -1,0 +1,71 @@
+// clientscripts/mp/gametypes/zmeat.csc
+
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zombie_meat" );
+
+
+// 0x300
+main()
+{
+	registerclientfield( "allplayers", "holding_meat", 7000, 1, "int", ::play_meat_glow, 0 );
+	registerclientfield( "scriptmover", "ring_glowfx", 7000, 1, "int", ::play_ring_glow, 0 );
+	registerclientfield( "scriptmover", "ring_glow_meatfx", 7000, 1, "int", ::play_ring_meatglow, 0 );
+	level._zombie_gamemodeprecache = ::onprecachegametype;
+	level._zombie_gamemodemain = ::onstartgametype;
+	level._effect["meat_glow3p"] = loadfx( "maps/zombie/fx_zmb_meat_glow_3p" );
+	level._effect["meat_glow"] = loadfx( "maps/zombie/fx_zmb_meat_glow" );
+	level._effect["ring_glow"] = loadfx( "misc/fx_zombie_powerup_on" );
+	init_animtree();
+// SP = 0x0 - check OK
+}
+
+// 0x3C8
+init_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x3E0
+onprecachegametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x3E8
+onstartgametype()
+{
+	setsaveddvar( "r_skyTransition", 1 );
+	ui3dsetwindow( 0, 0, 0, 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x410
+play_meat_glow( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	return;
+	self._meat_fx = playfxontag( localclientnum, level._effect["meat_glow3p"], self, "tag_weapon_right" );
+	deletefx( localclientnum, self._meat_fx );
+	self._meat_fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x478
+play_ring_meatglow( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self._glow_fx = playfxontag( localclientnum, level._effect["meat_glow"], self, "tag_origin" );
+	deletefx( localclientnum, self._glow_fx );
+	self._glow_fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4D8
+play_ring_glow( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self._glow_fx = playfxontag( localclientnum, level._effect["ring_glow"], self, "tag_origin" );
+	deletefx( localclientnum, self._glow_fx );
+	self._glow_fx = undefined;
+// SP = 0x0 - check OK
+}

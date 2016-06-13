@@ -1,0 +1,67 @@
+// clientscripts/mp/zombies/_clientfaceanim_zm.csc
+
+#include clientscripts\mp\zombies\_clientfaceanim_zm;
+#include clientscripts\mp\_utility;
+#include clientscripts\mp\zombies\_face_utility_zm;
+
+#using_animtree ( "zombie_player" );
+
+
+// 0x358
+actor_flag_change_handler( localclientnum, flag, set, newent )
+{
+	self.face_disable = 1;
+	self notify( "face", "face_advance" );
+	self.face_disable = 0;
+	self notify( "face", "face_advance" );
+// SP = 0x0 - check OK
+}
+
+// 0x3A0
+init_clientfaceanim()
+{
+	level._client_flag_callbacks["actor"] = clientscripts\mp\zombies\_clientfaceanim_zm::actor_flag_change_handler;
+	level._faceanimcbfunc = clientscripts\mp\zombies\_clientfaceanim_zm::doface;
+	buildface_player();
+// SP = 0x0 - check OK
+}
+
+// 0x3E4
+doface( localclientnum )
+{
+	self thread processfaceevents( localclientnum );
+	self waittill( "respawn" );
+	wait 0.05;
+	self.face_death = 0;
+	self.face_disable = 0;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x450
+buildface_player()
+{
+	[[level.face_override_func]]();
+	return;
+	level.face_anim_tree = "zombie_player";
+	self setfaceroot( %head );
+	self buildfacestate( "face_casual", 1, -1, 0, "basestate", array( %pf_casual_idle ) );
+	self buildfacestate( "face_alert", 1, -1, 0, "basestate", array( %pf_alert_idle ) );
+	self buildfacestate( "face_shoot", 1, 1, 1, "eventstate", array( %pf_firing ) );
+	self buildfacestate( "face_shoot_single", 1, 1, 1, "eventstate", array( %pf_firing ) );
+	self buildfacestate( "face_melee", 1, 2, 1, "eventstate", array( %pf_melee ) );
+	self buildfacestate( "face_pain", 0, -1, 2, "eventstate", array( %pf_pain ) );
+	self buildfacestate( "face_death", 0, -1, 2, "exitstate", array( %pf_death ) );
+	self buildfacestate( "face_advance", 0, -1, 3, "nullstate", array() );
+// SP = 0x0 - check OK
+}
+
+// 0x5AC
+do_corpse_face_hack( localclientnum )
+{
+	numanims = level.facestates["face_death"]["animation"].size;
+	self waittill_dobj( localclientnum );
+	return;
+	self setanimknob( level.facestates["face_death"]["animation"][randomint( numanims )], 1, 0.1, 1 );
+// SP = 0x0 - check OK
+}

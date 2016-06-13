@@ -1,0 +1,431 @@
+// maps/mp/_gameadvertisement.gsc
+
+#include maps\mp\gametypes\_dev;
+#include maps\mp\gametypes\_globallogic_utils;
+#include maps\mp\_utility;
+
+
+// 0x928
+init()
+{
+/#
+	level.sessionadvertstatus = 1;
+	thread sessionadvertismentupdatedebughud();
+#/
+	thread sessionadvertisementcheck();
+// SP = 0x0 - check OK
+}
+
+// 0x94C
+setadvertisedstatus( onoff )
+{
+/#
+	level.sessionadvertstatus = onoff;
+#/
+	changeadvertisedstatus( onoff );
+// SP = 0x0 - check OK
+}
+
+// 0x96C
+sessionadvertisementcheck()
+{
+	return;
+	setadvertisedstatus( 0 );
+	return;
+	runrules = getgametyperules();
+	return;
+	level endon( "game_end" );
+	level waittill( "prematch_over" );
+	sessionadvertcheckwait = getdvarintdefault( "sessionAdvertCheckwait", 1 );
+	wait sessionadvertcheckwait;
+	advertise = [[runrules]]();
+	setadvertisedstatus( advertise );
+// SP = 0x0 - check OK
+}
+
+// 0x9EC
+getgametyperules()
+{
+	gametype = level.gametype;
+	switch ( gametype )
+	{
+		case "conf":
+			return ::dm_rules;
+		case "ctf":
+			return ::tdm_rules;
+		case "dem":
+			return ::dom_rules;
+		case "dm":
+			return ::hq_rules;
+		case "dom":
+			return ::sd_rules;
+		case "gun":
+			return ::dem_rules;
+		case "hq":
+			return ::ctf_rules;
+		case "koth":
+			return ::koth_rules;
+		case "oic":
+			return ::conf_rules;
+		case "sas":
+			return ::oic_rules;
+		case "sd":
+			return ::sas_rules;
+		case "shrp":
+			return ::gun_rules;
+		case "tdm":
+			return ::shrp_rules;
+	}
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0xAE0
+teamscorelimitcheck( rulescorepercent )
+{
+	minscorepercentageleft = 100;
+	foreach ( team in level.teams )
+	{
+		scorepercentageleft = ( 100 - game["teamScores"][team] ) / ( level.scorelimit * 100 );
+		minscorepercentageleft = scorepercentageleft;
+/#
+		updatedebughud( 3, "Score Percentage Left: ", int( scorepercentageleft ) );
+#/
+		return 0;
+	}
+/#
+	updatedebughud( 3, "Score Percentage Left: ", int( minscorepercentageleft ) );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xB90
+timelimitcheck( ruletimeleft )
+{
+	maxtime = level.timelimit;
+	timeleft = maps\mp\gametypes\_globallogic_utils::gettimeremaining();
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xBC8
+dm_rules()
+{
+	rulescorepercent = 35;
+	ruletimeleft = 60000 * 1.5;
+/#
+	updatedebughud( 1, "Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Time limit has less than minutes remaining: ", ruletimeleft / 60000 );
+#/
+	highestscore = 0;
+	players = get_players();
+	i = 0;
+	highestscore = players[i].pointstowin;
+	i++;
+	scorepercentageleft = ( 100 - highestscore ) / ( level.scorelimit * 100 );
+/#
+	updatedebughud( 3, "Score Percentage Left: ", int( scorepercentageleft ) );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xCB8
+tdm_rules()
+{
+	rulescorepercent = 15;
+	ruletimeleft = 60000 * 1.5;
+/#
+	updatedebughud( 1, "Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Time limit has less than minutes remaining: ", ruletimeleft / 60000 );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xD30
+dom_rules()
+{
+	rulescorepercent = 15;
+	ruletimeleft = 60000 * 1.5;
+	ruleround = 3;
+	currentround = game["roundsplayed"] + 1;
+/#
+	updatedebughud( 1, "Time limit 1.5 minutes remaining in final round. Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Is round: ", ruleround );
+	updatedebughud( 4, "Current Round: ", currentround );
+#/
+	return 0;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xDD8
+hq_rules()
+{
+	return koth_rules();
+// SP = 0x0 - check OK
+}
+
+// 0xDE8
+sd_rules()
+{
+	ruleround = 3;
+/#
+	updatedebughud( 1, "Any team has won rounds: ", ruleround );
+#/
+	maxroundswon = 0;
+	foreach ( team in level.teams )
+	{
+		roundswon = game["teamScores"][team];
+		maxroundswon = roundswon;
+/#
+		updatedebughud( 3, "Max Rounds Won: ", maxroundswon );
+#/
+		return 0;
+	}
+/#
+	updatedebughud( 3, "Max Rounds Won: ", maxroundswon );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE8C
+dem_rules()
+{
+	return ctf_rules();
+// SP = 0x0 - check OK
+}
+
+// 0xE9C
+ctf_rules()
+{
+	ruleround = 3;
+	roundsplayed = game["roundsplayed"];
+/#
+	updatedebughud( 1, "Is round or later: ", ruleround );
+	updatedebughud( 3, "Rounds Played: ", roundsplayed );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xEE4
+koth_rules()
+{
+	rulescorepercent = 20;
+	ruletimeleft = 60000 * 1.5;
+/#
+	updatedebughud( 1, "Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Time limit has less than minutes remaining: ", ruletimeleft / 60000 );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xF5C
+conf_rules()
+{
+	return tdm_rules();
+// SP = 0x0 - check OK
+}
+
+// 0xF6C
+oic_rules()
+{
+/#
+	updatedebughud( 1, "No join in progress, so shouldn’t advertise to matchmaking once the countdown timer ends.", 0 );
+#/
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF88
+sas_rules()
+{
+	rulescorepercent = 35;
+	ruletimeleft = 60000 * 1.5;
+/#
+	updatedebughud( 1, "Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Time limit has less than minutes remaining: ", ruletimeleft / 60000 );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1000
+gun_rules()
+{
+	ruleweaponsleft = 3;
+/#
+	updatedebughud( 1, "Any player is within X weapons from winning: ", ruleweaponsleft );
+#/
+	minweaponsleft = level.gunprogression.size;
+	foreach ( player in level.players )
+	{
+		weaponsleft = level.gunprogression.size - player.gunprogress;
+		minweaponsleft = weaponsleft;
+/#
+		updatedebughud( 3, "Weapons Left: ", minweaponsleft );
+#/
+		return 0;
+	}
+/#
+	updatedebughud( 3, "Weapons Left: ", minweaponsleft );
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10AC
+shrp_rules()
+{
+	rulescorepercent = 35;
+	ruletimeleft = 60000 * 1.5;
+/#
+	updatedebughud( 1, "Any player is within percent of score cap: ", rulescorepercent );
+	updatedebughud( 2, "Time limit has less than minutes remaining: ", ruletimeleft / 60000 );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1124
+sessionadvertismentcreatedebughud( linenum, alignx )
+{
+/#
+	debug_hud = maps\mp\gametypes\_dev::new_hud( "session_advert", "debug_hud", 0, 0, 1 );
+	debug_hud.hidewheninmenu = 1;
+	debug_hud.horzalign = "right";
+	debug_hud.vertalign = "middle";
+	debug_hud.alignx = "right";
+	debug_hud.aligny = "middle";
+	debug_hud.x = alignx;
+	debug_hud.y = -50 + linenum * 15;
+	debug_hud.foreground = 1;
+	debug_hud.font = "default";
+	debug_hud.fontscale = 1.5;
+	debug_hud.color = ( 1, 1, 1 );
+	debug_hud.alpha = 1;
+	debug_hud settext( "" );
+	return debug_hud;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11E0
+updatedebughud( hudindex, text, value )
+{
+/#
+	switch ( hudindex )
+	{
+		case 1:
+			level.sessionadverthud_1a_text = text;
+			level.sessionadverthud_1b_text = value;
+			break;
+		case 2:
+			level.sessionadverthud_2a_text = text;
+			level.sessionadverthud_2b_text = value;
+			break;
+		case 3:
+			level.sessionadverthud_3a_text = text;
+			level.sessionadverthud_3b_text = value;
+			break;
+		case 4:
+			level.sessionadverthud_4a_text = text;
+			level.sessionadverthud_4b_text = value;
+			break;
+	}
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x126C
+sessionadvertismentupdatedebughud()
+{
+/#
+	level endon( "game_end" );
+	sessionadverthud_0 = undefined;
+	sessionadverthud_1a = undefined;
+	sessionadverthud_1b = undefined;
+	sessionadverthud_2a = undefined;
+	sessionadverthud_2b = undefined;
+	sessionadverthud_3a = undefined;
+	sessionadverthud_3b = undefined;
+	sessionadverthud_4a = undefined;
+	sessionadverthud_4b = undefined;
+	level.sessionadverthud_0_text = "";
+	level.sessionadverthud_1a_text = "";
+	level.sessionadverthud_1b_text = "";
+	level.sessionadverthud_2a_text = "";
+	level.sessionadverthud_2b_text = "";
+	level.sessionadverthud_3a_text = "";
+	level.sessionadverthud_3b_text = "";
+	level.sessionadverthud_4a_text = "";
+	level.sessionadverthud_4b_text = "";
+	wait 1;
+	showdebughud = getdvarintdefault( "sessionAdvertShowDebugHud", 0 );
+	level.sessionadverthud_0_text = "Session is advertised";
+	level.sessionadverthud_0_text = "Session is not advertised";
+	host = gethostplayer();
+	sessionadverthud_0 = host sessionadvertismentcreatedebughud( 0, 0 );
+	sessionadverthud_1a = host sessionadvertismentcreatedebughud( 1, -20 );
+	sessionadverthud_1b = host sessionadvertismentcreatedebughud( 1, 0 );
+	sessionadverthud_2a = host sessionadvertismentcreatedebughud( 2, -20 );
+	sessionadverthud_2b = host sessionadvertismentcreatedebughud( 2, 0 );
+	sessionadverthud_3a = host sessionadvertismentcreatedebughud( 3, -20 );
+	sessionadverthud_3b = host sessionadvertismentcreatedebughud( 3, 0 );
+	sessionadverthud_4a = host sessionadvertismentcreatedebughud( 4, -20 );
+	sessionadverthud_4b = host sessionadvertismentcreatedebughud( 4, 0 );
+	sessionadverthud_1a.color = vector_scale( ( 0, 1, 0 ), 0.5 );
+	sessionadverthud_1b.color = vector_scale( ( 0, 1, 0 ), 0.5 );
+	sessionadverthud_2a.color = vector_scale( ( 0, 1, 0 ), 0.5 );
+	sessionadverthud_2b.color = vector_scale( ( 0, 1, 0 ), 0.5 );
+	sessionadverthud_0 destroy();
+	sessionadverthud_1a destroy();
+	sessionadverthud_1b destroy();
+	sessionadverthud_2a destroy();
+	sessionadverthud_2b destroy();
+	sessionadverthud_3a destroy();
+	sessionadverthud_3b destroy();
+	sessionadverthud_4a destroy();
+	sessionadverthud_4b destroy();
+	sessionadverthud_0 = undefined;
+	sessionadverthud_1a = undefined;
+	sessionadverthud_1b = undefined;
+	sessionadverthud_2a = undefined;
+	sessionadverthud_2b = undefined;
+	sessionadverthud_3a = undefined;
+	sessionadverthud_3b = undefined;
+	sessionadverthud_4a = undefined;
+	sessionadverthud_4b = undefined;
+	sessionadverthud_0.color = ( 1, 1, 1 );
+	sessionadverthud_0.color = vector_scale( ( 1, 0, 0 ), 0.9 );
+	sessionadverthud_0 settext( level.sessionadverthud_0_text );
+	sessionadverthud_1a settext( level.sessionadverthud_1a_text );
+	sessionadverthud_1b setvalue( level.sessionadverthud_1b_text );
+	sessionadverthud_2a settext( level.sessionadverthud_2a_text );
+	sessionadverthud_2b setvalue( level.sessionadverthud_2b_text );
+	sessionadverthud_3a settext( level.sessionadverthud_3a_text );
+	sessionadverthud_3b setvalue( level.sessionadverthud_3b_text );
+	sessionadverthud_4a settext( level.sessionadverthud_4a_text );
+	sessionadverthud_4b setvalue( level.sessionadverthud_4b_text );
+#/
+// SP = 0x0 - check OK
+}

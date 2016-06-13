@@ -1,0 +1,239 @@
+// maps/_specialops.gsc
+
+#include maps\_load;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x584
+main()
+{
+	set_splitscreen_fog( 350, 2986.33, 10000, -480, 0.805, 0.715, 0.61, 0, 10000 );
+	maps\_load::main();
+	setdvar( "ui_specops", 1 );
+	level.is_specops_level = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x600
+for_each( array, functor, unary_predicate, predicate_argument )
+{
+	i = 0;
+	array[i] [[functor]]();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x67C
+type_so()
+{
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x6AC
+type_reg()
+{
+	return !(self type_so());
+// SP = 0x0 - check OK
+}
+
+// 0x6C0
+type_spawners()
+{
+	return issubstr( self.classname, "actor_" );
+// SP = 0x0 - check OK
+}
+
+// 0x6E0
+type_so_spawners()
+{
+	return self type_spawners();
+// SP = 0x0 - check OK
+}
+
+// 0x700
+type_reg_spawners()
+{
+	return self type_spawners();
+// SP = 0x0 - check OK
+}
+
+// 0x720
+type_vehicle()
+{
+	return issubstr( self.classname, "script_vehicle" );
+// SP = 0x0 - check OK
+}
+
+// 0x740
+type_so_vehicle()
+{
+	return self type_vehicle();
+// SP = 0x0 - check OK
+}
+
+// 0x760
+type_reg_vehicle()
+{
+	return self type_vehicle();
+// SP = 0x0 - check OK
+}
+
+// 0x780
+type_spawn_trigger()
+{
+	return 0;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x808
+type_so_spawn_trigger()
+{
+	return self type_so_spawn_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x828
+type_reg_spawn_trigger()
+{
+	return self type_so_spawn_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x848
+type_trigger()
+{
+	array = [];
+	array["trigger_multiple"] = 1;
+	array["trigger_once"] = 1;
+	array["trigger_use"] = 1;
+	array["trigger_radius"] = 1;
+	array["trigger_lookat"] = 1;
+	array["trigger_disk"] = 1;
+	array["trigger_damage"] = 1;
+	return IsDefined( array[self.classname] );
+// SP = 0x0 - check OK
+}
+
+// 0x8AC
+type_so_trigger()
+{
+	return self type_so_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x8CC
+type_reg_trigger()
+{
+	return self type_so_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x8EC
+type_flag_trigger()
+{
+	array = [];
+	array["trigger_multiple_flag_set"] = 1;
+	array["trigger_multiple_flag_set_touching"] = 1;
+	array["trigger_multiple_flag_clear"] = 1;
+	array["trigger_multiple_flag_looking"] = 1;
+	array["trigger_multiple_flag_lookat"] = 1;
+	return IsDefined( array[self.classname] );
+// SP = 0x0 - check OK
+}
+
+// 0x93C
+type_so_flag_trigger()
+{
+	return self type_flag_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+type_reg_flag_trigger()
+{
+	return self type_flag_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x97C
+type_killspawner_trigger()
+{
+	return IsDefined( self.script_killspawner );
+// SP = 0x0 - check OK
+}
+
+// 0x998
+type_so_killspawner_trigger()
+{
+	return self type_killspawner_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x9B8
+type_reg_killspawner_trigger()
+{
+	return self type_killspawner_trigger();
+// SP = 0x0 - check OK
+}
+
+// 0x9D8
+type_goalvolume()
+{
+	return IsDefined( self.script_goalvolume );
+// SP = 0x0 - check OK
+}
+
+// 0x9F8
+type_so_goalvolume()
+{
+	return self type_goalvolume();
+// SP = 0x0 - check OK
+}
+
+// 0xA18
+type_reg_goalvolume()
+{
+	return self type_goalvolume();
+// SP = 0x0 - check OK
+}
+
+// 0xA38
+delete_ent()
+{
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xA4C
+delete_by_type( type_predicate )
+{
+	for_each( getentarray(), ::delete_ent, type_predicate );
+// SP = 0x0 - check OK
+}
+
+// 0xA70
+noteworthy_check( value )
+{
+	return 0;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAD0
+delete_by_noteworthy( level_name )
+{
+	for_each( getentarray(), ::delete_ent, ::noteworthy_check, level_name );
+// SP = 0x0 - check OK
+}

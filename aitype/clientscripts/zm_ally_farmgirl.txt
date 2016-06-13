@@ -1,0 +1,24 @@
+// aitype/clientscripts/zm_ally_farmgirl.csc
+
+#include character\clientscripts\c_zom_ally_farmgirl;
+
+#using_animtree ( "zm_ally" );
+
+
+// 0x12C
+main()
+{
+	character\clientscripts\c_zom_ally_farmgirl::main();
+	self._aitype = "zm_ally_farmgirl";
+// SP = 0x0 - check OK
+}
+
+// 0x144
+precache( ai_index )
+{
+	character\clientscripts\c_zom_ally_farmgirl::precache();
+	usefootsteptable( ai_index, "default_ai" );
+	precacheanimstatedef( ai_index, -1, "zm_ally_basic" );
+	setdemolockonvalues( ai_index, 100, 60, -15, 60, 30, -5, 60 );
+// SP = 0x0 - check OK
+}

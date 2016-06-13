@@ -1,0 +1,23 @@
+// maps/_busing.gsc
+
+#include maps\_utility;
+
+
+// 0xCC
+businit()
+{
+/#
+	assert( level.clientscripts );
+#/
+	level.busstate = "";
+	registerclientsys( "busCmd" );
+// SP = 0x0 - check OK
+}
+
+// 0xF8
+setbusstate( state )
+{
+	setclientsysstate( "busCmd", state );
+	level.busstate = state;
+// SP = 0x0 - check OK
+}

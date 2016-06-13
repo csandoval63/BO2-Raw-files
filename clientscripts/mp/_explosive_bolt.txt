@@ -1,0 +1,71 @@
+// clientscripts/mp/_explosive_bolt.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x30C
+main()
+{
+	level._effect["crossbow_enemy_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_red_os" );
+	level._effect["crossbow_friendly_light"] = loadfx( "weapon/crossbow/fx_trail_crossbow_blink_grn_os" );
+// SP = 0x0 - check OK
+}
+
+// 0x33C
+spawned( localclientnum )
+{
+	return;
+	self thread fx_think( localclientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x360
+fx_think( localclientnum )
+{
+	self notify( "light_disable" );
+	self endon( "entityshutdown" );
+	self endon( "light_disable" );
+	self waittill_dobj( localclientnum );
+	interval = 0.3;
+	self stop_light_fx( localclientnum );
+	self start_light_fx( localclientnum );
+	self fullscreen_fx( localclientnum );
+	self playsound( localclientnum, "wpn_semtex_alert" );
+	serverwait( localclientnum, interval, 0.01, "player_switch" );
+	interval = clamp( interval / 1.2, 0.08, 0.3 );
+// SP = 0x0 - check OK
+}
+
+// 0x408
+start_light_fx( localclientnum )
+{
+	friend = self friendnotfoe( localclientnum );
+	player = getlocalplayer( localclientnum );
+	self.fx = playfxontag( localclientnum, level._effect["crossbow_friendly_light"], self, "tag_origin" );
+	self.fx = playfxontag( localclientnum, level._effect["crossbow_enemy_light"], self, "tag_origin" );
+// SP = 0x0 - check OK
+}
+
+// 0x474
+stop_light_fx( localclientnum )
+{
+	stopfx( localclientnum, self.fx );
+	self.fx = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x4A4
+fullscreen_fx( localclientnum )
+{
+	player = getlocalplayer( localclientnum );
+	return;
+	return;
+	return;
+	parent = self getparententity();
+	parent playrumbleonentity( localclientnum, "buzz_high" );
+	animateui( localclientnum, "sticky_grenade_overlay_ss" + localclientnum, "overlay", "pulse", 0 );
+	animateui( localclientnum, "stuck_ss" + localclientnum, "explosive_bolt", "pulse", 0 );
+	animateui( localclientnum, "sticky_grenade_overlay" + localclientnum, "overlay", "pulse", 0 );
+	animateui( localclientnum, "stuck" + localclientnum, "explosive_bolt", "pulse", 0 );
+// SP = 0x0 - check OK
+}

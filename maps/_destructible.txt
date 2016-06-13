@@ -1,0 +1,246 @@
+// maps/_destructible.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "fxanim_props" );
+#using_animtree ( "€GSC
+" );
+
+
+// 0x6A4
+init()
+{
+	destructibles = getentarray( "destructible", "targetname" );
+	array_thread( destructibles, ::destructible_think );
+	return;
+	i = 0;
+	destructibles[i] thread destructible_barrel_death_think();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x718
+destructible_think()
+{
+	self endon( "death" );
+	self thread ceiling_fan_think();
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x760
+destructible_event_callback( destructible_event, attacker )
+{
+	waittillframeend;
+	explosion_radius = 0;
+	tokens = strtok( destructible_event, "_" );
+	explosion_radius = tokens[1];
+	explosion_radius = 150;
+	explosion_radius = 450;
+	explosion_radius = int( explosion_radius );
+	destructible_event = "explode_complex";
+	switch ( destructible_event )
+	{
+		case "delete_collision":
+			self thread destructible_barrel_fire_think( attacker );
+			break;
+		case "destructible_barrel_explosion":
+			self destructible_barrel_explosion( attacker );
+			break;
+		case "destructible_barrel_fire":
+			self destructible_car_explosion( attacker );
+			break;
+		case "destructible_car_explosion":
+			self thread destructible_car_fire_think( attacker );
+			break;
+		case "destructible_car_fire":
+			self thread simple_explosion( attacker );
+			break;
+		case "explode":
+			self thread complex_explosion( attacker, explosion_radius );
+			break;
+		case "explode_complex":
+			self thread delete_collision();
+			break;
+		case "nitrogen_gas_explosion":
+			self thread nitorgen_gas_explosion();
+			break;
+		default:
+/#
+			iprintln( "_destructible.gsc: unknown destructible event: '" + destructible_event + "'" );
+#/
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x8D0
+simple_explosion( attacker )
+{
+	offset = vector_scale( ( 0, 0, 1 ), 5 );
+	self radiusdamage( self.origin + offset, 300, 300, 100, attacker );
+	self radiusdamage( self.origin + offset, 300, 300, 100 );
+	physicsexplosionsphere( self.origin + offset, 255, 254, 0.3 );
+	self dodamage( 20000, self.origin + offset );
+// SP = 0x0 - check OK
+}
+
+// 0x958
+complex_explosion( attacker, max_radius )
+{
+	offset = vector_scale( ( 0, 0, 1 ), 5 );
+	self radiusdamage( self.origin + offset, max_radius, 300, 100, attacker );
+	self radiusdamage( self.origin + offset, max_radius, 300, 100 );
+	physicsexplosionsphere( self.origin + offset, max_radius, max_radius - 1, 0.3 );
+	self dodamage( 20000, self.origin + offset );
+// SP = 0x0 - check OK
+}
+
+// 0x9E4
+nitorgen_gas_explosion()
+{
+	self radiusdamage( self.origin, 256, 300, 85, undefined, "MOD_GAS" );
+	playrumbleonposition( "grenade_rumble", self.origin );
+	earthquake( 0.5, 0.5, self.origin, 800 );
+	self dodamage( self.health + 10000, self.origin + ( 0, 0, 1 ) );
+// SP = 0x0 - check OK
+}
+
+// 0xA54
+codecallback_destructibleevent( event, param1, param2, param3 )
+{
+	notify_type = param1;
+	attacker = param2;
+	self notify( event, notify_type, attacker );
+	self thread destructible_event_callback( notify_type, attacker );
+	piece = param1;
+	time = param2;
+	damage = param3;
+	self thread breakafter( time, damage, piece );
+// SP = 0x0 - check OK
+}
+
+// 0xAC8
+breakafter( time, damage, piece )
+{
+	self notify( "breakafter" );
+	self endon( "breakafter" );
+	wait time;
+	self dodamage( damage, self.origin, undefined, piece );
+// SP = 0x0 - check OK
+}
+
+// 0xAFC
+ceiling_fan_think()
+{
+	self useanimtree( -1 );
+	self setflaggedanimknobrestart( "idle", %fxanim_gp_ceiling_fan_old_slow_anim, 1, 0, 1 );
+	self waittill( "broken", destructible_event, attacker );
+	self dodamage( 5000, self.origin );
+	self setflaggedanimknobrestart( "idle", %fxanim_gp_ceiling_fan_old_dest_anim, 1, 0, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0xB80
+delete_collision()
+{
+	self endon( "death" );
+	dest_clip = getent( self.target, "targetname" );
+	wait 0.1;
+	dest_clip delete();
+// SP = 0x0 - check OK
+}
+
+// 0xBBC
+destructible_barrel_death_think()
+{
+	self endon( "barrel_dead" );
+	self waittill( "death" );
+	self thread destructible_barrel_explosion( undefined, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xBDC
+destructible_barrel_fire_think( attacker )
+{
+	self endon( "barrel_dead" );
+	self endon( "explode" );
+	self endon( "death" );
+	wait randomintrange( 7, 10 );
+	self thread destructible_barrel_explosion( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0xC14
+destructible_barrel_explosion( attacker, physics_explosion )
+{
+	physics_explosion = 1;
+	return;
+	dest_clip = getent( self.target, "targetname" );
+	dest_clip delete();
+	self notify( "barrel_dead" );
+	self radiusdamage( self.origin, 128, 300, 60, undefined, attacker, "MOD_EXPLOSIVE", "frag_grenade_sp" );
+	playrumbleonposition( "grenade_rumble", self.origin );
+	earthquake( 0.5, 0.5, self.origin, 800 );
+	physicsexplosionsphere( self.origin, 255, 254, 0.3, 25, 400 );
+	self dodamage( self.health + 10000, self.origin + ( 0, 0, 1 ) );
+// SP = 0x0 - check OK
+}
+
+// 0xCF8
+destructible_car_explosion( attacker )
+{
+	self useanimtree( -1 );
+	self setanim( %veh_car_destroy, 1, 0, 1 );
+	self.destructiblecar = 1;
+	self radiusdamage( self.origin, 250, 500, 20, self, attacker, "MOD_EXPLOSIVE" );
+	earthquake( 0.4, 1, self.origin, 800 );
+	playrumbleonposition( "grenade_rumble", self.origin );
+	self dodamage( self.health + 10000, self.origin + ( 0, 0, 1 ), self, attacker );
+	self notify( "death", attacker );
+// SP = 0x0 - check OK
+}
+
+// 0xDD4
+destructible_car_fire_think( attacker )
+{
+	self endon( "death" );
+	burntime = randomintrange( 7, 10 );
+	badplace_cylinder( "car_fire_" + self getentitynumber(), burntime, self.origin, 256, 128, "all" );
+	wait burntime;
+	destructible_car_explosion( attacker );
+// SP = 0x0 - check OK
+}
+
+// 0xE2C
+getdamagetype( type )
+{
+	return "unknown";
+	type = tolower( type );
+	switch ( type )
+	{
+		case "bullet":
+		case "melee":
+		case "mod_crush":
+			return "melee";
+		case "mod_explosive":
+		case "mod_grenade":
+		case "mod_grenade_splash":
+			return "bullet";
+		case "mod_impact":
+		case "mod_melee":
+		case "mod_pistol_bullet":
+		case "mod_projectile":
+		case "mod_projectile_splash":
+		case "mod_rifle_bullet":
+			return "splash";
+		case "splash":
+			return "impact";
+		case "unknown":
+			return "unknown";
+		default:
+			return "unknown";
+	}
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,234 @@
+// maps/_callbacksetup.gsc
+
+#include animscripts\react;
+#include maps\_spawner;
+#include maps\_callbackglobal;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x924
+codecallback_startgametype()
+{
+	[[level.callbackstartgametype]]();
+	level.gametypestarted = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x950
+codecallback_playerconnect()
+{
+	self endon( "disconnect" );
+/#
+	println( "****Coop CodeCallback_PlayerConnect****" );
+#/
+	maps\_callbackglobal::callback_playerconnect();
+	return;
+/#
+	iprintlnbold( "_callbacksetup::SetupCallbacks() needs to be called in your main level function." );
+	maps\_callbackglobal::callback_playerconnect();
+	[[level._gamemode_playerconnect]]();
+#/
+	[[level.callbackplayerconnect]]();
+	self thread [[level._gamemode_playerconnect]]();
+// SP = 0x0 - check OK
+}
+
+// 0x9D0
+codecallback_playerdisconnect()
+{
+	self notify( "disconnect" );
+	level notify( "player_disconnected" );
+	client_num = self getentitynumber();
+/#
+	println( "****Coop CodeCallback_PlayerDisconnect****" );
+	iprintlnbold( "_callbacksetup::SetupCallbacks() needs to be called in your main level function." );
+	maps\_callbackglobal::callback_playerdisconnect();
+#/
+	[[level.callbackplayerdisconnect]]();
+// SP = 0x0 - check OK
+}
+
+// 0xA24
+codecallback_actorspawned( spawn )
+{
+	spawn thread maps\_spawner::spawn_think( self );
+// SP = 0x0 - check OK
+}
+
+// 0xA3C
+codecallback_actordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset, bonename )
+{
+	self endon( "disconnect" );
+/#
+	iprintlnbold( "_callbacksetup::SetupCallbacks() needs to be called in your main level function." );
+	maps\_callbackglobal::callback_actordamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset, bonename );
+#/
+	[[level.callbackactordamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset, bonename );
+// SP = 0x0 - check OK
+}
+
+// 0xABC
+codecallback_playerdamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset )
+{
+	self endon( "disconnect" );
+/#
+	iprintlnbold( "_callbacksetup::SetupCallbacks() needs to be called in your main level function." );
+	maps\_callbackglobal::callback_playerdamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset );
+#/
+	[[level.callbackplayerdamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, imodelindex, timeoffset );
+// SP = 0x0 - check OK
+}
+
+// 0xB38
+codecallback_playerrevive()
+{
+	self endon( "disconnect" );
+	[[level.callbackplayerrevive]]();
+// SP = 0x0 - check OK
+}
+
+// 0xB4C
+codecallback_playerlaststand( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
+{
+	self endon( "disconnect" );
+	[[level.callbackplayerlaststand]]( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration );
+// SP = 0x0 - check OK
+}
+
+// 0xB88
+codecallback_playerkilled( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, timeoffset, deathanimduration )
+{
+	self endon( "disconnect" );
+/#
+	println( "****Coop CodeCallback_PlayerKilled****" );
+#/
+	setsaveddvar( "hud_missionFailed", 1 );
+	screen_message_delete();
+// SP = 0x0 - check OK
+}
+
+// 0xBD0
+codecallback_actorkilled( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, timeoffset )
+{
+	self endon( "disconnect" );
+	[[level.callbackactorkilled]]( einflictor, eattacker, idamage, smeansofdeath, sweapon, vdir, shitloc, timeoffset );
+// SP = 0x0 - check OK
+}
+
+// 0xC08
+codecallback_vehicledamage( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, timeoffset, damagefromunderneath, modelindex, partname )
+{
+	[[level.callbackvehicledamage]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, timeoffset, damagefromunderneath, modelindex, partname );
+// SP = 0x0 - check OK
+}
+
+// 0xC4C
+codecallback_saverestored()
+{
+	self endon( "disconnect" );
+/#
+	println( "****Coop CodeCallback_SaveRestored****" );
+	iprintlnbold( "_callbacksetup::SetupCallbacks() needs to be called in your main level function." );
+	maps\_callbackglobal::callback_saverestored();
+#/
+	[[level.callbacksaverestored]]();
+// SP = 0x0 - check OK
+}
+
+// 0xC8C
+codecallback_disconnectedduringload( name )
+{
+	level._disconnected_clients = [];
+	level._disconnected_clients[level._disconnected_clients.size] = name;
+// SP = 0x0 - check OK
+}
+
+// 0xCB4
+codecallback_faceeventnotify( notify_msg, ent )
+{
+	forced = 0;
+	forced = level.face_event_handler.forced[notify_msg];
+	ent sendfaceevent( level.face_event_handler.events[notify_msg], forced );
+// SP = 0x0 - check OK
+}
+
+// 0xD30
+codecallback_actorshouldreact()
+{
+	self endon( "disconnect" );
+	self startactorreact();
+// SP = 0x0 - check OK
+}
+
+// 0xD54
+codecallback_menuresponse( action, arg )
+{
+	level.menuresponsequeue = [];
+	level thread menuresponsequeuepump();
+	index = level.menuresponsequeue.size;
+	level.menuresponsequeue[index] = spawnstruct();
+	level.menuresponsequeue[index].action = action;
+	level.menuresponsequeue[index].arg = arg;
+	level.menuresponsequeue[index].ent = self;
+	level notify( "menuresponse_queue" );
+// SP = 0x0 - check OK
+}
+
+// 0xDCC
+menuresponsequeuepump()
+{
+	level waittill( "menuresponse_queue" );
+	level.menuresponsequeue[0].ent notify( "menuresponse", level.menuresponsequeue[0].action, level.menuresponsequeue[0].arg );
+	arrayremoveindex( level.menuresponsequeue, 0, 0 );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xE30
+setupcallbacks()
+{
+	thread maps\_callbackglobal::setupcallbacks();
+	setdefaultcallbacks();
+	level.idflags_radius = 1;
+	level.idflags_no_armor = 2;
+	level.idflags_no_knockback = 4;
+	level.idflags_penetration = 8;
+	level.idflags_destructible_entity = 16;
+	level.idflags_shield_explosive_impact = 32;
+	level.idflags_shield_explosive_impact_huge = 64;
+	level.idflags_shield_explosive_splash = 128;
+	level.idflags_no_team_protection = 256;
+	level.idflags_no_protection = 512;
+	level.idflags_passthru = 1024;
+// SP = 0x0 - check OK
+}
+
+// 0xEA0
+codecallback_glasssmash( pos, dir )
+{
+	level notify( "glass_smash", pos, dir );
+// SP = 0x0 - check OK
+}
+
+// 0xEB8
+setdefaultcallbacks()
+{
+	level.callbackstartgametype = maps\_callbackglobal::callback_startgametype;
+	level.callbacksaverestored = maps\_callbackglobal::callback_saverestored;
+	level.callbackplayerconnect = maps\_callbackglobal::callback_playerconnect;
+	level.callbackplayerdisconnect = maps\_callbackglobal::callback_playerdisconnect;
+	level.callbackplayerdamage = maps\_callbackglobal::callback_playerdamage;
+	level.callbackactordamage = maps\_callbackglobal::callback_actordamage;
+	level.callbackvehicledamage = maps\_callbackglobal::callback_vehicledamage;
+	level.callbackplayerkilled = maps\_callbackglobal::callback_playerkilled;
+	level.callbackactorkilled = maps\_callbackglobal::callback_actorkilled;
+	level.callbackplayerlaststand = maps\_callbackglobal::callback_playerlaststand;
+// SP = 0x0 - check OK
+}
+
+// 0xF38
+callbackvoid()
+{
+// SP = 0x0 - check OK
+}

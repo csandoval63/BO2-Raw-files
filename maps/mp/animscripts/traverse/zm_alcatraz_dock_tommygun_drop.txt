@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_alcatraz_dock_tommygun_drop.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x108
+main()
+{
+	dosimpletraverse( "dock_tommygun_dropdown", 1 );
+// SP = 0x0 - check OK
+}

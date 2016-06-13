@@ -1,0 +1,207 @@
+// maps/mp/zombies/_zm_ai_ghost_ffotd.gsc
+
+#include maps\mp\zombies\_zm_ai_ghost;
+#include maps\mp\zombies\_zm_zonemgr;
+#include maps\mp\zm_buried;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x73C
+ghost_init_start()
+{
+	level ghost_bad_path_init();
+	level.is_player_in_ghost_zone = ::is_player_in_ghost_zone;
+	level ghost_bad_spawn_zone_init();
+	level.ghost_round_start_monitor_time = 10;
+// SP = 0x0 - check OK
+}
+
+// 0x770
+ghost_init_end()
+{
+	disable_traversal_clip_around_mansion();
+// SP = 0x0 - check OK
+}
+
+// 0x780
+prespawn_start()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x788
+prespawn_end()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x790
+ghost_round_start()
+{
+	level thread ghost_teleport_to_playable_area();
+// SP = 0x0 - check OK
+}
+
+// 0x7A4
+ghost_round_end()
+{
+	disable_traversal_clip_around_mansion();
+// SP = 0x0 - check OK
+}
+
+// 0x7B4
+is_player_in_ghost_zone( player )
+{
+	result = 0;
+	level.ghost_zone_overrides = getentarray( "ghost_round_override", "script_noteworthy" );
+	is_player_in_override_trigger = 0;
+	foreach ( trigger in level.ghost_zone_overrides )
+	{
+		is_player_in_override_trigger = 1;
+	}
+	curr_zone = player get_current_zone();
+	result = 1;
+	return result;
+// SP = 0x0 - check OK
+}
+
+// 0x87C
+ghost_bad_path_init()
+{
+	level.bad_zones = [];
+	level.bad_zones[0] = spawnstruct();
+	level.bad_zones[0].name = "zone_underground_courthouse";
+	level.bad_zones[0].adjacent = [];
+	level.bad_zones[0].adjacent[0] = "zone_underground_courthouse2";
+	level.bad_zones[0].adjacent[1] = "zone_tunnels_north2";
+	level.bad_zones[0].ignore_func = maps\mp\zm_buried::is_courthouse_open;
+	level.bad_zones[1] = spawnstruct();
+	level.bad_zones[1].name = "zone_underground_courthouse2";
+	level.bad_zones[1].adjacent = [];
+	level.bad_zones[1].adjacent[0] = "zone_underground_courthouse";
+	level.bad_zones[1].adjacent[1] = "zone_tunnels_north2";
+	level.bad_zones[1].ignore_func = maps\mp\zm_buried::is_courthouse_open;
+	level.bad_zones[2] = spawnstruct();
+	level.bad_zones[2].name = "zone_tunnels_north2";
+	level.bad_zones[2].adjacent = [];
+	level.bad_zones[2].adjacent[0] = "zone_underground_courthouse2";
+	level.bad_zones[2].adjacent[1] = "zone_underground_courthouse";
+	level.bad_zones[2].flag = "tunnels2courthouse";
+	level.bad_zones[2].flag_adjacent = "zone_tunnels_north";
+	level.bad_zones[2].ignore_func = maps\mp\zm_buried::is_courthouse_open;
+	level.bad_zones[3] = spawnstruct();
+	level.bad_zones[3].name = "zone_tunnels_north";
+	level.bad_zones[3].adjacent = [];
+	level.bad_zones[3].adjacent[0] = "zone_tunnels_center";
+	level.bad_zones[3].flag = "tunnels2courthouse";
+	level.bad_zones[3].flag_adjacent = "zone_tunnels_north2";
+	level.bad_zones[3].ignore_func = maps\mp\zm_buried::is_tunnel_open;
+	level.bad_zones[4] = spawnstruct();
+	level.bad_zones[4].name = "zone_tunnels_center";
+	level.bad_zones[4].adjacent = [];
+	level.bad_zones[4].adjacent[0] = "zone_tunnels_north";
+	level.bad_zones[4].adjacent[1] = "zone_tunnels_south";
+	level.bad_zones[4].ignore_func = maps\mp\zm_buried::is_tunnel_open;
+	level.bad_zones[5] = spawnstruct();
+	level.bad_zones[5].name = "zone_tunnels_south";
+	level.bad_zones[5].adjacent = [];
+	level.bad_zones[5].adjacent[0] = "zone_tunnels_center";
+	level.bad_zones[5].ignore_func = maps\mp\zm_buried::is_tunnel_open;
+// SP = 0x0 - check OK
+}
+
+// 0xB14
+ghost_bad_path_failsafe()
+{
+	self endon( "death" );
+	self notify( "stop_bad_path_failsafe" );
+	self endon( "stop_bad_path_failsafe" );
+	self thread non_ghost_round_failsafe();
+	player = self.favoriteenemy;
+	in_bad_zone = 0;
+	foreach ( zone in level.bad_zones )
+	{
+		ghost_is_adjacent = 0;
+		foreach ( adjacent in zone.adjacent )
+		{
+			ghost_is_adjacent = 1;
+		}
+		ghost_is_adjacent = 1;
+		in_bad_zone = 1;
+	}
+	nodes = getnodesinradiussorted( player.origin, 540, 180, 60, "Path" );
+	node = nodes[randomint( nodes.size )];
+	node = getnearestnode( player.origin );
+	wait 0.1;
+	self forceteleport( node.origin, ( 0, 0, 0 ) );
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0xCFC
+non_ghost_round_failsafe()
+{
+	self endon( "death" );
+	self waittill( "bad_path" );
+	self maps\mp\zombies\_zm_ai_ghost::start_evaporate( 1 );
+	return;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0xD58
+disable_traversal_clip_around_mansion()
+{
+	foreach ( door_clip in level.ghost_zone_door_clips )
+	{
+		door_clip notsolid();
+	}
+// SP = 0x0 - check OK
+}
+
+// 0xDAC
+ghost_bad_spawn_zone_init()
+{
+	level.ghost_bad_spawn_zones = [];
+	level.ghost_bad_spawn_zones[0] = "zone_mansion_backyard";
+	level.ghost_bad_spawn_zones[1] = "zone_maze";
+	level.ghost_bad_spawn_zones[2] = "zone_maze_staircase";
+// SP = 0x0 - check OK
+}
+
+// 0xDDC
+can_use_mansion_back_flying_out_node( zone_name )
+{
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xE0C
+ghost_teleport_to_playable_area()
+{
+	level endon( "intermission" );
+	return;
+	level endon( "ghost_round_end" );
+	monitor_time = 0;
+	ghosts = get_current_ghosts();
+	foreach ( ghost in ghosts )
+	{
+		foreach ( bad_spawn_zone_name in level.ghost_bad_spawn_zones )
+		{
+			destination_node = ghost maps\mp\zombies\_zm_ai_ghost::get_best_flying_target_node( ghost.favoriteenemy );
+			ghost forceteleport( destination_node.origin, ( 0, 0, 0 ) );
+			self.is_teleported_in_bad_zone = 1;
+			ghost forceteleport( level.ghost_back_flying_out_path_starts[0].origin, ( 0, 0, 0 ) );
+			ghost forceteleport( level.ghost_front_flying_out_path_starts[0].origin, ( 0, 0, 0 ) );
+			self.is_teleported_in_bad_zone = 1;
+		}
+	}
+	monitor_time += 0.1;
+	wait 0.1;
+// SP = 0x0 - check OK
+}

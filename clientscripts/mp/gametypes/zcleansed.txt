@@ -1,0 +1,26 @@
+// clientscripts/mp/gametypes/zcleansed.csc
+
+
+// 0x158
+main()
+{
+	level._zombie_gamemodeprecache = ::onprecachegametype;
+	level._zombie_gamemodemain = ::onstartgametype;
+	level.using_zombie_powerups = 1;
+	setsaveddvar( "cg_enemyNameFadeOut", 100 );
+	setsaveddvar( "disableLookAtEntityLogic", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A0
+onprecachegametype()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x1A8
+onstartgametype()
+{
+	level._effect["powerup_on_caution"] = loadfx( "misc/fx_zombie_powerup_on_blue" );
+// SP = 0x0 - check OK
+}

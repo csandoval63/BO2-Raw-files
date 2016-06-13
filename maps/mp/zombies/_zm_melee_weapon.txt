@@ -1,0 +1,350 @@
+// maps/mp/zombies/_zm_melee_weapon.gsc
+
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0xB08
+init( weapon_name, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, cost, wallbuy_targetname, hint_string, vo_dialog_id, flourish_fn )
+{
+	precacheitem( weapon_name );
+	precacheitem( flourish_weapon_name );
+	add_melee_weapon( weapon_name, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, cost, wallbuy_targetname, hint_string, vo_dialog_id, flourish_fn );
+	melee_weapon_triggers = getentarray( wallbuy_targetname, "targetname" );
+	i = 0;
+	knife_model = getent( melee_weapon_triggers[i].target, "targetname" );
+	knife_model hide();
+	melee_weapon_triggers[i] thread melee_weapon_think( weapon_name, cost, flourish_fn, vo_dialog_id, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name );
+	melee_weapon_triggers[i] sethintstring( hint_string, cost );
+	cursor_hint = "HINT_WEAPON";
+	cursor_hint_weapon = weapon_name;
+	melee_weapon_triggers[i] setcursorhint( cursor_hint, cursor_hint_weapon );
+	melee_weapon_triggers[i] setcursorhint( "HINT_NOICON" );
+	weapon_display = get_weapon_display_name( weapon_name );
+	hint_string = &"ZOMBIE_WEAPONCOSTONLY";
+	melee_weapon_triggers[i] sethintstring( hint_string, weapon_display, cost );
+	cursor_hint = "HINT_WEAPON";
+	cursor_hint_weapon = weapon_name;
+	melee_weapon_triggers[i] setcursorhint( cursor_hint, cursor_hint_weapon );
+	melee_weapon_triggers[i] setcursorhint( "HINT_NOICON" );
+	melee_weapon_triggers[i] usetriggerrequirelookat();
+	i++;
+	melee_weapon_structs = getstructarray( wallbuy_targetname, "targetname" );
+	i = 0;
+	prepare_stub( melee_weapon_structs[i].trigger_stub, weapon_name, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, cost, wallbuy_targetname, hint_string, vo_dialog_id, flourish_fn );
+	i++;
+	register_melee_weapon_for_level( weapon_name );
+	level.ballistic_weapon_name = [];
+	level.ballistic_weapon_name[weapon_name] = ballistic_weapon_name;
+	level.ballistic_upgraded_weapon_name = [];
+	level.ballistic_upgraded_weapon_name[weapon_name] = ballistic_upgraded_weapon_name;
+/#
+	[[level.devgui_add_weapon]]( weapon_name, "", weapon_name, cost );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xD78
+prepare_stub( stub, weapon_name, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, cost, wallbuy_targetname, hint_string, vo_dialog_id, flourish_fn )
+{
+	stub.hint_string = hint_string;
+	stub.cursor_hint = "HINT_WEAPON";
+	stub.cursor_hint_weapon = weapon_name;
+	stub.cursor_hint = "HINT_NOICON";
+	stub.cursor_hint_weapon = undefined;
+	stub.hint_parm1 = get_weapon_display_name( weapon_name );
+	stub.hint_parm2 = cost;
+	stub.hint_string = &"ZOMBIE_WEAPONCOSTONLY";
+	stub.cursor_hint = "HINT_WEAPON";
+	stub.cursor_hint_weapon = weapon_name;
+	stub.cursor_hint = "HINT_NOICON";
+	stub.cursor_hint_weapon = undefined;
+	stub.cost = cost;
+	stub.weapon_name = weapon_name;
+	stub.vo_dialog_id = vo_dialog_id;
+	stub.flourish_weapon_name = flourish_weapon_name;
+	stub.ballistic_weapon_name = ballistic_weapon_name;
+	stub.ballistic_upgraded_weapon_name = ballistic_upgraded_weapon_name;
+	stub.trigger_func = ::melee_weapon_think;
+	stub.flourish_fn = flourish_fn;
+// SP = 0x0 - check OK
+}
+
+// 0xEB8
+add_stub( stub, weapon_name )
+{
+	melee_weapon = undefined;
+	i = 0;
+	melee_weapon = level._melee_weapons[i];
+	i++;
+	prepare_stub( stub, melee_weapon.weapon_name, melee_weapon.flourish_weapon_name, melee_weapon.ballistic_weapon_name, melee_weapon.ballistic_upgraded_weapon_name, melee_weapon.cost, melee_weapon.wallbuy_targetname, melee_weapon.hint_string, melee_weapon.vo_dialog_id, melee_weapon.flourish_fn );
+// SP = 0x0 - check OK
+}
+
+// 0xF50
+give_melee_weapon_by_name( weapon_name )
+{
+	melee_weapon = undefined;
+	i = 0;
+	melee_weapon = level._melee_weapons[i];
+	i++;
+	self thread give_melee_weapon( melee_weapon.vo_dialog_id, melee_weapon.flourish_weapon_name, melee_weapon.weapon_name, melee_weapon.ballistic_weapon_name, melee_weapon.ballistic_upgraded_weapon_name, melee_weapon.flourish_fn, undefined );
+// SP = 0x0 - check OK
+}
+
+// 0xFD0
+add_melee_weapon( weapon_name, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, cost, wallbuy_targetname, hint_string, vo_dialog_id, flourish_fn )
+{
+	melee_weapon = spawnstruct();
+	melee_weapon.weapon_name = weapon_name;
+	melee_weapon.flourish_weapon_name = flourish_weapon_name;
+	melee_weapon.ballistic_weapon_name = ballistic_weapon_name;
+	melee_weapon.ballistic_upgraded_weapon_name = ballistic_upgraded_weapon_name;
+	melee_weapon.cost = cost;
+	melee_weapon.wallbuy_targetname = wallbuy_targetname;
+	melee_weapon.hint_string = hint_string;
+	melee_weapon.vo_dialog_id = vo_dialog_id;
+	melee_weapon.flourish_fn = flourish_fn;
+	level._melee_weapons = [];
+	level._melee_weapons[level._melee_weapons.size] = melee_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x1074
+player_can_see_weapon_prompt( weapon_name )
+{
+	return 1;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x10BC
+spectator_respawn_all()
+{
+	i = 0;
+	self spectator_respawn( level._melee_weapons[i].wallbuy_targetname, level._melee_weapons[i].weapon_name );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1104
+spectator_respawn( wallbuy_targetname, weapon_name )
+{
+	melee_triggers = getentarray( wallbuy_targetname, "targetname" );
+	players = get_players();
+	i = 0;
+	melee_triggers[i] setvisibletoall();
+	j = 0;
+	melee_triggers[i] setinvisibletoplayer( players[j] );
+	j++;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x11A4
+trigger_hide_all()
+{
+	i = 0;
+	self trigger_hide( level._melee_weapons[i].wallbuy_targetname );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x11E0
+trigger_hide( wallbuy_targetname )
+{
+	melee_triggers = getentarray( wallbuy_targetname, "targetname" );
+	i = 0;
+	melee_triggers[i] setinvisibletoplayer( self );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1224
+has_any_ballistic_knife()
+{
+	return 1;
+	return 1;
+	i = 0;
+	return 1;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x12A8
+has_upgraded_ballistic_knife()
+{
+	return 1;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x12FC
+give_ballistic_knife( weapon_string, upgraded )
+{
+	current_melee_weapon = self get_player_melee_weapon();
+	weapon_string = level.ballistic_upgraded_weapon_name[current_melee_weapon];
+	weapon_string = level.ballistic_weapon_name[current_melee_weapon];
+	return weapon_string;
+// SP = 0x0 - check OK
+}
+
+// 0x1368
+change_melee_weapon( weapon_name, current_weapon )
+{
+	current_melee_weapon = self get_player_melee_weapon();
+	self takeweapon( current_melee_weapon );
+	unacquire_weapon_toggle( current_melee_weapon );
+	self set_player_melee_weapon( weapon_name );
+	had_ballistic = 0;
+	had_ballistic_upgraded = 0;
+	ballistic_was_primary = 0;
+	primaryweapons = self getweaponslistprimaries();
+	i = 0;
+	primary_weapon = primaryweapons[i];
+	had_ballistic = 1;
+	ballistic_was_primary = 1;
+	self notify( "zmb_lost_knife" );
+	self takeweapon( primary_weapon );
+	unacquire_weapon_toggle( primary_weapon );
+	had_ballistic_upgraded = 1;
+	i++;
+	new_ballistic = level.ballistic_upgraded_weapon_name[weapon_name];
+	current_weapon = new_ballistic;
+	self giveweapon( new_ballistic, 0, self maps\mp\zombies\_zm_weapons::get_pack_a_punch_weapon_options( new_ballistic ) );
+	new_ballistic = level.ballistic_weapon_name[weapon_name];
+	current_weapon = new_ballistic;
+	self giveweapon( new_ballistic, 0 );
+	return current_weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x14B0
+melee_weapon_think( weapon_name, cost, flourish_fn, vo_dialog_id, flourish_weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name )
+{
+	self.first_time_triggered = 0;
+	self endon( "kill_trigger" );
+	self.first_time_triggered = self.stub.first_time_triggered;
+	weapon_name = self.stub.weapon_name;
+	cost = self.stub.cost;
+	flourish_fn = self.stub.flourish_fn;
+	vo_dialog_id = self.stub.vo_dialog_id;
+	flourish_weapon_name = self.stub.flourish_weapon_name;
+	ballistic_weapon_name = self.stub.ballistic_weapon_name;
+	ballistic_upgraded_weapon_name = self.stub.ballistic_upgraded_weapon_name;
+	players = getplayers();
+	i = 0;
+	self setinvisibletoplayer( players[i] );
+	i++;
+	self waittill( "trigger", player );
+	player thread ignore_triggers( 0.5 );
+	wait 0.1;
+	wait 0.1;
+	wait 0.1;
+	wait 0.1;
+	wait 0.1;
+	current_weapon = player getcurrentweapon();
+	wait 0.1;
+	wait 0.1;
+	player_has_weapon = player hasweapon( weapon_name );
+	model = getent( self.target, "targetname" );
+	model thread melee_weapon_show( player );
+	level setclientfield( self.clientfieldname, 1 );
+	self.first_time_triggered = 1;
+	self.stub.first_time_triggered = 1;
+	player maps\mp\zombies\_zm_score::minus_to_player_score( cost );
+	bbprint( "zombie_uses", "playername %s playerscore %d round %d cost %d name %s x %f y %f z %f type %s", player.name, player.score, level.round_number, cost, weapon_name, self.origin, "weapon" );
+	player thread give_melee_weapon( vo_dialog_id, flourish_weapon_name, weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, flourish_fn, self );
+	play_sound_on_ent( "no_purchase" );
+	player maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "no_money_weapon", undefined, 1 );
+	self setinvisibletoplayer( player );
+// SP = 0x0 - check OK
+}
+
+// 0x1808
+melee_weapon_show( player )
+{
+	player_angles = vectortoangles( player.origin - self.origin );
+	player_yaw = player_angles[1];
+	weapon_yaw = self.angles[1];
+	yaw_diff = angleclamp180( player_yaw - weapon_yaw );
+	yaw = weapon_yaw - 90;
+	yaw = weapon_yaw + 90;
+	self.og_origin = self.origin;
+	self.origin += anglestoforward( ( 0, yaw, 0 ) ) * 8;
+	wait 0.05;
+	self show();
+	play_sound_at_pos( "weapon_show", self.origin, self );
+	time = 1;
+	self moveto( self.og_origin, time );
+// SP = 0x0 - check OK
+}
+
+// 0x18C0
+give_melee_weapon( vo_dialog_id, flourish_weapon_name, weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name, flourish_fn, trigger )
+{
+	self thread [[flourish_fn]]();
+	gun = self do_melee_weapon_flourish_begin( flourish_weapon_name );
+	self maps\mp\zombies\_zm_audio::create_and_play_dialog( "weapon_pickup", vo_dialog_id );
+	self waittill_any( "fake_death", "death", "player_downed", "weapon_change_complete" );
+	self do_melee_weapon_flourish_end( gun, flourish_weapon_name, weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name );
+	return;
+	trigger setinvisibletoplayer( self );
+	self trigger_hide_all();
+// SP = 0x0 - check OK
+}
+
+// 0x1988
+do_melee_weapon_flourish_begin( flourish_weapon_name )
+{
+	self increment_is_drinking();
+	self disable_player_move_states( 1 );
+	gun = self getcurrentweapon();
+	weapon = flourish_weapon_name;
+	self giveweapon( weapon );
+	self switchtoweapon( weapon );
+	return gun;
+// SP = 0x0 - check OK
+}
+
+// 0x19D8
+do_melee_weapon_flourish_end( gun, flourish_weapon_name, weapon_name, ballistic_weapon_name, ballistic_upgraded_weapon_name )
+{
+/#
+	assert( !(is_zombie_perk_bottle( gun )) );
+#/
+/#
+	assert( gun != level.revive_tool );
+#/
+	self enable_player_move_states();
+	weapon = flourish_weapon_name;
+	self takeweapon( weapon );
+	self.lastactiveweapon = "none";
+	return;
+	self takeweapon( weapon );
+	self giveweapon( weapon_name );
+	gun = change_melee_weapon( weapon_name, gun );
+	self takeweapon( "knife_zm" );
+	self decrement_is_drinking();
+	return;
+	self switchtoweapon( weapon_name );
+	self decrement_is_drinking();
+	return;
+	self switchtoweapon( gun );
+	primaryweapons = self getweaponslistprimaries();
+	self switchtoweapon( primaryweapons[0] );
+	self waittill( "weapon_change_complete" );
+	self decrement_is_drinking();
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,475 @@
+// clientscripts/mp/_lights.csc
+
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0xE50
+set_light_color( light_struct, col )
+{
+	light_struct.light_color = col;
+	i = 0;
+	self.lights[i] setlightcolor( col );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xED0
+set_light_intensity( light_struct, intensity )
+{
+	thread clientscripts\mp\_fx::stoplightloopexploder( self.script_fxid );
+	set_light_notify( light_struct, "off" );
+	thread clientscripts\mp\_fx::playlightloopexploder( self.script_fxid );
+	set_light_notify( light_struct, "on" );
+	intensity = max( 0, intensity );
+	light_struct.light_intensity = intensity;
+	i = 0;
+	self.lights[i] setlightintensity( intensity );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xFE4
+set_light_radius( light_struct, rad )
+{
+	light_struct.light_radius = rad;
+	i = 0;
+	self.lights[i] setlightradius( rad );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1064
+set_light_inner_fov( light_struct, inner )
+{
+	light_struct.light_inner_fov = inner;
+	i = 0;
+	self.lights[i] setlightfovrange( light_struct.light_inner_fov, light_struct.light_outer_fov );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x10EC
+set_light_outer_fov( light_struct, outer )
+{
+	light_struct.light_outer_fov = outer;
+	i = 0;
+	self.lights[i] setlightfovrange( light_struct.light_inner_fov, light_struct.light_outer_fov );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1174
+set_light_exponent( light_struct, exp )
+{
+	light_struct.light_exponent = exp;
+	i = 0;
+	self.lights[i] setlightexponent( exp );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x11F4
+set_light_notify( light_struct, name )
+{
+	light_struct.light_notify = name;
+	i = 0;
+	self.light_models[i] notify( name );
+	i++;
+	self.mixer.last_sent_notify = name;
+// SP = 0x0 - check OK
+}
+
+// 0x125C
+play_light_sound( light_struct, sound )
+{
+	playsound( 0, sound, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x129C
+play_light_fx( light_struct, fx )
+{
+	return;
+	players = level.localplayers;
+	org = self.origin;
+	off = ( 0, 0, 0 );
+	org = self.light_models[0].origin;
+	atf = anglestoforward( self.light_models[0].angles );
+	atr = anglestoright( self.light_models[0].angles );
+	atu = anglestoup( self.light_models[0].angles );
+	o = self.script_light_fx_offset;
+	off = ( ( atf[0] * o[0] + atf[1] * o[0] ) + atf[2] * o[0], ( atr[0] * o[1] + atr[1] * o[1] ) + atr[2] * o[1], ( atu[0] * o[2] + atu[1] * o[2] ) + atu[2] * o[2] );
+	off = self.script_light_fx_offset;
+	i = 0;
+	playfx( i, level._effect[fx], org + off );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1404
+add_light( clientnum )
+{
+	light = spawn( clientnum, self.origin );
+	light makelight( self.pl );
+	light setlightintensity( 0 );
+	return light;
+// SP = 0x0 - check OK
+}
+
+// 0x144C
+rotate_light_yaw()
+{
+	i = 0;
+	self.lights[i] rotateyaw( 360, self.script_light_rotate_yaw );
+	i++;
+	self.lights[0] waittill( "rotatedone" );
+// SP = 0x0 - check OK
+}
+
+// 0x14AC
+create_lights( clientnum )
+{
+	self.lights = [];
+	self.lights[clientnum] = self add_light( clientnum );
+// SP = 0x0 - check OK
+}
+
+// 0x14DC
+mixer_get_ramp()
+{
+	return self.mixer.right_to_left_ramp;
+	return self.mixer.left_to_right_ramp;
+// SP = 0x0 - check OK
+}
+
+// 0x1508
+debug_draw_mixer()
+{
+/#
+	left_pos = self.origin - ( 24 / 2, 0, 0 );
+	right_pos = self.origin + ( 24 / 2, 0, 0 );
+	slider_pos = left_pos + ( 24 * self.mixer.mix_val, 0, 0 );
+	line( left_pos, right_pos );
+	line( left_pos, left_pos + ( 0, 0, 1 ) );
+	line( right_pos, right_pos + ( 0, 0, 1 ) );
+	line( slider_pos, slider_pos + vector_scale( ( 0, 0, 1 ), 2 ), ( 1, 0, 0 ) );
+	wait 0.01;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x15B8
+init_mixer_lights( client_num )
+{
+	self.mixer.lights = [];
+	i = 0;
+	self.mixer.lights[i] = spawnstruct();
+	i++;
+	self.mixer.lights[0].light_color = self.lights[client_num] getlightcolor();
+	self.mixer.lights[0].light_intensity = self.lights[client_num] getlightintensity();
+	self.mixer.lights[0].light_radius = self.lights[client_num] getlightradius();
+	self.mixer.lights[0].light_inner_fov = self.lights[client_num] getlightfovinner();
+	self.mixer.lights[0].light_outer_fov = self.lights[client_num] getlightfovouter();
+	self.mixer.lights[0].light_exponent = self.lights[client_num] getlightexponent();
+	mixer_event = self.script_mixer_event;
+	mixer_event = "";
+	self.lights[0] makemixerlight( mixer_event );
+	self.lights[0] setmixerlightcolor( "left", self.lights[client_num] getlightcolor() );
+	self.lights[0] setmixerlightcolor( "right", self.script_light2_color );
+	self.lights[0] setmixerlightcolor( "right", self.lights[client_num] getlightcolor() );
+	self.lights[0] setmixerlightintensity( "left", self.lights[client_num] getlightintensity() );
+	self.lights[0] setmixerlightintensity( "right", self.script_light2_intensity );
+	self.lights[0] setmixerlightintensity( "right", self.lights[client_num] getlightintensity() );
+	self.lights[0] setmixerlightradius( "left", self.lights[client_num] getlightradius() );
+	self.lights[0] setmixerlightradius( "right", self.script_light2_radius );
+	self.lights[0] setmixerlightradius( "right", self.lights[client_num] getlightradius() );
+	self.lights[0] setmixerlightfovrange( "left", self.lights[client_num] getlightfovouter(), self.lights[client_num] getlightfovinner() );
+	outer = self.script_light2_outer_fov;
+	outer = self.lights[client_num] getlightfovouter();
+	self.lights[0] setmixerlightfovrange( "right", outer, self.script_light2_inner_fov );
+	self.lights[0] setmixerlightfovrange( "right", outer );
+	self.lights[0] setmixerlightexponent( "left", self.lights[client_num] getlightexponent() );
+	self.lights[0] setmixerlightexponent( "right", self.script_light2_exponent );
+	self.lights[0] setmixerlightexponent( "right", self.lights[client_num] getlightexponent() );
+	self.mixer.lights[0].script_delay_min = self.script_delay_min;
+	self.mixer.lights[0].script_delay_max = self.script_delay_max;
+	self.mixer.lights[0].script_intensity_min = self.script_intensity_min;
+	self.mixer.lights[0].script_intensity_max = self.script_intensity_max;
+	self.mixer.lights[0].script_burst_min = self.script_burst_min;
+	self.mixer.lights[0].script_burst_max = self.script_burst_max;
+	self.mixer.lights[0].script_burst_time = self.script_burst_time;
+	self.mixer.lights[0].script_fade_duration = self.script_fade_duration;
+	self.mixer.lights[0].script_burst_intensity = self.script_burst_intensity;
+	self.lights[0] setmixerlightparam( "left", 0, self.script_delay_min );
+	self.lights[0] setmixerlightparam( "right", 0, self.script_light2_delay_min );
+	self.lights[0] setmixerlightparam( "right", 0, self.script_delay_min );
+	self.lights[0] setmixerlightparam( "left", 1, self.script_delay_max );
+	self.lights[0] setmixerlightparam( "right", 1, self.script_light2_delay_max );
+	self.lights[0] setmixerlightparam( "right", 1, self.script_delay_max );
+	self.lights[0] setmixerlightparam( "left", 2, self.script_intensity_min );
+	self.lights[0] setmixerlightparam( "right", 2, self.script_light2_intensity_min );
+	self.lights[0] setmixerlightparam( "right", 2, self.script_intensity_min );
+	self.lights[0] setmixerlightparam( "left", 3, self.script_intensity_max );
+	self.lights[0] setmixerlightparam( "right", 3, self.script_light2_intensity_max );
+	self.lights[0] setmixerlightparam( "right", 3, self.script_intensity_max );
+	self.lights[0] setmixerlightparam( "left", 4, self.script_burst_min );
+	self.lights[0] setmixerlightparam( "right", 4, self.script_light2_burst_min );
+	self.lights[0] setmixerlightparam( "right", 4, self.script_light_burst_min );
+	self.lights[0] setmixerlightparam( "left", 5, self.script_burst_max );
+	self.lights[0] setmixerlightparam( "right", 5, self.script_light2_burst_max );
+	self.lights[0] setmixerlightparam( "right", 5, self.script_light_burst_max );
+	self.lights[0] setmixerlightparam( "left", 6, self.script_burst_time );
+	self.lights[0] setmixerlightparam( "right", 6, self.script_light2_burst_time );
+	self.lights[0] setmixerlightparam( "right", 6, self.script_light_burst_time );
+	self.lights[0] setmixerlightparam( "left", 7, self.script_fade_duration );
+	self.lights[0] setmixerlightparam( "right", 7, self.script_light2_fade_duration );
+	self.lights[0] setmixerlightparam( "right", 7, self.script_fade_duration );
+	self.lights[0] setmixerlightparam( "left", 8, self.script_burst_intensity );
+	self.lights[0] setmixerlightparam( "right", 8, self.script_light2_burst_intensity );
+	self.lights[0] setmixerlightparam( "right", 8, self.script_burst_intensity );
+	self.lights[0] setmixerlightparam( "left", 9, self.script_light_sound );
+	self.lights[0] setmixerlightparam( "right", 9, self.script_light2_sound );
+	self.lights[0] setmixerlightparam( "right", 9, self.script_light_sound );
+	self.lights[0] setmixerlightparam( "left", 10, self.script_light_fx );
+	self.lights[0] setmixerlightparam( "right", 10, self.script_light2_fx );
+	self.lights[0] setmixerlightparam( "right", 10, self.script_light_fx );
+	self.lights[0] setmixerlightparam( "left", 11, self.script_wait_min );
+	self.lights[0] setmixerlightparam( "right", 11, self.script_light2_wait_min );
+	self.lights[0] setmixerlightparam( "right", 11, self.script_wait_min );
+	self.lights[0] setmixerlightparam( "left", 12, self.script_wait_max );
+	self.lights[0] setmixerlightparam( "right", 12, self.script_light2_wait_max );
+	self.lights[0] setmixerlightparam( "right", 12, self.script_wait_max );
+	self.mixer.lights[0].script_light_sound = self.script_light_sound;
+	self.mixer.lights[1].script_light_sound = self.script_light2_sound;
+	self.mixer.lights[0].script_light_fx = self.script_light_fx;
+	self.mixer.lights[1].script_light_fx = self.script_light2_fx;
+	self.mixer.lights[1].script_light_fx = self.mixer.lights[0].script_light_fx;
+	self.mixer.lights[0].script_light_fx_offset = self.script_light_fx_offset;
+	self.mixer.lights[1].script_light_fx_offset = self.script_light_fx_offset;
+	self.mixer.lights[1].light_color = self.script_light2_color;
+	self.mixer.lights[1].light_color = self.mixer.lights[0].light_color;
+	self.mixer.lights[1].light_intensity = self.script_light2_intensity;
+	self.mixer.lights[1].light_intensity = self.mixer.lights[0].light_intensity;
+	self.mixer.lights[1].light_radius = self.script_light2_radius;
+	self.mixer.lights[1].light_radius = self.mixer.lights[0].light_radius;
+	self.mixer.lights[1].light_inner_fov = self.script_light2_inner_fov;
+	self.mixer.lights[1].light_inner_fov = self.mixer.lights[0].light_inner_fov;
+	self.mixer.lights[1].light_outer_fov = self.script_light2_outer_fov;
+	self.mixer.lights[1].light_outer_fov = self.mixer.lights[0].light_outer_fov;
+	self.mixer.lights[1].light_exponent = self.script_light2_exponent;
+	self.mixer.lights[1].light_exponent = self.mixer.lights[0].light_exponent;
+	self.mixer.lights[1].script_burst_max = self.script_light2_burst_max;
+	self.mixer.lights[1].script_burst_max = self.mixer.lights[0].script_burst_max;
+	self.mixer.lights[1].script_burst_min = self.script_light2_burst_min;
+	self.mixer.lights[1].script_burst_min = self.mixer.lights[0].script_burst_min;
+	self.mixer.lights[1].script_burst_time = self.script_light2_burst_time;
+	self.mixer.lights[1].script_burst_time = self.mixer.lights[0].script_burst_time;
+	self.mixer.lights[1].script_fade_duration = self.script_light2_fade_duration;
+	self.mixer.lights[1].script_fade_duration = self.mixer.lights[0].script_fade_duration;
+	self.mixer.lights[1].script_burst_intensity = self.script_light2_burst_intensity;
+	self.mixer.lights[1].script_burst_intensity = self.mixer.lights[0].script_burst_intensity;
+	self.mixer.lights[1].script_delay_min = self.script_light2_delay_min;
+	self.mixer.lights[1].script_delay_max = self.script_light2_delay_max;
+	self.mixer.lights[1].script_intensity_min = self.script_light2_intensity_min;
+	self.mixer.lights[1].script_intensity_max = self.script_light2_intensity_max;
+	self.mixer.lights[0].light_notify = "";
+	self.mixer.lights[1].light_notify = "";
+	self.mixer.lights[0].play_light_sound_alias = "";
+	self.mixer.lights[1].play_light_sound_alias = "";
+	self.lights[0] setmixerexploderid( int( self.script_fxid ) );
+// SP = 0x0 - check OK
+}
+
+// 0x2374
+clean_lights()
+{
+	self.mixer.last_mix_val = self.mixer.mix_val;
+// SP = 0x0 - check OK
+}
+
+// 0x238C
+add_light_thread( light_struct, light_type, side, default_type )
+{
+	level._next_light_id = 0;
+	light_struct.side = side;
+	light_struct.light_id = level._next_light_id;
+	level._next_light_id += 1;
+	self thread [[level._light_types[light_type].func]]( light_struct );
+	level._light_types[light_type].count[side]++;
+	self.script_light2_targetname = default_type;
+	self thread [[level._light_types[default_type].func]]( light_struct );
+	level._light_types[default_type].count[side]++;
+/#
+	println( "*** Client : Unable to set up script thread for client light - default type " + light_type + " is unknown." );
+#/
+/#
+	println( "*** Client : Unable to set up script thread for client light - " + light_type + " is unknown - and no default specified." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x247C
+setup_mixer_lights()
+{
+	light_type = self.targetname;
+	light_type = "light_solid";
+	light_type = self.script_light_type;
+	self.lights[0] setmixerlightbehavior( "left", light_type );
+	add_light_thread( self.mixer.lights[0], light_type, 0 );
+	light_type = "light_off";
+	light_type = self.script_light2_targetname;
+	self.lights[0] setmixerlightbehavior( "right", light_type );
+	add_light_thread( self.mixer.lights[1], light_type, 1 );
+	self thread light_model_init_pause();
+// SP = 0x0 - check OK
+}
+
+// 0x258C
+light_model_init_pause()
+{
+	waittillframeend;
+	ent = getent( 0, self.script_light_model, "targetname" );
+	self.lights[0] setmixerspinmodels( ent, self.script_light_on_spin_model, self.script_light_off_spin_model, level._effect[self.script_light_spin_fx], self.script_light_spin_tag );
+	self.lights[0] setmixerlightmodels( ent, self.script_light_on_model, self.script_light_off_model );
+// SP = 0x0 - check OK
+}
+
+// 0x261C
+mixer_thread( client_num )
+{
+	return;
+	self.mixer = spawnstruct();
+	self.mixer.mix_pos = 0;
+	self.mixer.mix_val = 0;
+	self.mixer.last_mix_val = 0;
+	self.mixer.active = 0;
+	self.mixer.last_sent_notify = "";
+	init_mixer_lights( client_num );
+	self.script_mixer_ltr_ramp = 0.25;
+	self.script_mixer_rtl_ramp = 0.25;
+	self.mixer.left_to_right_ramp = self.script_mixer_ltr_ramp;
+	self.mixer.right_to_left_ramp = self.script_mixer_rtl_ramp;
+	self.script_light2_targetname = "";
+	self.script_light_onetime = 0;
+	setup_mixer_lights();
+	self.lights[client_num] setmixerl2rrampspeed( self.mixer.left_to_right_ramp );
+	self.lights[client_num] setmixerr2lrampspeed( self.mixer.right_to_left_ramp );
+	self.script_mixer_robot_max = self.script_mixer_robot_min;
+	temp = self.script_mixer_robot_max;
+	self.script_mixer_robot_max = self.script_mixer_robot_min;
+	self.script_mixer_robot_min = temp;
+	self.script_mixer_robot_max += 0.01;
+	self.lights[client_num] setmixerparam( 0, self.script_mixer_robot_min );
+	self.lights[client_num] setmixerparam( 1, self.script_mixer_robot_max );
+	self.lights[client_num] setmixerbehavior( "robot" );
+	self.lights[client_num] setmixerlightrotatetime( self.script_light_rotate_yaw );
+// SP = 0x0 - check OK
+}
+
+// 0x27FC
+report_light_counts( clientnum, lights )
+{
+/#
+	lights_with_models = 0;
+	i = 0;
+	lights_with_models++;
+	i++;
+	numlights = lights.size;
+	println( "*** Client : Lights " + numlights );
+	light_keys = getarraykeys( level._light_types );
+	i = 0;
+	println( "*** Client : " + light_keys[i] + " Left " + level._light_types[light_keys[i]].count[0] + " Right " + level._light_types[light_keys[i]].count[1] );
+	i++;
+	println( "*** Client : Lights with models : " + lights_with_models );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x28F4
+register_light_type( type, func )
+{
+	level._light_types[type] = spawnstruct();
+	level._light_types[type].func = func;
+	level._light_types[type].count = [];
+	level._light_types[type].count[0] = 0;
+	level._light_types[type].count[1] = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2960
+get_lights_by_label( label )
+{
+	lights = getstructarray( "light", "classname" );
+	return_array = [];
+	i = 0;
+	return_array[return_array.size] = lights[i];
+	i++;
+	return return_array;
+// SP = 0x0 - check OK
+}
+
+// 0x29C4
+get_lights_in_radius( pos, rad )
+{
+	lights = getstructarray( "light", "classname" );
+	return_array = [];
+	rad_squared = rad * rad;
+	i = 0;
+	return_array[return_array.size] = lights[i];
+	i++;
+	return return_array;
+// SP = 0x0 - check OK
+}
+
+// 0x2A30
+get_labelled_lights_in_radius( label, pos, rad )
+{
+	lights = getstructarray( "light", "classname" );
+	return_array = [];
+	rad_squared = rad * rad;
+	i = 0;
+	return_array[return_array.size] = lights[i];
+	i++;
+	return return_array;
+// SP = 0x0 - check OK
+}
+
+// 0x2ABC
+switch_light_mixers( lights )
+{
+	i = 0;
+	lights[i].lights[0] activatemixer();
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x2B0C
+init_lights( clientnum )
+{
+	add_slaved_lights( clientnum );
+	return;
+	level.inited_lights = 1;
+	level._light_types = [];
+	lights = getstructarray( "light", "classname" );
+	level.max_local_clients = getmaxlocalclients();
+	allocatemixerlights( lights.size );
+	array_thread( lights, ::create_lights, clientnum );
+	return;
+	array_thread( lights, ::mixer_thread, clientnum );
+	report_light_counts( clientnum, lights );
+// SP = 0x0 - check OK
+}
+
+// 0x2BC0
+add_slaved_lights( localclientnum )
+{
+	lights = getstructarray( "light", "classname" );
+	i = 0;
+	light = spawn( localclientnum, lights[i].origin );
+	light makelight( lights[i].pl );
+	light setlightintensity( 0 );
+	light makelightslave( lights[i].pl );
+	i++;
+// SP = 0x0 - check OK
+}

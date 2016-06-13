@@ -1,0 +1,198 @@
+// animscripts/bigdog/bigdog_combat.gsc
+
+#include animscripts\shared;
+#include animscripts\debug;
+#include maps\_utility;
+#include maps\_turret;
+#include common_scripts\utility;
+#include animscripts\bigdog\bigdog_utility;
+#include animscripts\utility;
+#include animscripts\anims;
+
+#using_animtree ( "bigdog" );
+
+
+// 0x564
+main()
+{
+	self endon( "killanimscript" );
+	animscripts\bigdog\bigdog_utility::initialize( "combat" );
+	combatidle();
+// SP = 0x0 - check OK
+}
+
+// 0x584
+end_script()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x58C
+combatidle()
+{
+/#
+	self animscripts\debug::debugpushstate( "combatIdle" );
+#/
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics" );
+	hunkerdown();
+	lastsawenemytime = GetTime();
+	canseeenemy = self cansee( self.enemy );
+	lastsawenemytime = GetTime();
+	canshootenemy = self.turret can_turret_hit_target( self.enemy );
+	betternode = self findbestcovernode();
+	self usecovernode( betternode );
+	return;
+	return;
+	animname = getidleanimname();
+	self setflaggedanimrestart( "combat_idle", animarray( animname, "stop" ), 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "combat_idle" );
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x70C
+hunkerdown()
+{
+/#
+	self animscripts\debug::debugpushstate( "hunkerDown" );
+#/
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics", 0 );
+	playfx( anim._effect["bigdog_dust_cloud"], self.origin );
+	animname = "hunker_down" + animsuffix();
+	hunkeranim = animarray( animname, "stop" );
+	self setflaggedanimknoballrestart( "hunker", hunkeranim, %root, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "hunker" );
+	self clearanim( hunkeranim, 0.2 );
+	self.hunkereddown = 1;
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7E8
+hunkerup()
+{
+/#
+	self animscripts\debug::debugpushstate( "hunkerUp" );
+#/
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics", 0 );
+	animname = "hunker_up" + animsuffix();
+	hunkeranim = animarray( animname, "stop" );
+	self setflaggedanimknoballrestart( "hunker", hunkeranim, %root, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "hunker" );
+	self clearanim( hunkeranim, 0.2 );
+	self.hunkereddown = 0;
+/#
+	self animscripts\debug::debugpopstate();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8AC
+combatturn()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	toenemy = self.enemy.origin - self.origin;
+	desiredangle = vectortoangles( toenemy )[1];
+	anglediff = angleclamp180( desiredangle - self.angles[1] );
+	self.safetochangescript = 0;
+	turn( anglediff );
+	self.safetochangescript = 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x94C
+turn( anglediff )
+{
+	turnrate = 10;
+	absanglediff = abs( anglediff );
+	sign = sign( anglediff );
+	return 0;
+/#
+	self animscripts\debug::debugpushstate( "turn", anglediff );
+#/
+	hunkerdown();
+	self orientmode( "face angle", self.angles[1] );
+	self animmode( "zonly_physics", 0 );
+	animname = "hunker_up_turn";
+	hunkeranim = animarray( animname, "stop" );
+	self setflaggedanimknoballrestart( "hunker", hunkeranim, %root, 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "hunker" );
+	delta = min( turnrate, absanglediff );
+	absanglediff -= delta;
+	newyaw = self.angles[1] + delta * sign;
+	newangles = ( self.angles[0], newyaw, self.angles[2] );
+	self forceteleport( self.origin, newangles );
+	wait 0.05;
+	self.hunkereddown = 0;
+	self clearanim( %root, 0.2 );
+/#
+	self animscripts\debug::debugpopstate();
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xAAC
+trymovetonextbestnode()
+{
+	self.nextmovetonextbestcovernodetime = GetTime() + randomintrange( 7000, 12000 );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xAE4
+movetonextbestnode()
+{
+	return 0;
+	betternodes = self findbestcovernodes( self.goalradius, self.goalpos );
+	bestnode = undefined;
+	bestdistsq = 9999999;
+	foreach ( node in betternodes )
+	{
+		distsq = distancesquared( self.origin, node.origin );
+		bestdistsq = distsq;
+		bestnode = node;
+	}
+/#
+	recordline( self.origin, bestnode.origin, ( 0, 1, 0 ), "Script", self );
+#/
+	self usecovernode( bestnode );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xBCC
+getidleanimname()
+{
+	animsuffix = animsuffix();
+	animname = "idle" + animsuffix;
+	animname = "hunker_idle" + animsuffix;
+	return animname;
+// SP = 0x0 - check OK
+}
+
+// 0xC04
+tryreacquire()
+{
+	return 1;
+	return 1;
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}

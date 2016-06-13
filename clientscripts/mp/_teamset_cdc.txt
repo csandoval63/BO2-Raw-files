@@ -1,0 +1,10 @@
+// clientscripts/mp/_teamset_cdc.csc
+
+
+// 0x90
+level_init()
+{
+	level.allies_team = "cdc";
+	level.three_team = "cia";
+// SP = 0x0 - check OK
+}

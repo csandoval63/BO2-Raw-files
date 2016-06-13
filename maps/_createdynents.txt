@@ -1,0 +1,1855 @@
+// maps/_createdynents.gsc
+
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x1A68
+init_once()
+{
+/#
+	precacheshader( "white" );
+	dyn_models = getdynmodels();
+	dyn_models = [];
+	i = 0;
+	precachemodel( dyn_models[i] );
+	i++;
+	misc_models = getmiscmodels();
+	misc_models = [];
+	i = 0;
+	precachemodel( misc_models[i] );
+	i++;
+	level.model_names["dynent"] = [];
+	level.model_names["destructible"] = [];
+	level.model_names["miscmodel"] = [];
+	level.models["dynent"] = [];
+	level.models["destructible"] = [];
+	level.models["miscmodel"] = [];
+	level.dynent_groups = [];
+	level.all_objects = [];
+	setup_groups();
+	dyn_models = getdynmodels();
+	dyn_models = [];
+	i = 0;
+	add_model_to_group( dyn_models[i] );
+	add_name( dyn_models[i], "dynent" );
+	i++;
+	misc_models = getmiscmodels();
+	misc_models = [];
+	i = 0;
+	add_name( misc_models[i], "miscmodel" );
+	i++;
+	destructible_defs = getdestructibledefs();
+	i = 0;
+	add_name( destructible_defs[i], "destructible" );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1C04
+main()
+{
+/#
+	wait 1;
+	level.script = tolower( GetDvar( #"0xB4B895C4" ) );
+	waittillframeend;
+	wait 1;
+	wait_for_first_player();
+	players = get_players();
+	level.debug_player = players[0];
+	level set_default_path();
+	level set_crosshair();
+	level init();
+	level setup_menus();
+	level setup_menu_buttons();
+	level thread menu_input();
+	level setup_xform_menu();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1CB8
+set_crosshair()
+{
+/#
+	crosshair = newdebughudelem();
+	crosshair.location = 0;
+	crosshair.alignx = "center";
+	crosshair.aligny = "middle";
+	crosshair.foreground = 1;
+	crosshair.fontscale = 2;
+	crosshair.sort = 20;
+	crosshair.alpha = 1;
+	crosshair.x = 320;
+	crosshair.y = 233;
+	crosshair settext( "." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1D38
+setup_groups()
+{
+/#
+	level.model_group_map = [];
+	level.dynent_groups = [];
+	level.groups = [];
+	level.model_group_map["p_glo_gascan"] = "p_glo";
+	level.model_group_map["p_glo_cinder_block"] = "p_glo";
+	level.model_group_map["p_jun_fruit_apple"] = "fruits";
+	level.model_group_map["p_jun_fruit_pineapple"] = "fruits";
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1D8C
+add_to_group( group, model )
+{
+/#
+	level.groups[group][level.groups[group].size] = model;
+	level.dynent_groups[level.dynent_groups.size] = group;
+	level.groups[group][0] = model;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1DF0
+add_model_to_group( model )
+{
+/#
+	add_to_group( level.model_group_map[model], model );
+	add_to_group( "miscmodel", model );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1E30
+init()
+{
+/#
+	level.highlighted = [];
+	level.rotate_highlighted = [];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1E48
+add_to_dynent_group( dynent_name )
+{
+/#
+	level.dynent_groups[level.dynent_groups.size] = dynent_name;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1E78
+add_to_all_objects()
+{
+/#
+	level.all_objects[level.all_objects.size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1EA0
+remove_from_all_objects()
+{
+/#
+	arrayremovevalue( level.all_objects, self );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1EC4
+add_name( name, type )
+{
+/#
+	level.model_names[type][level.model_names[type].size] = name;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1EFC
+add_model( type )
+{
+/#
+	level.models[type][level.models[type].size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F30
+check_for_dupes( array, single )
+{
+/#
+	i = 0;
+	return 0;
+	i++;
+	return 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x1F68
+setup_menus()
+{
+/#
+	level.menu_sys = [];
+	level.menu_sys["current_menu"] = spawnstruct();
+	add_menu( "choose_mode", "Choose Mode:" );
+	add_menuoptions( "choose_mode", "Dyn Ents Mode" );
+	add_menuoptions( "choose_mode", "Destructibles Mode" );
+	add_menuoptions( "choose_mode", "Misc Models Mode" );
+	add_menuoptions( "choose_mode", "Toggle Help Hud", ::toggle_xform_hud );
+	add_menuoptions( "choose_mode", "Quit", ::quit );
+	add_menu_child( "choose_mode", "dynent_mode", "Dyn Ents Mode" );
+	set_no_back_menu( "dynent_mode" );
+	add_menuoptions( "dynent_mode", "Select Model", ::select_dynent_from_list );
+	add_menuoptions( "dynent_mode", "Select Group", ::select_dynent_group );
+	add_menuoptions( "dynent_mode", "Place Model", ::place_dynent );
+	add_menuoptions( "dynent_mode", "Place Copy", ::place_dynent_copy );
+	add_menuoptions( "dynent_mode", "Spray Selected", ::spray_model );
+	add_menuoptions( "dynent_mode", "Select Mode" );
+	add_menuoptions( "dynent_mode", "Save", ::save_dynents );
+	add_menuoptions( "dynent_mode", "Back", ::selected_back );
+	add_menu_child( "dynent_mode", "dynent_select_menu", "Dyn Ents->Select Mode:", 5, ::select_dynents );
+	add_menuoptions( "dynent_select_menu", "Move" );
+	add_menuoptions( "dynent_select_menu", "Copy" );
+	add_menuoptions( "dynent_select_menu", "Delete", ::delete_model );
+	add_menuoptions( "dynent_select_menu", "Save" );
+	add_menu_child( "dynent_select_menu", "dynent_move_menu", "Dyn Ents->Move Selected:", 0, ::move_model );
+	set_no_back_menu( "dynent_move_menu" );
+	add_menuoptions( "dynent_move_menu", "Place Model", ::place_dynent );
+	add_menuoptions( "dynent_move_menu", "Copy Model", ::place_dynent_copy );
+	add_menuoptions( "dynent_move_menu", "Back", ::selected_back );
+	add_menu_child( "dynent_select_menu", "dynent_copy_menu", "Dyn Ents->Copy Selected:", 1, ::copy_dynent );
+	set_no_back_menu( "dynent_copy_menu" );
+	add_menuoptions( "dynent_copy_menu", "Place Model", ::place_dynent );
+	add_menuoptions( "dynent_copy_menu", "Place Copy", ::place_dynent_copy );
+	add_menuoptions( "dynent_copy_menu", "Back", ::selected_back );
+	add_menu_child( "dynent_select_menu", "selected_dynent_save_menu", "Dyn Ents->Save Selected:", 3, ::selected_dynent_save );
+	add_menuoptions( "selected_dynent_save_menu", "Highlight", ::selected_save_highlight );
+	add_menuoptions( "selected_dynent_save_menu", "Save Selected", ::save_dynent_highlighted );
+	add_menu_child( "choose_mode", "destructible_mode", "Destructibles Mode" );
+	add_menuoptions( "destructible_mode", "Select Model", ::select_destructible_from_list );
+	add_menuoptions( "destructible_mode", "Place Model", ::place_destructible );
+	add_menuoptions( "destructible_mode", "Place Copy", ::place_destructible_copy );
+	add_menuoptions( "destructible_mode", "Select Mode" );
+	add_menuoptions( "destructible_mode", "Save", ::save_destructibles );
+	add_menu_child( "destructible_mode", "destructible_select_menu", "Destructibles->Select Mode:", 3, ::select_destructibles );
+	add_menuoptions( "destructible_select_menu", "Move" );
+	add_menuoptions( "destructible_select_menu", "Copy" );
+	add_menuoptions( "destructible_select_menu", "Delete", ::delete_model );
+	add_menuoptions( "destructible_select_menu", "Save" );
+	add_menu_child( "destructible_select_menu", "destructible_move_menu", "Destructibles->Move Selected:", 0, ::move_model );
+	set_no_back_menu( "destructible_move_menu" );
+	add_menuoptions( "destructible_move_menu", "Place Model", ::place_destructible );
+	add_menuoptions( "destructible_move_menu", "Copy Model", ::place_destructible_copy );
+	add_menuoptions( "destructible_move_menu", "Back", ::selected_back );
+	add_menu_child( "destructible_select_menu", "destructible_copy_menu", "Destructibles->Copy Selected:", 1, ::copy_destructible );
+	set_no_back_menu( "destructible_copy_menu" );
+	add_menuoptions( "destructible_copy_menu", "Place Model", ::place_destructible );
+	add_menuoptions( "destructible_copy_menu", "Place Copy", ::place_destructible_copy );
+	add_menuoptions( "destructible_copy_menu", "Back", ::selected_back );
+	add_menu_child( "destructible_select_menu", "selected_destructible_save_menu", "Destructibles->Save Selected:", 3, ::selected_destructible_save );
+	add_menuoptions( "selected_destructible_save_menu", "Highlight", ::selected_save_highlight );
+	add_menuoptions( "selected_destructible_save_menu", "Save Selected", ::save_destructible_highlighted );
+	add_menu_child( "choose_mode", "miscmodel_menu", "Misc Models Mode" );
+	add_menuoptions( "miscmodel_menu", "Select Model", ::select_miscmodel_from_list );
+	add_menuoptions( "miscmodel_menu", "Place Model", ::place_miscmodel );
+	add_menuoptions( "miscmodel_menu", "Place Copy", ::place_miscmodel_copy );
+	add_menuoptions( "miscmodel_menu", "Select Mode" );
+	add_menuoptions( "miscmodel_menu", "Save", ::save_miscmodels );
+	add_menu_child( "miscmodel_menu", "miscmodel_select_menu", "Misc Model->Select Mode:", 3, ::select_miscmodels );
+	add_menuoptions( "miscmodel_select_menu", "Move" );
+	add_menuoptions( "miscmodel_select_menu", "Copy" );
+	add_menuoptions( "miscmodel_select_menu", "Delete", ::delete_model );
+	add_menuoptions( "miscmodel_select_menu", "Save" );
+	add_menu_child( "miscmodel_select_menu", "miscmodel_move_menu", "Misc Model->Move Selected:", 0, ::move_model );
+	set_no_back_menu( "miscmodel_move_menu" );
+	add_menuoptions( "miscmodel_move_menu", "Place Model", ::place_miscmodel );
+	add_menuoptions( "miscmodel_move_menu", "Copy Model", ::place_miscmodel_copy );
+	add_menuoptions( "miscmodel_move_menu", "Back", ::selected_back );
+	add_menu_child( "miscmodel_select_menu", "miscmodel_copy_menu", "Misc Model->Copy Selected:", 1, ::copy_miscmodel );
+	set_no_back_menu( "miscmodel_copy_menu" );
+	add_menuoptions( "miscmodel_copy_menu", "Place Model", ::place_miscmodel );
+	add_menuoptions( "miscmodel_copy_menu", "Place Copy", ::place_miscmodel_copy );
+	add_menuoptions( "miscmodel_copy_menu", "Back", ::selected_back );
+	add_menu_child( "miscmodel_select_menu", "selected_miscmodel_save_menu", "Misc Model->Save Selected:", 3, ::selected_miscmodel_save );
+	add_menuoptions( "selected_miscmodel_save_menu", "Highlight", ::selected_save_highlight );
+	add_menuoptions( "selected_miscmodel_save_menu", "Save Selected", ::save_miscmodel_highlighted );
+	enable_menu( "choose_mode" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2698
+add_menu( menu_name, title )
+{
+/#
+	println( "^1level.menu_sys[" + menu_name + "] already exists, change the menu_name" );
+	level.menu_sys[menu_name] = spawnstruct();
+	level.menu_sys[menu_name].title = "none";
+	level.menu_sys[menu_name].title = title;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x26FC
+add_menuoptions( menu_name, option_text, func )
+{
+/#
+	level.menu_sys[menu_name].options = [];
+	num = level.menu_sys[menu_name].options.size;
+	level.menu_sys[menu_name].options[num] = option_text;
+	level.menu_sys[menu_name].function[num] = func;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2764
+add_menu_child( parent_menu, child_menu, child_title, child_number_override, func )
+{
+/#
+	add_menu( child_menu, child_title );
+	level.menu_sys[child_menu].parent_menu = parent_menu;
+	level.menu_sys[parent_menu].children_menu = [];
+	size = level.menu_sys[parent_menu].children_menu.size;
+	size = child_number_override;
+	level.menu_sys[parent_menu].children_menu[size] = child_menu;
+	level.menu_sys[parent_menu].children_func = [];
+	level.menu_sys[parent_menu].children_func[size] = func;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2834
+set_no_back_menu( menu_name )
+{
+/#
+	level.menu_sys[menu_name].no_back = 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2850
+enable_menu( menu_name )
+{
+/#
+	disable_menu( "current_menu" );
+	level.menu_cursor.y = 130;
+	level.menu_cursor.current_pos = 0;
+	level.menu_sys["current_menu"].title = set_menu_hudelem( level.menu_sys[menu_name].title, "title" );
+	level.menu_sys["current_menu"].menu_name = menu_name;
+	back_option_num = 0;
+	options = level.menu_sys[menu_name].options;
+	i = 0;
+	text = i + 1 + ". " + options[i];
+	level.menu_sys["current_menu"].options[i] = set_menu_hudelem( text, "options", 20 * i );
+	back_option_num = i;
+	i++;
+	back_option_num++;
+	text = back_option_num + 1 + ". " + "Back";
+	level.menu_sys["current_menu"].options[back_option_num] = set_menu_hudelem( text, "options", 20 * back_option_num );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2998
+disable_menu( menu_name )
+{
+/#
+	level.menu_sys[menu_name].title destroy();
+	options = level.menu_sys[menu_name].options;
+	i = 0;
+	options[i] destroy();
+	i++;
+	level.menu_sys[menu_name].title = undefined;
+	level.menu_sys[menu_name].options = [];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2A38
+set_menu_hudelem( text, type, y_offset )
+{
+/#
+	y = 100;
+	scale = 2;
+	scale = 1.3;
+	y += 30;
+	y_offset = 0;
+	y += y_offset;
+	return set_hudelem( text, 10, y, scale );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2AA8
+set_hudelem( text, x, y, scale, alpha )
+{
+/#
+	alpha = 1;
+	scale = 1;
+	hud = newdebughudelem();
+	hud.location = 0;
+	hud.alignx = "left";
+	hud.aligny = "middle";
+	hud.foreground = 1;
+	hud.fontscale = scale;
+	hud.sort = 20;
+	hud.alpha = alpha;
+	hud.x = x;
+	hud.y = y;
+	hud.og_scale = scale;
+	hud settext( text );
+	return hud;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2B5C
+menu_input()
+{
+/#
+	level endon( "stop_createdynents" );
+	level waittill( "menu_button_pressed", keystring );
+	menu_name = level.menu_sys["current_menu"].menu_name;
+	level.menu_cursor.y -= 20;
+	level.menu_cursor.current_pos--;
+	level.menu_cursor.y = 130 + 20 * ( level.menu_sys["current_menu"].options.size - 1 );
+	level.menu_cursor.current_pos = level.menu_sys["current_menu"].options.size - 1;
+	level.menu_cursor.y += 20;
+	level.menu_cursor.current_pos++;
+	level.menu_cursor.y = 130;
+	level.menu_cursor.current_pos = 0;
+	key = level.menu_cursor.current_pos;
+	key = int( keystring ) - 1;
+	level notify( "disable " + menu_name );
+	level enable_menu( level.menu_sys[menu_name].parent_menu );
+	level.menu_sys["current_menu"].options[key] thread hud_selector( level.menu_sys["current_menu"].options[key].x, level.menu_sys["current_menu"].options[key].y );
+	error_msg = level [[level.menu_sys[menu_name].function[key]]]();
+	error_msg = level [[level.menu_sys[menu_name].function[key]]]();
+	level thread hud_selector_fade_out();
+	level thread selection_error( error_msg, level.menu_sys["current_menu"].options[key].x, level.menu_sys["current_menu"].options[key].y );
+	func = level.menu_sys[menu_name].children_func[key];
+	error_msg = [[func]]();
+	level thread selection_error( error_msg, level.menu_sys["current_menu"].options[key].x, level.menu_sys["current_menu"].options[key].y );
+	level enable_menu( level.menu_sys[menu_name].children_menu[key] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2F30
+force_menu_back()
+{
+/#
+	level endon( "stop_createdynents" );
+	wait 0.1;
+	menu_name = level.menu_sys["current_menu"].menu_name;
+	key = level.menu_sys[menu_name].options.size;
+	key++;
+	keys[1] = "1";
+	keys[2] = "2";
+	keys[3] = "3";
+	keys[4] = "4";
+	keys[5] = "5";
+	keys[6] = "6";
+	keys[7] = "7";
+	keys[8] = "8";
+	keys[9] = "9";
+	key = keys[key];
+	level notify( "menu_button_pressed", key );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2FEC
+list_menu( list, x, y, scale, func )
+{
+/#
+	hud_array = [];
+	i = 0;
+	alpha = 1 / ( i + 1 );
+	alpha = 0.1;
+	hud = set_hudelem( list[i], x, y + i * 15, scale, alpha );
+	hud_array[hud_array.size] = hud;
+	i++;
+	current_num = 0;
+	old_num = 0;
+	selected = 0;
+	[[func]]( list[current_num] );
+	level waittill( "menu_button_pressed", key );
+	current_num++;
+	move_list_menu( hud_array, "down", 15, current_num );
+	current_num--;
+	move_list_menu( hud_array, "up", 15, current_num );
+	selected = 1;
+	level notify( "scroll_list" );
+	old_num = current_num;
+	[[func]]( list[current_num] );
+	i = 0;
+	hud_array[i] destroy();
+	i++;
+	return current_num;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3194
+move_list_menu( hud_array, dir, space, num )
+{
+/#
+	movement = space;
+	movement = space * -1;
+	i = 0;
+	hud_array[i] moveovertime( 0.1 );
+	hud_array[i].y += movement;
+	temp = i - num;
+	temp *= -1;
+	alpha = 1 / ( temp + 1 );
+	alpha = 0.1;
+	hud_array[i] fadeovertime( 0.1 );
+	hud_array[i].alpha = alpha;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3268
+hud_selector( x, y )
+{
+/#
+	level endon( "stop_createdynents" );
+	level thread hud_selector_fade_out();
+	level.menu_cursor.alpha = 0;
+	level.hud_selector = set_hudelem( undefined, x - 10, y, 1 );
+	level.hud_selector setshader( "white", 125, 20 );
+	level.hud_selector.color = ( 1, 1, 0.5 );
+	level.hud_selector.alpha = 0.5;
+	level.hud_selector.sort = 10;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x32F4
+hud_selector_fade_out( time )
+{
+/#
+	level endon( "stop_createdynents" );
+	time = 0.25;
+	level.menu_cursor.alpha = 0.5;
+	hud = level.hud_selector;
+	level.hud_selector = undefined;
+	hud fadeovertime( time );
+	hud.alpha = 0;
+	wait time + 0.1;
+	hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3360
+selection_error( msg, x, y )
+{
+/#
+	level endon( "stop_createdynents" );
+	hud = set_hudelem( undefined, x - 10, y, 1 );
+	hud setshader( "white", 110, 20 );
+	hud.color = vector_scale( ( 1, 0, 0 ), 0.5 );
+	hud.alpha = 0.7;
+	error_hud = set_hudelem( msg, x + 110, y, 1 );
+	error_hud.color = ( 1, 0, 0 );
+	hud fadeovertime( 3 );
+	hud.alpha = 0;
+	error_hud fadeovertime( 3 );
+	error_hud.alpha = 0;
+	wait 3.1;
+	hud destroy();
+	error_hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x342C
+hud_font_scaler( mult )
+{
+/#
+	level endon( "stop_createdynents" );
+	self notify( "stop_fontscaler" );
+	self endon( "death" );
+	self endon( "stop_fontscaler" );
+	og_scale = self.og_scale;
+	mult = 1.5;
+	self.fontscale = og_scale * mult;
+	dif = og_scale - self.fontscale;
+	dif /= 1 * 20;
+	i = 0;
+	self.fontscale += dif;
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x34BC
+update_selected_object_position()
+{
+/#
+	object = level.selected_object;
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	vector = level.debug_player geteye() + vector_scale( forward, 5000 );
+	trace = bullettrace( level.debug_player geteye(), vector, 0, self );
+	vector = trace["position"] + ( 0, 0, level.selected_object_z_offset );
+	object moveto( vector, 0.1 );
+	object waittill( "movedone" );
+	wait 0.1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3574
+move_selected_object( with_trace )
+{
+/#
+	level endon( "stop_createdynents" );
+	self notify( "stop_move_selected_object" );
+	self endon( "stop_move_selected_object" );
+	self endon( "unlink_selected_object" );
+	self endon( "death" );
+	with_trace = 0;
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	vector = level.debug_player geteye() + vector_scale( forward, 5000 );
+	trace = bullettrace( level.debug_player geteye(), vector, 0, self );
+	wait 0.1;
+	vector = trace["position"];
+	vector += ( 0, 0, level.selected_object_z_offset );
+	vector = level.debug_player geteye() + vector_scale( forward, level.selected_object_dist );
+	self moveto( vector, 0.1 );
+	self waittill( "movedone" );
+	wait 0.1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3684
+get_random_model()
+{
+/#
+	count = level.groups[level.selected_group].size;
+	return level.groups[level.selected_group][randomintrange( 0, count )];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x36B4
+spray_model()
+{
+/#
+	level.spray = [];
+	level.spray = [];
+	level.spray["model"] = level.selected_object.model;
+	level.selected_object delete();
+	level.spray = [];
+	level.spray["model"] = get_random_model();
+	level.selected_object delete();
+	level.selected_object = undefined;
+	return "ERROR: Select Model or Group first!";
+	level.spray["rate"] = 0.25;
+	level.spray["power"] = 1000;
+	spray_buttons();
+	spray_hud();
+	level thread spray_trajectory();
+	level waittill( "spray_button_pressed", key );
+	do_spray_model();
+	level.spray["model"] = get_random_model();
+	level.spray_hud["model"] settext( level.spray["model"] );
+	level.spray_hud["model"] thread hud_font_scaler();
+	wait level.spray["rate"] - 0.1;
+	level.spray["power"] += 50;
+	level.spray["power"] = 5000;
+	level.spray_hud["power"] settext( level.spray["power"] );
+	level.spray_hud["power"] thread hud_font_scaler();
+	wait 0.05;
+	level.spray["power"] -= 50;
+	level.spray["power"] = 50;
+	level.spray_hud["power"] settext( level.spray["power"] );
+	level.spray_hud["power"] thread hud_font_scaler();
+	wait 0.05;
+	level.spray["rate"] -= 0.05;
+	level.spray["rate"] = 0.25;
+	level.spray_hud["rate"] settext( level.spray["rate"] );
+	level.spray_hud["rate"] thread hud_font_scaler();
+	wait 0.05;
+	level.spray["rate"] += 0.05;
+	level.spray["rate"] = 1;
+	level.spray_hud["rate"] settext( level.spray["rate"] );
+	level.spray_hud["rate"] thread hud_font_scaler();
+	wait 0.05;
+	level.spray["model"] = get_random_model();
+	level.spray_hud["model"] settext( level.spray["model"] );
+	level.spray_hud["model"] thread hud_font_scaler();
+	wait 0.05;
+	level notify( "stop_spray" );
+	remove_hud( "spray_hud" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3AB0
+do_spray_model()
+{
+/#
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	vector = level.debug_player geteye() + vector_scale( forward, 48 );
+	object = spawn( "script_model", vector );
+	object setmodel( level.spray["model"] );
+	velocity = vector_scale( forward, level.spray["power"] );
+	object physicslaunch( object.origin, velocity );
+	object store_model( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3B44
+spray_trajectory()
+{
+/#
+	level endon( "stop_createdynents" );
+	level endon( "stop_spray" );
+	time_inc = 1 / 10;
+	og_time_inc = time_inc;
+	time_inc = og_time_inc;
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	velocity = vector_scale( forward, level.spray["power"] );
+	sub_vel = vector_scale( velocity, time_inc );
+	start_pos = level.debug_player geteye() + vector_scale( forward, 48 );
+	gravity = GetDvarInt( #"0x55F139D3" );
+	i = 1;
+	pos = start_pos + vector_scale( sub_vel, i );
+	pos -= ( 0, 0, 0.5 * gravity * ( time_inc * time_inc ) );
+	print3d( pos, ".", ( 1, 1, 0 ) );
+	time_inc += og_time_inc;
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3C38
+spray_hud()
+{
+/#
+	level.spray_hud = [];
+	hud = new_hud( "spray_hud", undefined, 0, 400, 1 );
+	hud setshader( "white", 145, 58 );
+	hud.alignx = "left";
+	hud.aligny = "top";
+	hud.sort = 10;
+	hud.alpha = 0.6;
+	hud.color = vector_scale( ( 0, 0, 1 ), 0.5 );
+	hud = new_hud( "spray_hud", "Model:", 319, 385, 1.2 );
+	hud.alignx = "right";
+	level.spray_hud["model"] = new_hud( "spray_hud", level.spray["model"], 321, 385, 1.2 );
+	level.spray_hud["model"].alignx = "left";
+	hud = new_hud( "spray_hud", "Rate:", 319, 400, 1.2 );
+	hud.alignx = "right";
+	level.spray_hud["rate"] = new_hud( "spray_hud", level.spray["rate"], 321, 400, 1.2 );
+	level.spray_hud["rate"].alignx = "left";
+	hud = new_hud( "spray_hud", "Power:", 319, 415, 1.2 );
+	hud.alignx = "right";
+	level.spray_hud["power"] = new_hud( "spray_hud", level.spray["power"], 321, 415, 1.2 );
+	level.spray_hud["power"].alignx = "left";
+	new_hud( "spray_hud", "FIRE", 0 + 5, 400 + 10, 1 );
+	new_hud( "spray_hud", "LEFT/RIGHT", 0 + 5, 400 + 20, 1 );
+	new_hud( "spray_hud", "UP/DOWN", 0 + 5, 400 + 30, 1 );
+	new_hud( "spray_hud", "Bumpers", 0 + 5, 400 + 40, 1 );
+	new_hud( "spray_hud", "B", 0 + 5, 400 + 50, 1 );
+	new_hud( "spray_hud", "B", 0 + 5, 400 + 40, 1 );
+	new_hud( "spray_hud", "- Spray Object", 0 + 60, 400 + 10, 1 );
+	new_hud( "spray_hud", "- Inc/Dec Rate", 0 + 60, 400 + 20, 1 );
+	new_hud( "spray_hud", "- Inc/Dec Power", 0 + 60, 400 + 30, 1 );
+	new_hud( "spray_hud", "- Change model", 0 + 60, 400 + 40, 1 );
+	new_hud( "spray_hud", "- Quit", 0 + 60, 400 + 50, 1 );
+	new_hud( "spray_hud", "- Quit", 0 + 60, 400 + 40, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3F64
+spray_buttons()
+{
+/#
+	clear_universal_buttons( "spray" );
+	add_universal_button( "spray", "dpad_up" );
+	add_universal_button( "spray", "dpad_down" );
+	add_universal_button( "spray", "dpad_left" );
+	add_universal_button( "spray", "dpad_right" );
+	add_universal_button( "spray", "button_b" );
+	add_universal_button( "spray", "button_lshldr" );
+	add_universal_button( "spray", "button_rshldr" );
+	level thread universal_input_loop( "spray", "stop_spray", 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4000
+add_universal_button( button_group, name )
+{
+/#
+	level.u_buttons[button_group] = [];
+	level.u_buttons[button_group][level.u_buttons[button_group].size] = name;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4050
+clear_universal_buttons( button_group )
+{
+/#
+	level.u_buttons[button_group] = [];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4068
+universal_input_loop( button_group, end_on, use_attackbutton, mod_button, no_mod_button )
+{
+/#
+	level endon( "stop_createdynents" );
+	level endon( end_on );
+	use_attackbutton = 0;
+	notify_name = button_group + "_button_pressed";
+	buttons = level.u_buttons[button_group];
+	level.u_buttons_disable[button_group] = 0;
+	wait 0.05;
+	wait 0.05;
+	wait 0.05;
+	level notify( notify_name, "fire" );
+	wait 0.15;
+	i = 0;
+	level notify( notify_name, buttons[i] );
+	wait 0.15;
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4194
+disable_buttons( button_group )
+{
+/#
+	level.u_buttons_disable[button_group] = 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x41AC
+enable_buttons( button_group )
+{
+/#
+	wait 1;
+	level.u_buttons_disable[button_group] = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x41C8
+select_dynent_group()
+{
+/#
+	level.dyn_ent_selected_group = undefined;
+	y = level.menu_sys["current_menu"].options[0].y;
+	arrow_hud = set_hudelem( "-------->", 120, y, 1.3 );
+	selected = list_menu( level.dynent_groups, 180, y, 1.3, ::group_selected );
+	level notify( "stop_select_group" );
+	level.dyn_ent_selected_group = level.dynent_groups[selected];
+	arrow_hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4268
+group_selected( group_name )
+{
+/#
+	level.selected_group = group_name;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x427C
+remove_hud( hud_name )
+{
+/#
+	huds = level.hud_array[hud_name];
+	i = 0;
+	destroy_hud( huds[i] );
+	i++;
+	level.hud_array[hud_name] = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x42D0
+new_hud( hud_name, msg, x, y, scale )
+{
+/#
+	level.hud_array = [];
+	level.hud_array[hud_name] = [];
+	hud = set_hudelem( msg, x, y, scale );
+	level.hud_array[hud_name][level.hud_array[hud_name].size] = hud;
+	return hud;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4338
+object_highlight( objects )
+{
+/#
+	level endon( "stop_createdynents" );
+	level endon( "stop_select_model" );
+	dot = 0.85;
+	highlighted_object = undefined;
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	i = 0;
+	objects[i] select_icon_think();
+	ent = objects[i];
+	difference = vectornormalize( ent.origin - ( level.debug_player.origin + vector_scale( ( 0, 0, 1 ), 55 ) ) );
+	newdot = vectordot( forward, difference );
+	dot = newdot;
+	highlighted_object = ent;
+	i++;
+	highlighted_object.select_scale = 3;
+	highlighted_object.select_color = level.selected_color;
+	level.highlighted_object = highlighted_object;
+	i = 0;
+	objects[i].select_scale = 1;
+	objects[i].select_color = level.unselected_color;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4468
+selected_delete( no_force_back )
+{
+/#
+	level.selected_object remove_from_all_objects();
+	level.selected_object remove_model( "dynent" );
+	level.selected_object remove_model( "destructible" );
+	level.selected_object remove_model( "miscmodel" );
+	level.selected_object notify( "unlink_selected_object" );
+	level.selected_object notify( "stop_move" );
+	level.selected_object notify( "stop_move_selected_object" );
+	level.selected_object delete();
+	level.selected_object = undefined;
+	level thread force_menu_back();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4504
+selected_back()
+{
+/#
+	level.selected_object notify( "unlink_selected_object" );
+	level.selected_object.origin = level.selected_object.old_origin;
+	level thread force_menu_back();
+	level.selected_object = undefined;
+	selected_delete();
+	level thread force_menu_back();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4568
+selected_save_highlight( key )
+{
+/#
+	object = level.highlighted_object;
+	object remove_highlighted();
+	object.save_selected = 0;
+	object notify( "stop_save_highlight" );
+	object add_highlighted();
+	object.save_selected = 1;
+	object thread save_highlight_loop();
+	wait 0.1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x45DC
+save_highlight_loop()
+{
+/#
+	level endon( "stop_createdynents" );
+	self endon( "stop_save_highlight" );
+	print3d( self.origin, "S", ( 0, 1, 0 ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4618
+add_highlighted()
+{
+/#
+	level.highlighted[level.highlighted.size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4630
+remove_highlighted()
+{
+/#
+	arrayremovevalue( level.highlighted, self );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4648
+selected_models_save_thread( type )
+{
+/#
+	level endon( "stop_createdynents" );
+	level waittill( "disable selected_" + type + "_save_menu" );
+	i = 0;
+	level.models[type][i] remove_save_stat();
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x469C
+selected_dynent_save()
+{
+/#
+	level.highlighted = [];
+	level thread selected_models_save_thread( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x46BC
+selected_destructible_save()
+{
+/#
+	level.highlighted = [];
+	level thread selected_models_save_thread( "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x46DC
+selected_miscmodel_save()
+{
+/#
+	level.highlighted = [];
+	level thread selected_models_save_thread( "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x46FC
+remove_save_stat()
+{
+/#
+	self notify( "stop_save_highlight" );
+	self.save_selected = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4714
+save_dynent_highlighted()
+{
+/#
+	return save_master( "Save Selected DynEnts?", "dynents_selected", level.highlighted, "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4740
+save_destructible_highlighted()
+{
+/#
+	return save_master( "Save Selected Destructibles?", "detructibles_selected", level.highlighted, "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x476C
+save_miscmodel_highlighted()
+{
+/#
+	return save_master( "Save Selected Misc_Models?", "miscmodels_selected", level.highlighted, "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4798
+setup_menu_buttons()
+{
+/#
+	clear_universal_buttons( "menu" );
+	menu_cursor();
+	add_universal_button( "menu", "dpad_up" );
+	add_universal_button( "menu", "dpad_down" );
+	add_universal_button( "menu", "dpad_left" );
+	add_universal_button( "menu", "dpad_right" );
+	add_universal_button( "menu", "button_a" );
+	add_universal_button( "menu", "button_b" );
+	add_universal_button( "menu", "1" );
+	add_universal_button( "menu", "2" );
+	add_universal_button( "menu", "3" );
+	add_universal_button( "menu", "4" );
+	add_universal_button( "menu", "5" );
+	add_universal_button( "menu", "6" );
+	add_universal_button( "menu", "7" );
+	add_universal_button( "menu", "8" );
+	add_universal_button( "menu", "9" );
+	add_universal_button( "menu", "0" );
+	add_universal_button( "menu", "downarrow" );
+	add_universal_button( "menu", "uparrow" );
+	add_universal_button( "menu", "leftarrow" );
+	add_universal_button( "menu", "rightarrow" );
+	add_universal_button( "menu", "enter" );
+	add_universal_button( "menu", "end" );
+	add_universal_button( "menu", "backspace" );
+	level thread universal_input_loop( "menu", "never", undefined, undefined, "button_ltrig" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4940
+menu_cursor()
+{
+/#
+	level.menu_cursor = set_hudelem( undefined, 0, 130, 1.3 );
+	level.menu_cursor setshader( "white", 125, 20 );
+	level.menu_cursor.color = ( 1, 0.5, 0 );
+	level.menu_cursor.alpha = 0.5;
+	level.menu_cursor.sort = 1;
+	level.menu_cursor.current_pos = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x49B0
+any_button_hit( button_hit, type )
+{
+/#
+	buttons = [];
+	buttons[0] = "0";
+	buttons[1] = "1";
+	buttons[2] = "2";
+	buttons[3] = "3";
+	buttons[4] = "4";
+	buttons[5] = "5";
+	buttons[6] = "6";
+	buttons[7] = "7";
+	buttons[8] = "8";
+	buttons[9] = "9";
+	buttons = level.buttons;
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4A64
+setup_xform_menu()
+{
+/#
+	level.selected_object_z_offset = 0;
+	level.selected_object_dist = 48;
+	setup_xform_buttons();
+	level thread xform_input_handler();
+	level.xform_hud_active = 0;
+	toggle_xform_hud();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4AA4
+toggle_xform_hud()
+{
+/#
+	level.xform_hud_active = !(level.xform_hud_active);
+	x = 640 - 120;
+	y = 480 - 90 - 25;
+	hud = new_hud( "xform_hud", undefined, x, y, 1 );
+	hud setshader( "white", 120, 90 );
+	hud.alignx = "left";
+	hud.aligny = "top";
+	hud.sort = 10;
+	hud.alpha = 0.6;
+	hud.color = vector_scale( ( 0, 0, 1 ), 0.5 );
+	new_hud( "xform_hud", "BUMPERS", x + 5, y + 10, 1 );
+	new_hud( "xform_hud", "Up / Down", x + 60, y + 10, 1 );
+	y += 3;
+	new_hud( "xform_hud", "(HOLD LTrigger) +", x + 5, y + 20, 1 );
+	y += 3;
+	new_hud( "xform_hud", "Y/A", x + 5, y + 30, 1 );
+	new_hud( "xform_hud", "X/B", x + 5, y + 40, 1 );
+	new_hud( "xform_hud", "BUMPERS", x + 5, y + 50, 1 );
+	new_hud( "xform_hud", "L3", x + 5, y + 60, 1 );
+	new_hud( "xform_hud", "- Pitch", x + 60, y + 30, 1 );
+	new_hud( "xform_hud", "- Yaw", x + 60, y + 40, 1 );
+	new_hud( "xform_hud", "- Roll", x + 60, y + 50, 1 );
+	new_hud( "xform_hud", "- Zero Out", x + 60, y + 60, 1 );
+	remove_hud( "xform_hud" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4C9C
+setup_xform_buttons()
+{
+/#
+	clear_universal_buttons( "xform" );
+	add_universal_button( "xform", "button_a" );
+	add_universal_button( "xform", "button_b" );
+	add_universal_button( "xform", "button_x" );
+	add_universal_button( "xform", "button_y" );
+	add_universal_button( "xform", "button_lshldr" );
+	add_universal_button( "xform", "button_rshldr" );
+	add_universal_button( "xform", "button_lstick" );
+	level thread universal_input_loop( "xform", "never", 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4D38
+xform_input_handler()
+{
+/#
+	level endon( "stop_createdynents" );
+	level waittill( "xform_button_pressed", key );
+	object = level.selected_object;
+	object = level.highlighted_object;
+	level.selected_object_z_offset += 4;
+	update_selected_object_position();
+	level.selected_object_z_offset -= 4;
+	update_selected_object_position();
+	object devaddyaw( 2 );
+	object devaddyaw( 2 * -1 );
+	object devaddpitch( 2 * -1 );
+	object devaddpitch( 2 );
+	object devaddroll( 2 * -1 );
+	object devaddroll( 2 );
+	object.angles = ( 0, 0, 0 );
+	wait 0.1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4E9C
+place( type )
+{
+/#
+	level.selected_object notify( "unlink_selected_object" );
+	level notify( "stop_move" );
+	level.selected_object add_model( type );
+	level.selected_object = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4ED8
+place_copy( type )
+{
+/#
+	level.selected_object notify( "unlink_selected_object" );
+	model_name = level.selected_object getdestructiblename();
+	model_name = level.selected_object.model;
+	level.selected_object add_model( type );
+	angles = level.selected_object.angles;
+	level.selected_object = undefined;
+	spawn_selected_object( model_name, 1, type );
+	level.selected_object.angles = angles;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4F60
+place_dynent()
+{
+/#
+	place( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4F78
+place_destructible()
+{
+/#
+	place( "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4F90
+place_miscmodel()
+{
+/#
+	place( "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4FA8
+place_dynent_copy()
+{
+/#
+	place_copy( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4FC0
+place_destructible_copy()
+{
+/#
+	place_copy( "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4FD8
+place_miscmodel_copy()
+{
+/#
+	place_copy( "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4FF0
+select_dynent_from_list()
+{
+/#
+	y = level.menu_sys["current_menu"].options[0].y;
+	arrow_hud = set_hudelem( "-------->", 120, y, 1.3 );
+	list_menu( level.model_names["dynent"], 180, y, 1.3, ::spawn_dynent );
+	level.selected_group = undefined;
+	arrow_hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5068
+select_destructible_from_list()
+{
+/#
+	y = level.menu_sys["current_menu"].options[0].y;
+	arrow_hud = set_hudelem( "-------->", 120, y, 1.3 );
+	list_menu( level.model_names["destructible"], 180, y, 1.3, ::spawn_destructible );
+	level.selected_group = undefined;
+	arrow_hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x50E0
+select_miscmodel_from_list()
+{
+/#
+	y = level.menu_sys["current_menu"].options[0].y;
+	arrow_hud = set_hudelem( "-------->", 120, y, 1.3 );
+	list_menu( level.model_names["miscmodel"], 180, y, 1.3, ::spawn_miscmodel );
+	arrow_hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5154
+spawn_selected_object( model_name, with_trace, type )
+{
+/#
+	level.selected_object delete();
+	forward = anglestoforward( level.debug_player getplayerangles() );
+	vector = level.debug_player geteye() + vector_scale( forward, level.selected_object_dist );
+	level.selected_object = codespawn( "script_model", vector, 0, 0, 0, model_name );
+	level.selected_object = spawn( "script_model", vector );
+	level.selected_object setmodel( model_name );
+	level.select_group = undefined;
+	level.selected_object thread move_selected_object( with_trace );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5208
+spawn_dynent( model_name )
+{
+/#
+	spawn_selected_object( model_name, 1, "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5228
+spawn_miscmodel( model_name )
+{
+/#
+	spawn_selected_object( model_name, 1, "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5248
+spawn_destructible( model_name )
+{
+/#
+	spawn_selected_object( model_name, 1, "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5268
+move_model()
+{
+/#
+	level.selected_object = level.highlighted_object;
+	level.selected_object.old_origin = level.selected_object.origin;
+	level.selected_object thread move_selected_object( 1 );
+	level thread move_model_thread();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x52B0
+move_model_thread()
+{
+/#
+	level endon( "stop_createdynents" );
+	level waittill( "stop_move" );
+	level thread force_menu_back();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x52D4
+copy_model( type )
+{
+/#
+	model_origin = level.highlighted_object.origin;
+	model_name = level.highlighted_object getdestructiblename();
+	level.selected_object = codespawn( "script_model", model_origin, 0, 0, 0, model_name );
+	model_name = level.highlighted_object.model;
+	level.selected_object = spawn( "script_model", model_origin );
+	level.selected_object setmodel( model_name );
+	level.selected_object.old_origin = level.selected_object.origin;
+	level.selected_object thread move_selected_object( 1 );
+	level thread copy_thread();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5384
+copy_dynent()
+{
+/#
+	copy_model( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x539C
+copy_destructible()
+{
+/#
+	copy_model( "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x53B4
+copy_miscmodel()
+{
+/#
+	copy_model( "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x53CC
+copy_thread()
+{
+/#
+	level endon( "stop_createdynents" );
+	level waittill( "stop_move" );
+	level thread force_menu_back();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x53F0
+select_dynents()
+{
+/#
+	select( "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5408
+select_destructibles()
+{
+/#
+	select( "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5420
+select_miscmodels()
+{
+/#
+	select( "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5438
+select( type )
+{
+/#
+	level thread select_model_thread( type );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5460
+draw_selectables( objects )
+{
+/#
+	i = 0;
+	objects[i] thread select_icon_think();
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5494
+select_icon_think()
+{
+/#
+	level endon( "stop_createdynents" );
+	self endon( "death" );
+	self notify( "only_one_icon_think_thread" );
+	self endon( "only_one_icon_think_thread" );
+	level endon( "stop_select_model" );
+	self.select_scale = 1;
+	self.select_color = level.unselected_color;
+	print3d( self.origin, ".", self.select_color, 1, self.select_scale );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5504
+delete_model()
+{
+/#
+	level.highlighted_object remove_from_all_objects();
+	level.highlighted_object remove_model( "dynent" );
+	level.highlighted_object remove_model( "destructible" );
+	level.highlighted_object remove_model( "miscmodel" );
+	level.highlighted_object delete();
+	level.selected_object = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5564
+select_model_thread( type )
+{
+/#
+	level endon( "stop_createdynents" );
+	selected_delete( 1 );
+	level.unselected_color = ( 1, 1, 1 );
+	level.selected_color = ( 1, 1, 0 );
+	draw_selectables( level.models[type] );
+	level thread select_main_thread( type );
+	level waittill( "disable " + type + "_select_menu" );
+	level notify( "stop_select_model" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x55C4
+select_main_thread( type )
+{
+/#
+	level endon( "stop_createdynents" );
+	level endon( "stop_select_model" );
+	level.highlighted_object = undefined;
+	level.selected_object = undefined;
+	level thread object_highlight( level.models[type] );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5614
+set_default_path()
+{
+/#
+	level.path = "prop_man/" + level.script + "/";
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5638
+store_model( type )
+{
+/#
+	self add_to_all_objects();
+	level.models[type][level.models[type].size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5660
+remove_model( type )
+{
+/#
+	arrayremovevalue( level.models[type], self );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5680
+save_dynents()
+{
+/#
+	return save_master( "Save All DynEnts?", "dynents_all", level.models["dynent"], "dynent" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x56B8
+save_destructibles()
+{
+/#
+	return save_master( "Save All Destructibles?", "destructibles_all", level.models["destructible"], "destructible" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x56F0
+save_miscmodels()
+{
+/#
+	selected_delete( 1 );
+	return save_master( "Save All misc models?", "miscmodels_all", level.models["miscmodel"], "miscmodel" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5734
+save_master( save_msg, filename, save_array, type )
+{
+/#
+	disable_buttons( "menu" );
+	disable_buttons( "rotate" );
+	disable_buttons( "prop" );
+	level.debug_player freezecontrols( 1 );
+	save_buttons();
+	filename += ".map";
+	save_dialog( save_msg, filename );
+	yes_key = "button_x";
+	no_key = "button_b";
+	level waittill( "save_button_pressed", key );
+	level thread save_selector( level.save_yes_hud.x, level.save_yes_hud.y, 40 );
+	check = save( save_array, filename, type );
+	level thread save_complete( check );
+	level thread save_failed();
+	save_selector( level.save_no_hud.x, level.save_no_hud.y, 40 );
+	level notify( "stop_savebutton_loop" );
+	remove_hud( "save" );
+	level.debug_player freezecontrols( 0 );
+	level thread enable_buttons( "menu" );
+	level thread enable_buttons( "rotate" );
+	level thread enable_buttons( "prop" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x58A4
+save_dialog( msg, filename )
+{
+/#
+	level.save_hud_x = 0;
+	level.save_hud_y = 300;
+	x = level.save_hud_x;
+	y = level.save_hud_y;
+	hud = new_hud( "save", undefined, x + 640 * 0.5, y, 1 );
+	hud setshader( "white", 640, 100 );
+	hud.alignx = "center";
+	hud.aligny = "top";
+	hud.color = ( 0.55, 0.29, 0 );
+	hud.alpha = 0.85;
+	hud.sort = 30;
+	hud = new_hud( "save", msg, x + 10, y + 10, 1.3 );
+	hud.sort = 35;
+	prefix = "Path: xenonOutput/scriptdata/";
+	hud = new_hud( "save", prefix + level.path + filename, x + 10, y + 30, 1.1 );
+	hud.sort = 35;
+	yes_hud = "Yes [X]";
+	no_hud = "No [B]";
+	level.save_yes_hud = new_hud( "save", yes_hud, x + 640 * 0.5 - 50, y + 90, 1.3 );
+	level.save_yes_hud.alignx = "center";
+	level.save_yes_hud.sort = 35;
+	level.save_no_hud = new_hud( "save", no_hud, x + 640 * 0.5 + 50, y + 90, 1.3 );
+	level.save_no_hud.alignx = "center";
+	level.save_no_hud.sort = 35;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5A70
+destroy_hud( hud )
+{
+/#
+	hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5A90
+save_complete( msg )
+{
+/#
+	hud = set_hudelem( "Save Successful", 320, 100, 1.5 );
+	hud.alignx = "center";
+	hud.color = ( 0, 1, 0 );
+	hud_msg = set_hudelem( msg, 320, 120, 1.3 );
+	hud_msg.alignx = "center";
+	hud_msg.color = ( 1, 1, 1 );
+	wait 2;
+	hud fadeovertime( 3 );
+	hud.alpha = 0;
+	hud_msg fadeovertime( 3 );
+	hud_msg.alpha = 0;
+	wait 3;
+	hud destroy();
+	hud_msg destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5B4C
+save_failed()
+{
+/#
+	hud = set_hudelem( "Save Failed!", 320, 100, 1.5 );
+	hud.alignx = "center";
+	hud.color = ( 1, 0, 0 );
+	wait 1;
+	hud fadeovertime( 3 );
+	hud.alpha = 0;
+	wait 3;
+	hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5BB4
+save_selector( x, y, width )
+{
+/#
+	hud = set_hudelem( undefined, x, y, 1 );
+	hud.alignx = "center";
+	hud setshader( "white", width, 20 );
+	hud.color = ( 1, 1, 0.5 );
+	hud.alpha = 0.5;
+	hud.sort = 10;
+	hud fadeovertime( 0.25 );
+	hud.alpha = 0;
+	wait 0.35;
+	hud destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5C50
+save( model_array, filename, type )
+{
+/#
+	level.fullpath_file = level.path + filename;
+	type = "dynent";
+	spawnflags = 0;
+	spawnflags = 1;
+	file = openfile( level.fullpath_file, "write" );
+/#
+	assert( file != -1, "File not writeable (maybe you should check it out): " + level.fullpath_file );
+#/
+	fprintln( file, "// entity 0" );
+	fprintln( file, "{" );
+	fprintln( file, "\"classname\" \"worldspawn\"" );
+	fprintln( file, "}" );
+	classname = "dyn_model";
+	classname = "misc_model";
+	i = 0;
+	fprintln( file, "{" );
+	fprintln( file, "\"angles\" \"" + model_array[i].angles[0] + " " + model_array[i].angles[1] + " " + model_array[i].angles[2] + "\"" );
+	fprintln( file, "\"origin\" \"" + model_array[i].origin[0] + " " + model_array[i].origin[1] + " " + model_array[i].origin[2] + "\"" );
+	fprintln( file, "\"model\" \"" + model_array[i].model + "\"" );
+	fprintln( file, "\"classname\" \"script_model\"" );
+	ddef = model_array[i] getdestructiblename();
+	fprintln( file, "\"destructibledef\" \"" + ddef + "\"" );
+	fprintln( file, "\"model\" \"" + model_array[i].model + "\"" );
+	fprintln( file, "\"spawnflags\" \"2\"" );
+	fprintln( file, "\"classname\" \"" + classname + "\"" );
+	fprintln( file, "}" );
+	fprintln( file, "" );
+	i++;
+	saved = closefile( file );
+/#
+	assert( saved == 1, "File not saved (see above message?): " + level.fullpath_file );
+#/
+	return level.fullpath_file;
+	return "failed";
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5ED4
+save_buttons()
+{
+/#
+	clear_universal_buttons( "save" );
+	add_universal_button( "save", "button_x" );
+	add_universal_button( "save", "button_b" );
+	level thread universal_input_loop( "save", "stop_savebutton_loop" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5F20
+quit()
+{
+/#
+	toggle_xform_hud();
+	level.hud_selector destroy();
+	disable_menu( "current_menu" );
+	level.menu_sys = [];
+	adddebugcommand( "set propman 0" );
+	wait 1;
+	adddebugcommand( "noclip" );
+	wait 1;
+	thread main();
+	level notify( "stop_createdynents" );
+#/
+// SP = 0x0 - check OK
+}

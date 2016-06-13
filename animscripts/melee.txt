@@ -1,0 +1,1219 @@
+// animscripts/melee.gsc
+
+#include animscripts\run;
+#include animscripts\shared;
+#include animscripts\face;
+#include common_scripts\utility;
+#include animscripts\anims;
+#include animscripts\debug;
+#include animscripts\combat_utility;
+#include animscripts\setposemovement;
+#include animscripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x1A94
+melee_tryexecuting()
+{
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	melee_resetaction();
+	melee_releasemutex( self.enemy );
+	return 0;
+	self animcustom( ::melee_mainloop, ::melee_endscript );
+// SP = 0x0 - check OK
+}
+
+// 0x1B50
+melee_resetaction()
+{
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self.melee.target = self.enemy;
+	self.melee.initiated = 0;
+	self.melee.inprogress = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1B8C
+melee_chooseaction()
+{
+	return 0;
+	self.melee.initiated = 1;
+	self.melee.func = ::melee_aivsai_main;
+	return 1;
+	self.melee.func = self.specialmelee_standard;
+	self.melee.func = ::melee_standard_main;
+	return 1;
+	self.melee.func = undefined;
+	self.nextmeleechecktime = GetTime() + 150;
+	self.nextmeleechecktarget = self.melee.target;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1C24
+melee_updateandvalidatestartpos()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.startpos ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	ignoreactors = 1;
+	distfromtarget2d = distance2d( self.melee.startpos, self.melee.target.origin );
+	dirtostartpos2d = vectornormalize( ( self.melee.startpos[0] - self.melee.target.origin[0], self.melee.startpos[1] - self.melee.target.origin[1], 0 ) );
+	return 0;
+	self.melee.startpos += dirtostartpos2d * ( 32 - distfromtarget2d );
+/#
+	assert( distance2d( self.melee.startpos, self.melee.target.origin ) >= 31.9, "Invalid distance to target: " + distance2d( self.melee.startpos, self.melee.target.origin ) + ", should be more than " + 31.9 );
+#/
+	ignoreactors = 0;
+	floorpos = self getdroptofloorposition( self.melee.startpos );
+	return 0;
+	return 0;
+	return 0;
+	self.melee.startpos = floorpos;
+/#
+	assert( distance2d( self.melee.startpos, self.melee.target.origin ) >= 31.9, "Invalid distance to target: " + distance2d( self.melee.startpos, self.melee.target.origin ) + ", should be more than " + 31.9 );
+#/
+	return 0;
+	targettostartpos = self.melee.startpos - self.melee.target.origin;
+	cornerdir = anglestoforward( self.melee.starttotargetcornerangles );
+	cornerdirlen = vectordot( cornerdir, targettostartpos );
+	maymovetargetorigin = self.melee.startpos - cornerdir * cornerdirlen;
+	cornertotarget = self.melee.target.origin - maymovetargetorigin;
+	cornertotargetlen = distance2d( self.melee.target.origin, maymovetargetorigin );
+	maymovetargetorigin = ( maymovetargetorigin - cornertotarget ) * ( 32 - ( cornertotargetlen / 32 ) );
+	dirtostartpos2d = vectornormalize( ( self.melee.startpos[0] - self.melee.target.origin[0], self.melee.startpos[1] - self.melee.target.origin[1], 0 ) );
+	maymovetargetorigin = self.melee.target.origin + dirtostartpos2d * 32;
+/#
+	assert( IsDefined( maymovetargetorigin ) );
+#/
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1F8C
+melee_isvalid()
+{
+	return 0;
+	target = self.melee.target;
+	return 0;
+	enemydistancesq = distancesquared( self.origin, target.origin );
+	chargedistsq = self.meleechargedistsq;
+	chargedistsq = 40000;
+	chargedistsq = 25600;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	return 0;
+	enemypose = target getstance();
+	enemypose = target.a.pose;
+	return 0;
+	return 0;
+	return 0;
+	yawthreshold = 110;
+	yawthreshold = 60;
+	yawtoenemy = angleclamp180( self.angles[1] - vectortoangles( target.origin - self.origin )[1] );
+	return 0;
+	return 1;
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2248
+melee_startmovement()
+{
+	self.melee.playingmovementanim = 1;
+	self.a.movement = "run";
+// SP = 0x0 - check OK
+}
+
+// 0x2268
+melee_stopmovement()
+{
+	self clearanim( %body, 0.2 );
+	self.melee.playingmovementanim = undefined;
+	self.a.movement = "stop";
+	self orientmode( "face default" );
+// SP = 0x0 - check OK
+}
+
+// 0x22AC
+melee_mainloop()
+{
+	self endon( "killanimscript" );
+	self endon( "end_melee" );
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.func ) );
+#/
+	prevfunc = self.melee.func;
+	[[self.melee.func]]();
+// SP = 0x0 - check OK
+}
+
+// 0x2340
+melee_standard_delaystandardcharge( target )
+{
+	return;
+	self.nextmeleestandardchargetime = GetTime() + 2500;
+	self.nextmeleestandardchargetarget = target;
+// SP = 0x0 - check OK
+}
+
+// 0x2364
+melee_standard_checktimeconstraints()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	targetdistsq = distancesquared( self.melee.target.origin, self.origin );
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x23FC
+melee_standard_chooseaction()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	return 0;
+	return 0;
+	return 0;
+	return melee_standard_updateandvalidatetarget();
+// SP = 0x0 - check OK
+}
+
+// 0x247C
+melee_standard_resetgiveuptime()
+{
+	chargedistsq = self.meleechargedistsq;
+	chargedistsq = 40000;
+	chargedistsq = 25600;
+	self.melee.giveuptime = GetTime() + 3000;
+	self.melee.giveuptime = GetTime() + 1000;
+// SP = 0x0 - check OK
+}
+
+// 0x2500
+melee_standard_main()
+{
+	self animmode( "zonly_physics" );
+	melee_standard_resetgiveuptime();
+	melee_notify_wrapper();
+	self.melee.meleeanimvarientindex = randomint( 2 );
+	self.melee.meleeanimvarientindex = 0;
+	self.nextmeleechargetime = GetTime() + 1500;
+	self.nextmeleechargetarget = self.melee.target;
+/#
+	assert( self.a.pose == "crouch" );
+#/
+	self orientmode( "face point", self.melee.target.origin );
+	self setflaggedanimknoballrestart( "meleeanim", animarray( "melee_" + self.melee.meleeanimvarientindex, "combat" ), %body, 1, 0.2, self.moveplaybackrate );
+	self.melee.inprogress = 1;
+	melee_standard_delaystandardcharge( self.melee.target );
+	self animmode( "none" );
+// SP = 0x0 - check OK
+}
+
+// 0x2678
+melee_standard_playattackloop()
+{
+	self waittill( "meleeanim", note );
+	return 1;
+	return 0;
+/#
+	assert( IsDefined( self.melee.func ) );
+#/
+	return 1;
+	self animscripts\face::saygenericdialogue( "swing" );
+	oldhealth = self.melee.target.health;
+	self melee();
+	self.melee.target playsoundtoplayer( "wpn_melee_hit_plr", self.melee.target );
+	melee_standard_resetgiveuptime();
+// SP = 0x0 - check OK
+}
+
+// 0x2780
+melee_standard_updateandvalidatetarget()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return 0;
+	return 0;
+	dirtotarget = vectornormalize( self.melee.target.origin - self.origin );
+	self.melee.startpos = self.melee.target.origin - 40 * dirtotarget;
+	return melee_updateandvalidatestartpos();
+// SP = 0x0 - check OK
+}
+
+// 0x2814
+distance2dsquared( a, b )
+{
+	diff = ( a[0] - b[0], a[1] - b[1], 0 );
+	return lengthsquared( diff );
+// SP = 0x0 - check OK
+}
+
+// 0x2848
+melee_standard_getinposition()
+{
+	return 0;
+	enemydistancesq = distance2dsquared( self.origin, self.melee.target.origin );
+	self.a.pose = "stand";
+	self.a.movement = "stop";
+	self setflaggedanimknoball( "readyanim", animarray( "stand_2_melee_" + self.melee.meleeanimvarientindex, "combat" ), %body, 1, 0.3, self.moveplaybackrate );
+	self animscripts\shared::donotetracks( "readyanim" );
+	return 1;
+	self melee_playchargesound();
+	prevenemypos = self.melee.target.origin;
+	raisegunanimtraveldist = length( getmovedelta( animarray( "run_2_melee_" + self.melee.meleeanimvarientindex, "combat" ), 0, 1 ) );
+	shouldraisegundist = 48 + 32 + raisegunanimtraveldist;
+	shouldraisegundistsq = shouldraisegundist * shouldraisegundist;
+	shouldmeleedist = 64 + 32;
+	shouldmeleedistsq = shouldmeleedist * shouldmeleedist;
+	raisegunfullduration = getanimlength( animarray( "run_2_melee_" + self.melee.meleeanimvarientindex, "combat" ) ) * 1000 / self.moveplaybackrate;
+	raisegunfinishduration = raisegunfullduration - 100;
+	raisegunpredictduration = raisegunfullduration - 200;
+	raisegunstarttime = 0;
+	predictedenemydistsqafterraisegun = undefined;
+	runanim = animscripts\run::getrunanim();
+	self orientmode( "face enemy" );
+	self orientmode( "face point", self.melee.target.origin );
+	self setflaggedanimknoball( "chargeanim", runanim, %body, 1, 0.3, self.moveplaybackrate );
+	raisinggun = 0;
+	time = GetTime();
+	willbewithinrangewhengunisraised = predictedenemydistsqafterraisegun <= shouldraisegundistsq;
+	melee_startmovement();
+	self setflaggedanimknoballrestart( "chargeanim", animarray( "run_2_melee_" + self.melee.meleeanimvarientindex, "combat" ), %body, 1, 0.2, self.moveplaybackrate );
+	raisegunstarttime = time;
+	raisinggun = 1;
+	withinrangenow = enemydistancesq <= shouldraisegundistsq;
+	melee_startmovement();
+	self setflaggedanimknoball( "chargeanim", runanim, %body, 1, 0.3, self.moveplaybackrate );
+	raisinggun = 0;
+	self animscripts\shared::donotetracksfortime( 0.1, "chargeanim" );
+	melee_stopmovement();
+	return 0;
+	enemydistancesq = distance2dsquared( self.origin, self.melee.target.origin );
+	enemyvel = vector_scale( self.melee.target.origin - prevenemypos, 1 / ( GetTime() - time ) );
+	prevenemypos = self.melee.target.origin;
+	predictedenemyposafterraisegun = self.melee.target.origin + vector_scale( enemyvel, raisegunpredictduration );
+	predictedenemydistsqafterraisegun = distance2dsquared( self.origin, predictedenemyposafterraisegun );
+	melee_stopmovement();
+	return 0;
+	melee_stopmovement();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2C14
+melee_playchargesound()
+{
+	self.a.nextmeleechargesound = 0;
+	self animscripts\face::saygenericdialogue( "attack" );
+	self.a.nextmeleechargesound = GetTime() + 4000;
+// SP = 0x0 - check OK
+}
+
+// 0x2C8C
+melee_deathhandler_regular()
+{
+	self endon( "end_melee" );
+	self animscripts\shared::dropallaiweapons();
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x2CA4
+melee_endscript_checkdeath()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self.deathfunction = ::melee_deathhandler_delayed;
+	self.deathfunction = ::melee_deathhandler_regular;
+// SP = 0x0 - check OK
+}
+
+// 0x2D14
+melee_endscript_checkpositionandmovement()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return;
+	melee_stopmovement();
+	neworigin = self getdroptofloorposition();
+	self forceteleport( neworigin, self.angles );
+/#
+	println( "Warning: Melee animation might have ended up in solid for entity #" + self getentnum() );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2DB0
+melee_endscript_checkweapon()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self detach( "weapon_parabolic_knife", "TAG_INHAND" );
+	melee_droppedweaponrestore();
+// SP = 0x0 - check OK
+}
+
+// 0x2E14
+melee_endscript_checkstatechanges()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self enable_pain();
+	self disable_pain();
+	self setflashbangimmunity( self.melee.wasflashbangimmune );
+// SP = 0x0 - check OK
+}
+
+// 0x2E9C
+melee_endscript()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self melee_unlink();
+	self melee_endscript_checkdeath();
+	self melee_endscript_checkpositionandmovement();
+	self melee_endscript_checkweapon();
+	self melee_endscript_checkstatechanges();
+	self.melee.partner notify( "partner_end_melee" );
+	self thread [[self.meleeendfunc]]();
+	self melee_releasemutex( self.melee.target );
+// SP = 0x0 - check OK
+}
+
+// 0x2F44
+melee_acquiremutex( target )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( target ) );
+#/
+	return 0;
+	return 0;
+	self.melee = spawnstruct();
+	target.melee = spawnstruct();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x2FB4
+melee_releasemutex( target )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+	self.melee = undefined;
+	target.melee = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x2FE0
+melee_aivsai_main()
+{
+	self.nextmeleechargetime = GetTime() + 1500;
+	self.nextmeleechargetarget = self.melee.target;
+	return;
+	target = self.melee.target;
+/#
+	assert( isalive( target ) );
+#/
+/#
+	assert( !(IsDefined( self.syncedmeleetarget )) );
+#/
+/#
+	assert( !(IsDefined( target.syncedmeleetarget )) );
+#/
+/#
+	assert( IsDefined( self.melee.animname ) );
+#/
+/#
+	assert( animhasnotetrack( self.melee.animname, "sync" ) );
+#/
+	self melee_aivsai_schedulenotetracklink( target );
+	self.melee.death = undefined;
+	target.melee.death = 1;
+	target.melee.death = undefined;
+	self.melee.death = 1;
+	self.melee.partner = target;
+	target.melee.partner = self;
+	self gun_switchto( self.primaryweapon, "right" );
+	self.lastweapon = self.primaryweapon;
+	target gun_switchto( target.primaryweapon, "right" );
+	target.lastweapon = target.primaryweapon;
+	self.melee.weapon = self.weapon;
+	self.melee.weaponslot = self getcurrentweaponslotname();
+	target.melee.weapon = target.weapon;
+	target.melee.weaponslot = target getcurrentweaponslotname();
+	self.melee.inprogress = 1;
+	target animcustom( ::melee_aivsai_execute, ::melee_endscript );
+	target thread melee_aivsai_animcustominterruptionmonitor( self );
+	self.melee.target = undefined;
+	self melee_aivsai_execute();
+// SP = 0x0 - check OK
+}
+
+// 0x31EC
+melee_aivsai_getinposition()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return 0;
+	melee_startmovement();
+	self clearanim( %body, 0.2 );
+	self setanimknoball( animscripts\run::getrunanim(), %body, 1, 0.2, self.moveplaybackrate );
+	self animmode( "zonly_physics" );
+	self.keepclaimednode = 1;
+	giveuptime = GetTime() + 1500;
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+/#
+	assert( IsDefined( self.melee.target.origin ) );
+#/
+	initialtargetorigin = self.melee.target.origin;
+/#
+	self notify( "MDBG_att_getInPosition", self.melee.target );
+	self.melee.target notify( "MDBG_def_getInPosition", self );
+#/
+	return melee_aivsai_getinposition_finalize( initialtargetorigin );
+	self orientmode( "face point", self.melee.startpos );
+	wait 0.05;
+	melee_stopmovement();
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3350
+melee_aivsai_schedulenotetracklink( target )
+{
+	self.melee.syncnotetrackent = target;
+	target.melee.syncnotetrackent = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x3370
+melee_aivsai_execute()
+{
+	self endon( "killanimscript" );
+	self endon( "end_melee" );
+	self notify( "melee_aivsai_execute" );
+/#
+	assert( IsDefined( self ) );
+#/
+	return;
+	self animmode( "zonly_physics" );
+	self.a.special = "none";
+	self.specialdeathfunc = undefined;
+	self thread melee_droppedweaponmonitorthread();
+	self thread melee_partnerendedmeleemonitorthread();
+	self orientmode( "face angle", self.melee.faceyaw );
+	self orientmode( "face current" );
+	self.a.pose = "stand";
+	self clearanim( %body, 0.2 );
+	self melee_disableinterruptions();
+	self setflaggedanimknoballrestart( "meleeAnim", self.melee.animname, %body, 1, 0.2, self.moveplaybackrate );
+	endnote = self animscripts\shared::donotetracks( "meleeAnim", ::melee_handlenotetracks );
+	melee_droppedweaponrestore();
+	self setflaggedanimknoballrestart( "meleeAnim", self.melee.surviveanimname, %body, 1, 0.2, self.moveplaybackrate );
+	endnote = self animscripts\shared::donotetracks( "meleeAnim", ::melee_handlenotetracks );
+	self.overrideactordamage = undefined;
+	self kill();
+	self.keepclaimednode = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x3514
+melee_aivsai_animcustominterruptionmonitor( attacker )
+{
+/#
+	assert( IsDefined( attacker ) );
+#/
+	self endon( "end_melee" );
+	self endon( "melee_aivsai_execute" );
+	wait 0.1;
+	attacker notify( "end_melee" );
+	self notify( "end_melee" );
+// SP = 0x0 - check OK
+}
+
+// 0x3558
+melee_aivsai_getinposition_updateandvalidatetarget( initialtargetorigin, giveuptime )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( initialtargetorigin ) );
+#/
+	return 0;
+	return 0;
+	target = self.melee.target;
+	positiondelta = distancesquared( target.origin, initialtargetorigin );
+/#
+	assert( IsDefined( self.melee.precisepositioning ) );
+#/
+	positionthreshold = 256;
+	positionthreshold = 1296;
+	return 0;
+	self.melee.startpos = target.origin + self.melee.startposoffset;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3648
+melee_aivsai_getinposition_issuccessful( initialtargetorigin )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.startpos ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+/#
+	assert( IsDefined( initialtargetorigin ) );
+#/
+	dist2dtostartpos = distancesquared( ( self.origin[0], self.origin[1], 0 ), ( self.melee.startpos[0], self.melee.startpos[1], 0 ) );
+	return 1;
+	dist2dfromstartpostotargetsq = distancesquared( ( initialtargetorigin[0], initialtargetorigin[1], 0 ), ( self.melee.startpos[0], self.melee.startpos[1], 0 ) );
+	dist2dtotargetsq = distancesquared( ( self.origin[0], self.origin[1], 0 ), ( self.melee.target.origin[0], self.melee.target.origin[1], 0 ) );
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x37B0
+melee_aivsai_getinposition_finalize( initialtargetorigin )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.precisepositioning ) );
+#/
+/#
+	assert( IsDefined( initialtargetorigin ) );
+#/
+	melee_stopmovement();
+/#
+	assert( IsDefined( self.melee.startpos ) );
+#/
+/#
+	assert( IsDefined( self.melee.startangles ) );
+#/
+	self forceteleport( self.melee.startpos, self.melee.startangles );
+	wait 0.05;
+	self orientmode( "face angle", self.melee.startangles[1] );
+	wait 0.05;
+	return melee_aivsai_getinposition_updateandvalidatetarget( initialtargetorigin );
+// SP = 0x0 - check OK
+}
+
+// 0x38A0
+melee_disableinterruptions()
+{
+	self.melee.wasallowingpain = self.allowpain;
+	self.melee.wasflashbangimmune = self.flashbangimmunity;
+	self disable_pain();
+	self setflashbangimmunity( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x38DC
+melee_needsweaponswap()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return self.weapon != self.melee.weapon;
+// SP = 0x0 - check OK
+}
+
+// 0x3930
+melee_droppedweaponrestore()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return;
+	return;
+	return;
+	self gun_switchto( self.melee.weapon, "right" );
+	self.melee.droppedweaponent delete();
+	self.melee.droppedweaponent = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x39EC
+melee_droppedweaponmonitorthread()
+{
+	self endon( "killanimscript" );
+	self endon( "end_melee" );
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self waittill( "weapon_dropped", droppedweapon );
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self.melee.droppedweaponent = droppedweapon;
+// SP = 0x0 - check OK
+}
+
+// 0x3A48
+melee_partnerendedmeleemonitorthread_shouldanimsurvive()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return 0;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3A94
+melee_partnerendedmeleemonitorthread()
+{
+	self endon( "killanimscript" );
+	self endon( "end_melee" );
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self waittill( "partner_end_melee" );
+	self.overrideactordamage = undefined;
+	self kill();
+	self.melee.death = undefined;
+	self.melee.survive = 1;
+	self notify( "end_melee" );
+	self notify( "end_melee" );
+// SP = 0x0 - check OK
+}
+
+// 0x3B3C
+melee_unlink()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return;
+	self.syncedmeleetarget melee_unlinkinternal();
+	self melee_unlinkinternal();
+// SP = 0x0 - check OK
+}
+
+// 0x3B98
+melee_unlinkinternal()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+	self unlink();
+	self.syncedmeleetarget = undefined;
+	return;
+/#
+	assert( IsDefined( self.melee.linked ) );
+#/
+	self.melee.linked = undefined;
+	self animmode( "zonly_physics" );
+	self orientmode( "face angle", self.angles[1] );
+// SP = 0x0 - check OK
+}
+
+// 0x3C14
+melee_handlenotetracks_shoulddieafterunsync()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	return 0;
+	return IsDefined( self.melee.death );
+// SP = 0x0 - check OK
+}
+
+// 0x3C6C
+melee_handlenotetracks_unsync()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+	self melee_unlink();
+	self.melee.unsynchappened = 1;
+	self.melee.partner.melee.unsynchappened = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3CE0
+melee_handlenotetracks_death( interruptanimation )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.death ) );
+#/
+	self.melee.interruptdeath = 1;
+	self.melee.animateddeath = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3D4C
+melee_handlenotetracks( note )
+{
+	alias = getsubstr( note, 3 );
+	self playsound( alias );
+	return;
+	self melee_aivsai_targetlink( self.melee.syncnotetrackent );
+	self.melee.syncnotetrackent = undefined;
+	self melee_handlenotetracks_unsync();
+	melee_handlenotetracks_death();
+	self.melee.surviveanimallowed = 1;
+/#
+	assert( !(IsDefined( self.melee.death )) );
+#/
+/#
+	assert( IsDefined( self.melee.surviveanimname ) );
+#/
+	return note;
+/#
+	assert( IsDefined( self.melee.death ) );
+#/
+	melee_handlenotetracks_death();
+	return note;
+	self attach( "weapon_parabolic_knife", "TAG_INHAND", 1 );
+	self.melee.hasknife = 1;
+	self detach( "weapon_parabolic_knife", "TAG_INHAND" );
+	self.melee.hasknife = undefined;
+/#
+	assert( IsDefined( self.hasknifelikeweapon ) );
+#/
+	self playsound( "melee_knife_hit_body" );
+	playfxontag( level._effect[self.special_knife_attack_fx_name], self.melee_weapon_ent, self.special_knife_attack_fx_tag );
+	playfxontag( level._effect[self.special_knife_attack_fx_name], self, self.special_knife_attack_fx_tag );
+	playfxontag( level._effect["flesh_hit_knife"], self, "tag_origin" );
+	self.melee.partner melee_handlenotetracks_death( 1 );
+	[[self.meleenotetrackhandler]]( note );
+// SP = 0x0 - check OK
+}
+
+// 0x3FB4
+melee_deathhandler_delayed()
+{
+	self endon( "end_melee" );
+	self animscripts\shared::donotetracksfortime( 10, "meleeAnim" );
+	self animscripts\shared::dropallaiweapons();
+	self startragdoll();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x3FEC
+melee_aivsai_chooseaction()
+{
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	target = self.melee.target;
+	return 0;
+	return 0;
+	return 0;
+/#
+	assert( !(IsDefined( self.melee.target.magic_bullet_shield )) );
+#/
+	return 0;
+	return 0;
+	return 0;
+	self.melee.precisepositioning = 1;
+	return 0;
+	self.melee.precisepositioning = 1;
+	return 0;
+	self.melee.precisepositioning = 0;
+	target.melee.faceyaw = target.angles[1];
+	self.melee.startposoffset = self.melee.startpos - target.origin;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x418C
+melee_aivsai_targetlink( target )
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( target ) );
+#/
+/#
+	assert( IsDefined( self.melee.survive ) );
+#/
+	return;
+	self melee_playchargesound();
+	return;
+	self.syncedmeleetarget = target;
+	target.syncedmeleetarget = self;
+	self.melee.linked = 1;
+	target.melee.linked = 1;
+	self linktoblendtotag( target, "tag_sync", 1, 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x4238
+melee_aivsai_exposed_chooseanimationandposition_flip( anglediff )
+{
+	flipanglethreshold = 90;
+	flipanglethreshold += 50;
+	return 0;
+	target = self.melee.target;
+	melee_decide_winner();
+	self.melee.animname = %ai_melee_f_awin_attack;
+	target.melee.animname = %ai_melee_f_awin_defend;
+	target.melee.surviveanimname = %ai_melee_f_awin_defend_survive;
+	self.melee.animname = %ai_melee_f_dwin_attack;
+	target.melee.animname = %ai_melee_f_dwin_defend;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x42E4
+melee_aivsai_exposed_chooseanimationandposition_wrestle( anglediff )
+{
+	wrestleanglethreshold = 100;
+	wrestleanglethreshold += 50;
+	return 0;
+	target = self.melee.target;
+	return 0;
+/#
+	assert( !(IsDefined( self.magic_bullet_shield )) );
+#/
+	return 0;
+	self.melee.winner = 1;
+	self.melee.animname = %ai_melee_r_attack;
+	target.melee.animname = %ai_melee_r_defend;
+	target.melee.surviveanimname = %ai_melee_r_backdeath2;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4390
+melee_aivsai_exposed_chooseanimationandposition_behind( anglediff )
+{
+	return 0;
+	target = self.melee.target;
+	return 0;
+/#
+	assert( !(IsDefined( self.magic_bullet_shield )) );
+#/
+	return 0;
+	self.melee.winner = 1;
+	self.melee.animname = %ai_melee_sync_attack;
+	target.melee.animname = %ai_melee_sync_defend;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x4414
+melee_aivsai_exposed_chooseanimationandposition_buildexposedlist()
+{
+	exposedmelees[0] = self.meleesequenceoverride;
+/#
+	assert( !(IsDefined( self.meleeforcedexposedwrestle )) );
+#/
+	exposedmelees[0] = ::melee_aivsai_exposed_chooseanimationandposition_flip;
+	exposedmelees[0] = ::melee_aivsai_exposed_chooseanimationandposition_wrestle;
+	exposedmelees[0] = ::melee_aivsai_exposed_chooseanimationandposition_behind;
+	flipindex = randomint( 2 );
+	wrestleindex = 1 - flipindex;
+	exposedmelees[flipindex] = ::melee_aivsai_exposed_chooseanimationandposition_flip;
+	exposedmelees[wrestleindex] = ::melee_aivsai_exposed_chooseanimationandposition_wrestle;
+	exposedmelees[2] = ::melee_aivsai_exposed_chooseanimationandposition_behind;
+	return exposedmelees;
+// SP = 0x0 - check OK
+}
+
+// 0x44DC
+melee_aivsai_exposed_chooseanimationandposition()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	target = self.melee.target;
+	angletoenemy = vectortoangles( target.origin - self.origin );
+	anglediff = angleclamp180( target.angles[1] - angletoenemy[1] );
+	exposedmelees = melee_aivsai_exposed_chooseanimationandposition_buildexposedlist();
+	i = 0;
+/#
+	assert( IsDefined( self.melee.animname ) );
+#/
+/#
+	assert( IsDefined( target.melee.animname ) );
+#/
+	self.melee.startangles = ( 0, angletoenemy[1], 0 );
+	self.melee.startpos = getstartorigin( target.origin, target.angles, self.melee.animname );
+/#
+	self thread draweventpointanddir( self.melee.startpos );
+#/
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4600
+melee_decide_winner()
+{
+/#
+	assert( IsDefined( self.melee ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	target = self.melee.target;
+/#
+	assert( !(IsDefined( target.magic_bullet_shield )) );
+#/
+	self.melee.winner = 1;
+	return;
+/#
+	assert( !(IsDefined( self.magic_bullet_shield )) );
+#/
+	self.melee.winner = 0;
+	return;
+/#
+	assert( !(IsDefined( target.magic_bullet_shield )) );
+#/
+	self.melee.winner = 1;
+	self.melee.winner = 0;
+	self.melee.winner = cointoss();
+// SP = 0x0 - check OK
+}
+
+// 0x46F4
+melee_aivsai_specialcover_chooseanimationandposition()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+/#
+	assert( IsDefined( self.melee.target.covernode ) );
+#/
+	target = self.melee.target;
+	melee_decide_winner();
+	self.melee.animname = %ai_cornerstand_left_melee_wina_attacker;
+	target.melee.animname = %ai_cornerstand_left_melee_wina_defender;
+	target.melee.surviveanimname = %ai_cornerstand_left_melee_wina_defender_survive;
+	self.melee.animname = %ai_cornerstand_left_melee_wind_attacker;
+	self.melee.surviveanimname = %ai_cornerstand_left_melee_wind_attacker_survive;
+	target.melee.animname = %ai_cornerstand_left_melee_wind_defender;
+/#
+	assert( target.covernode.type == "Cover Right" );
+#/
+	self.melee.animname = %ai_cornerstand_right_melee_wina_attacker;
+	target.melee.animname = %ai_cornerstand_right_melee_wina_defender;
+	self.melee.animname = %ai_cornerstand_right_melee_wind_attacker;
+	target.melee.animname = %ai_cornerstand_right_melee_wind_defender;
+	self.melee.startpos = getstartorigin( target.covernode.origin, target.covernode.angles, self.melee.animname );
+	self.melee.startangles = ( target.covernode.angles[0], angleclamp180( target.covernode.angles[1] + 180 ), target.covernode.angles[2] );
+	target.melee.faceyaw = getnodeforwardyaw( target.covernode );
+	self.melee.starttotargetcornerangles = target.covernode.angles;
+	self.melee.starttotargetcornerangles = undefined;
+	return 0;
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x48FC
+melee_aivsai_specialcover_canexecute()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+/#
+	assert( IsDefined( self.melee.target ) );
+#/
+	cover = self.melee.target.covernode;
+	return 0;
+	return 0;
+	covertoselfangles = vectortoangles( self.origin - cover.origin );
+	anglediff = angleclamp180( cover.angles[1] - covertoselfangles[1] );
+	return 1;
+	return 1;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0x4A1C
+getcurrentweaponslotname()
+{
+/#
+	assert( IsDefined( self ) );
+#/
+	return "secondary";
+	return "sidearm";
+	return "primary";
+// SP = 0x0 - check OK
+}
+
+// 0x4A5C
+draweventpointanddir( position )
+{
+/#
+	self endon( "death" );
+	current_time = GetTime();
+	drawdebugcross( position, 1, ( 1, 0, 0 ), 0.05 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4AB8
+debugline( frompoint, topoint, color, durationframes )
+{
+/#
+	self endon( "death" );
+	i = 0;
+	line( frompoint, topoint, color );
+	recordline( frompoint, topoint, color, "Animscript", self );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4B18
+drawdebugcross( atpoint, radius, color, durationframes )
+{
+/#
+	self endon( "death" );
+	atpoint_high = atpoint + ( 0, 0, radius );
+	atpoint_low = atpoint + ( 0, 0, -1 * radius );
+	atpoint_left = atpoint + ( 0, radius, 0 );
+	atpoint_right = atpoint + ( 0, -1 * radius, 0 );
+	atpoint_forward = atpoint + ( radius, 0, 0 );
+	atpoint_back = atpoint + ( -1 * radius, 0, 0 );
+	thread debugline( atpoint_high, atpoint_low, color, durationframes );
+	thread debugline( atpoint_left, atpoint_right, color, durationframes );
+	thread debugline( atpoint_forward, atpoint_back, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}

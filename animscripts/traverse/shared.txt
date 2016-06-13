@@ -1,0 +1,421 @@
+// animscripts/traverse/shared.gsc
+
+#include animscripts\death;
+#include animscripts\weaponlist;
+#include animscripts\shared;
+#include animscripts\run;
+#include animscripts\utility;
+#include animscripts\debug;
+#include maps\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "generic_human" );
+#using_animtree ( "dog" );
+
+
+// 0xD28
+init_traverse()
+{
+	point = getent( self.target, "targetname" );
+	self.traverse_height = point.origin[2];
+	point delete();
+	point = getstruct( self.target, "targetname" );
+	self.traverse_height = point.origin[2];
+// SP = 0x0 - check OK
+}
+
+// 0xD94
+teleportthread( verticaloffset )
+{
+	self endon( "killanimscript" );
+	self notify( "endTeleportThread" );
+	self endon( "endTeleportThread" );
+	offset = ( 0, 0, verticaloffset / 5 );
+	i = 0;
+	self teleport( self.origin + offset );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xDF0
+teleportthreadex( verticaloffset, delay, frames )
+{
+	self endon( "killanimscript" );
+	self notify( "endTeleportThread" );
+	self endon( "endTeleportThread" );
+	return;
+	wait delay;
+	amount = verticaloffset / frames;
+	amount = 10;
+	amount = -10;
+	offset = ( 0, 0, amount );
+	i = 0;
+	self teleport( self.origin + offset );
+	wait 0.05;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xE94
+preparefortraverse()
+{
+	self.a.prevpose = "stand";
+	self.a.pose = "stand";
+	movement = "move";
+	movement = self.force_traversal_movement;
+	return movement;
+// SP = 0x0 - check OK
+}
+
+// 0xED0
+dotraverse( traversedata )
+{
+	self endon( "killanimscript" );
+	self.a.script = "move";
+/#
+	self animscripts\debug::debugclearstate();
+	self animscripts\debug::debugpushstate( self.a.script );
+	self animscripts\debug::debugpushstate( "traverse" );
+#/
+	self.traverseanimissequence = traversedata["traverseAnimType"] == "sequence";
+	self.traverseanim = traversedata["traverseAnim"];
+	self.traverseanimtransin = traversedata["traverseAnimTransIn"];
+	self.traverseanimtransout = traversedata["traverseAnimTransOut"];
+	self.traversesound = traversedata["traverseSound"];
+	self.traversealertness = traversedata["traverseAlertness"];
+	self.traversestance = traversedata["traverseStance"];
+	self.traverseheight = traversedata["traverseHeight"];
+	self.traversemovement = traversedata["traverseMovement"];
+	self.traversetocoveranim = traversedata["traverseToCoverAnim"];
+	self.traversetocoversound = traversedata["traverseToCoverSound"];
+	self.traversedeathanim = traversedata["interruptDeathAnim"];
+	self.traversedeathindex = 0;
+	self.traverseallowaiming = 0;
+	self.traverseallowaiming = traversedata["traverseAllowAiming"];
+	self.traverseaimanims = [];
+	self.traverseaimanims["up"] = traversedata["traverseAimUp"];
+	self.traverseaimanims["down"] = traversedata["traverseAimDown"];
+	self.traverseaimanims["left"] = traversedata["traverseAimLeft"];
+	self.traverseaimanims["right"] = traversedata["traverseAimRight"];
+	self.traverseragdolldeath = 0;
+	self.traverseragdolldeath = traversedata["traverseRagdollDeath"];
+	self traversestartragdolldeath();
+	self.traverseanimrate = 1;
+	self.traverseanimrate = traversedata["traverseAnimRate"];
+	self traversemode( "nogravity" );
+	self traversemode( "noclip" );
+	self.desired_anim_pose = "stand";
+	self.desired_anim_pose = self.traversestance;
+	animscripts\utility::updateanimpose();
+	self.traversestartnode = self getnegotiationstartnode();
+	self.traverseendnode = self getnegotiationendnode();
+/#
+	assert( IsDefined( self.traversestartnode ) );
+#/
+/#
+	assert( IsDefined( self.traverseendnode ) );
+#/
+	self orientmode( "face angle", self.traversestartnode.angles[1] );
+	self.traversestartz = self.origin[2];
+	tocover = 0;
+	tocover = 1;
+	self.traverseanim = self.traversetocoveranim;
+	self.traverseanim = random( self.traverseanim );
+	self thread play_sound_on_entity( self.traversetocoversound );
+	self thread play_sound_on_entity( self.traversesound );
+	self dotraverse_animation();
+	self traversemode( "gravity" );
+	self traversestopragdolldeath();
+/#
+	self animscripts\debug::debugpopstate( "traverse", "delayedDeath" );
+#/
+	return;
+	self.a.nodeath = 0;
+	self.a.movement = "stop";
+	self teleport( self.node.origin );
+	self.a.movement = self.traversemovement;
+	self setanimknoballrestart( animscripts\run::getrunanim(), %body, 1, 0.2, 1 );
+/#
+	self animscripts\debug::debugpopstate( "traverse" );
+#/
+	waittillframeend;
+	self.a.script = "traverse";
+// SP = 0x0 - check OK
+}
+
+// 0x1324
+dotraverse_animation()
+{
+	self.in_traversal = 1;
+	traverseanim = self.traverseanim;
+	traverseanim = add_to_array( undefined, traverseanim );
+	self clearanim( %body, 0.2 );
+	played_trans_in = 0;
+	played_trans_in = 1;
+	self thread domaintraverse_animationaiming( self.traverseanimtransin, "traverseAnim" );
+	self setflaggedanimknobrestart( "traverseAnim", self.traverseanimtransin, 1, 0.2, self.traverseanimrate );
+	self domaintraverse_notetracks( "traverseAnim" );
+	self thread domaintraverse_notetracks( "traverseAnim" );
+	wait_anim_length( self.traverseanimtransin, 0.2, self.traverseanimrate );
+	first = 1;
+	last = 1;
+	i = 0;
+	first = 0;
+	last = 0;
+	domaintraverse_animation( traverseanim[i], first, last );
+	i++;
+	self setflaggedanimknobrestart( "traverseAnim", self.traverseanimtransout, 1, 0, self.traverseanimrate );
+	self thread domaintraverse_notetracks( "traverseAnim" );
+	wait_anim_length( self.traverseanimtransout, 0.1, self.traverseanimrate );
+	self notify( "traverseAnim", "end" );
+	self animscripts\shared::stoptracking();
+	self animscripts\run::stopshootwhilemovingthreads();
+	self animscripts\weaponlist::refillclip();
+	self.in_traversal = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x14D8
+domaintraverse_animation( animation, first, last )
+{
+	self thread domaintraverse_animationaiming( animation, "traverseAnim" );
+	self setflaggedanimknobrestart( "traverseAnim", animation, 1, 0.2, self.traverseanimrate );
+	self setflaggedanimknobrestart( "traverseAnim", animation, 1, 0, self.traverseanimrate );
+	self thread traverseragdolldeath( animation );
+	self thread domaintraverse_notetracks( "traverseAnim" );
+	wait_anim_length( animation, 0.2, self.traverseanimrate );
+	self animscripts\shared::donotetracks( "traverseAnim" );
+// SP = 0x0 - check OK
+}
+
+// 0x1580
+domaintraverse_animationaiming( animation, flag )
+{
+	self endon( "killanimscript" );
+	self endon( "death" );
+	self endon( "stop tracking" );
+	self waittillmatch( flag );
+	return "start_aim";
+	self.a.isaiming = 1;
+/#
+	assert( IsDefined( self.traverseaimanims ) );
+#/
+	self setanimknoblimited( self.traverseaimanims["up"], 1, 0.2 );
+	self setanimknoblimited( self.traverseaimanims["down"], 1, 0.2 );
+	self setanimknoblimited( self.traverseaimanims["left"], 1, 0.2 );
+	self setanimknoblimited( self.traverseaimanims["right"], 1, 0.2 );
+	self.rightaimlimit = 50;
+	self.leftaimlimit = -50;
+	self.upaimlimit = 50;
+	self.downaimlimit = -50;
+	self animscripts\shared::setaiminganims( %traverse_aim_2, %traverse_aim_4, %traverse_aim_6, %traverse_aim_8 );
+	self animscripts\shared::trackloopstart();
+	self animscripts\weaponlist::refillclip();
+	self.shoot_while_moving_thread = undefined;
+	self thread animscripts\run::runshootwhilemovingthreads();
+// SP = 0x0 - check OK
+}
+
+// 0x16C0
+domaintraverse_notetracks( flagname )
+{
+	self notify( "stop_DoNotetracks" );
+	self endon( "killanimscript" );
+	self endon( "stop_DoNotetracks" );
+	self animscripts\shared::donotetracks( flagname, ::handletraversenotetracks );
+// SP = 0x0 - check OK
+}
+
+// 0x16F0
+wait_anim_length( animation, blend, rate )
+{
+	len = getanimlength( animation ) / rate - blend;
+	wait len;
+// SP = 0x0 - check OK
+}
+
+// 0x171C
+handletraversenotetracks( note )
+{
+	return handletraversedeathnotetrack();
+// SP = 0x0 - check OK
+}
+
+// 0x173C
+handletraversedeathnotetrack()
+{
+	self endon( "killanimscript" );
+	self.a.nodeath = 1;
+	self.exception["move"] = ::donothingfunc;
+	self traversedeath();
+	return 1;
+	self.traversedeathindex++;
+// SP = 0x0 - check OK
+}
+
+// 0x1780
+handletraversealignment()
+{
+	self traversemode( "nogravity" );
+	self traversemode( "noclip" );
+	currentheight = self.traversestartnode.traverse_height - self.traversestartz;
+	self thread teleportthread( currentheight - self.traverseheight );
+// SP = 0x0 - check OK
+}
+
+// 0x17E0
+donothingfunc()
+{
+	self animmode( "zonly_physics" );
+	self waittill( "killanimscript" );
+// SP = 0x0 - check OK
+}
+
+// 0x17FC
+traversedeath()
+{
+	self notify( "traverse_death" );
+	self animscripts\death::playdeathsound();
+	deathanim = undefined;
+	deathanimarray = self.traversedeathanim[self.traversedeathindex];
+	deathanim = deathanimarray[randomint( deathanimarray.size )];
+	animscripts\death::play_death_anim( deathanim );
+	traversestartragdolldeath();
+	self dodamage( self.health + 5, self.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x1888
+traversestartragdolldeath()
+{
+	self.prevdelayeddeath = self.delayeddeath;
+	self.prevallowdeath = self.allowdeath;
+	self.prevdeathfunction = self.deathfunction;
+	self.delayeddeath = 0;
+	self.allowdeath = 1;
+	self.deathfunction = ::traverseragdolldeathsimple;
+// SP = 0x0 - check OK
+}
+
+// 0x18C8
+traversestopragdolldeath()
+{
+	self.delayeddeath = self.prevdelayeddeath;
+	self.allowdeath = self.prevallowdeath;
+	self.deathfunction = self.prevdeathfunction;
+	self.prevdelayeddeath = undefined;
+	self.prevallowdeath = undefined;
+	self.prevdeathfunction = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0x18FC
+traverseragdolldeathsimple()
+{
+/#
+	assert( !(is_true( self.magic_bullet_shield )), "Cannot ragdoll death on guy with magic bullet shield." );
+#/
+	self unlink();
+	self startragdoll();
+	self animscripts\shared::dropallaiweapons();
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1944
+traverseragdolldeath( traverseanim )
+{
+	self notify( "TraverseRagdollDeath" );
+	self endon( "TraverseRagdollDeath" );
+	self endon( "traverse_death" );
+	self endon( "killanimscript" );
+	self waittill( "damage" );
+	scripteddeathtimes = getnotetracktimes( traverseanim, "traverse_death" );
+	currenttime = self getanimtime( traverseanim );
+	scripteddeathtimes[scripteddeathtimes.size] = 1;
+/#
+	scripteddeathtimes = [];
+#/
+	i = 0;
+	animlength = getanimlength( traverseanim );
+	timeuntilscripteddeath = ( scripteddeathtimes[i] - currenttime ) * animlength;
+	return;
+	i++;
+	self.deathfunction = ::posttraversedeathanim;
+	self.exception["move"] = ::donothingfunc;
+	self ragdoll_death();
+	self.a.triedtraverseragdoll = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1A54
+posttraversedeathanim()
+{
+	self endon( "killanimscript" );
+	return;
+	deathanim = animscripts\death::get_death_anim();
+	self setflaggedanimknoballrestart( "deathanim", deathanim, %body, 1, 0.1 );
+	playfxontag( level._effects["death_neckgrab_spurt"], self, "j_neck" );
+// SP = 0x0 - check OK
+}
+
+// 0x1AC0
+dog_wall_and_window_hop( traversename, height )
+{
+	self endon( "killanimscript" );
+	self traversemode( "nogravity" );
+	self traversemode( "noclip" );
+	startnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( startnode ) );
+#/
+	self orientmode( "face angle", startnode.angles[1] );
+	realheight = startnode.traverse_height - startnode.origin[2];
+	self thread teleportthread( realheight - height );
+	self clearanim( %root, 0.2 );
+	self setflaggedanimrestart( "dog_traverse", anim.dogtraverseanims[traversename], 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "dog_traverse" );
+	self.traversecomplete = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1BA4
+dog_jump_down( height, frames )
+{
+	self endon( "killanimscript" );
+	self traversemode( "noclip" );
+	startnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( startnode ) );
+#/
+	self orientmode( "face angle", startnode.angles[1] );
+	self thread teleportthreadex( 40 - height, 0.1, frames );
+	self clearanim( %root, 0.2 );
+	self setflaggedanimrestart( "traverse", anim.dogtraverseanims["jump_down_40"], 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "traverse" );
+	self clearanim( anim.dogtraverseanims["jump_down_40"], 0 );
+	self traversemode( "gravity" );
+	self.traversecomplete = 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1C94
+dog_jump_up( height, frames )
+{
+	self endon( "killanimscript" );
+	self traversemode( "noclip" );
+	startnode = self getnegotiationstartnode();
+/#
+	assert( IsDefined( startnode ) );
+#/
+	self orientmode( "face angle", startnode.angles[1] );
+	self thread teleportthreadex( height - 40, 0.2, frames );
+	self clearanim( %root, 0.25 );
+	self setflaggedanimrestart( "traverse", anim.dogtraverseanims["jump_up_40"], 1, 0.2, 1 );
+	self animscripts\shared::donotetracks( "traverse" );
+	self clearanim( anim.dogtraverseanims["jump_up_40"], 0 );
+	self traversemode( "gravity" );
+	self.traversecomplete = 1;
+// SP = 0x0 - check OK
+}

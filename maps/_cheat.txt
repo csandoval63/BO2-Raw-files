@@ -1,0 +1,361 @@
+// maps/_cheat.gsc
+
+#include maps\_hud_util;
+#include maps\_utility;
+#include common_scripts\utility;
+
+
+// 0x834
+init()
+{
+	precachestring( &"SCRIPT_PLATFORM_CHEAT_USETOSLOWMO" );
+	precacheshellshock( "chaplincheat" );
+	level.vision_cheat_enabled = 0;
+	level.tire_explosion = 0;
+	level.cheatstates = [];
+	level.cheatfuncs = [];
+	level.cheatdvars = [];
+	level.cheatbobamporiginal = GetDvar( #"0x72BFD45D" );
+	level.cheatshowslowmohint = 0;
+	level._effect = [];
+	level._effect["grain_test"] = loadfx( "misc/fx_grain_test" );
+	flag_init( "has_cheated" );
+	level.visionsets["bw"] = 0;
+	level.visionsets["invert"] = 0;
+	level.visionsets["contrast"] = 0;
+	level.visionsets["chaplin"] = 0;
+	level thread death_monitor();
+	flag_init( "disable_slowmo_cheat" );
+// SP = 0x0 - check OK
+}
+
+// 0x8F4
+player_init()
+{
+	self thread specialfeaturesmenu();
+	players = get_players();
+	self slowmo_system_init();
+// SP = 0x0 - check OK
+}
+
+// 0x924
+death_monitor()
+{
+	setdvars_based_on_varibles();
+	setdvars_based_on_varibles();
+	wait 0.1;
+// SP = 0x0 - check OK
+}
+
+// 0x95C
+setdvars_based_on_varibles()
+{
+	index = 0;
+	setdvar( level.cheatdvars[index], level.cheatstates[level.cheatdvars[index]] );
+	index++;
+	setdvar( "credits_active", "0" );
+	setdvar( "credits_load", "0" );
+// SP = 0x0 - check OK
+}
+
+// 0x9D0
+addcheat( toggledvar, cheatfunc )
+{
+	setdvar( toggledvar, 0 );
+	level.cheatstates[toggledvar] = GetDvarInt( toggledvar );
+	level.cheatfuncs[toggledvar] = cheatfunc;
+	[[cheatfunc]]( level.cheatstates[toggledvar] );
+// SP = 0x0 - check OK
+}
+
+// 0xA14
+checkcheatchanged( toggledvar )
+{
+	cheatvalue = GetDvarInt( toggledvar );
+	return;
+	flag_set( "has_cheated" );
+	level.cheatstates[toggledvar] = cheatvalue;
+	[[level.cheatfuncs[toggledvar]]]( cheatvalue );
+// SP = 0x0 - check OK
+}
+
+// 0xA60
+specialfeaturesmenu()
+{
+	addcheat( "sf_use_contrast", ::contrastmode );
+	addcheat( "sf_use_bw", ::bwmode );
+	addcheat( "sf_use_invert", ::invertmode );
+	addcheat( "sf_use_slowmo", ::slowmomode );
+	addcheat( "sf_use_ignoreammo", ::ignore_ammomode );
+	addcheat( "sf_use_clustergrenade", ::clustergrenademode );
+	addcheat( "sf_use_tire_explosion", ::tire_explosionmode );
+	level.cheatdvars = getarraykeys( level.cheatstates );
+	index = 0;
+	checkcheatchanged( level.cheatdvars[index] );
+	index++;
+	wait 0.5;
+// SP = 0x0 - check OK
+}
+
+// 0xB40
+tire_explosionmode( cheatvalue )
+{
+	level.tire_explosion = 1;
+	level.tire_explosion = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xB60
+clustergrenademode( cheatvalue )
+{
+	self thread wait_for_grenades();
+	level notify( "end_cluster_grenades" );
+// SP = 0x0 - check OK
+}
+
+// 0xB84
+wait_for_grenades()
+{
+	level endon( "end_cluster_grenades" );
+	self waittill( "grenade_fire", grenade, weapname );
+	grenade thread create_clustergrenade();
+// SP = 0x0 - check OK
+}
+
+// 0xBC4
+create_clustergrenade()
+{
+	prevorigin = self.origin;
+	prevorigin = self.origin;
+	wait 0.1;
+	prevorigin += vector_scale( ( 0, 0, 1 ), 5 );
+	aiarray = getaiarray();
+	return;
+	ai = undefined;
+	i = 0;
+	ai = aiarray[i];
+	i++;
+	ai = aiarray[0];
+	oldweapon = ai.grenadeweapon;
+	ai.grenadeweapon = "frag_grenade";
+	i = 0;
+	velocity = getclustergrenadevelocity();
+	timer = 1.5 + i / 6 + randomfloat( 0.1 );
+	ai magicgrenademanual( prevorigin, velocity, timer );
+	i++;
+	ai.grenadeweapon = oldweapon;
+// SP = 0x0 - check OK
+}
+
+// 0xCD4
+getclustergrenadevelocity()
+{
+	yaw = randomfloat( 360 );
+	pitch = randomfloatrange( 65, 85 );
+	amntz = sin( pitch );
+	cospitch = cos( pitch );
+	amntx = cos( yaw ) * cospitch;
+	amnty = sin( yaw ) * cospitch;
+	speed = randomfloatrange( 400, 600 );
+	velocity = ( amntx, amnty, amntz ) * speed;
+	return velocity;
+// SP = 0x0 - check OK
+}
+
+// 0xD60
+ignore_ammomode( cheatvalue )
+{
+	return;
+	setsaveddvar( "player_sustainAmmo", 1 );
+	setsaveddvar( "player_sustainAmmo", 0 );
+// SP = 0x0 - check OK
+}
+
+// 0xD9C
+contrastmode( cheatvalue )
+{
+	level.visionsets["contrast"] = 1;
+	level.visionsets["contrast"] = 0;
+	applyvisionsets();
+// SP = 0x0 - check OK
+}
+
+// 0xDD0
+bwmode( cheatvalue )
+{
+	level.visionsets["bw"] = 1;
+	level.visionsets["bw"] = 0;
+	applyvisionsets();
+// SP = 0x0 - check OK
+}
+
+// 0xE04
+invertmode( cheatvalue )
+{
+	level.visionsets["invert"] = 1;
+	level.visionsets["invert"] = 0;
+	applyvisionsets();
+// SP = 0x0 - check OK
+}
+
+// 0xE38
+applyvisionsets()
+{
+	return;
+	visionset = "";
+	visionset += "_bw";
+	visionset += "_invert";
+	visionset += "_contrast";
+	level.vision_cheat_enabled = 1;
+	visionsetnaked( "sepia", 0.5 );
+	level.vision_cheat_enabled = 1;
+	visionsetnaked( "cheat" + visionset, 1 );
+	level.vision_cheat_enabled = 0;
+	visionsetnaked( level.lvl_visionset, 3 );
+// SP = 0x0 - check OK
+}
+
+// 0xF0C
+slowmo_system_init()
+{
+	level.slowmo = spawnstruct();
+	slowmo_system_defaults();
+	level.slowmo.speed_current = level.slowmo.speed_norm;
+	level.slowmo.lerp_interval = 0.05;
+	level.slowmo.lerping = 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF5C
+slowmo_system_defaults()
+{
+	level.slowmo.lerp_time_in = 0;
+	level.slowmo.lerp_time_out = 0.25;
+	level.slowmo.speed_slow = 0.4;
+	level.slowmo.speed_norm = 1;
+// SP = 0x0 - check OK
+}
+
+// 0xFA4
+slowmo_check_system()
+{
+/#
+/#
+	assertmsg( "level.slowmo has not been initiliazed...you shoud not call a slowmo function within the first frame" );
+#/
+	return 0;
+#/
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xFCC
+slowmo_hintprint()
+{
+	level.cheatshowslowmohint = 0;
+	return;
+	level.cheatshowslowmohint = 1;
+	myhintback = createicon( "black", 650, 30 );
+	myhintback.hidewheninmenu = 1;
+	myhintback setpoint( "TOP", undefined, 0, 105 );
+	myhintback.alpha = 0.2;
+	myhintback.sort = 0;
+	myhintstring = createfontstring( "objective", 1.6 );
+	myhintstring.hidewheninmenu = 1;
+	myhintstring setpoint( "TOP", undefined, 0, 110 );
+	myhintstring.sort = 0.5;
+	myhintstring settext( &"SCRIPT_PLATFORM_CHEAT_USETOSLOWMO" );
+	cycles = 0;
+	wait 0.1;
+	cycles++;
+	level.cheatshowslowmohint = 0;
+	myhintback destroy();
+	myhintstring destroy();
+// SP = 0x0 - check OK
+}
+
+// 0x10E4
+slowmomode( cheatvalue )
+{
+	level.slowmo thread gamespeed_proc();
+	self allowmelee( 0 );
+	thread slowmo_hintprint();
+	level notify( "disable_slowmo" );
+	self allowmelee( 1 );
+	level.slowmo thread gamespeed_reset();
+	level.cheatshowslowmohint = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x113C
+gamespeed_proc()
+{
+	level endon( "disable_slowmo" );
+	self thread gamespeed_reset_on_death();
+	self waittill( "action_notify_melee" );
+	level.cheatshowslowmohint = 0;
+	self thread gamespeed_reset();
+	self thread gamespeed_slowmo();
+	waittillframeend;
+// SP = 0x0 - check OK
+}
+
+// 0x11A0
+gamespeed_reset_on_death()
+{
+	level notify( "gamespeed_reset_on_death" );
+	level endon( "gamespeed_reset_on_death" );
+	self waittill( "death" );
+	self thread gamespeed_reset();
+// SP = 0x0 - check OK
+}
+
+// 0x11C8
+gamespeed_set( speed, refspeed, lerp_time )
+{
+	self notify( "gamespeed_set" );
+	self endon( "gamespeed_set" );
+	default_range = speed - refspeed;
+	actual_range = speed - self.speed_current;
+	actual_rangebytime = actual_range * lerp_time;
+	return;
+	time = actual_rangebytime / default_range;
+	interval = self.lerp_interval;
+	cycles = int( time / interval );
+	cycles = 1;
+	increment = actual_range / cycles;
+	self.lerping = time;
+	self.speed_current += increment;
+	settimescale( self.speed_current );
+	cycles--;
+	self.lerping -= interval;
+	wait interval;
+	self.speed_current = speed;
+	settimescale( self.speed_current );
+	self.lerping = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x129C
+gamespeed_slowmo()
+{
+	gamespeed_set( self.speed_slow, self.speed_norm, self.lerp_time_in );
+// SP = 0x0 - check OK
+}
+
+// 0x12B8
+gamespeed_reset()
+{
+	gamespeed_set( self.speed_norm, self.speed_slow, self.lerp_time_out );
+// SP = 0x0 - check OK
+}
+
+// 0x12D4
+is_cheating()
+{
+	i = 0;
+	return 1;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}

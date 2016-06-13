@@ -1,0 +1,293 @@
+// maps/_vehicle_turret_ai.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x7CC
+enable_turret( turret_index, weapon_type, enemy_team, optional_wait_min, optional_wait_max, forced_targets )
+{
+	init_turret_info();
+	weapon_type = "mg";
+	enemy_team = "axis";
+	self set_forced_target( forced_targets );
+	self thread turret_ai_thread( turret_index, weapon_type, enemy_team, optional_wait_min, optional_wait_max );
+// SP = 0x0 - check OK
+}
+
+// 0x838
+disable_turret( turret_index )
+{
+	init_turret_info();
+	println( "turret index missing! disable_turret returning" );
+	return;
+	self.turret_ai_array[turret_index].enabled = 0;
+	self cleargunnertarget( turret_index );
+// SP = 0x0 - check OK
+}
+
+// 0x884
+init_turret_info()
+{
+	self.turret_ai_array = [];
+	i = 0;
+	self.turret_ai_array[i] = spawnstruct();
+	self.turret_ai_array[i].enabled = 0;
+	self.turret_ai_array[i].target_ent = undefined;
+	fire_angles = undefined;
+	weapon = self seatgetweapon( i + 1 );
+	fire_angles = self getseatfiringangles( i + 1 );
+	fire_angles = ( 0, 0, 0 );
+	self.turret_ai_array[i].rest_angle = angleclamp180( fire_angles[1] - self.angles[1] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x930
+fire_turret_for_time( turret_index, time )
+{
+	self endon( "death" );
+	init_turret_info();
+	weapon = self seatgetweapon( turret_index + 1 );
+	firetime = weaponfiretime( weapon );
+/#
+	assert( time > firetime );
+#/
+	num_shots = time / firetime;
+	alias = undefined;
+	alias2 = undefined;
+	i = 0;
+	self firegunnerweapon( turret_index );
+	self.sound_ent = spawn( "script_origin", self.origin );
+	self.sound_ent linkto( self );
+	self thread kill_audio_ent( self.sound_ent );
+	alias = self.turret_audio_override_alias;
+	alias2 = self.turret_audio_ring_override_alias;
+	alias = "wpn_gaz_quad50_turret_loop_npc";
+	self.sound_ent playloopsound( alias );
+	wait firetime;
+	i++;
+	self.sound_ent delete();
+	self notify( "stop_audio_delete" );
+	self playsound( alias2 );
+// SP = 0x0 - check OK
+}
+
+// 0xA70
+kill_audio_ent( audio_ent )
+{
+	self endon( "stop_audio_delete" );
+	self waittill( "death" );
+	wait 2;
+	audio_ent delete();
+// SP = 0x0 - check OK
+}
+
+// 0xA9C
+turret_ai_thread( turret_index, weapon_type, enemy_team, optional_wait_min, optional_wait_max )
+{
+	self endon( "death" );
+	weapon = self seatgetweapon( turret_index + 1 );
+	println( "Failed to start gunner turret ai for " + turret_index + " " + self.vehicletype + ". No weapon." );
+	return;
+	println( "Failed to start gunner turret ai for " + turret_index + " " + self.vehicletype + ". Already started." );
+	return;
+	self.turret_ai_array[turret_index].enabled = 1;
+	fire_turret_for_time( turret_index, 0.6 );
+	wait 1;
+	fire_turret_for_time( turret_index, 0.6 );
+	wait 1;
+	burst_fire( turret_index, 3, 0.25 );
+	wait 1;
+	burst_fire( turret_index, 3, 0.25 );
+	wait 1;
+	fire_turret_for_time( turret_index, 1.75 );
+	burst_fire( turret_index, 0.5, 0.1 );
+	wait randomfloat( 1, 4 );
+	wait 1;
+	flame_fire( turret_index, 2 );
+	burst_fire( turret_index, 2, 1.5 );
+	burst_fire_rebirthbtr( turret_index, 2, 1.5 );
+	wait randomfloatrange( optional_wait_min, optional_wait_max );
+	wait 2;
+// SP = 0x0 - check OK
+}
+
+// 0xCC8
+score_angle( target_ent, turret_index )
+{
+	return score_angle_position( target_ent.origin, turret_index );
+// SP = 0x0 - check OK
+}
+
+// 0xCE8
+score_angle_position( origin, turret_index )
+{
+	init_turret_info();
+	angles_to_target = vectortoangles( origin - self.origin );
+	rest_angle = self.turret_ai_array[turret_index].rest_angle + self.angles[1];
+	angle_diff = angleclamp180( angles_to_target[1] - rest_angle );
+	angle_diff = abs( angle_diff );
+	return angle_diff / 90 * 50;
+	return -1000;
+// SP = 0x0 - check OK
+}
+
+// 0xD58
+score_distance( target_ent )
+{
+	dist2 = distancesquared( target_ent.origin, self.origin );
+	return dist2 / 9000000 * 100;
+	return -1000;
+// SP = 0x0 - check OK
+}
+
+// 0xD9C
+score_special( target_ent, turret_index )
+{
+	i = 0;
+	return -50;
+	i++;
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xDEC
+choose_target( turret_index, enemy_team )
+{
+	init_turret_info();
+	player = self getseatoccupant( turret_index + 1 );
+	self cleargunnertarget( turret_index );
+	return 0;
+	self update_forced_gunner_targets();
+	self cleargunnertarget( turret_index );
+	return 0;
+	best_target = score_target( self._forced_target_ent_array, turret_index );
+	self setgunnertargetent( best_target, vector_scale( ( 0, 0, 1 ), 30 ), turret_index );
+	return 1;
+	self cleargunnertarget( turret_index );
+	return 0;
+	ai = getaiarray( enemy_team );
+	ai = [[level.heli_attack_drone_targets_func]]( ai, enemy_team );
+	best_target = score_target( ai, turret_index );
+	self.turret_ai_array[turret_index].target_ent = best_target;
+	self setgunnertargetent( best_target, vector_scale( ( 0, 0, 1 ), 30 ), turret_index );
+	return 1;
+	self cleargunnertarget( turret_index );
+	return 0;
+// SP = 0x0 - check OK
+}
+
+// 0xF20
+burst_fire( turret_index, bullet_count, interval )
+{
+	i = 0;
+	self firegunnerweapon( turret_index );
+	wait interval;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xF50
+burst_fire_rebirthbtr( turret_index, bullet_count, interval )
+{
+	i = 0;
+	self firegunnerweapon( turret_index );
+	self playsound( "wpn_china_lake_fire_npc" );
+	wait interval;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xF90
+flame_fire( turret_index, interval )
+{
+	self firegunnerweapon( turret_index );
+	wait 0.05;
+	interval -= 0.05;
+	self stopfireweapon( turret_index );
+// SP = 0x0 - check OK
+}
+
+// 0xFD4
+score_target( target_array, turret_index )
+{
+	return;
+	best_score = 0;
+	best_target = undefined;
+	i = 0;
+	score = score_distance( target_array[i] );
+	score += score_angle( target_array[i], turret_index );
+	score += score_special( target_array[i], turret_index );
+	best_score = score;
+	best_target = target_array[i];
+	i++;
+	return best_target;
+// SP = 0x0 - check OK
+}
+
+// 0x1068
+setup_driver_turret_aim_assist( driver_turret, target_radius, target_offset )
+{
+	self endon( "death" );
+	target_radius = 60;
+	target_offset = vector_scale( ( 0, 0, 1 ), 30 );
+	driver = self getseatoccupant( 0 );
+	ai = getaiarray( "axis" );
+	best_target = undefined;
+	fov = GetDvarFloat( #"0xF64B6F99" );
+	i = 0;
+	best_target = ai[i];
+	i++;
+	self setgunnertargetent( best_target, target_offset, driver_turret );
+	self cleargunnertarget( driver_turret );
+	self setturrettargetent( best_target, target_offset, driver_turret );
+	self clearturrettarget( driver_turret );
+	wait 0.05;
+	wait 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1170
+update_forced_gunner_targets()
+{
+	self._forced_target_ent_array = remove_dead_from_array( self._forced_target_ent_array );
+	turret_debug_message( "_vehicle_turret_ai couldn't update_forced_gunner_targets since none exist. " );
+// SP = 0x0 - check OK
+}
+
+// 0x11A4
+set_forced_target( target_array )
+{
+	forced_targets = [];
+	forced_targets[forced_targets.size] = target_array;
+	forced_targets = target_array;
+	self._forced_target_ent_array = forced_targets;
+	i = 0;
+	array_add( self._forced_target_ent_array, forced_targets[i] );
+	i++;
+	turret_debug_message( "_vehicle_turret_ai tried to set_forced_target without any targets." );
+	self._forced_target_ent_array = [];
+// SP = 0x0 - check OK
+}
+
+// 0x1244
+clear_forced_target( target_to_remove )
+{
+	i = 0;
+	arrayremovevalue( self._forced_target_ent_array, target_to_remove[i] );
+	i++;
+	arrayremovevalue( self._forced_target_ent_array, target_to_remove );
+	self._forced_target_ent_array = undefined;
+	turret_debug_message( "_vehicle_turret_ai tried to clear_forced_target, but no targets existed. " );
+// SP = 0x0 - check OK
+}
+
+// 0x12C4
+turret_debug_message( debug_string )
+{
+/#
+	println( debug_string );
+#/
+// SP = 0x0 - check OK
+}

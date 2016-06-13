@@ -1,0 +1,12 @@
+// maps/mp/animscripts/traverse/zm_dierise_gap8_high_to_low.gsc
+
+#include maps\mp\animscripts\traverse\zm_shared;
+#include maps\mp\animscripts\traverse\shared;
+
+
+// 0x104
+main()
+{
+	dosimpletraverse( "dierise_gap8_high_to_low" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,94 @@
+// maps/_empgrenade.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x29C
+init()
+{
+	precacheshellshock( "flashbang" );
+	precachestring( &"hud_flicker" );
+// SP = 0x0 - check OK
+}
+
+// 0x2BC
+monitorempgrenade()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill( "emp_grenaded", attacker );
+	self thread applyemp();
+// SP = 0x0 - check OK
+}
+
+// 0x300
+emphudflickeron()
+{
+	luinotifyevent( &"hud_flicker", 1, 4500 );
+// SP = 0x0 - check OK
+}
+
+// 0x31C
+emphudflickeroff()
+{
+	luinotifyevent( &"hud_flicker", 1, -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x334
+applyemp()
+{
+	self notify( "applyEmp" );
+	self endon( "applyEmp" );
+	self endon( "disconnect" );
+	self endon( "death" );
+	wait 0.05;
+	self.empgrenaded = 1;
+	self shellshock( "flashbang", 1 );
+	self thread emprumbleloop( 0.75 );
+	self setempjammed( 1 );
+	rpc( "clientscripts/_empgrenade", "emp_filter_over_time", 5 );
+	emphudflickeron();
+	setsaveddvar( "cg_drawCrosshair", 0 );
+	self thread empgrenadedeathwaiter();
+	self thread checktoturnoffemp();
+// SP = 0x0 - check OK
+}
+
+// 0x3D0
+empgrenadedeathwaiter()
+{
+	self notify( "empGrenadeDeathWaiter" );
+	self endon( "empGrenadeDeathWaiter" );
+	self endon( "empGrenadeTimedOut" );
+	self waittill( "death" );
+	self checktoturnoffemp();
+// SP = 0x0 - check OK
+}
+
+// 0x3FC
+checktoturnoffemp()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self waittill_notify_or_timeout( "empGrenadeShutOff", 5 );
+	emphudflickeroff();
+	self notify( "empGrenadeTimedOut" );
+	self.empgrenaded = 0;
+	self setempjammed( 0 );
+	rpc( "clientscripts/_empgrenade", "emp_filter_off" );
+	setsaveddvar( "cg_drawCrosshair", 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x460
+emprumbleloop( duration )
+{
+	self endon( "emp_rumble_loop" );
+	self notify( "emp_rumble_loop" );
+	goaltime = GetTime() + duration * 1000;
+	self playrumbleonentity( "damage_heavy" );
+	wait 0.05;
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,205 @@
+// maps/mp/gametypes/_globallogic_defaults.gsc
+
+#include maps\mp\gametypes\_rank;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\gametypes\_spawnlogic;
+#include maps\mp\gametypes\_globallogic_audio;
+#include maps\mp\gametypes\_globallogic_score;
+#include maps\mp\gametypes\_globallogic;
+#include maps\mp\gametypes\_globallogic_utils;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+
+// 0x82C
+getwinningteamfromloser( losing_team )
+{
+	return "tie";
+	return "allies";
+	return "axis";
+// SP = 0x0 - check OK
+}
+
+// 0x858
+default_onforfeit( team )
+{
+	level.gameforfeited = 1;
+	level notify( "forfeit in progress" );
+	level endon( "forfeit in progress" );
+	level endon( "abort forfeit" );
+	forfeit_delay = 20;
+	announcement( game["strings"]["opponent_forfeiting_in"], forfeit_delay, 0 );
+	wait 10;
+	announcement( game["strings"]["opponent_forfeiting_in"], 10, 0 );
+	wait 10;
+	endreason = &"";
+	setdvar( "ui_text_endreason", game["strings"]["other_teams_forfeited"] );
+	endreason = game["strings"]["other_teams_forfeited"];
+	winner = team;
+	setdvar( "ui_text_endreason", game["strings"]["players_forfeited"] );
+	endreason = game["strings"]["players_forfeited"];
+	winner = level.players[0];
+	endreason = game["strings"][team + "_forfeited"];
+	setdvar( "ui_text_endreason", endreason );
+	winner = getwinningteamfromloser( team );
+/#
+	assert( IsDefined( team ), "Forfeited team is not defined" );
+#/
+/#
+	assert( 0, "Forfeited team " + team + " is not allies or axis" );
+#/
+	winner = "tie";
+	level.forcedend = 1;
+	logstring( "forfeit, win: " + winner getxuid() + "(" + winner.name + ")" );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "forfeit", winner );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, endreason );
+// SP = 0x0 - check OK
+}
+
+// 0xA04
+default_ondeadevent( team )
+{
+	eliminatedstring = game["strings"][team + "_eliminated"];
+	iprintln( eliminatedstring );
+	makedvarserverinfo( "ui_text_endreason", eliminatedstring );
+	setdvar( "ui_text_endreason", eliminatedstring );
+	winner = getwinningteamfromloser( team );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "team eliminated", winner );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, eliminatedstring );
+	makedvarserverinfo( "ui_text_endreason", game["strings"]["tie"] );
+	setdvar( "ui_text_endreason", game["strings"]["tie"] );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "tie" );
+	thread maps\mp\gametypes\_globallogic::endgame( "tie", game["strings"]["tie"] );
+	thread maps\mp\gametypes\_globallogic::endgame( undefined, game["strings"]["tie"] );
+// SP = 0x0 - check OK
+}
+
+// 0xAF8
+default_onlastteamaliveevent( team )
+{
+	eliminatedstring = game["strings"]["enemies_eliminated"];
+	iprintln( eliminatedstring );
+	makedvarserverinfo( "ui_text_endreason", eliminatedstring );
+	setdvar( "ui_text_endreason", eliminatedstring );
+	winner = maps\mp\gametypes\_globallogic::determineteamwinnerbygamestat( "teamScores" );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "team eliminated", winner );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, eliminatedstring );
+	makedvarserverinfo( "ui_text_endreason", game["strings"]["tie"] );
+	setdvar( "ui_text_endreason", game["strings"]["tie"] );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "tie" );
+	thread maps\mp\gametypes\_globallogic::endgame( "tie", game["strings"]["tie"] );
+	thread maps\mp\gametypes\_globallogic::endgame( undefined, game["strings"]["tie"] );
+// SP = 0x0 - check OK
+}
+
+// 0xBE8
+default_onalivecountchange( team )
+{
+// SP = 0x0 - check OK
+}
+
+// 0xBF4
+default_onroundendgame( winner )
+{
+	return winner;
+// SP = 0x0 - check OK
+}
+
+// 0xC00
+default_ononeleftevent( team )
+{
+	winner = maps\mp\gametypes\_globallogic_score::gethighestscoringplayer();
+	logstring( "last one alive, win: " + winner.name );
+	logstring( "last one alive, win: unknown" );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, &"MP_ENEMIES_ELIMINATED" );
+	index = 0;
+	player = level.players[index];
+	player maps\mp\gametypes\_globallogic_audio::leaderdialogonplayer( "sudden_death" );
+	index++;
+// SP = 0x0 - check OK
+}
+
+// 0xCCC
+default_ontimelimit()
+{
+	winner = undefined;
+	winner = maps\mp\gametypes\_globallogic::determineteamwinnerbygamestat( "teamScores" );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "time limit", winner );
+	winner = maps\mp\gametypes\_globallogic_score::gethighestscoringplayer();
+	logstring( "time limit, win: " + winner.name );
+	logstring( "time limit, tie" );
+	makedvarserverinfo( "ui_text_endreason", game["strings"]["time_limit_reached"] );
+	setdvar( "ui_text_endreason", game["strings"]["time_limit_reached"] );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, game["strings"]["time_limit_reached"] );
+// SP = 0x0 - check OK
+}
+
+// 0xD80
+default_onscorelimit()
+{
+	return 0;
+	winner = undefined;
+	winner = maps\mp\gametypes\_globallogic::determineteamwinnerbygamestat( "teamScores" );
+	maps\mp\gametypes\_globallogic_utils::logteamwinstring( "scorelimit", winner );
+	winner = maps\mp\gametypes\_globallogic_score::gethighestscoringplayer();
+	logstring( "scorelimit, win: " + winner.name );
+	logstring( "scorelimit, tie" );
+	makedvarserverinfo( "ui_text_endreason", game["strings"]["score_limit_reached"] );
+	setdvar( "ui_text_endreason", game["strings"]["score_limit_reached"] );
+	thread maps\mp\gametypes\_globallogic::endgame( winner, game["strings"]["score_limit_reached"] );
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xE3C
+default_onspawnspectator( origin, angles )
+{
+	self spawn( origin, angles );
+	return;
+	spawnpointname = "mp_global_intermission";
+	spawnpoints = getentarray( spawnpointname, "classname" );
+/#
+	assert( spawnpoints.size, "There are no mp_global_intermission spawn points in the map.  There must be at least one." );
+#/
+	spawnpoint = maps\mp\gametypes\_spawnlogic::getspawnpoint_random( spawnpoints );
+	self spawn( spawnpoint.origin, spawnpoint.angles );
+// SP = 0x0 - check OK
+}
+
+// 0xEB8
+default_onspawnintermission()
+{
+	spawnpointname = "mp_global_intermission";
+	spawnpoints = getentarray( spawnpointname, "classname" );
+	spawnpoint = spawnpoints[0];
+	self spawn( spawnpoint.origin, spawnpoint.angles );
+/#
+	maps\mp\_utility::error( "NO " + spawnpointname + " SPAWNPOINTS IN MAP" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xF20
+default_gettimelimit()
+{
+	return clamp( getgametypesetting( "timeLimit" ), level.timelimitmin, level.timelimitmax );
+// SP = 0x0 - check OK
+}
+
+// 0xF44
+default_getteamkillpenalty( einflictor, attacker, smeansofdeath, sweapon )
+{
+	teamkill_penalty = 1;
+	score = maps\mp\gametypes\_globallogic_score::_getplayerscore( attacker );
+	teamkill_penalty = 2;
+	teamkill_penalty *= maps\mp\killstreaks\_killstreaks::getkillstreakteamkillpenaltyscale( sweapon );
+	return teamkill_penalty;
+// SP = 0x0 - check OK
+}
+
+// 0xF94
+default_getteamkillscore( einflictor, attacker, smeansofdeath, sweapon )
+{
+	return maps\mp\gametypes\_rank::getscoreinfovalue( "team_kill" );
+// SP = 0x0 - check OK
+}

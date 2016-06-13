@@ -1,0 +1,48 @@
+// clientscripts/mp/zm_alcatraz_classic.csc
+
+#include clientscripts\mp\zm_alcatraz_craftables;
+#include clientscripts\mp\zombies\_zm_afterlife;
+#include clientscripts\mp\zm_prison_fx;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "fxanim_props" );
+
+
+// 0x274
+precache()
+{
+	level._effect["powerup_on"] = loadfx( "maps/zombie_alcatraz/fx_alcatraz_powerup" );
+// SP = 0x0 - check OK
+}
+
+// 0x290
+premain()
+{
+	registerclientfield( "world", "fake_master_key", 9000, 2, "int", clientscripts\mp\zm_prison_fx::fxanim_setup_pulley, 0 );
+	clientscripts\mp\zombies\_zm_afterlife::init();
+	clientscripts\mp\zm_alcatraz_craftables::include_craftables();
+	clientscripts\mp\zm_alcatraz_craftables::init_craftables();
+// SP = 0x0 - check OK
+}
+
+// 0x2D0
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x2D8
+init_fan_trap_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2F0
+init_gondola_chains_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}

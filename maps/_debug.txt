@@ -1,0 +1,2673 @@
+// maps/_debug.gsc
+
+#include animscripts\weaponlist;
+#include maps\_createmenu;
+#include animscripts\init;
+#include animscripts\utility;
+#include maps\_endmission;
+#include common_scripts\utility;
+#include maps\_utility;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x2C40
+maindebug()
+{
+/#
+	level.animsound_hudlimit = 14;
+	level.debugteamcolors = [];
+	level.debugteamcolors["axis"] = ( 1, 0, 0 );
+	level.debugteamcolors["allies"] = ( 0, 1, 0 );
+	level.debugteamcolors["team3"] = ( 1, 1, 0 );
+	level.debugteamcolors["neutral"] = ( 1, 1, 1 );
+	thread lastsightposwatch();
+	thread camera();
+	setdvar( "debug_corner", "off" );
+	debug_corner();
+	thread debugchains();
+	setdvar( "debug_bayonet", "0" );
+	thread debug_bayonet();
+	thread debugdvars();
+	precacheshader( "white" );
+	thread debugcolorfriendlies();
+	thread watchminimap();
+	thread complete_me();
+	maps\_endmission::force_all_complete();
+	maps\_endmission::clearall();
+	thread engagement_distance_debug_toggle();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2DA4
+debugchains()
+{
+/#
+	nodes = getallnodes();
+	fnodenum = 0;
+	fnodes = [];
+	i = 0;
+	fnodes[fnodenum] = nodes[i];
+	fnodenum++;
+	i++;
+	i = 0;
+	players = get_players();
+	print3d( fnodes[i].origin, "yo", ( 0.2, 0.8, 0.5 ), 0.45 );
+	i++;
+	friends = getaiarray( "allies" );
+	i = 0;
+	node = friends[i] animscripts\utility::getclaimednode();
+	line( friends[i].origin + vector_scale( ( 0, 0, 1 ), 35 ), node.origin, ( 0.2, 0.5, 0.8 ), 0.5 );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2F78
+debug_enemypos( num )
+{
+/#
+	ai = getaiarray();
+	i = 0;
+	ai[i] thread debug_enemyposproc();
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x2FD0
+debug_stopenemypos( num )
+{
+/#
+	ai = getaiarray();
+	i = 0;
+	ai[i] notify( "stop_drawing_enemy_pos" );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3024
+debug_enemyposproc()
+{
+/#
+	self endon( "death" );
+	self endon( "stop_drawing_enemy_pos" );
+	wait 0.05;
+	line( self.origin + vector_scale( ( 0, 0, 1 ), 70 ), self.enemy.origin + vector_scale( ( 0, 0, 1 ), 70 ), ( 0.8, 0.2, 0 ), 0.5 );
+	pos = animscripts\utility::getenemysightpos();
+	line( self.origin + vector_scale( ( 0, 0, 1 ), 70 ), pos, ( 0.9, 0.5, 0.3 ), 0.5 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3104
+debug_enemyposreplay()
+{
+/#
+	ai = getaiarray();
+	guy = undefined;
+	i = 0;
+	guy = ai[i];
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 65 ), guy.lastenemysightpos, ( 1, 0, 1 ), 0.5 );
+	color = ( 1, 0, 0 );
+	color = ( 0, 0, 1 );
+	nodeoffset = guy.origin + vector_scale( ( 0, 0, 1 ), 54 );
+	cornernode = 1;
+	nodeoffset = anglestoright( guy.node.angles );
+	nodeoffset = vector_scale( nodeoffset, -32 );
+	nodeoffset = ( nodeoffset[0], nodeoffset[1], 64 );
+	nodeoffset = guy.node.origin + nodeoffset;
+	cornernode = 1;
+	nodeoffset = anglestoright( guy.node.angles );
+	nodeoffset = vector_scale( nodeoffset, 32 );
+	nodeoffset = ( nodeoffset[0], nodeoffset[1], 64 );
+	nodeoffset = guy.node.origin + nodeoffset;
+	draw_arrow( nodeoffset, guy.goodshootpos, color );
+	i++;
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 70 ), guy.enemy.origin + vector_scale( ( 0, 0, 1 ), 70 ), ( 0.6, 0.2, 0.2 ), 0.5 );
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 65 ), guy.lastenemysightpos, ( 0, 0, 1 ), 0.5 );
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 50 ), guy.goodenemy.origin, ( 1, 0, 0 ), 0.5 );
+	pos = guy animscripts\utility::getenemysightpos();
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 55 ), pos, ( 0.2, 0.2, 0.6 ), 0.5 );
+	line( guy.origin + vector_scale( ( 0, 0, 1 ), 45 ), guy.goodshootpos, ( 0.2, 0.6, 0.2 ), 0.5 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x341C
+drawenttag( num )
+{
+/#
+	ai = getaiarray();
+	i = 0;
+	ai[i] thread dragtaguntildeath( getdebugdvar( "debug_tag" ) );
+	i++;
+	setdvar( "debug_enttag", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3490
+drawtag( tag, opcolor )
+{
+/#
+	org = self gettagorigin( tag );
+	ang = self gettagangles( tag );
+	drawarrow( org, ang, opcolor );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x34D0
+draworgforever( opcolor )
+{
+/#
+	drawarrow( self.origin, self.angles, opcolor );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3500
+drawarrowforever( org, ang )
+{
+/#
+	drawarrow( org, ang );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x352C
+draworiginforever()
+{
+/#
+	drawarrow( self.origin, self.angles );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3554
+drawarrow( org, ang, opcolor )
+{
+/#
+	forward = anglestoforward( ang );
+	forwardfar = vector_scale( forward, 50 );
+	forwardclose = vector_scale( forward, 50 * 0.8 );
+	right = anglestoright( ang );
+	leftdraw = vector_scale( right, 50 * -0.2 );
+	rightdraw = vector_scale( right, 50 * 0.2 );
+	up = anglestoup( ang );
+	right = vector_scale( right, 50 );
+	up = vector_scale( up, 50 );
+	red = ( 0.9, 0.2, 0.2 );
+	green = ( 0.2, 0.9, 0.2 );
+	blue = ( 0.2, 0.2, 0.9 );
+	red = opcolor;
+	green = opcolor;
+	blue = opcolor;
+	line( org, org + forwardfar, red, 0.9 );
+	line( org + forwardfar, org + forwardclose + rightdraw, red, 0.9 );
+	line( org + forwardfar, org + forwardclose + leftdraw, red, 0.9 );
+	line( org, org + right, blue, 0.9 );
+	line( org, org + up, green, 0.9 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x36C4
+drawplayerviewforever()
+{
+/#
+	drawarrow( level.player.origin, level.player getplayerangles(), ( 1, 1, 1 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x36FC
+drawtagforever( tag, opcolor )
+{
+/#
+	self endon( "death" );
+	drawtag( tag, opcolor );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x372C
+dragtaguntildeath( tag )
+{
+/#
+	drawtag( tag );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3760
+viewtag( type, tag )
+{
+/#
+	ai = getaiarray();
+	i = 0;
+	ai[i] drawtag( tag );
+	i++;
+	vehicle = getentarray( "script_vehicle", "classname" );
+	i = 0;
+	vehicle[i] drawtag( tag );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x37F0
+debug_corner()
+{
+/#
+	players = get_players();
+	i = 0;
+	players[i].ignoreme = 1;
+	i++;
+	nodes = getallnodes();
+	corners = [];
+	i = 0;
+	corners[corners.size] = nodes[i];
+	corners[corners.size] = nodes[i];
+	i++;
+	ai = getaiarray();
+	i = 0;
+	ai[i] delete();
+	i++;
+	level.debugspawners = getspawnerarray();
+	level.activenodes = [];
+	level.completednodes = [];
+	i = 0;
+	level.debugspawners[i].targetname = "blah";
+	i++;
+	covered = 0;
+	i = 0;
+	corners[i] thread covertest();
+	covered++;
+	i++;
+	level waittill( "debug_next_corner" );
+	covered = 0;
+	corners[covered] thread covertest();
+	covered++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x396C
+covertest()
+{
+/#
+	coversetupanim();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3980
+coversetupanim()
+{
+/#
+	spawn = undefined;
+	spawner = undefined;
+	i = 0;
+	wait 0.05;
+	spawner = level.debugspawners[i];
+	nearactive = 0;
+	p = 0;
+	nearactive = 1;
+	p++;
+	completed = 0;
+	p = 0;
+	completed = 1;
+	p++;
+	level.activenodes[level.activenodes.size] = self;
+	spawner.origin = self.origin;
+	spawner.angles = self.angles;
+	spawner.count = 1;
+	spawn = spawner stalingradspawn();
+	removeactivespawner( self );
+	i++;
+	wait 1;
+	spawn.ignoreme = 1;
+	spawn.team = "neutral";
+	spawn setgoalpos( spawn.origin );
+	thread createline( self.origin );
+	spawn thread debugorigin();
+	thread createlineconstantly( spawn );
+	spawn waittill( "death" );
+	removeactivespawner( self );
+	level.completednodes[level.completednodes.size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3B38
+removeactivespawner( spawner )
+{
+/#
+	newspawners = [];
+	p = 0;
+	newspawners[newspawners.size] = level.activenodes[p];
+	p++;
+	level.activenodes = newspawners;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3B8C
+createline( org )
+{
+/#
+	line( org + vector_scale( ( 0, 0, 1 ), 35 ), org, ( 0.2, 0.5, 0.8 ), 0.5 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3BE0
+createlineconstantly( ent )
+{
+/#
+	org = undefined;
+	org = ent.origin;
+	wait 0.05;
+	line( org + vector_scale( ( 0, 0, 1 ), 35 ), org, ( 1, 0.2, 0.1 ), 0.5 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3C5C
+debugmisstime()
+{
+/#
+	self notify( "stopdebugmisstime" );
+	self endon( "stopdebugmisstime" );
+	self endon( "death" );
+	print3d( self gettagorigin( "TAG_EYE" ) + vector_scale( ( 0, 0, 1 ), 15 ), "hit", ( 0.3, 1, 1 ), 1 );
+	print3d( self gettagorigin( "TAG_EYE" ) + vector_scale( ( 0, 0, 1 ), 15 ), self.a.misstime / 20, ( 0.3, 1, 1 ), 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3D04
+debugmisstimeoff()
+{
+/#
+	self notify( "stopdebugmisstime" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3D14
+setemptydvar( dvar, setting )
+{
+/#
+	setdvar( dvar, setting );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3D44
+debugjump( num )
+{
+/#
+	ai = getaiarray();
+	i = 0;
+	players = get_players();
+	line( players[0].origin, ai[i].origin, ( 0.2, 0.3, 1 ) );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x3DD0
+debugdvars()
+{
+/#
+	precachemodel( "test_sphere_silver" );
+	precachemodel( "test_sphere_lambert" );
+	precachemodel( "test_macbeth_chart" );
+	precachemodel( "test_macbeth_chart_unlit" );
+	setdvar( "debug_vehiclesittags", "off" );
+	setdvar( "level_transition_test", "off" );
+	setdvar( "level_completeall", "off" );
+	setdvar( "level_clear_all", "off" );
+	setemptydvar( "debug_accuracypreview", "off" );
+	setdvar( "debug_lookangle", "off" );
+	setdvar( "debug_grenademiss", "off" );
+	setdvar( "debug_enemypos", "-1" );
+	setdvar( "debug_dotshow", "-1" );
+	setdvar( "debug_stopenemypos", "-1" );
+	setdvar( "debug_replayenemypos", "-1" );
+	setdvar( "debug_tag", "" );
+	setdvar( "debug_chatlook", "" );
+	setdvar( "debug_vehicletag", "" );
+	setdvar( "debug_colorfriendlies", "off" );
+	setdvar( "debug_goalradius", "off" );
+	setdvar( "debug_maxvisibledist", "off" );
+	setdvar( "debug_health", "off" );
+	setdvar( "debug_engagedist", "off" );
+	setdvar( "debug_animreach", "off" );
+	setdvar( "debug_hatmodel", "on" );
+	setdvar( "debug_trace", "off" );
+	level.debug_badpath = 0;
+	setdvar( "debug_badpath", "off" );
+	setdvar( "debug_lastsightpos", "off" );
+	setdvar( "debug_dog_sound", "" );
+	setdvar( "debug_nuke", "off" );
+	setdvar( "debug_deathents", "off" );
+	setdvar( "debug_jump", "" );
+	setdvar( "debug_hurt", "" );
+	setdvar( "animsound", "off" );
+	setdvar( "tag", "" );
+	i = 1;
+	setdvar( "tag" + i, "" );
+	i++;
+	setdvar( "animsound_save", "" );
+	setdvar( "debug_depth", "" );
+	setdvar( "ai_debugColorNodes", 0 );
+	setdvar( "debug_reflection", "0" );
+	setdvar( "debug_reflection_matte", "0" );
+	setdvar( "debug_color_pallete", "0" );
+	setdvar( "debug_dynamic_ai_spawning", "0" );
+	level.last_threat_debug = -23430;
+	setdvar( "debug_threat", "-1" );
+	waittillframeend;
+	red = ( 1, 0, 0 );
+	blue = ( 0, 0, 1 );
+	yellow = ( 1, 1, 0 );
+	cyan = ( 0, 1, 1 );
+	green = ( 0, 1, 0 );
+	purple = ( 1, 0, 1 );
+	orange = ( 1, 0.5, 0 );
+	level.color_debug["r"] = red;
+	level.color_debug["b"] = blue;
+	level.color_debug["y"] = yellow;
+	level.color_debug["c"] = cyan;
+	level.color_debug["g"] = green;
+	level.color_debug["p"] = purple;
+	level.color_debug["o"] = orange;
+	black = ( 0, 0, 0 );
+	white = ( 1, 1, 1 );
+	magenta = ( 1, 0, 1 );
+	grey = vector_scale( ( 1, 1, 1 ), 0.75 );
+	level.color_debug["red"] = red;
+	level.color_debug["blue"] = blue;
+	level.color_debug["yellow"] = yellow;
+	level.color_debug["cyan"] = cyan;
+	level.color_debug["green"] = green;
+	level.color_debug["purple"] = purple;
+	level.color_debug["orange"] = orange;
+	level.color_debug["black"] = black;
+	level.color_debug["white"] = white;
+	level.color_debug["magenta"] = magenta;
+	level.color_debug["grey"] = grey;
+	level.debug_reflection = 0;
+	level.debug_reflection_matte = 0;
+	level.debug_color_pallete = 0;
+	setdvar( "debug_character_count", "off" );
+	noanimscripts = GetDvar( #"0x2D9DA875" ) == "on";
+	debugjump( getdebugdvarint( "debug_jump" ) );
+	thread viewtag( "ai", getdebugdvar( "debug_tag" ) );
+	thread drawenttag( getdebugdvarint( "debug_enttag" ) );
+	level thread debug_goalradius();
+	level thread debug_maxvisibledist();
+	level thread debug_health();
+	level thread debug_engagedist();
+	thread viewtag( "vehicle", getdebugdvar( "debug_vehicletag" ) );
+	thread debug_colornodes();
+	thread debug_vehiclesittags();
+	thread debug_enemyposreplay();
+	thread debug_animsound();
+	thread debug_animsoundtagselected();
+	i = 1;
+	thread debug_animsoundtag( i );
+	i++;
+	thread debug_animsoundsave();
+	thread debug_nuke();
+	setdvar( "debug_misstime", "start" );
+	array_thread( getaiarray(), ::debugmisstime );
+	setdvar( "debug_misstime", "start" );
+	array_thread( getaiarray(), ::debugmisstimeoff );
+	thread deathspawnerpreview();
+	setdvar( "debug_hurt", "off" );
+	players = get_players();
+	i = 0;
+	players[i] dodamage( 50, ( 324234, 3423423, 2323 ) );
+	i++;
+	setdvar( "debug_hurt", "off" );
+	players = get_players();
+	i = 0;
+	players[i] dodamage( 50, ( 324234, 3423423, 2323 ) );
+	i++;
+	thread fogcheck();
+	debugthreat();
+	level.debug_badpath = getdebugdvar( "debug_badpath" ) == "on";
+	thread debug_enemypos( getdebugdvarint( "debug_enemypos" ) );
+	setdvar( "debug_enemypos", "-1" );
+	thread debug_stopenemypos( getdebugdvarint( "debug_stopenemypos" ) );
+	setdvar( "debug_stopenemypos", "-1" );
+	anim.defaultexception = animscripts\init::infiniteloop();
+	noanimscripts = 1;
+	anim.defaultexception = ::empty;
+	anim notify( "new exceptions" );
+	noanimscripts = 0;
+	thread showdebugtrace();
+	players = get_players();
+	level.tracestart = players[0] geteye();
+	setdvar( "debug_trace", "off" );
+	level.spawn_anywhere_active = 1;
+	level.spawn_anywhere_friendly = getdebugdvar( "debug_dynamic_ai_spawn_friendly" );
+	thread dynamic_ai_spawner();
+	level.spawn_anywhere_active = 0;
+	level notify( "kill dynamic spawning" );
+	level notify( "kill dynamic spawning" );
+	level.spawn_anywhere_active = 0;
+	level.ai_puppeteer_active = 1;
+	level notify( "kill ai puppeteer" );
+	adddebugcommand( "noclip" );
+	thread ai_puppeteer();
+	level.ai_puppeteer_active = 0;
+	adddebugcommand( "noclip" );
+	level notify( "kill ai puppeteer" );
+	debug_reflection();
+	debug_reflection_matte();
+	debug_color_pallete();
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4B40
+remove_reflection_objects()
+{
+/#
+	i = 0;
+	level.debug_reflection_objects[i] delete();
+	i++;
+	level.debug_reflection_objects = undefined;
+	level.debug_reflectionobject delete();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4BE0
+create_reflection_objects()
+{
+/#
+	reflection_locs = getreflectionlocs();
+	i = 0;
+	level.debug_reflection_objects[i] = spawn( "script_model", reflection_locs[i] );
+	level.debug_reflection_objects[i] setmodel( "test_sphere_silver" );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4C40
+create_reflection_object( model )
+{
+/#
+	model = "test_sphere_silver";
+	level.debug_reflectionobject delete();
+	players = get_players();
+	player = players[0];
+	level.debug_reflectionobject = spawn( "script_model", player geteye() + vector_scale( anglestoforward( player.angles ), 100 ) );
+	level.debug_reflectionobject setmodel( model );
+	level.debug_reflectionobject.origin = player geteye() + vector_scale( anglestoforward( player getplayerangles() ), 100 );
+	level.debug_reflectionobject linkto( player );
+	thread debug_reflection_buttons();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4CF8
+debug_reflection()
+{
+/#
+	remove_reflection_objects();
+	create_reflection_objects();
+	level.debug_reflection = 2;
+	create_reflection_objects();
+	create_reflection_object();
+	level.debug_reflection = 3;
+	setdvar( "debug_reflection_matte", "0" );
+	setdvar( "debug_color_pallete", "0" );
+	remove_reflection_objects();
+	create_reflection_object();
+	level.debug_reflection = 1;
+	remove_reflection_objects();
+	level.debug_reflection = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4E10
+debug_reflection_matte()
+{
+/#
+	setdvar( "debug_reflection", "0" );
+	setdvar( "debug_color_pallete", "0" );
+	remove_reflection_objects();
+	create_reflection_object( "test_sphere_lambert" );
+	level.debug_reflection_matte = 1;
+	remove_reflection_objects();
+	level.debug_reflection_matte = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4EA4
+debug_color_pallete()
+{
+/#
+	setdvar( "debug_reflection", "0" );
+	setdvar( "debug_reflection_matte", "0" );
+	remove_reflection_objects();
+	create_reflection_object( "test_macbeth_chart" );
+	level.debug_color_pallete = 1;
+	remove_reflection_objects();
+	create_reflection_object( "test_macbeth_chart_unlit" );
+	level.debug_color_pallete = 2;
+	remove_reflection_objects();
+	level.debug_color_pallete = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x4F78
+debug_reflection_buttons()
+{
+/#
+	level notify( "new_reflection_button_running" );
+	level endon( "new_reflection_button_running" );
+	level.debug_reflectionobject endon( "death" );
+	offset = 100;
+	lastoffset = offset;
+	players = get_players();
+	offset += 50;
+	offset -= 50;
+	offset = 1000;
+	offset = 64;
+	level.debug_reflectionobject unlink();
+	level.debug_reflectionobject.origin = players[0] geteye() + vector_scale( anglestoforward( players[0] getplayerangles() ), offset );
+	level.debug_reflectionobject.angles = flat_angle( vectortoangles( players[0].origin - level.debug_reflectionobject.origin ) );
+	lastoffset = offset;
+	line( level.debug_reflectionobject.origin, getreflectionorigin( level.debug_reflectionobject.origin ), ( 1, 0, 0 ), 1, 1 );
+	wait 0.05;
+	level.debug_reflectionobject linkto( players[0] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5120
+showdebugtrace()
+{
+/#
+	startoverride = undefined;
+	endoverride = undefined;
+	startoverride = ( 15.1859, -12.2822, 4.071 );
+	endoverride = ( 947.2, -10918, 64.9514 );
+/#
+	assert( !(IsDefined( level.traceend )) );
+#/
+	players = get_players();
+	wait 0.05;
+	start = startoverride;
+	end = endoverride;
+	start = level.tracestart;
+	end = players[0] geteye();
+	trace = bullettrace( start, end, 0, undefined );
+	line( start, trace["position"], ( 0.9, 0.5, 0.8 ), 0.5 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x520C
+hatmodel()
+{
+/#
+	nohat = [];
+	ai = getaiarray();
+	i = 0;
+	alreadyknown = 0;
+	p = 0;
+	alreadyknown = 1;
+	p++;
+	nohat[nohat.size] = ai[i].classname;
+	i++;
+	println( " " );
+	println( "The following AI have no Hatmodel, so helmets can not pop off on head-shot death:" );
+	i = 0;
+	println( "Classname: ", nohat[i] );
+	i++;
+	println( "To disable hatModel spam, type debug_hatmodel off" );
+	wait 15;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5314
+debug_nuke()
+{
+/#
+	players = get_players();
+	player = players[0];
+	dvar = GetDvar( #"0x55B12A1E" );
+	ai = getaispeciesarray( "axis", "all" );
+	i = 0;
+	ai[i] dodamage( 300, ( 0, 0, 0 ), player );
+	i++;
+	ai = getaiarray( "axis" );
+	i = 0;
+	ai[i] dodamage( 300, ( 0, 0, 0 ), player );
+	i++;
+	ai = getaispeciesarray( "axis", "dog" );
+	i = 0;
+	ai[i] dodamage( 300, ( 0, 0, 0 ), player );
+	i++;
+	setdvar( "debug_nuke", "off" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5428
+debug_misstime()
+{
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5434
+camera()
+{
+/#
+	wait 0.05;
+	cameras = getentarray( "camera", "targetname" );
+	i = 0;
+	ent = getent( cameras[i].target, "targetname" );
+	cameras[i].origin2 = ent.origin;
+	cameras[i].angles = vectortoangles( ent.origin - cameras[i].origin );
+	i++;
+	setdvar( "camera", "off" );
+	wait 1;
+	ai = getaiarray( "axis" );
+	freeplayer();
+	wait 0.5;
+	camerawithenemy = [];
+	i = 0;
+	p = 0;
+	camerawithenemy[camerawithenemy.size] = cameras[i];
+	p++;
+	i++;
+	freeplayer();
+	wait 0.5;
+	camerawithplayer = [];
+	i = 0;
+	camera = camerawithenemy[i];
+	start = camera.origin2;
+	end = camera.origin;
+	difference = vectortoangles( ( end[0], end[1], end[2] ) - ( start[0], start[1], start[2] ) );
+	angles = ( 0, difference[1], 0 );
+	forward = anglestoforward( angles );
+	players = get_players();
+	difference = vectornormalize( end - players[0].origin );
+	dot = vectordot( forward, difference );
+	camerawithplayer[camerawithplayer.size] = camera;
+	i++;
+	freeplayer();
+	wait 0.5;
+	players = get_players();
+	dist = distance( players[0].origin, camerawithplayer[0].origin );
+	newcam = camerawithplayer[0];
+	i = 1;
+	newdist = distance( players[0].origin, camerawithplayer[i].origin );
+	newcam = camerawithplayer[i];
+	dist = newdist;
+	i++;
+	setplayertocamera( newcam );
+	wait 3;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5720
+freeplayer()
+{
+/#
+	setdvar( "cl_freemove", "0" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x573C
+setplayertocamera( camera )
+{
+/#
+	setdvar( "cl_freemove", "2" );
+	setdebugangles( camera.angles );
+	setdebugorigin( camera.origin + vector_scale( ( 0, 0, -1 ), 60 ) );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5788
+deathspawnerpreview()
+{
+/#
+	waittillframeend;
+	i = 0;
+	array = level.deathspawnerents[i];
+	p = 0;
+	ent = array[p];
+	print3d( ent.origin, i + ": " + ent.truecount, ( 0, 0.8, 0.6 ), 5 );
+	print3d( ent.origin, i + ": " + ".", ( 0, 0.8, 0.6 ), 5 );
+	p++;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5854
+lastsightposwatch()
+{
+/#
+	wait 0.05;
+	num = GetDvarInt( #"0xCCA59DEA" );
+	guy = undefined;
+	ai = getaiarray();
+	i = 0;
+	guy = ai[i];
+	i++;
+	org = guy animscripts\utility::getenemysightpos();
+	org = undefined;
+	newnum = GetDvarInt( #"0xCCA59DEA" );
+	org = guy animscripts\utility::getenemysightpos();
+	wait 0.05;
+	color = ( 0.2, 0.9, 0.8 );
+	line( org + ( 0, 0, 10 ), org + ( 0, 0, 10 * -1 ), color, 1 );
+	line( org + ( 10, 0, 0 ), org + ( 10 * -1, 0, 0 ), color, 1 );
+	line( org + ( 0, 10, 0 ), org + ( 0, 10 * -1, 0 ), color, 1 );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x59FC
+watchminimap()
+{
+/#
+	precacheitem( "defaultweapon" );
+	updateminimapsetting();
+	wait 0.25;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5A30
+updateminimapsetting()
+{
+/#
+	requiredmapaspectratio = GetDvarFloat( #"0x33CF364A" );
+	setdvar( "scr_minimap_height", "0" );
+	level.minimapheight = 0;
+	minimapheight = GetDvarFloat( #"0x6B3B5DAF" );
+	level.minimapplayer unlink();
+	level.minimaporigin delete();
+	level notify( "end_draw_map_bounds" );
+	level.minimapheight = minimapheight;
+	players = get_players();
+	player = players[0];
+	corners = getentarray( "minimap_corner", "targetname" );
+	viewpos = corners[0].origin + corners[1].origin;
+	viewpos = ( viewpos[0] * 0.5, viewpos[1] * 0.5, viewpos[2] * 0.5 );
+	maxcorner = ( corners[0].origin[0], corners[0].origin[1], viewpos[2] );
+	mincorner = ( corners[0].origin[0], corners[0].origin[1], viewpos[2] );
+	maxcorner = ( corners[1].origin[0], maxcorner[1], maxcorner[2] );
+	mincorner = ( corners[1].origin[0], mincorner[1], mincorner[2] );
+	maxcorner = ( maxcorner[0], corners[1].origin[1], maxcorner[2] );
+	mincorner = ( mincorner[0], corners[1].origin[1], mincorner[2] );
+	viewpostocorner = maxcorner - viewpos;
+	viewpos = ( viewpos[0], viewpos[1], viewpos[2] + minimapheight );
+	origin = spawn( "script_origin", player.origin );
+	northvector = ( cos( getnorthyaw() ), sin( getnorthyaw() ), 0 );
+	eastvector = ( northvector[1], 0 - northvector[0], 0 );
+	disttotop = vectordot( northvector, viewpostocorner );
+	disttotop = 0 - disttotop;
+	disttoside = vectordot( eastvector, viewpostocorner );
+	disttoside = 0 - disttoside;
+	mapaspectratio = disttoside / disttotop;
+	incr = requiredmapaspectratio / mapaspectratio;
+	disttoside *= incr;
+	addvec = vecscale( eastvector, vectordot( eastvector, maxcorner - viewpos ) * ( incr - 1 ) );
+	mincorner -= addvec;
+	maxcorner += addvec;
+	incr = mapaspectratio / requiredmapaspectratio;
+	disttotop *= incr;
+	addvec = vecscale( northvector, vectordot( northvector, maxcorner - viewpos ) * ( incr - 1 ) );
+	mincorner -= addvec;
+	maxcorner += addvec;
+	aspectratioguess = 1.77778;
+	angleside = 2 * atan( disttoside * 0.8 / minimapheight );
+	angletop = 2 * atan( disttotop * aspectratioguess * 0.8 / minimapheight );
+	aspectratioguess = 1.33333;
+	angleside = 2 * atan( disttoside * 1.05 / minimapheight );
+	angletop = 2 * atan( disttotop * aspectratioguess * 1.05 / minimapheight );
+	angle = angleside;
+	angle = angletop;
+	znear = minimapheight - 1000;
+	znear = 16;
+	znear = 10000;
+	player playerlinktoabsolute( origin );
+	origin.origin = viewpos + vector_scale( ( 0, 0, -1 ), 62 );
+	origin.angles = ( 90, getnorthyaw(), 0 );
+	player giveweapon( "defaultweapon" );
+	player setclientdvar( "cg_fov", angle );
+	level.minimapplayer = player;
+	level.minimaporigin = origin;
+	thread drawminimapbounds( viewpos, mincorner, maxcorner );
+	println( "^1Error: There are not exactly 2 \"minimap_corner\" entities in the level." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5EC4
+getchains()
+{
+/#
+	chainarray = [];
+	chainarray = getentarray( "minimap_line", "script_noteworthy" );
+	array = [];
+	i = 0;
+	array[i] = chainarray[i] getchain();
+	i++;
+	return array;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5F18
+getchain()
+{
+/#
+	array = [];
+	ent = self;
+	array[array.size] = ent;
+	ent = getent( ent.target, "targetname" );
+	array[array.size] = ent;
+	originarray = [];
+	i = 0;
+	originarray[i] = array[i].origin;
+	i++;
+	return originarray;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5FB8
+vecscale( vec, scalar )
+{
+/#
+	return ( vec[0] * scalar, vec[1] * scalar, vec[2] * scalar );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x5FE0
+drawminimapbounds( viewpos, mincorner, maxcorner )
+{
+/#
+	level notify( "end_draw_map_bounds" );
+	level endon( "end_draw_map_bounds" );
+	viewheight = viewpos[2] - maxcorner[2];
+	diaglen = length( mincorner - maxcorner );
+	mincorneroffset = mincorner - viewpos;
+	mincorneroffset = vectornormalize( ( mincorneroffset[0], mincorneroffset[1], 0 ) );
+	mincorner += vecscale( mincorneroffset, diaglen * 1 / 800 * 0 );
+	maxcorneroffset = maxcorner - viewpos;
+	maxcorneroffset = vectornormalize( ( maxcorneroffset[0], maxcorneroffset[1], 0 ) );
+	maxcorner += vecscale( maxcorneroffset, diaglen * 1 / 800 * 0 );
+	north = ( cos( getnorthyaw() ), sin( getnorthyaw() ), 0 );
+	diagonal = maxcorner - mincorner;
+	side = vecscale( north, vectordot( diagonal, north ) );
+	sidenorth = vecscale( north, abs( vectordot( diagonal, north ) ) );
+	corner0 = mincorner;
+	corner1 = mincorner + side;
+	corner2 = maxcorner;
+	corner3 = maxcorner - side;
+	toppos = vecscale( mincorner + maxcorner, 0.5 ) + vecscale( sidenorth, 0.51 );
+	textscale = diaglen * 0.003;
+	chains = getchains();
+	line( corner0, corner1 );
+	line( corner1, corner2 );
+	line( corner2, corner3 );
+	line( corner3, corner0 );
+	array_ent_thread( chains, maps\_utility::plot_points );
+	print3d( toppos, "This Side Up", ( 1, 1, 1 ), 1, textscale );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x61D4
+debug_vehiclesittags()
+{
+/#
+	vehicles = getentarray( "script_vehicle", "classname" );
+	type = "none";
+	type = getdebugdvar( "debug_vehiclesittags" );
+	i = 0;
+	anims = level.vehicle_aianims[vehicles[i].vehicletype];
+	j = 0;
+	players = get_players();
+	vehicles[i] thread drawtag( anims[j].sittag );
+	org = vehicles[i] gettagorigin( anims[j].sittag );
+	print3d( org + vector_scale( ( 0, 0, 1 ), 16 ), anims[j].sittag, ( 1, 1, 1 ), 1, 1 );
+	j++;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x62E8
+islookingatorigin( origin )
+{
+/#
+	normalvec = vectornormalize( origin - self getshootatpos() );
+	veccomp = vectornormalize( origin - vector_scale( ( 0, 0, 1 ), 24 ) - self getshootatpos() );
+	insidedot = vectordot( normalvec, veccomp );
+	anglevec = anglestoforward( self getplayerangles() );
+	vectordot = vectordot( anglevec, normalvec );
+	return 1;
+	return 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6378
+debug_colornodes()
+{
+/#
+	wait 0.05;
+	ai = getaiarray();
+	array = [];
+	array["axis"] = [];
+	array["allies"] = [];
+	array["neutral"] = [];
+	i = 0;
+	guy = ai[i];
+	array[guy.team][guy.currentcolorcode] = 1;
+	color = ( 1, 1, 1 );
+	color = level.color_debug[guy.script_forcecolor];
+	recordenttext( guy.currentcolorcode, guy, color, "Script" );
+	print3d( guy.origin + vector_scale( ( 0, 0, 1 ), 25 ), guy.currentcolorcode, color, 1, 0.7 );
+	guy try_to_draw_line_to_node();
+	i++;
+	draw_colornodes( array, "allies" );
+	draw_colornodes( array, "axis" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6498
+draw_colornodes( array, team )
+{
+/#
+	keys = getarraykeys( array[team] );
+	i = 0;
+	color = ( 1, 1, 1 );
+	color = level.color_debug[getsubstr( keys[i], 0, 1 )];
+	teamarray = level.colornodes_debug_array[team][keys[i]];
+	p = 0;
+	print3d( teamarray[p].origin, "N-" + keys[i], color, 1, 0.7 );
+	print3d( teamarray[p].origin + vector_scale( ( 0, 0, -1 ), 5 ), "N-" + teamarray[p].script_color_allies_old, level.color_debug[teamarray[p].color_user.script_forcecolor], 0.5, 0.4 );
+	print3d( teamarray[p].origin + vector_scale( ( 0, 0, -1 ), 5 ), "N-" + teamarray[p].script_color_allies_old, color, 0.5, 0.4 );
+	p++;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x662C
+get_team_substr()
+{
+/#
+	return self.node.script_color_allies_old;
+	return self.node.script_color_axis_old;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x667C
+try_to_draw_line_to_node()
+{
+/#
+	substr = get_team_substr();
+	recordline( self.origin + vector_scale( ( 0, 0, 1 ), 25 ), self.node.origin, level.color_debug[self.script_forcecolor], "Script", self );
+	line( self.origin + vector_scale( ( 0, 0, 1 ), 25 ), self.node.origin, level.color_debug[self.script_forcecolor] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6720
+fogcheck()
+{
+/#
+	setdvar( "depth_close", "0" );
+	setdvar( "depth_far", "1500" );
+	close = GetDvarInt( #"0xCA911A0F" );
+	far = GetDvarInt( #"0x6C527472" );
+	setexpfog( close, far, 1, 1, 1, 0 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x679C
+debugthreat()
+{
+/#
+	level.last_threat_debug = GetTime();
+	thread debugthreatcalc();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x67B8
+debugthreatcalc()
+{
+/#
+	ai = getaiarray();
+	entnum = getdebugdvarint( "debug_threat" );
+	entity = undefined;
+	players = get_players();
+	entity = players[0];
+	i = 0;
+	entity = ai[i];
+	i++;
+	entitygroup = entity getthreatbiasgroup();
+	array_thread( ai, ::displaythreat, entity, entitygroup );
+	players[0] thread displaythreat( entity, entitygroup );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6888
+displaythreat( entity, entitygroup )
+{
+/#
+	self endon( "death" );
+	selfthreat = 0;
+	selfthreat += self.threatbias;
+	threat = 0;
+	threat += entity.threatbias;
+	mygroup = undefined;
+	mygroup = self getthreatbiasgroup();
+	threat += getthreatbias( entitygroup, mygroup );
+	selfthreat += getthreatbias( mygroup, entitygroup );
+	threat = "Ignore";
+	selfthreat = "Ignore";
+	players = get_players();
+	col = ( 1, 0.5, 0.2 );
+	col2 = ( 0.2, 0.5, 1 );
+	pacifist = self.pacifist;
+	i = 0;
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 65 ), "Him to Me:", col, 3 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 50 ), threat, col, 5 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 35 ), entitygroup, col, 2 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 15 ), "Me to Him:", col2, 3 );
+	print3d( self.origin + ( 0, 0, 0 ), selfthreat, col2, 5 );
+	print3d( self.origin + vector_scale( ( 0, 0, -1 ), 15 ), mygroup, col2, 2 );
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 25 ), "( Pacifist )", col2, 5 );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6AAC
+debugcolorfriendlies()
+{
+/#
+	level.debug_color_friendlies = [];
+	level.debug_color_huds = [];
+	level thread debugcolorfriendliestogglewatch();
+	level waittill( "updated_color_friendlies" );
+	draw_color_friendlies();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6AE4
+debugcolorfriendliestogglewatch()
+{
+/#
+	just_turned_on = 0;
+	just_turned_off = 0;
+	just_turned_on = 1;
+	just_turned_off = 0;
+	draw_color_friendlies();
+	just_turned_off = 1;
+	just_turned_on = 0;
+	draw_color_friendlies();
+	wait 0.25;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6B68
+draw_color_friendlies()
+{
+/#
+	level endon( "updated_color_friendlies" );
+	keys = getarraykeys( level.debug_color_friendlies );
+	colored_friendlies = [];
+	colors = [];
+	colors[colors.size] = "r";
+	colors[colors.size] = "o";
+	colors[colors.size] = "y";
+	colors[colors.size] = "g";
+	colors[colors.size] = "c";
+	colors[colors.size] = "b";
+	colors[colors.size] = "p";
+	rgb = get_script_palette();
+	i = 0;
+	colored_friendlies[colors[i]] = 0;
+	i++;
+	i = 0;
+	color = level.debug_color_friendlies[keys[i]];
+	colored_friendlies[color]++;
+	i++;
+	i = 0;
+	level.debug_color_huds[i] destroy();
+	i++;
+	level.debug_color_huds = [];
+	y = 365;
+	i = 0;
+	p = 0;
+	overlay = newhudelem();
+	overlay.x = 15 + 25 * p;
+	overlay.y = y;
+	overlay setshader( "white", 16, 16 );
+	overlay.alignx = "left";
+	overlay.aligny = "bottom";
+	overlay.alpha = 1;
+	overlay.color = rgb[colors[i]];
+	level.debug_color_huds[level.debug_color_huds.size] = overlay;
+	p++;
+	y += 25;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6D44
+init_animsounds()
+{
+/#
+	level.animsounds = [];
+	level.animsound_aliases = [];
+	waittillframeend;
+	waittillframeend;
+	animnames = getarraykeys( level.scr_notetrack );
+	i = 0;
+	init_notetracks_for_animname( animnames[i] );
+	i++;
+	animnames = getarraykeys( level.scr_animsound );
+	i = 0;
+	init_animsounds_for_animname( animnames[i] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6DC4
+init_notetracks_for_animname( animname )
+{
+/#
+	notetracks = getarraykeys( level.scr_notetrack[animname] );
+	i = 0;
+	soundalias = level.scr_notetrack[animname][i]["sound"];
+	anime = level.scr_notetrack[animname][i]["anime"];
+	notetrack = level.scr_notetrack[animname][i]["notetrack"];
+	level.animsound_aliases[animname][anime][notetrack]["soundalias"] = soundalias;
+	level.animsound_aliases[animname][anime][notetrack]["created_by_animSound"] = 1;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6E84
+init_animsounds_for_animname( animname )
+{
+/#
+	animes = getarraykeys( level.scr_animsound[animname] );
+	i = 0;
+	anime = animes[i];
+	soundalias = level.scr_animsound[animname][anime];
+	level.animsound_aliases[animname][anime]["#" + anime]["soundalias"] = soundalias;
+	level.animsound_aliases[animname][anime]["#" + anime]["created_by_animSound"] = 1;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6F0C
+add_hud_line( x, y, msg )
+{
+/#
+	hudelm = newhudelem();
+	hudelm.alignx = "left";
+	hudelm.aligny = "middle";
+	hudelm.x = x;
+	hudelm.y = y;
+	hudelm.alpha = 1;
+	hudelm.fontscale = 1;
+	hudelm.label = msg;
+	level.animsound_hud_extralines[level.animsound_hud_extralines.size] = hudelm;
+	return hudelm;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x6F84
+debug_animsound()
+{
+/#
+	enabled = getdebugdvar( "animsound" ) == "on";
+	level.animsound_selected = 0;
+	level.animsound_input = "none";
+	level.animsound_hud = [];
+	level.animsound_hud_timer = [];
+	level.animsound_hud_alias = [];
+	level.animsound_hud_extralines = [];
+	level.animsound_locked = 0;
+	level.animsound_locked_pressed = 0;
+	level.animsound_hud_animname = add_hud_line( -30, 180, "Actor: " );
+	level.animsound_hud_anime = add_hud_line( 100, 180, "Anim: " );
+	add_hud_line( 10, 190, "Notetrack or label" );
+	add_hud_line( -30, 190, "Elapsed" );
+	add_hud_line( -30, 160, "Del: Delete selected soundalias" );
+	add_hud_line( -30, 150, "F12: Lock selection" );
+	add_hud_line( -30, 140, "Add a soundalias with /tag alias or /tag# alias" );
+	level.animsound_hud_locked = add_hud_line( -30, 170, "*LOCKED*" );
+	level.animsound_hud_locked.alpha = 0;
+	i = 0;
+	hudelm = newhudelem();
+	hudelm.alignx = "left";
+	hudelm.aligny = "middle";
+	hudelm.x = 10;
+	hudelm.y = 200 + i * 10;
+	hudelm.alpha = 1;
+	hudelm.fontscale = 1;
+	hudelm.label = "";
+	level.animsound_hud[level.animsound_hud.size] = hudelm;
+	hudelm = newhudelem();
+	hudelm.alignx = "right";
+	hudelm.aligny = "middle";
+	hudelm.x = -10;
+	hudelm.y = 200 + i * 10;
+	hudelm.alpha = 1;
+	hudelm.fontscale = 1;
+	hudelm.label = "";
+	level.animsound_hud_timer[level.animsound_hud_timer.size] = hudelm;
+	hudelm = newhudelem();
+	hudelm.alignx = "right";
+	hudelm.aligny = "middle";
+	hudelm.x = 210;
+	hudelm.y = 200 + i * 10;
+	hudelm.alpha = 1;
+	hudelm.fontscale = 1;
+	hudelm.label = "";
+	level.animsound_hud_alias[level.animsound_hud_alias.size] = hudelm;
+	i++;
+	level.animsound_hud[0].color = ( 1, 1, 0 );
+	level.animsound_hud_timer[0].color = ( 1, 1, 0 );
+	i = 0;
+	level.animsound_hud[i] destroy();
+	level.animsound_hud_timer[i] destroy();
+	level.animsound_hud_alias[i] destroy();
+	i++;
+	i = 0;
+	level.animsound_hud_extralines[i] destroy();
+	i++;
+	level.animsound_hud = undefined;
+	level.animsound_hud_timer = undefined;
+	level.animsound_hud_alias = undefined;
+	level.animsound_hud_extralines = undefined;
+	level.animsounds = undefined;
+	level.animsound_locked = 0;
+	level.animsound_hud_locked.alpha = 1;
+	level.animsound_hud_locked.alpha = 0;
+	init_animsounds();
+	level.animsounds_thisframe = [];
+	level.animsounds = remove_undefined_from_array( level.animsounds );
+	array_thread( level.animsounds, ::display_animsound );
+	players = get_players();
+	i = 0;
+	animsound = level.animsounds_thisframe[i];
+	animsound.animsound_color = vector_scale( ( 1, 1, 1 ), 0.5 );
+	i++;
+	dot = 0.85;
+	forward = anglestoforward( players[0] getplayerangles() );
+	i = 0;
+	animsound = level.animsounds_thisframe[i];
+	animsound.animsound_color = ( 0.25, 1, 0.5 );
+	difference = vectornormalize( animsound.origin + vector_scale( ( 0, 0, 1 ), 40 ) - ( players[0].origin + vector_scale( ( 0, 0, 1 ), 55 ) ) );
+	newdot = vectordot( forward, difference );
+	dot = newdot;
+	level.animsound_tagged = animsound;
+	i++;
+	level.animsound_tagged.animsound_color = ( 1, 1, 0 );
+	is_tagged = IsDefined( level.animsound_tagged );
+	i = 0;
+	animsound = level.animsounds_thisframe[i];
+	msg = "*";
+	msg = "*LOCK";
+	print3d( animsound.origin + vector_scale( ( 0, 0, 1 ), 40 ), msg + animsound.animsounds.size, animsound.animsound_color, 1, 1 );
+	i++;
+	draw_animsounds_in_hud();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7494
+draw_animsounds_in_hud()
+{
+/#
+	guy = level.animsound_tagged;
+	animsounds = guy.animsounds;
+	animname = "generic";
+	animname = guy.animname;
+	level.animsound_hud_animname.label = "Actor: " + animname;
+	players = get_players();
+	level.animsound_locked = !(level.animsound_locked);
+	level.animsound_locked_pressed = 1;
+	level.animsound_locked_pressed = 0;
+	level.animsound_selected--;
+	level.animsound_input = "up";
+	level.animsound_selected++;
+	level.animsound_input = "down";
+	level.animsound_input = "none";
+	i = 0;
+	hudelm = level.animsound_hud[i];
+	hudelm.label = "";
+	hudelm.color = ( 1, 1, 1 );
+	hudelm = level.animsound_hud_timer[i];
+	hudelm.label = "";
+	hudelm.color = ( 1, 1, 1 );
+	hudelm = level.animsound_hud_alias[i];
+	hudelm.label = "";
+	hudelm.color = ( 1, 1, 1 );
+	i++;
+	keys = getarraykeys( animsounds );
+	highest = -1;
+	i = 0;
+	highest = keys[i];
+	i++;
+	level.animsound_selected = highest;
+	level.animsound_selected = 0;
+	level.animsound_selected--;
+	level.animsound_selected = highest;
+	level.animsound_hud_anime.label = "Anim: " + animsounds[level.animsound_selected].anime;
+	level.animsound_hud[level.animsound_selected].color = ( 1, 1, 0 );
+	level.animsound_hud_timer[level.animsound_selected].color = ( 1, 1, 0 );
+	level.animsound_hud_alias[level.animsound_selected].color = ( 1, 1, 0 );
+	time = GetTime();
+	i = 0;
+	key = keys[i];
+	animsound = animsounds[key];
+	hudelm = level.animsound_hud[key];
+	soundalias = get_alias_from_stored( animsound );
+	hudelm.label = key + 1 + ". " + animsound.notetrack;
+	hudelm = level.animsound_hud_timer[key];
+	hudelm.label = int( ( time - ( animsound.end_time - 60000 ) ) * 0.001 );
+	hudelm = level.animsound_hud_alias[key];
+	hudelm.label = soundalias;
+	hudelm.color = vector_scale( ( 1, 1, 1 ), 0.7 );
+	i++;
+	players = get_players();
+	animsound = animsounds[level.animsound_selected];
+	soundalias = get_alias_from_stored( animsound );
+	level.animsound_aliases[animsound.animname][animsound.anime][animsound.notetrack] = undefined;
+	debug_animsoundsave();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7854
+get_alias_from_stored( animsound )
+{
+/#
+	return level.animsound_aliases[animsound.animname][animsound.anime][animsound.notetrack]["soundalias"];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x78C8
+is_from_animsound( animname, anime, notetrack )
+{
+/#
+	return IsDefined( level.animsound_aliases[animname][anime][notetrack]["created_by_animSound"] );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x78F0
+display_animsound()
+{
+/#
+	players = get_players();
+	level.animsounds_thisframe[level.animsounds_thisframe.size] = self;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7934
+debug_animsoundtag( tagnum )
+{
+/#
+	tag = GetDvar( #"0xB88AD41" + tagnum );
+	iprintlnbold( "Enter the soundalias with /tag# aliasname" );
+	tag_sound( tag, tagnum - 1 );
+	setdvar( "tag" + tagnum, "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x798C
+debug_animsoundtagselected()
+{
+/#
+	tag = GetDvar( #"0xB88AD41" );
+	iprintlnbold( "Enter the soundalias with /tag aliasname" );
+	tag_sound( tag, level.animsound_selected );
+	setdvar( "tag", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x79DC
+tag_sound( tag, tagnum )
+{
+/#
+	animsound = level.animsound_tagged.animsounds[tagnum];
+	soundalias = get_alias_from_stored( animsound );
+	level.animsound_aliases[animsound.animname][animsound.anime][animsound.notetrack]["soundalias"] = tag;
+	level.animsound_aliases[animsound.animname][animsound.anime][animsound.notetrack]["created_by_animSound"] = 1;
+	debug_animsoundsave();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7A98
+debug_animsoundsave()
+{
+/#
+	filename = "createfx/" + level.script + "_audio.gsc";
+	file = openfile( filename, "write" );
+	iprintlnbold( "Couldn't write to " + filename + ", make sure it is open for edit." );
+	iprintlnbold( "Saved to " + filename );
+	print_aliases_to_file( file );
+	saved = closefile( file );
+	setdvar( "animsound_save", "" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7B24
+print_aliases_to_file( file )
+{
+/#
+	tab = "    ";
+	fprintln( file, "#include maps\\_anim;" );
+	fprintln( file, "main()" );
+	fprintln( file, "{" );
+	fprintln( file, tab + "// Autogenerated by AnimSounds. Threaded off so that it can be placed before _load( has to create level.scr_notetrack first )." );
+	fprintln( file, tab + "thread init_animsounds();" );
+	fprintln( file, "}" );
+	fprintln( file, "" );
+	fprintln( file, "init_animsounds()" );
+	fprintln( file, "{" );
+	fprintln( file, tab + "waittillframeend;" );
+	animnames = getarraykeys( level.animsound_aliases );
+	i = 0;
+	animes = getarraykeys( level.animsound_aliases[animnames[i]] );
+	p = 0;
+	anime = animes[p];
+	notetracks = getarraykeys( level.animsound_aliases[animnames[i]][anime] );
+	z = 0;
+	notetrack = notetracks[z];
+	alias = level.animsound_aliases[animnames[i]][anime][notetrack]["soundalias"];
+	fprintln( file, tab + "addOnStart_animSound( " + tostr( animnames[i] ) + ", " + tostr( anime ) + ", " + tostr( alias ) + " ); " );
+	fprintln( file, tab + "addNotetrack_animSound( " + tostr( animnames[i] ) + ", " + tostr( anime ) + ", " + tostr( notetrack ) + ", " + tostr( alias ) + " ); " );
+	println( "^1Saved alias ^4" + alias + "^1 to notetrack ^4" + notetrack );
+	z++;
+	p++;
+	i++;
+	fprintln( file, "}" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7D80
+tostr( str )
+{
+/#
+	newstr = "\"";
+	i = 0;
+	newstr += "\\";
+	newstr += "\"";
+	newstr += str[i];
+	i++;
+	newstr += "\"";
+	return newstr;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7DE8
+drawdebuglineinternal( frompoint, topoint, color, durationframes )
+{
+/#
+	i = 0;
+	line( frompoint, topoint, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7E2C
+drawdebugline( frompoint, topoint, color, durationframes )
+{
+/#
+	thread drawdebuglineinternal( frompoint, topoint, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7E54
+drawdebugenttoentinternal( ent1, ent2, color, durationframes )
+{
+/#
+	i = 0;
+	line( ent1.origin, ent2.origin, color );
+	wait 0.05;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7EB0
+drawdebuglineenttoent( ent1, ent2, color, durationframes )
+{
+/#
+	thread drawdebugenttoentinternal( ent1, ent2, color, durationframes );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7ED8
+complete_me()
+{
+/#
+	wait 7;
+	nextmission();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7EF0
+debug_bayonet()
+{
+/#
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7EFC
+new_hud( hud_name, msg, x, y, scale )
+{
+/#
+	level.hud_array = [];
+	level.hud_array[hud_name] = [];
+	hud = maps\_createmenu::set_hudelem( msg, x, y, scale );
+	level.hud_array[hud_name][level.hud_array[hud_name].size] = hud;
+	return hud;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x7F64
+debug_show_viewpos()
+{
+/#
+	wait_for_first_player();
+	hud_title = newdebughudelem();
+	hud_title.x = 10;
+	hud_title.y = 300;
+	hud_title.alpha = 0;
+	hud_title.alignx = "left";
+	hud_title.fontscale = 1.2;
+	hud_title settext( &"DEBUG_POSITION" );
+	x_pos = hud_title.x + 50;
+	hud_x = newdebughudelem();
+	hud_x.x = x_pos;
+	hud_x.y = 300;
+	hud_x.alpha = 0;
+	hud_x.alignx = "left";
+	hud_x.fontscale = 1.2;
+	hud_x setvalue( 0 );
+	hud_y = newdebughudelem();
+	hud_y.x = 10;
+	hud_y.y = 300;
+	hud_y.alpha = 0;
+	hud_y.alignx = "left";
+	hud_y.fontscale = 1.2;
+	hud_y setvalue( 0 );
+	hud_z = newdebughudelem();
+	hud_z.x = 10;
+	hud_z.y = 300;
+	hud_z.alpha = 0;
+	hud_z.alignx = "left";
+	hud_z.fontscale = 1.2;
+	hud_z setvalue( 0 );
+	setdvar( "debug_show_viewpos", "0" );
+	players = get_players();
+	hud_title.alpha = 1;
+	hud_x.alpha = 1;
+	hud_y.alpha = 1;
+	hud_z.alpha = 1;
+	x = players[0].origin[0];
+	y = players[0].origin[1];
+	z = players[0].origin[2];
+	spacing1 = ( 2 + number_before_decimal( x ) ) * 8 + 10;
+	spacing2 = ( 2 + number_before_decimal( y ) ) * 8 + 10;
+	hud_y.x = x_pos + spacing1;
+	hud_z.x = x_pos + spacing1 + spacing2;
+	hud_x setvalue( round_to( x, 100 ) );
+	hud_y setvalue( round_to( y, 100 ) );
+	hud_z setvalue( round_to( z, 100 ) );
+	hud_title.alpha = 0;
+	hud_x.alpha = 0;
+	hud_y.alpha = 0;
+	hud_z.alpha = 0;
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8210
+number_before_decimal( num )
+{
+/#
+	abs_num = abs( num );
+	count = 0;
+	abs_num *= 0.1;
+	count += 1;
+	return count;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8254
+round_to( val, num )
+{
+/#
+	return int( val * num ) / num;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8278
+set_event_printname_thread( text, focus )
+{
+/#
+	level notify( "stop_event_name_thread" );
+	level endon( "stop_event_name_thread" );
+	focus = 0;
+	suffix = "";
+	suffix = " [Focus Event]";
+	setdvar( "cg_zoneName", text );
+	text = "Event: " + text + suffix;
+	hud = newhudelem();
+	hud.horzalign = "center";
+	hud.alignx = "center";
+	hud.aligny = "top";
+	hud.foreground = 1;
+	hud.fontscale = 1.5;
+	hud.sort = 50;
+	hud.alpha = 1;
+	hud.y = 15;
+	level.event_hudelem = hud;
+	level.event_hudelem.color = ( 1, 1, 0 );
+	level.event_hudelem.color = ( 1, 1, 1 );
+	setdvar( "debug_draw_event", "1" );
+	level.event_hudelem settext( text );
+	enabled = 1;
+	toggle = 0;
+	toggle = 1;
+	enabled = 0;
+	toggle = 1;
+	enabled = 1;
+	level.event_hudelem.alpha = 1;
+	level.event_hudelem.alpha = 0;
+	wait 0.5;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8418
+get_playerone()
+{
+/#
+	return get_players()[0];
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x842C
+engagement_distance_debug_toggle()
+{
+/#
+	level endon( "kill_engage_dist_debug_toggle_watcher" );
+	laststate = getdebugdvarint( "debug_engage_dists" );
+	currentstate = getdebugdvarint( "debug_engage_dists" );
+	weapon_engage_dists_init();
+	thread debug_realtime_engage_dist();
+	thread debug_ai_engage_dist();
+	laststate = currentstate;
+	level notify( "kill_all_engage_dist_debug" );
+	laststate = currentstate;
+	wait 0.3;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x84D8
+dvar_turned_on( val )
+{
+/#
+	return 0;
+	return 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x84F8
+engagement_distance_debug_init()
+{
+/#
+	level.debug_xpos = -50;
+	level.debug_ypos = 250;
+	level.debug_yinc = 18;
+	level.debug_fontscale = 1.5;
+	level.white = ( 1, 1, 1 );
+	level.green = ( 0, 1, 0 );
+	level.yellow = ( 1, 1, 0 );
+	level.red = ( 1, 0, 0 );
+	level.realtimeengagedist = newhudelem();
+	level.realtimeengagedist.alignx = "left";
+	level.realtimeengagedist.fontscale = level.debug_fontscale;
+	level.realtimeengagedist.x = level.debug_xpos;
+	level.realtimeengagedist.y = level.debug_ypos;
+	level.realtimeengagedist.color = level.white;
+	level.realtimeengagedist settext( "Current Engagement Distance: " );
+	xpos = level.debug_xpos + 207;
+	level.realtimeengagedist_value = newhudelem();
+	level.realtimeengagedist_value.alignx = "left";
+	level.realtimeengagedist_value.fontscale = level.debug_fontscale;
+	level.realtimeengagedist_value.x = xpos;
+	level.realtimeengagedist_value.y = level.debug_ypos;
+	level.realtimeengagedist_value.color = level.white;
+	level.realtimeengagedist_value setvalue( 0 );
+	xpos += 37;
+	level.realtimeengagedist_middle = newhudelem();
+	level.realtimeengagedist_middle.alignx = "left";
+	level.realtimeengagedist_middle.fontscale = level.debug_fontscale;
+	level.realtimeengagedist_middle.x = xpos;
+	level.realtimeengagedist_middle.y = level.debug_ypos;
+	level.realtimeengagedist_middle.color = level.white;
+	level.realtimeengagedist_middle settext( " units, SHORT/LONG by " );
+	xpos += 105;
+	level.realtimeengagedist_offvalue = newhudelem();
+	level.realtimeengagedist_offvalue.alignx = "left";
+	level.realtimeengagedist_offvalue.fontscale = level.debug_fontscale;
+	level.realtimeengagedist_offvalue.x = xpos;
+	level.realtimeengagedist_offvalue.y = level.debug_ypos;
+	level.realtimeengagedist_offvalue.color = level.white;
+	level.realtimeengagedist_offvalue setvalue( 0 );
+	hudobjarray = [];
+	hudobjarray[0] = level.realtimeengagedist;
+	hudobjarray[1] = level.realtimeengagedist_value;
+	hudobjarray[2] = level.realtimeengagedist_middle;
+	hudobjarray[3] = level.realtimeengagedist_offvalue;
+	return hudobjarray;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8710
+engage_dist_debug_hud_destroy( hudarray, killnotify )
+{
+/#
+	level waittill( killnotify );
+	i = 0;
+	hudarray[i] destroy();
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x874C
+weapon_engage_dists_init()
+{
+/#
+	level.engagedists = [];
+	genericpistol = spawnstruct();
+	genericpistol.engagedistmin = 125;
+	genericpistol.engagedistoptimal = 225;
+	genericpistol.engagedistmulligan = 50;
+	genericpistol.engagedistmax = 400;
+	shotty = spawnstruct();
+	shotty.engagedistmin = 50;
+	shotty.engagedistoptimal = 200;
+	shotty.engagedistmulligan = 75;
+	shotty.engagedistmax = 350;
+	genericsmg = spawnstruct();
+	genericsmg.engagedistmin = 100;
+	genericsmg.engagedistoptimal = 275;
+	genericsmg.engagedistmulligan = 100;
+	genericsmg.engagedistmax = 500;
+	genericlmg = spawnstruct();
+	genericlmg.engagedistmin = 325;
+	genericlmg.engagedistoptimal = 550;
+	genericlmg.engagedistmulligan = 150;
+	genericlmg.engagedistmax = 850;
+	genericriflesa = spawnstruct();
+	genericriflesa.engagedistmin = 325;
+	genericriflesa.engagedistoptimal = 550;
+	genericriflesa.engagedistmulligan = 150;
+	genericriflesa.engagedistmax = 850;
+	genericriflebolt = spawnstruct();
+	genericriflebolt.engagedistmin = 350;
+	genericriflebolt.engagedistoptimal = 600;
+	genericriflebolt.engagedistmulligan = 150;
+	genericriflebolt.engagedistmax = 900;
+	generichmg = spawnstruct();
+	generichmg.engagedistmin = 390;
+	generichmg.engagedistoptimal = 600;
+	generichmg.engagedistmulligan = 100;
+	generichmg.engagedistmax = 900;
+	genericsniper = spawnstruct();
+	genericsniper.engagedistmin = 950;
+	genericsniper.engagedistoptimal = 1700;
+	genericsniper.engagedistmulligan = 300;
+	genericsniper.engagedistmax = 3000;
+	engage_dists_add( "pistol", genericpistol );
+	engage_dists_add( "smg", genericsmg );
+	engage_dists_add( "spread", shotty );
+	engage_dists_add( "mg", generichmg );
+	engage_dists_add( "rifle", genericriflesa );
+	engage_dists_add( "springfield_scoped", genericsniper );
+	engage_dists_add( "type99_rifle_scoped", genericsniper );
+	engage_dists_add( "mosin_rifle_scoped", genericsniper );
+	engage_dists_add( "kar98k_scoped", genericsniper );
+	engage_dists_add( "fg42_scoped", genericsniper );
+	engage_dists_add( "lee_enfield_scoped", genericsniper );
+	level thread engage_dists_watcher();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x89C8
+engage_dists_add( weapontypestr, values )
+{
+/#
+	level.engagedists[weapontypestr] = values;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x89E4
+get_engage_dists( weapontypestr )
+{
+/#
+	return level.engagedists[weapontypestr];
+	return undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8A0C
+engage_dists_watcher()
+{
+/#
+	level endon( "kill_all_engage_dist_debug" );
+	level endon( "kill_engage_dists_watcher" );
+	player = get_playerone();
+	playerweapon = player getcurrentweapon();
+	player.lastweapon = playerweapon;
+	wait 0.05;
+	values = get_engage_dists( weaponclass( playerweapon ) );
+	level.weaponengagedistvalues = values;
+	level.weaponengagedistvalues = undefined;
+	player.lastweapon = playerweapon;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8AB8
+debug_realtime_engage_dist()
+{
+/#
+	level endon( "kill_all_engage_dist_debug" );
+	level endon( "kill_realtime_engagement_distance_debug" );
+	hudobjarray = engagement_distance_debug_init();
+	level thread engage_dist_debug_hud_destroy( hudobjarray, "kill_all_engage_dist_debug" );
+	level.debugrtengagedistcolor = level.green;
+	player = get_playerone();
+	lasttracepos = ( 0, 0, 0 );
+	direction = player getplayerangles();
+	direction_vec = anglestoforward( direction );
+	eye = player geteye();
+	trace = bullettrace( eye, eye + vector_scale( direction_vec, 10000 ), 1, player );
+	tracepoint = trace["position"];
+	tracenormal = trace["normal"];
+	tracedist = int( distance( eye, tracepoint ) );
+	lasttracepos = tracepoint;
+	hudobj_changecolor( hudobjarray, level.white );
+	hudobjarray engagedist_hud_changetext( "nodata", tracedist );
+	engagedistmin = level.weaponengagedistvalues.engagedistmin;
+	engagedistoptimal = level.weaponengagedistvalues.engagedistoptimal;
+	engagedistmulligan = level.weaponengagedistvalues.engagedistmulligan;
+	engagedistmax = level.weaponengagedistvalues.engagedistmax;
+	hudobjarray engagedist_hud_changetext( "optimal", tracedist );
+	hudobj_changecolor( hudobjarray, level.green );
+	hudobjarray engagedist_hud_changetext( "ok", tracedist );
+	hudobj_changecolor( hudobjarray, level.yellow );
+	hudobj_changecolor( hudobjarray, level.red );
+	hudobjarray engagedist_hud_changetext( "short", tracedist );
+	hudobj_changecolor( hudobjarray, level.red );
+	hudobjarray engagedist_hud_changetext( "long", tracedist );
+	thread plot_circle_fortime( 1, 5, 0.05, level.debugrtengagedistcolor, tracepoint, tracenormal );
+	thread plot_circle_fortime( 1, 1, 0.05, level.debugrtengagedistcolor, tracepoint, tracenormal );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8D08
+hudobj_changecolor( hudobjarray, newcolor )
+{
+/#
+	i = 0;
+	hudobj = hudobjarray[i];
+	hudobj.color = newcolor;
+	level.debugrtengagedistcolor = newcolor;
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8D58
+engagedist_hud_changetext( engagedisttype, units )
+{
+/#
+	level.lastdisttype = "none";
+	self[1] setvalue( units );
+	self[2] settext( "units: OPTIMAL!" );
+	self[3].alpha = 0;
+	self[1] setvalue( units );
+	self[2] settext( "units: OK!" );
+	self[3].alpha = 0;
+	amountunder = level.weaponengagedistvalues.engagedistmin - units;
+	self[1] setvalue( units );
+	self[3] setvalue( amountunder );
+	self[3].alpha = 1;
+	self[2] settext( "units: SHORT by " );
+	amountover = units - level.weaponengagedistvalues.engagedistmax;
+	self[1] setvalue( units );
+	self[3] setvalue( amountover );
+	self[3].alpha = 1;
+	self[2] settext( "units: LONG by " );
+	self[1] setvalue( units );
+	self[2] settext( " units: (NO CURRENT WEAPON VALUES)" );
+	self[3].alpha = 0;
+	level.lastdisttype = engagedisttype;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x8EEC
+debug_ai_engage_dist()
+{
+/#
+	level endon( "kill_all_engage_dist_debug" );
+	level endon( "kill_ai_engagement_distance_debug" );
+	player = get_playerone();
+	axis = getaiarray( "axis" );
+	playereye = player geteye();
+	i = 0;
+	ai = axis[i];
+	aieye = ai geteye();
+	dist = distance( playereye, aieye );
+	drawcolor = level.white;
+	drawstring = "-";
+	drawcolor = level.white;
+	engagedistmin = level.weaponengagedistvalues.engagedistmin;
+	engagedistoptimal = level.weaponengagedistvalues.engagedistoptimal;
+	engagedistmulligan = level.weaponengagedistvalues.engagedistmulligan;
+	engagedistmax = level.weaponengagedistvalues.engagedistmax;
+	drawcolor = level.green;
+	drawstring = "RAD";
+	drawcolor = level.yellow;
+	drawstring = "MEH";
+	drawcolor = level.red;
+	drawstring = "BAD";
+	drawcolor = level.red;
+	drawstring = "BAD";
+	scale = dist / 525;
+	print3d( ai.origin + vector_scale( ( 0, 0, 1 ), 67 ), drawstring, drawcolor, 1, scale );
+	i++;
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x90AC
+plot_circle_fortime( radius1, radius2, time, color, origin, normal )
+{
+/#
+	color = ( 0, 1, 0 );
+	circleres = 6;
+	hemires = circleres / 2;
+	circleinc = 360 / circleres;
+	circleres++;
+	plotpoints = [];
+	rad = 0;
+	timer = GetTime() + time * 1000;
+	radius = radius1;
+	radius = radius2;
+	angletoplayer = vectortoangles( normal );
+	i = 0;
+	plotpoints[plotpoints.size] = origin + vector_scale( anglestoforward( angletoplayer + ( rad, 90, 0 ) ), radius );
+	rad += circleinc;
+	i++;
+	maps\_utility::plot_points( plotpoints, color[0], color[1], color[2], 0.05 );
+	plotpoints = [];
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9190
+dynamic_ai_spawner()
+{
+/#
+	dynamic_ai_spawner_init();
+	level.debug_dynamic_ai_spawner = 1;
+	spawnfriendly = 0;
+	spawnfriendly = getdebugdvar( "debug_dynamic_ai_spawn_friendly" ) == "1";
+	get_players()[0] thread spawn_guy_placement( level.friendly_spawner );
+	get_players()[0] thread spawn_guy_placement( level.enemy_spawner );
+	level waittill( "kill dynamic spawning" );
+	level.dynamic_spawn_hud destroy();
+	level.dynamic_spawn_dummy_model delete();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9244
+dynamic_ai_spawner_init()
+{
+/#
+	dynamic_ai_spawner_find_spawners();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9260
+dynamic_ai_spawner_find_spawners()
+{
+/#
+	spawners = getspawnerarray();
+	i = 0;
+	enemy_spawner = spawners[i];
+	enemy_spawner.script_forcespawn = 1;
+	level.enemy_spawner = enemy_spawner;
+	i++;
+	i = 0;
+	classname = tolower( spawners[i].classname );
+	level.enemy_spawner = dynamic_ai_spawner_setup_spawner( spawners[i] );
+	level.friendly_spawner = dynamic_ai_spawner_setup_spawner( spawners[i] );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x93A0
+dynamic_ai_spawner_setup_spawner( spawner )
+{
+/#
+	spawner.script_forcespawn = 1;
+	tempspawn = spawner spawn_ai();
+	spawner.debug_model = tempspawn.model;
+	spawner.debug_headmodel = tempspawn.headmodel;
+	tempspawn delete();
+	return spawner;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x93FC
+spawn_guy_placement( spawner )
+{
+/#
+	level endon( "kill dynamic spawning" );
+/#
+	assert( IsDefined( spawner ), "No spawners in the level!" );
+#/
+	level.dynamic_spawn_hud = newclienthudelem( get_players()[0] );
+	level.dynamic_spawn_hud.alignx = "right";
+	level.dynamic_spawn_hud.x = 110;
+	level.dynamic_spawn_hud.y = 225;
+	level.dynamic_spawn_hud.fontscale = 2;
+	level.dynamic_spawn_hud settext( "Press X to spawn AI" );
+	level.dynamic_spawn_dummy_model = spawn( "script_model", ( 0, 0, 0 ) );
+	level.dynamic_spawn_dummy_model setmodel( spawner.debug_model );
+	level.dynamic_spawn_dummy_model attach( spawner.debug_headmodel, "", 1 );
+	level.dynamic_spawn_dummy_model setmodel( "defaultactor" );
+	wait 0.1;
+	direction = self getplayerangles();
+	direction_vec = anglestoforward( direction );
+	eye = self geteye();
+	trace = bullettrace( eye, eye + vector_scale( direction_vec, 8000 ), 0, undefined );
+	dist = distance( eye, trace["position"] );
+	position = eye + vector_scale( direction_vec, dist - 64 );
+	spawner.origin = position;
+	spawner.angles = self.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	level.dynamic_spawn_dummy_model.origin = position;
+	level.dynamic_spawn_dummy_model.angles = self.angles + vector_scale( ( 0, 1, 0 ), 180 );
+	self spawn_anywhere( spawner );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x95C0
+spawn_anywhere( spawner )
+{
+/#
+	level endon( "kill dynamic spawning" );
+	spawn = spawner spawn_ai();
+/#
+	assert( 0, "spawn failed from spawn anywhere guy" );
+#/
+	spawn.ignoreme = getdebugdvar( "debug_dynamic_ai_ignoreMe" ) == "1";
+	spawn.ignoreall = getdebugdvar( "debug_dynamic_ai_ignoreAll" ) == "1";
+	spawn.pacifist = getdebugdvar( "debug_dynamic_ai_pacifist" ) == "1";
+	spawn.fixednode = 0;
+	wait 0.4;
+	spawner.count = 50;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9670
+display_module_text()
+{
+/#
+	wait 1;
+	iprintlnbold( "Please open and read " + level.script + ".gsc for complete understanding" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9694
+debug_goalradius()
+{
+/#
+	guys = getaiarray();
+	i = 0;
+	print3d( guys[i].origin + vector_scale( ( 0, 0, 1 ), 70 ), string( guys[i].goalradius ), ( 1, 0, 0 ), 1, 1, 1 );
+	record3dtext( "" + guys[i].goalradius, guys[i].origin + vector_scale( ( 0, 0, 1 ), 70 ), level.color_debug["red"], "Animscript" );
+	print3d( guys[i].origin + vector_scale( ( 0, 0, 1 ), 70 ), string( guys[i].goalradius ), ( 0, 1, 0 ), 1, 1, 1 );
+	record3dtext( "" + guys[i].goalradius, guys[i].origin + vector_scale( ( 0, 0, 1 ), 70 ), level.color_debug["green"], "Animscript" );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x97C4
+debug_maxvisibledist()
+{
+/#
+	guys = getaiarray();
+	i = 0;
+	recordenttext( string( guys[i].maxvisibledist ), guys[i], level.debugteamcolors[guys[i].team], "Animscript" );
+	i++;
+	recordenttext( string( level.player.maxvisibledist ), level.player, level.debugteamcolors["allies"], "Animscript" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9854
+debug_health()
+{
+/#
+	guys = getaiarray();
+	i = 0;
+	recordenttext( string( guys[i].health ), guys[i], level.debugteamcolors[guys[i].team], "Animscript" );
+	i++;
+	vehicles = getvehiclearray();
+	i = 0;
+	recordenttext( string( vehicles[i].health ), vehicles[i], level.debugteamcolors[vehicles[i].vteam], "Animscript" );
+	i++;
+	recordenttext( string( level.player.health ), level.player, level.debugteamcolors["allies"], "Animscript" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9934
+debug_engagedist()
+{
+/#
+	guys = getaiarray();
+	i = 0;
+	diststring = guys[i].engageminfalloffdist + " - " + guys[i].engagemindist + " - " + guys[i].engagemaxdist + " - " + guys[i].engagemaxfalloffdist;
+	recordenttext( diststring, guys[i], level.debugteamcolors[guys[i].team], "Animscript" );
+	i++;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x99C0
+ai_puppeteer()
+{
+/#
+	ai_puppeteer_create_hud();
+	level.ai_puppet_highlighting = 0;
+	player = get_players()[0];
+	player thread ai_puppet_cursor_tracker();
+	player thread ai_puppet_manager();
+	player.ignoreme = 1;
+	level waittill( "kill ai puppeteer" );
+	player.ignoreme = 0;
+	ai_puppet_release( 1 );
+	level.ai_puppet_target delete();
+	ai_puppeteer_destroy_hud();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9A48
+ai_puppet_manager()
+{
+/#
+	level endon( "kill ai puppeteer" );
+	self endon( "death" );
+	level.ai_puppet lookatpos( level.playercursor["position"] );
+	self thread ai_puppeteer_highlight_ai( level.ai_puppet_target, ( 1, 0, 0 ) );
+	level.ai_puppet clearentitytarget();
+	level.ai_puppet_target = undefined;
+	self thread ai_puppeteer_highlight_point( level.ai_puppet_target.origin, level.ai_puppet_target_normal, anglestoforward( self getplayerangles() ), ( 1, 0, 0 ) );
+	level.ai_puppet clearentitytarget();
+	level.ai_puppet_target delete();
+	level.ai_puppet setentitytarget( level.playercursorai );
+	level.ai_puppet_target = level.playercursorai;
+	level.ai_puppet getperfectinfo( level.ai_puppet_target );
+	self thread ai_puppeteer_highlight_ai( level.playercursorai, ( 1, 0, 0 ) );
+	level.ai_puppet_target = spawn( "script_origin", level.playercursor["position"] );
+	level.ai_puppet_target_normal = level.playercursor["normal"];
+	level.ai_puppet setentitytarget( level.ai_puppet_target );
+	self thread ai_puppeteer_highlight_point( level.ai_puppet_target.origin, level.ai_puppet_target_normal, anglestoforward( self getplayerangles() ), ( 1, 0, 0 ) );
+	level.ai_puppet animscripts\weaponlist::refillclip();
+	wait 0.2;
+	level.ai_puppet setgoalentity( level.playercursorai );
+	level.ai_puppet.goalradius = 64;
+	self thread ai_puppeteer_highlight_ai( level.playercursorai, ( 0, 1, 0 ) );
+	level.ai_puppet setgoalnode( level.playercursornode );
+	level.ai_puppet.goalradius = 16;
+	self thread ai_puppeteer_highlight_node( level.playercursornode );
+	to_target = level.ai_puppet.scriptenemy.origin - level.ai_puppet.origin;
+	to_target = level.playercursor["position"] - level.ai_puppet.origin;
+	angles = vectortoangles( to_target );
+	level.ai_puppet setgoalpos( level.playercursor["position"], angles );
+	level.ai_puppet.goalradius = 16;
+	self thread ai_puppeteer_highlight_point( level.playercursor["position"], level.playercursor["normal"], anglestoforward( self getplayerangles() ), ( 0, 1, 0 ) );
+	wait 0.2;
+	ai_puppet_release( 1 );
+	ai_puppet_release( 0 );
+	ai_puppet_set();
+	self thread ai_puppeteer_highlight_ai( level.ai_puppet, ( 0, 1, 1 ) );
+	wait 0.2;
+	level.ai_puppet.debuglookatenabled = 0;
+	println( "IK LookAt DISABLED" );
+	level.puppeteer_hud_lookat settext( "Y for lookat (OFF)" );
+	level.ai_puppet lookatpos();
+	level.ai_puppet.debuglookatenabled = 0;
+	level.ai_puppet.debuglookatenabled++;
+	level.puppeteer_hud_lookat settext( "Y for lookat (CURSOR)" );
+	println( "IK LookAt ENABLED" );
+	level.puppeteer_hud_lookat settext( "Y for lookat (FIXED)" );
+	println( "IK LookAt ENABLED (Target frozen)" );
+	wait 0.2;
+	ai_puppeteer_render_ai( level.ai_puppet, ( 0, 1, 1 ) );
+	ai_puppeteer_render_ai( level.ai_puppet.scriptenemy, ( 1, 0, 0 ) );
+	self thread ai_puppeteer_render_point( level.ai_puppet_target.origin, level.ai_puppet_target_normal, anglestoforward( self getplayerangles() ), ( 1, 0, 0 ) );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9F30
+ai_puppet_set()
+{
+/#
+	level.ai_puppet = level.playercursorai;
+	level.ai_puppet.old_goalradius = level.ai_puppet.goalradius;
+	level.ai_puppet stopanimscripted();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9F64
+ai_puppet_release( restore )
+{
+/#
+	level.ai_puppet.goalradius = level.ai_puppet.old_goalradius;
+	level.ai_puppet clearentitytarget();
+	level.ai_puppet = undefined;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x9FA4
+ai_puppet_cursor_tracker()
+{
+/#
+	level endon( "kill ai puppeteer" );
+	self endon( "death" );
+	forward = anglestoforward( self getplayerangles() );
+	forward_vector = vector_scale( forward, 4000 );
+	level.playercursor = bullettrace( self geteye(), self geteye() + forward_vector, 1, self );
+	level.playercursorai = undefined;
+	level.playercursornode = undefined;
+	cursorcolor = ( 0, 1, 1 );
+	hitent = level.playercursor["entity"];
+	cursorcolor = ( 1, 0, 0 );
+	ai_puppeteer_render_ai( hitent, cursorcolor );
+	level.playercursorai = hitent;
+	nodes = getanynodearray( level.playercursor["position"], 24 );
+	node = nodes[0];
+	ai_puppeteer_render_node( node, ( 0, 1, 1 ) );
+	level.playercursornode = node;
+	ai_puppeteer_render_point( level.playercursor["position"], level.playercursor["normal"], forward, cursorcolor );
+	wait 0.05;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA128
+ai_puppeteer_create_hud()
+{
+/#
+	level.puppeteer_hud_select = newdebughudelem();
+	level.puppeteer_hud_select.x = 0;
+	level.puppeteer_hud_select.y = 180;
+	level.puppeteer_hud_select.fontscale = 1.5;
+	level.puppeteer_hud_select.alignx = "left";
+	level.puppeteer_hud_select.horzalign = "left";
+	level.puppeteer_hud_select.color = ( 0, 0, 1 );
+	level.puppeteer_hud_goto = newdebughudelem();
+	level.puppeteer_hud_goto.x = 0;
+	level.puppeteer_hud_goto.y = 200;
+	level.puppeteer_hud_goto.fontscale = 1.5;
+	level.puppeteer_hud_goto.alignx = "left";
+	level.puppeteer_hud_goto.horzalign = "left";
+	level.puppeteer_hud_goto.color = ( 0, 1, 0 );
+	level.puppeteer_hud_lookat = newdebughudelem();
+	level.puppeteer_hud_lookat.x = 0;
+	level.puppeteer_hud_lookat.y = 220;
+	level.puppeteer_hud_lookat.fontscale = 1.5;
+	level.puppeteer_hud_lookat.alignx = "left";
+	level.puppeteer_hud_lookat.horzalign = "left";
+	level.puppeteer_hud_lookat.color = ( 0, 1, 1 );
+	level.puppeteer_hud_shoot = newdebughudelem();
+	level.puppeteer_hud_shoot.x = 0;
+	level.puppeteer_hud_shoot.y = 240;
+	level.puppeteer_hud_shoot.fontscale = 1.5;
+	level.puppeteer_hud_shoot.alignx = "left";
+	level.puppeteer_hud_shoot.horzalign = "left";
+	level.puppeteer_hud_shoot.color = ( 1, 1, 1 );
+	level.puppeteer_hud_select settext( "X for select" );
+	level.puppeteer_hud_goto settext( "A for goto" );
+	level.puppeteer_hud_lookat settext( "Y for lookat (OFF)" );
+	level.puppeteer_hud_shoot settext( "R-STICK for shoot" );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA2C8
+ai_puppeteer_destroy_hud()
+{
+/#
+	level.puppeteer_hud_select destroy();
+	level.puppeteer_hud_lookat destroy();
+	level.puppeteer_hud_goto destroy();
+	level.puppeteer_hud_shoot destroy();
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA330
+ai_puppeteer_render_point( point, normal, forward, color )
+{
+/#
+	surface_vector = vectorcross( forward, normal );
+	surface_vector = vectornormalize( surface_vector );
+	line( point, point + vector_scale( surface_vector, 5 ), color, 1, 1 );
+	line( point, point + vector_scale( surface_vector, -5 ), color, 1, 1 );
+	surface_vector = vectorcross( normal, surface_vector );
+	surface_vector = vectornormalize( surface_vector );
+	line( point, point + vector_scale( surface_vector, 5 ), color, 1, 1 );
+	line( point, point + vector_scale( surface_vector, -5 ), color, 1, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA3E0
+ai_puppeteer_render_node( node, color )
+{
+/#
+	print3d( node.origin, node.type, color, 1, 0.35 );
+	box( node.origin, vector_scale( ( -1, -1, 0 ), 16 ), vector_scale( ( 1, 1, 1 ), 16 ), node.angles[1], color, 1, 1 );
+	nodeforward = anglestoforward( node.angles );
+	nodeforward = vector_scale( nodeforward, 8 );
+	line( node.origin, node.origin + nodeforward, color, 1, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA478
+ai_puppeteer_render_ai( ai, color )
+{
+/#
+	circle( ai.origin + ( 0, 0, 1 ), 15, color, 0, 1 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA4A4
+ai_puppeteer_highlight_point( point, normal, forward, color )
+{
+/#
+	level endon( "kill ai puppeteer" );
+	self endon( "death" );
+	level.ai_puppet_highlighting = 1;
+	timer = 0;
+	ai_puppeteer_render_point( point, normal, forward, color );
+	timer += 0.15;
+	wait 0.15;
+	level.ai_puppet_highlighting = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA510
+ai_puppeteer_highlight_node( node )
+{
+/#
+	level endon( "kill ai puppeteer" );
+	self endon( "death" );
+	level.ai_puppet_highlighting = 1;
+	timer = 0;
+	ai_puppeteer_render_node( node, ( 0, 1, 0 ) );
+	timer += 0.15;
+	wait 0.15;
+	level.ai_puppet_highlighting = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA570
+ai_puppeteer_highlight_ai( ai, color )
+{
+/#
+	level endon( "kill ai puppeteer" );
+	self endon( "death" );
+	level.ai_puppet_highlighting = 1;
+	timer = 0;
+	ai_puppeteer_render_ai( ai, color );
+	timer += 0.15;
+	wait 0.15;
+	level.ai_puppet_highlighting = 0;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA5DC
+debug_sphere( origin, radius, color, alpha, time )
+{
+/#
+	time = 1000;
+	color = ( 1, 1, 1 );
+	sides = int( 10 * ( 1 + ( int( radius ) % 100 ) ) );
+	sphere( origin, radius, color, alpha, 1, sides, time );
+#/
+// SP = 0x0 - check OK
+}

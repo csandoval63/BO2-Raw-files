@@ -1,0 +1,586 @@
+// clientscripts/mp/zm_buried_sq.csc
+
+#include clientscripts\mp\zombies\_zm_perk_vulture;
+#include clientscripts\mp\_visionset_mgr;
+#include clientscripts\mp\_audio;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "fxanim_props_dlc3" );
+
+
+// 0x12FC
+preinit()
+{
+	onplayerconnect_callback( ::sq_setup_player_connect );
+// SP = 0x0 - check OK
+}
+
+// 0x1314
+init()
+{
+	level.sq_wisp_at_tower = 0;
+	level.sq_wisp_orb_count = 5;
+	level._effect["sq_ether_amp_trail"] = loadfx( "maps/zombie_buried/fx_buried_ether_amp_trail" );
+	sq_wisp_fx_think();
+// SP = 0x0 - check OK
+}
+
+// 0x134C
+sq_buried_clientfield_init()
+{
+	registerclientfield( "actor", "buried_sq_maxis_ending_update_eyeball_color", 12000, 1, "int", ::set_zombie_eyeball_color, 0, 0 );
+	registerclientfield( "scriptmover", "AmplifierShaderConstant", 12000, 5, "float", ::amplifer_shader_cb, 0, 0 );
+	registerclientfield( "scriptmover", "vulture_wisp", 12000, 1, "int", ::toggle_wisp_fx, 0, 0 );
+	registerclientfield( "world", "buried_sq_maxis_ending", 12000, 1, "int", ::toggle_maxis_ending, 0, 0 );
+	registerclientfield( "world", "buried_sq_richtofen_ending", 12000, 1, "int", ::toggle_richtofen_ending, 0, 0 );
+	registerclientfield( "world", "vulture_wisp_orb_count", 12000, 3, "int", ::set_wisp_orb_count, 0, 0 );
+	registerclientfield( "world", "sq_tpo_special_round_active", 12000, 1, "int", ::toggle_sq_special_round, 0, 0 );
+	setupclientfieldcodecallbacks( "world", 1, "sq_tpo_special_round_active" );
+	registerclientfield( "world", "sq_gl_b_vt", 12000, 1, "int", ::sq_gallows_build_vaccume_tube, 0 );
+	registerclientfield( "world", "sq_gl_b_bb", 12000, 1, "int", ::sq_gallows_build_buildable_battery, 0 );
+	registerclientfield( "world", "sq_gl_b_a", 12000, 1, "int", ::sq_gallows_build_antenna, 0 );
+	registerclientfield( "world", "sq_gl_b_ws", 12000, 1, "int", ::sq_gallows_build_wire_spool, 0 );
+	registerclientfield( "world", "sq_ctw_m_t_l", 12000, 2, "int", ::sq_gallows_light_tubes, 0 );
+	registerclientfield( "world", "buried_sq_egm_animate", 12000, 1, "int", ::sq_endgamemachine_animate, 0 );
+	registerclientfield( "world", "buried_sq_egm_bulb_0", 12000, 1, "int", ::sq_endgamemachine_bulb_0, 0 );
+	registerclientfield( "world", "buried_sq_egm_bulb_1", 12000, 1, "int", ::sq_endgamemachine_bulb_1, 0 );
+	registerclientfield( "world", "buried_sq_egm_bulb_2", 12000, 1, "int", ::sq_endgamemachine_bulb_2, 0 );
+	registerclientfield( "world", "buried_sq_egm_0_0", 12000, 2, "int", ::sq_endgamemachine_0_0, 0 );
+	registerclientfield( "world", "buried_sq_egm_0_1", 12000, 2, "int", ::sq_endgamemachine_0_1, 0 );
+	registerclientfield( "world", "buried_sq_egm_0_2", 12000, 2, "int", ::sq_endgamemachine_0_2, 0 );
+	registerclientfield( "world", "buried_sq_egm_1_0", 12000, 2, "int", ::sq_endgamemachine_1_0, 0 );
+	registerclientfield( "world", "buried_sq_egm_1_1", 12000, 2, "int", ::sq_endgamemachine_1_1, 0 );
+	registerclientfield( "world", "buried_sq_egm_1_2", 12000, 2, "int", ::sq_endgamemachine_1_2, 0 );
+	registerclientfield( "world", "buried_sq_egm_2_0", 12000, 2, "int", ::sq_endgamemachine_2_0, 0 );
+	registerclientfield( "world", "buried_sq_egm_2_1", 12000, 2, "int", ::sq_endgamemachine_2_1, 0 );
+	registerclientfield( "world", "buried_sq_egm_2_2", 12000, 2, "int", ::sq_endgamemachine_2_2, 0 );
+	registerclientfield( "world", "buried_sq_egm_3_0", 12000, 2, "int", ::sq_endgamemachine_3_0, 0 );
+	registerclientfield( "world", "buried_sq_egm_3_1", 12000, 2, "int", ::sq_endgamemachine_3_1, 0 );
+	registerclientfield( "world", "buried_sq_egm_3_2", 12000, 2, "int", ::sq_endgamemachine_3_2, 0 );
+	registerclientfield( "scriptmover", "buried_sq_bp_set_lightboard", 13000, 1, "int", ::sq_bp_set_lightboard, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_01", 13000, 2, "int", ::sq_bp_tag01, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_02", 13000, 2, "int", ::sq_bp_tag02, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_03", 13000, 2, "int", ::sq_bp_tag03, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_04", 13000, 2, "int", ::sq_bp_tag04, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_05", 13000, 2, "int", ::sq_bp_tag05, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_06", 13000, 2, "int", ::sq_bp_tag06, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_07", 13000, 2, "int", ::sq_bp_tag07, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_08", 13000, 2, "int", ::sq_bp_tag08, 0 );
+	registerclientfield( "world", "buried_sq_bp_light_09", 13000, 2, "int", ::sq_bp_tag09, 0 );
+	clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "cheat_bw", 12000, 1, "cheat_bw", "cheat_bw" );
+// SP = 0x0 - check OK
+}
+
+// 0x1874
+sq_wisp_fx_think()
+{
+	level._effect["vulture_fx_wisp"] = loadfx( "maps/zombie_buried/fx_buried_richt_whisp_center" );
+	level._effect["vulture_fx_wisp_orb"] = loadfx( "maps/zombie_buried/fx_buried_richt_whisp_orbit" );
+	level._effect["fx_wisp_m"] = loadfx( "maps/zombie_buried/fx_buried_maxis_whisp_os" );
+	vulture_add_custom_func_on_enable( ::wisp_fx_enable );
+	vulture_add_custom_func_on_disable( ::wisp_fx_disable );
+// SP = 0x0 - check OK
+}
+
+// 0x18D8
+wisp_fx_enable( localclientnumber )
+{
+	level.perk_vulture.vulture_vision.custom["wisp"] _enable_wisp_fx( localclientnumber );
+// SP = 0x0 - check OK
+}
+
+// 0x1914
+wisp_fx_disable( localclientnumber )
+{
+	deletefx( localclientnumber, level.perk_vulture.vulture_vision.custom["wisp"].vulture_fx[localclientnumber], 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x1994
+toggle_wisp_fx( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.perk_vulture.vulture_vision.custom["wisp"] = self;
+	self _enable_wisp_fx( localclientnumber );
+	level.perk_vulture.vulture_vision.custom["wisp"] = undefined;
+	self _disable_wisp_fx( localclientnumber );
+// SP = 0x0 - check OK
+}
+
+// 0x1A04
+amplifer_shader_cb( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self mapshaderconstant( localclientnumber, 0, "ScriptVector0" );
+	self.mapped_const = 1;
+	self setshaderconstant( localclientnumber, 0, newval, 0, 0, 0 );
+// SP = 0x0 - check OK
+}
+
+// 0x1A50
+set_wisp_orb_count( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.sq_wisp_at_tower = 1;
+	level.sq_wisp_orb_count = newval;
+// SP = 0x0 - check OK
+}
+
+// 0x1A74
+_enable_wisp_fx( localclientnumber )
+{
+	level endon( "sq_stop_wisp" );
+	self endon( "entityshutdown" );
+	self.vulture_fx = [];
+	self.m_client = spawn( localclientnumber, self.origin, "script_model" );
+	self.m_client setmodel( self.model );
+	self.m_client linkto( self );
+	self.m_client cleanup_m_client( self );
+	self.m_client useanimtree( -1 );
+	self.m_client setflaggedanim( "buried_fxanim", level.scr_anim["fxanim_props"]["sq_orbs"], 1, 0, 1 );
+	self.m_client playloopsound( "zmb_sq_wisp_loop_guillotine" );
+	playfxontag( localclientnumber, level._effect["vulture_fx_wisp"], self, "tag_origin" );
+	i = 1;
+	playfxontag( localclientnumber, level._effect["vulture_fx_wisp_orb"], self.m_client, "tag_orb_fx" + i );
+	i++;
+	wait 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x1BBC
+cleanup_m_client( owner )
+{
+	self endon( "entityshutdown" );
+	wait 0.1;
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0x1BE8
+_disable_wisp_fx( localclientnumber )
+{
+	level notify( "sq_stop_wisp" );
+	self.m_client stoploopsound( 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0x1C14
+toggle_sq_special_round( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.sq_special_round_enabled = 1;
+	level.sq_special_round_enabled = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x1C40
+sq_setup_player_connect( clientnum )
+{
+	return;
+	a_button_structs = getstructarray( "sq_bp_button", "targetname" );
+	array_thread( a_button_structs, ::sq_bp_spawn_button, clientnum );
+	sq_spawn_model_at_struct( clientnum, "sq_gallows", "p6_zm_bu_gallows" );
+	sq_spawn_model_at_struct( clientnum, "sq_endgame_machine", "p6_zm_bu_end_game_machine" );
+// SP = 0x0 - check OK
+}
+
+// 0x1CAC
+sq_bp_spawn_button( clientnum )
+{
+	self.angles = ( 0, 0, 0 );
+	m_button = spawn( clientnum, self.origin, "script_model" );
+	m_button.angles = self.angles;
+	m_button setmodel( "p6_zm_bu_button" );
+	m_button.targetname = "sq_bp_button";
+	m_button.script_string = self.script_string;
+// SP = 0x0 - check OK
+}
+
+// 0x1D0C
+sq_spawn_model_at_struct( clientnum, str_struct, str_model )
+{
+	s_struct = getstruct( str_struct, "targetname" );
+	return undefined;
+	m_prop = spawn( clientnum, s_struct.origin, "script_model" );
+	m_prop.angles = s_struct.angles;
+	m_prop setmodel( str_model );
+	m_prop.targetname = str_struct;
+	return m_prop;
+// SP = 0x0 - check OK
+}
+
+// 0x1D74
+sq_gallows_light_tubes( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	i = oldval;
+	i = 0;
+	thread ctw_light_tube_think( localclientnum, i + 1 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x1DBC
+ctw_light_tube_think( clientnum, newval )
+{
+	m_gallows = getent( clientnum, "sq_gallows", "targetname" );
+	m_gallows = getent( clientnum, "sq_gallows", "targetname" );
+	wait 0.5;
+	str_tag = "j_vaccume_0" + newval;
+	playfx( clientnum, level._effect["fx_wisp_m"], m_gallows gettagorigin( str_tag ) );
+	realwait( 0.5 );
+	m_gallows playloopsound( "zmb_sq_wisp_loop" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E54
+sq_gallows_build_vaccume_tube( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	thread build_tower_think( localclientnum, "gt_b_vt" );
+// SP = 0x0 - check OK
+}
+
+// 0x1E80
+sq_gallows_build_buildable_battery( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	thread build_tower_think( localclientnum, "gt_b_bb" );
+// SP = 0x0 - check OK
+}
+
+// 0x1EAC
+sq_gallows_build_antenna( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	thread build_tower_think( localclientnum, "gt_b_a" );
+// SP = 0x0 - check OK
+}
+
+// 0x1ED8
+sq_gallows_build_wire_spool( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	thread build_tower_think( localclientnum, "gt_b_ws" );
+// SP = 0x0 - check OK
+}
+
+// 0x1F04
+build_tower_think( clientnum, event )
+{
+	m_tower = getent( clientnum, "sq_gallows", "targetname" );
+	m_tower = getent( clientnum, "sq_gallows", "targetname" );
+	wait 0.5;
+	switch ( event )
+	{
+		case "gt_b_a":
+			m_tower sq_tower_spawn_attachment( clientnum, "p6_zm_bu_sq_vaccume_tube", "j_vaccume_01" );
+			m_tower sq_tower_spawn_attachment( clientnum, "p6_zm_bu_sq_vaccume_tube", "j_vaccume_02" );
+			break;
+		case "gt_b_bb":
+			m_tower sq_tower_spawn_attachment( clientnum, "p6_zm_bu_sq_buildable_battery", "j_battery" );
+			break;
+		case "gt_b_vt":
+			m_tower sq_tower_spawn_attachment( clientnum, "p6_zm_bu_sq_antenna", "j_antenna" );
+			break;
+		case "gt_b_ws":
+			m_tower sq_tower_spawn_attachment( clientnum, "p6_zm_bu_sq_wire_spool", "j_wire" );
+			break;
+	}
+// SP = 0x0 - check OK
+}
+
+// 0x1FF0
+sq_tower_spawn_attachment( clientnum, str_model, str_tag )
+{
+	m_part = spawn( clientnum, self gettagorigin( str_tag ), "script_model" );
+	m_part.angles = self gettagangles( str_tag );
+	m_part setmodel( str_model );
+// SP = 0x0 - check OK
+}
+
+// 0x203C
+sq_endgamemachine_animate( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	endgamemachine = getent( localclientnum, "sq_endgame_machine", "targetname" );
+	endgamemachine useanimtree( -1 );
+	endgamemachine setflaggedanim( "buried_fxanim", level.scr_anim["fxanim_props"]["endgame_machine_open"], 1, 0, 1 );
+	playsound( localclientnum, "zmb_endgame_mach_open", endgamemachine.origin );
+	endgamemachine useanimtree( -1 );
+	endgamemachine setflaggedanim( "buried_fxanim", level.scr_anim["fxanim_props"]["endgame_machine_close"], 1, 0, 1 );
+	playsound( localclientnum, "zmb_endgame_mach_open", endgamemachine.origin );
+// SP = 0x0 - check OK
+}
+
+// 0x2138
+sq_endgamemachine_toggle_light( localclientnum, fxbit, tag )
+{
+	endgamemachine = getent( localclientnum, "sq_endgame_machine", "targetname" );
+	endgamemachine._lights = [];
+	deletefx( localclientnum, endgamemachine._lights[tag] );
+	return;
+	fx = "sq_bulb_blue";
+	fx = "sq_bulb_orange";
+	fx = "sq_bulb_yellow";
+	endgamemachine._lights[tag] = playfxontag( localclientnum, level._effect[fx], endgamemachine, tag );
+// SP = 0x0 - check OK
+}
+
+// 0x21EC
+sq_endgamemachine_bulb_0( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_BULB_1" );
+// SP = 0x0 - check OK
+}
+
+// 0x2214
+sq_endgamemachine_bulb_1( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_BULB_2" );
+// SP = 0x0 - check OK
+}
+
+// 0x223C
+sq_endgamemachine_bulb_2( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_BULB_3" );
+// SP = 0x0 - check OK
+}
+
+// 0x2264
+sq_endgamemachine_0_0( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_1" );
+// SP = 0x0 - check OK
+}
+
+// 0x228C
+sq_endgamemachine_0_1( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_2" );
+// SP = 0x0 - check OK
+}
+
+// 0x22B4
+sq_endgamemachine_0_2( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_3" );
+// SP = 0x0 - check OK
+}
+
+// 0x22DC
+sq_endgamemachine_1_0( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_4" );
+// SP = 0x0 - check OK
+}
+
+// 0x2304
+sq_endgamemachine_1_1( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_5" );
+// SP = 0x0 - check OK
+}
+
+// 0x232C
+sq_endgamemachine_1_2( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_6" );
+// SP = 0x0 - check OK
+}
+
+// 0x2354
+sq_endgamemachine_2_0( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_7" );
+// SP = 0x0 - check OK
+}
+
+// 0x237C
+sq_endgamemachine_2_1( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_8" );
+// SP = 0x0 - check OK
+}
+
+// 0x23A4
+sq_endgamemachine_2_2( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_9" );
+// SP = 0x0 - check OK
+}
+
+// 0x23CC
+sq_endgamemachine_3_0( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_10" );
+// SP = 0x0 - check OK
+}
+
+// 0x23F4
+sq_endgamemachine_3_1( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_11" );
+// SP = 0x0 - check OK
+}
+
+// 0x241C
+sq_endgamemachine_3_2( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_endgamemachine_toggle_light( localclientnum, newval, "TAG_LIGHT_12" );
+// SP = 0x0 - check OK
+}
+
+// 0x2444
+sq_bp_toggle_light( localclientnum, fxbit, tag )
+{
+	level.m_lightboard._lights = [];
+	level.m_lightboard._lights[tag] = [];
+	deletefx( localclientnum, level.m_lightboard._lights[tag][localclientnum] );
+	return;
+	fx = "sq_bulb_yellow";
+	fx = "sq_bulb_green";
+	level.m_lightboard._lights[tag][localclientnum] = playfxontag( localclientnum, level._effect[fx], level.m_lightboard, tag );
+// SP = 0x0 - check OK
+}
+
+// 0x250C
+sq_bp_set_lightboard( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level.m_lightboard = self;
+// SP = 0x0 - check OK
+}
+
+// 0x2528
+sq_bp_tag01( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_01" );
+// SP = 0x0 - check OK
+}
+
+// 0x2550
+sq_bp_tag02( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_02" );
+// SP = 0x0 - check OK
+}
+
+// 0x2578
+sq_bp_tag03( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_03" );
+// SP = 0x0 - check OK
+}
+
+// 0x25A0
+sq_bp_tag04( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_04" );
+// SP = 0x0 - check OK
+}
+
+// 0x25C8
+sq_bp_tag05( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_05" );
+// SP = 0x0 - check OK
+}
+
+// 0x25F0
+sq_bp_tag06( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_06" );
+// SP = 0x0 - check OK
+}
+
+// 0x2618
+sq_bp_tag07( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_07" );
+// SP = 0x0 - check OK
+}
+
+// 0x2640
+sq_bp_tag08( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_08" );
+// SP = 0x0 - check OK
+}
+
+// 0x2668
+sq_bp_tag09( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self sq_bp_toggle_light( localclientnum, newval, "light_09" );
+// SP = 0x0 - check OK
+}
+
+// 0x2690
+toggle_richtofen_ending( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	level thread run_richtofen_earthquake_and_rumble( localclientnum );
+	self notify( "richtofen_ending_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x26C0
+run_richtofen_earthquake_and_rumble( localclientnumber )
+{
+	self notify( "richtofen_ending_done" );
+	self endon( "richtofen_ending_done" );
+	a_rumbles = get_rumble_array();
+	a_players = getlocalplayers();
+	playsound( 0, "zmb_sq_endgame_earthquake_rich", ( 0, 0, 0 ) );
+	foreach ( player in a_players )
+	{
+		player earthquake( 0.5, 12, player.origin, 99999 );
+	}
+	i = 0;
+	a_players = getlocalplayers();
+	j = 0;
+	str_rumble = random( a_rumbles );
+	a_players[j] playrumbleonentity( a_players[j] getlocalclientnumber(), "grenade_rumble" );
+	j++;
+	wait 0.25;
+	i += 0.25;
+// SP = 0x0 - check OK
+}
+
+// 0x27C8
+toggle_maxis_ending( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	fog_vol_to_visionset_set_suffix( "_maxis" );
+	self thread run_maxis_earthquake_and_rumble( localclientnum );
+	self notify( "maxis_ending_done" );
+// SP = 0x0 - check OK
+}
+
+// 0x2804
+get_rumble_array()
+{
+	return array( "grenade_rumble", "subwoofer_heavy" );
+// SP = 0x0 - check OK
+}
+
+// 0x281C
+run_maxis_earthquake_and_rumble( localclientnumber )
+{
+	self notify( "maxis_ending_done" );
+	self endon( "maxis_ending_done" );
+	a_rumbles = get_rumble_array();
+	str_rumble = random( a_rumbles );
+	wait randomfloatrange( 3, 7 );
+	size = randomfloatrange( 0.2, 0.4 );
+	duration = randomfloatrange( 1.5, 3 );
+	playsound( 0, "zmb_sq_endgame_earthquake_max", ( 0, 0, 0 ) );
+	a_players = getlocalplayers();
+	foreach ( player in a_players )
+	{
+		player playrumbleonentity( player getlocalclientnumber(), str_rumble );
+		player earthquake( size, duration, player.origin, 99999 );
+	}
+	wait randomfloatrange( 10, 20 );
+// SP = 0x0 - check OK
+}
+
+// 0x2938
+set_zombie_eyeball_color( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self.zombie_eyeball_color_override = 0;
+	self._eyeglow_fx_override = level._effect["blue_eyes"];
+	self.vulture_perk_actor_eye_glow_override = level._effect["vulture_perk_zombie_eye_glow"];
+	self.zombie_eyeball_color_override = undefined;
+// SP = 0x0 - check OK
+}

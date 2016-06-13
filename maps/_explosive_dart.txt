@@ -1,0 +1,12 @@
+// maps/_explosive_dart.gsc
+
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0xBC
+init()
+{
+	loadfx( "weapon/titus/fx_titus_bolt_blink_os" );
+// SP = 0x0 - check OK
+}

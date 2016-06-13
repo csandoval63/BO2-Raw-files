@@ -1,0 +1,43 @@
+// maps/_zpu_antiair.gsc
+
+#include maps\_vehicle;
+
+#using_animtree ( "generic_human" );
+
+
+// 0x120
+main()
+{
+	build_aianims( ::setanims );
+	build_unload_groups( ::unload_groups );
+// SP = 0x0 - check OK
+}
+
+// 0x148
+setanims()
+{
+	positions = [];
+	i = 0;
+	positions[i] = spawnstruct();
+	i++;
+	positions[0].sittag = "tag_driver";
+	positions[0].idle = %crew_zpu4_idle;
+	positions[0].death = %crew_zpu4_death;
+	return positions;
+// SP = 0x0 - check OK
+}
+
+// 0x1A8
+unload_groups()
+{
+	unload_groups = [];
+	unload_groups["all"] = [];
+	group = "all";
+	unload_groups[group][unload_groups[group].size] = 0;
+	unload_groups[group][unload_groups[group].size] = 1;
+	unload_groups[group][unload_groups[group].size] = 2;
+	unload_groups[group][unload_groups[group].size] = 3;
+	unload_groups["default"] = unload_groups["all"];
+	return unload_groups;
+// SP = 0x0 - check OK
+}

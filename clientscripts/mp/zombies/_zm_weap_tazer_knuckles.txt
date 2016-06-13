@@ -1,0 +1,22 @@
+// clientscripts/mp/zombies/_zm_weap_tazer_knuckles.csc
+
+#include clientscripts\mp\_music;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x1B8
+init()
+{
+	registerclientfield( "toplayer", "tazer_flourish", 1, 1, "int", ::tazer_flourish, 0 );
+	return;
+	level._effect["fx_zmb_taser_flourish"] = loadfx( "weapon/taser/fx_taser_knuckles_anim_zmb" );
+// SP = 0x0 - check OK
+}
+
+// 0x204
+tazer_flourish( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	playviewmodelfx( localclientnum, level._effect["fx_zmb_taser_flourish"], "tag_weapon" );
+// SP = 0x0 - check OK
+}

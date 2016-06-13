@@ -1,0 +1,63 @@
+// clientscripts/mp/zm_buried_classic.csc
+
+#include clientscripts\mp\zm_buried_buildables;
+#include clientscripts\mp\zombies\_zm_ai_sloth;
+#include clientscripts\mp\zombies\_zm_ai_ghost;
+#include clientscripts\mp\zombies\_zm_utility;
+#include clientscripts\mp\zombies\_zm_weapons;
+#include clientscripts\mp\_utility;
+
+#using_animtree ( "zm_buried_props" );
+
+
+// 0x360
+precache()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x368
+premain()
+{
+	level thread clientscripts\mp\zombies\_zm_ai_ghost::init();
+	level thread clientscripts\mp\zombies\_zm_ai_sloth::init();
+	classicbuildables = array( "sq_common", "turbine", "springpad_zm", "subwoofer_zm", "headchopper_zm", "booze", "candy", "chalk", "sloth", "keys_zm", "buried_sq_oillamp", "buried_sq_tpo_switch", "buried_sq_ghost_lamp", "buried_sq_bt_m_tower", "buried_sq_bt_r_tower" );
+	clientscripts\mp\zm_buried_buildables::include_buildables( classicbuildables );
+	clientscripts\mp\zm_buried_buildables::init_buildables( classicbuildables );
+	perk_vulture_custom_scripts();
+	onplayerconnect_callback( ::teller_fx_setup );
+// SP = 0x0 - check OK
+}
+
+// 0x40C
+main()
+{
+// SP = 0x0 - check OK
+}
+
+// 0x414
+teller_fx_setup( clientnum )
+{
+	playfx( clientnum, level._effect["fx_buried_key_glint"], ( -300, -62, 55 ), ( 0, 0, 1 ) );
+	playfx( clientnum, level._effect["fx_buried_key_glint"], ( -300, -314, 55 ), ( 0, 0, 1 ) );
+// SP = 0x0 - check OK
+}
+
+// 0x45C
+init_jail_animtree()
+{
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0x474
+player_flashlight_test( localclientnum )
+{
+// SP = 0x0 - check OK
+}
+
+// 0x480
+perk_vulture_custom_scripts()
+{
+// SP = 0x0 - check OK
+}

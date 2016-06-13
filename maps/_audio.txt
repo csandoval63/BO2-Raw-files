@@ -1,0 +1,234 @@
+// maps/_audio.gsc
+
+#include maps\_music;
+#include common_scripts\utility;
+#include maps\_utility;
+
+
+// 0x76C
+main()
+{
+	array_thread( getentarray( "audio_sound_trigger", "targetname" ), ::thread_sound_trigger );
+	level.disablegenericdialog = 0;
+	thread fadeinsound();
+// SP = 0x0 - check OK
+}
+
+// 0x7A4
+fadeinsound()
+{
+	flag_wait( "all_players_connected" );
+	get_players()[0] playsound( "uin_transition_" + level.script );
+	level thread battlechatter_on();
+// SP = 0x0 - check OK
+}
+
+// 0x7E0
+wait_until_first_player()
+{
+	players = get_players();
+	level waittill( "first_player_ready" );
+// SP = 0x0 - check OK
+}
+
+// 0x804
+thread_sound_trigger()
+{
+	self waittill( "trigger" );
+	struct_targs = getstructarray( self.target, "targetname" );
+	ent_targs = getentarray( self.target, "targetname" );
+	i = 0;
+/#
+	assertmsg( "_audio::thread_sound_trigger(): script_sound is UNDEFINED! Aborting..." + struct_targs[i].origin );
+#/
+	return;
+	struct_targs[i] thread spawn_line_sound( struct_targs[i].script_sound );
+	i++;
+	i = 0;
+/#
+	assertmsg( "_audio::thread_sound_trigger(): script_sound is UNDEFINED! Aborting... " + ent_targs[i].origin );
+#/
+	return;
+	ent_targs[i] thread static_sound_random_play( ent_targs[i] );
+	ent_targs[i] thread static_sound_loop_play( ent_targs[i] );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x968
+spawn_line_sound( sound )
+{
+	startofline = self;
+/#
+	assertmsg( "_audio::spawn_line_sound(): Could not find start of line entity! Aborting..." );
+#/
+	return;
+	self.soundmover = [];
+	endoflineentity = getstruct( startofline.target, "targetname" );
+	start = startofline.origin;
+	end = endoflineentity.origin;
+	soundmover = spawn( "script_origin", start );
+	soundmover.script_sound = sound;
+	self.soundmover = soundmover;
+	soundmover.script_looping = self.script_looping;
+	soundmover.start = start;
+	soundmover.end = end;
+	soundmover line_sound_player();
+	soundmover thread move_sound_along_line();
+/#
+	assertmsg( "Unable to create line emitter script origin" );
+#/
+/#
+	assertmsg( "_audio::spawn_line_sound(): Could not find end of line entity! Aborting..." );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xA60
+line_sound_player()
+{
+	self endon( "end line sound" );
+	self playloopsound( self.script_sound );
+	self playsound( self.script_sound );
+// SP = 0x0 - check OK
+}
+
+// 0xA98
+move_sound_along_line()
+{
+	self endon( "end line sound" );
+	wait_until_first_player();
+	closest_dist = undefined;
+	self closest_point_on_line_to_point( get_players()[0].origin, self.start, self.end );
+/#
+	line( self.start, self.end, ( 0, 1, 0 ) );
+	print3d( self.start, "START", ( 1, 0.8, 0.5 ), 1, 3 );
+	print3d( self.end, "END", ( 1, 0.8, 0.5 ), 1, 3 );
+	print3d( self.origin, self.script_sound, ( 1, 0.8, 0.5 ), 1, 3 );
+#/
+	closest_dist = distancesquared( get_players()[0].origin, self.origin );
+	wait 2;
+	wait 0.2;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xBE0
+closest_point_on_line_to_point( point, linestart, lineend )
+{
+	self endon( "end line sound" );
+	linemagsqrd = lengthsquared( lineend - linestart );
+	t = ( ( ( ( ( point[0] - linestart[0] ) * ( lineend[0] - linestart[0] ) + point[1] ) - linestart[1] * ( lineend[1] - linestart[1] ) ) + point[2] ) - linestart[2] * ( lineend[2] - linestart[2] ) ) / linemagsqrd;
+	self.origin = linestart;
+	self.origin = lineend;
+	start_x = linestart[0] + t * ( lineend[0] - linestart[0] );
+	start_y = linestart[1] + t * ( lineend[1] - linestart[1] );
+	start_z = linestart[2] + t * ( lineend[2] - linestart[2] );
+	self.origin = ( start_x, start_y, start_z );
+// SP = 0x0 - check OK
+}
+
+// 0xCD4
+static_sound_random_play( soundpoint )
+{
+	wait randomintrange( 1, 5 );
+	self.script_wait_min = 1;
+	self.script_wait_max = 3;
+	wait randomfloatrange( self.script_wait_min, self.script_wait_max );
+	soundpoint playsound( self.script_sound );
+/#
+	print3d( soundpoint.origin, self.script_sound, ( 1, 0.8, 0.5 ), 1, 3, 5 );
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xD7C
+static_sound_loop_play( soundpoint )
+{
+	self playloopsound( self.script_sound );
+/#
+	print3d( soundpoint.origin, self.script_sound, ( 1, 0.8, 0.5 ), 1, 3, 5 );
+	wait 1;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0xDE8
+get_number_variants( aliasprefix )
+{
+	i = 0;
+	return i;
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0xE20
+create_2d_sound_list( sound_alias )
+{
+	player = getplayers();
+/#
+	iprintlnbold( "No Dialog Category Defined For This Action" );
+#/
+	return;
+	level.sound_alias = [];
+	level.sound_alias_available = [];
+	num_variants = get_number_variants( sound_alias );
+/#
+	assert( num_variants > 0, "No variants found for category: " + sound_alias );
+#/
+	i = 0;
+	level.sound_alias[i] = sound_alias + "_" + i;
+	i++;
+	level.sound_alias_available = level.sound_alias;
+	variation = random( level.sound_alias_available );
+	arrayremovevalue( level.sound_alias_available, variation );
+	player[0] playsound( variation, "sound_done" );
+	player[0] waittill( "sound_done" );
+	level notify( "2D_sound_finished" );
+// SP = 0x0 - check OK
+}
+
+// 0xF04
+switch_music_wait( music_state, waittime )
+{
+	wait waittime;
+	setmusicstate( music_state );
+// SP = 0x0 - check OK
+}
+
+// 0xF20
+missionfailwatcher()
+{
+	level waittill( "missionfailed" );
+	[[level.missionfailsndspecial]]();
+	self playsound( "chr_death" );
+// SP = 0x0 - check OK
+}
+
+// 0xF50
+death_sounds()
+{
+	self thread missionfailwatcher();
+	self waittill( "death" );
+/#
+	println( "Sound : do death sound" );
+#/
+	self playsound( "evt_player_death" );
+// SP = 0x0 - check OK
+}
+
+// 0xF88
+play_music_stinger_manual( alias, time )
+{
+	wait time;
+	playsoundatposition( alias, ( 0, 0, 0 ) );
+// SP = 0x0 - check OK
+}
+
+// 0xFA4
+playsoundatposition_wait( alias, position, time )
+{
+	wait time;
+	playsoundatposition( alias, position );
+// SP = 0x0 - check OK
+}

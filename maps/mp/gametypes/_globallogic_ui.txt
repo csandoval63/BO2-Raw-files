@@ -1,0 +1,412 @@
+// maps/mp/gametypes/_globallogic_ui.gsc
+
+#include maps\mp\gametypes\_class;
+#include maps\mp\gametypes\_globallogic_player;
+#include maps\mp\gametypes\_spectating;
+#include maps\mp\gametypes\_globallogic;
+#include maps\mp\gametypes\_pregame;
+#include maps\mp\teams\_teams;
+#include maps\mp\bots\_bot;
+#include maps\mp\killstreaks\_killstreaks;
+#include maps\mp\gametypes\_hud_util;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+
+
+// 0xB48
+init()
+{
+	precachestring( &"MP_HALFTIME" );
+	precachestring( &"MP_OVERTIME" );
+	precachestring( &"MP_ROUNDEND" );
+	precachestring( &"MP_INTERMISSION" );
+	precachestring( &"MP_SWITCHING_SIDES_CAPS" );
+	precachestring( &"MP_FRIENDLY_FIRE_WILL_NOT" );
+	precachestring( &"MP_RAMPAGE" );
+	precachestring( &"medal_received" );
+	precachestring( &"killstreak_received" );
+	precachestring( &"prox_grenade_notify" );
+	precachestring( &"player_callout" );
+	precachestring( &"score_event" );
+	precachestring( &"rank_up" );
+	precachestring( &"gun_level_complete" );
+	precachestring( &"challenge_complete" );
+	precachestring( &"MP_ENDED_GAME" );
+	precachestring( &"MP_HOST_ENDED_GAME" );
+// SP = 0x0 - check OK
+}
+
+// 0xC28
+setupcallbacks()
+{
+	level.autoassign = ::menuautoassign;
+	level.spectator = ::menuspectator;
+	level.class = ::menuclass;
+	level.teammenu = ::menuteam;
+// SP = 0x0 - check OK
+}
+
+// 0xC60
+hideloadoutaftertime( delay )
+{
+	self endon( "disconnect" );
+	self endon( "perks_hidden" );
+	wait delay;
+	self thread hideallperks( 0.4 );
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xC94
+hideloadoutondeath()
+{
+	self endon( "disconnect" );
+	self endon( "perks_hidden" );
+	self waittill( "death" );
+	self hideallperks();
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xCC0
+hideloadoutonkill()
+{
+	self endon( "disconnect" );
+	self endon( "death" );
+	self endon( "perks_hidden" );
+	self waittill( "killed_player" );
+	self hideallperks();
+	self notify( "perks_hidden" );
+// SP = 0x0 - check OK
+}
+
+// 0xCF4
+freegameplayhudelems()
+{
+	numspecialties = 0;
+	self.perkicon[numspecialties] destroyelem();
+	self.perkname[numspecialties] destroyelem();
+	numspecialties++;
+	self.perkhudelem destroyelem();
+	self.killstreakicon[0] destroyelem();
+	self.killstreakicon[1] destroyelem();
+	self.killstreakicon[2] destroyelem();
+	self.killstreakicon[3] destroyelem();
+	self.killstreakicon[4] destroyelem();
+	self notify( "perks_hidden" );
+	self.lowermessage destroyelem();
+	self.lowertimer destroyelem();
+	self.proxbar destroyelem();
+	self.proxbartext destroyelem();
+	self.carryicon destroyelem();
+	maps\mp\killstreaks\_killstreaks::destroykillstreaktimers();
+// SP = 0x0 - check OK
+}
+
+// 0xE88
+teamplayercountsequal( playercounts )
+{
+	count = undefined;
+	foreach ( team in level.teams )
+	{
+		count = playercounts[team];
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0xEE8
+teamwithlowestplayercount( playercounts, ignore_team )
+{
+	count = 9999;
+	lowest_team = undefined;
+	foreach ( team in level.teams )
+	{
+		count = playercounts[team];
+		lowest_team = team;
+	}
+	return lowest_team;
+// SP = 0x0 - check OK
+}
+
+// 0xF4C
+menuautoassign( comingfrommenu )
+{
+	teamkeys = getarraykeys( level.teams );
+	assignment = teamkeys[randomint( teamkeys.size )];
+	self closemenus();
+	assignment = "allies";
+	assignment = "";
+	team = getassignedteam( self );
+	switch ( team )
+	{
+		case 1:
+			assignment = teamkeys[1];
+			break;
+		case 2:
+			assignment = teamkeys[0];
+			break;
+		case 3:
+			assignment = teamkeys[2];
+			break;
+		case 4:
+			self setclientscriptmainmenu( game["menu_class"] );
+		default:
+			assignment = "";
+			assignment = team;
+			self setclientscriptmainmenu( game["menu_class"] );
+	}
+	assignment = "allies";
+	host = gethostplayerforbots();
+/#
+	assert( IsDefined( host ) );
+#/
+	host.team = random( teamkeys );
+	assignment = host.team;
+	assignment = getotherteam( host.team );
+	playercounts = self maps\mp\teams\_teams::countplayers();
+	assignment = self getsplitscreenteam();
+	assignment = pickteamfromscores( teamkeys );
+	assignment = pickteamfromscores( teamkeys );
+	assignment = teamwithlowestplayercount( playercounts, "none" );
+	self beginclasschoice();
+	return;
+	team = getassignedteam( self );
+	assignment = team;
+	self setclientscriptmainmenu( game["menu_class"] );
+	return;
+	self.switching_teams = 1;
+	self.joining_team = assignment;
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = assignment;
+	self.team = assignment;
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionteam = assignment;
+	self.sessionteam = "none";
+	self.ffateam = assignment;
+	self.statusicon = "hud_status_dead";
+	self notify( "joined_team" );
+	level notify( "joined_team" );
+	self notify( "end_respawn" );
+	pclass = self maps\mp\gametypes\_pregame::get_pregame_class();
+	self closemenu();
+	self closeingamemenu();
+	self.selectedclass = 1;
+	self [[level.class]]( pclass );
+	self setclientscriptmainmenu( game["menu_class"] );
+	return;
+	pclass = self.pers["class"];
+	self closemenu();
+	self closeingamemenu();
+	self.selectedclass = 1;
+	self [[level.class]]( pclass );
+	return;
+	self beginclasschoice();
+	self setclientscriptmainmenu( game["menu_class"] );
+// SP = 0x0 - check OK
+}
+
+// 0x142C
+teamscoresequal()
+{
+	score = undefined;
+	foreach ( team in level.teams )
+	{
+		score = getteamscore( team );
+		return 0;
+	}
+	return 1;
+// SP = 0x0 - check OK
+}
+
+// 0x1498
+teamwithlowestscore()
+{
+	score = 99999999;
+	lowest_team = undefined;
+	foreach ( team in level.teams )
+	{
+		lowest_team = team;
+	}
+	return lowest_team;
+// SP = 0x0 - check OK
+}
+
+// 0x14F8
+pickteamfromscores( teams )
+{
+	assignment = "allies";
+	assignment = teams[randomint( teams.size )];
+	assignment = teamwithlowestscore();
+	return assignment;
+// SP = 0x0 - check OK
+}
+
+// 0x153C
+getsplitscreenteam()
+{
+	index = 0;
+	team = level.players[index].sessionteam;
+	return team;
+	index++;
+	return "";
+// SP = 0x0 - check OK
+}
+
+// 0x15B8
+updateobjectivetext()
+{
+	self setclientcgobjectivetext( "" );
+	return;
+	self setclientcgobjectivetext( getobjectivescoretext( self.pers["team"] ) );
+	self setclientcgobjectivetext( getobjectivetext( self.pers["team"] ) );
+// SP = 0x0 - check OK
+}
+
+// 0x1630
+closemenus()
+{
+	self closemenu();
+	self closeingamemenu();
+// SP = 0x0 - check OK
+}
+
+// 0x1650
+beginclasschoice( forcenewchoice )
+{
+/#
+	assert( IsDefined( level.teams[self.pers["team"]] ) );
+#/
+	team = self.pers["team"];
+	self.pers["class"] = level.defaultclass;
+	self.class = level.defaultclass;
+	self thread [[level.spawnclient]]();
+	level thread maps\mp\gametypes\_globallogic::updateteamstatus();
+	self thread maps\mp\gametypes\_spectating::setspectatepermissionsformachine();
+	return;
+	self openmenu( game["menu_changeclass_wager"] );
+	self openmenu( game["menu_changeclass_barebones"] );
+	self openmenu( game["menu_changeclass_" + team] );
+// SP = 0x0 - check OK
+}
+
+// 0x1738
+showmainmenuforteam()
+{
+/#
+	assert( IsDefined( level.teams[self.pers["team"]] ) );
+#/
+	team = self.pers["team"];
+	self openmenu( game["menu_changeclass_wager"] );
+	self openmenu( game["menu_changeclass_" + team] );
+// SP = 0x0 - check OK
+}
+
+// 0x1798
+menuteam( team )
+{
+	self closemenus();
+	return;
+	self.hasspawned = 0;
+	self.switching_teams = 1;
+	self.joining_team = team;
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = team;
+	self.team = team;
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionstate = "spectator";
+	self.sessionteam = team;
+	self.sessionteam = "none";
+	self.ffateam = team;
+	self setclientscriptmainmenu( game["menu_class"] );
+	self notify( "joined_team" );
+	level notify( "joined_team" );
+	self notify( "end_respawn" );
+	self beginclasschoice();
+// SP = 0x0 - check OK
+}
+
+// 0x18E0
+menuspectator()
+{
+	self closemenus();
+	self.switching_teams = 1;
+	self.joining_team = "spectator";
+	self.leaving_team = self.pers["team"];
+	self suicide();
+	self.pers["team"] = "spectator";
+	self.team = "spectator";
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	self.sessionteam = "spectator";
+	self.ffateam = "spectator";
+	[[level.spawnspectator]]();
+	self thread maps\mp\gametypes\_globallogic_player::spectate_player_watcher();
+	self setclientscriptmainmenu( game["menu_class"] );
+	self notify( "joined_spectators" );
+// SP = 0x0 - check OK
+}
+
+// 0x19BC
+menuclass( response )
+{
+	self closemenus();
+	return;
+	class = self maps\mp\gametypes\_class::getclasschoice( response );
+	return;
+	self.pers["changed_class"] = 1;
+	self notify( "changed_class" );
+	self.pers["changed_class"] = 0;
+	self maps\mp\gametypes\_pregame::onplayerclasschange( response );
+	self.pers["class"] = class;
+	self.class = class;
+	self.pers["weapon"] = undefined;
+	return;
+	supplystationclasschange = self.usingsupplystation;
+	self.usingsupplystation = 0;
+	self maps\mp\gametypes\_class::setclass( self.pers["class"] );
+	self.tag_stowed_back = undefined;
+	self.tag_stowed_hip = undefined;
+	self maps\mp\gametypes\_class::giveloadout( self.pers["team"], self.pers["class"] );
+	self maps\mp\killstreaks\_killstreaks::giveownedkillstreak();
+	self iprintlnbold( game["strings"]["change_class"] );
+	self.pers["class"] = class;
+	self.class = class;
+	self.pers["weapon"] = undefined;
+	return;
+	return;
+	return;
+	return 0;
+	timepassed = undefined;
+	timepassed = ( GetTime() - self.respawntimerstarttime ) / 1000;
+	self thread [[level.spawnclient]]( timepassed );
+	self.respawntimerstarttime = undefined;
+	level thread maps\mp\gametypes\_globallogic::updateteamstatus();
+	self thread maps\mp\gametypes\_spectating::setspectatepermissionsformachine();
+// SP = 0x0 - check OK
+}
+
+// 0x1BF0
+removespawnmessageshortly( delay )
+{
+	self endon( "disconnect" );
+	waittillframeend;
+	self endon( "end_respawn" );
+	wait delay;
+	self clearlowermessage( 2 );
+// SP = 0x0 - check OK
+}

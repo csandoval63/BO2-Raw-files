@@ -1,0 +1,18 @@
+// character/c_highrise_player_reporter.gsc
+
+
+// 0xD0
+main()
+{
+	self setmodel( "c_zom_player_reporter_dlc1_fb" );
+	self.voice = "american";
+	self.skeleton = "base";
+// SP = 0x0 - check OK
+}
+
+// 0xF8
+precache()
+{
+	precachemodel( "c_zom_player_reporter_dlc1_fb" );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,263 @@
+// clientscripts/mp/zombies/_face_utility_zm.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x608
+get_face_callback()
+{
+	self waittill( "face", value );
+	value = "zombie_" + value;
+	return value;
+// SP = 0x0 - check OK
+}
+
+// 0x638
+setfaceroot( root )
+{
+	level.facestates = [];
+	level.facestates = [];
+	level.facestates["face_root"] = root;
+// SP = 0x0 - check OK
+}
+
+// 0x66C
+buildfacestate( face_state, looping, timer, priority, statetype, animlist )
+{
+	level.facestates = [];
+	level.facestates = [];
+	level.facestates[face_state]["looping"] = looping;
+	level.facestates[face_state]["timer"] = timer;
+	level.facestates[face_state]["priority"] = priority;
+	level.facestates[face_state]["statetype"] = statetype;
+	level.facestates[face_state]["animation"] = [];
+	level.facestates[face_state]["animation"] = animlist;
+// SP = 0x0 - check OK
+}
+
+// 0x6F4
+addanimtofacestate( face_state, animation )
+{
+/#
+	assert( IsDefined( level.facestates[face_state] ) );
+#/
+/#
+	assert( IsDefined( level.facestates[face_state]["animation"] ) );
+#/
+	curr_size = level.facestates[face_state]["animation"].size;
+	level.facestates[face_state]["animation"][curr_size] = animation;
+// SP = 0x0 - check OK
+}
+
+// 0x750
+waitforanypriorityreturn( prevstate )
+{
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	self endon( "stop_facial_anims" );
+	previouspriority = -1;
+	previouspriority = level.facestates[prevstate]["priority"];
+	newstate = get_face_callback();
+	return newstate;
+// SP = 0x0 - check OK
+}
+
+// 0x7D0
+waitforfaceeventrepeat( base_time )
+{
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	self endon( "stop_face_anims" );
+	self endon( "new_face_event" );
+	self endon( "face_timer_expired" );
+	state = self.face_curr_event;
+	newstate = get_face_callback();
+	self.face_timer = base_time;
+// SP = 0x0 - check OK
+}
+
+// 0x828
+waitforfaceeventcomplete( localclientnum )
+{
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	self endon( "stop_face_anims" );
+	self endon( "new_face_event" );
+/#
+	println( "Trying to get animation for state " + self.face_curr_event + " # " + self.face_curr_event_idx );
+#/
+/#
+	assert( IsDefined( level.facestates[self.face_curr_event]["animation"][self.face_curr_event_idx] ) );
+#/
+	self.face_timer = getanimlength( level.facestates[self.face_curr_event]["animation"][self.face_curr_event_idx] );
+	self thread waitforfaceeventrepeat( self.face_timer );
+/#
+	println( "faceTime is " + self.face_timer + "\n" );
+#/
+	return;
+	realwait( self.face_timer );
+	self notify( "face_timer_expired" );
+/#
+	println( "face_timer_expired" );
+#/
+	self.face_curr_event = undefined;
+	self.face_curr_event_idx = undefined;
+/#
+	println( "waiting on dobj" );
+#/
+	self waittill_dobj( localclientnum );
+	return;
+/#
+	println( "setAnimKnob Back To base state " + self.face_curr_base );
+#/
+	self setanimknob( level.facestates[self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+	self notify( "face", "face_advance" );
+// SP = 0x0 - check OK
+}
+
+// 0x9E0
+processfaceevents( localclientnum )
+{
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	state = "face_alert";
+	self.face_curr_base = "face_alert";
+	self.face_curr_base = "zombie_" + self.face_curr_base;
+	state = "zombie_" + state;
+	numanims = level.facestates[state]["animation"].size;
+	self.face_curr_base_idx = randomint( numanims );
+/#
+	println( "setAnimKnobProcessFaceEvents" );
+#/
+	self waittill_dobj( localclientnum );
+	return;
+	self setanimknob( level.facestates[self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0, 1 );
+	state = "face_disable";
+	state = "face_death";
+	return;
+	self.face_state = state;
+/#
+	self thread showstate();
+#/
+	self thread watchfor_death();
+/#
+	println( "state undefined\n" );
+	println( "level.faceStates undefined\n" );
+	println( "level.faceStates undefined\n" );
+	println( "level.faceStates[state] undefined\n" );
+	facestatesarray = getarraykeys( level.facestates );
+	println( state + " undefined\n" );
+	i = 0;
+	println( i + ":" );
+	println( facestatesarray[i] + "\n" );
+	i++;
+#/
+	numanims = 0;
+	numanims = level.facestates[state]["animation"].size;
+/#
+	println( "Found " + numanims + " anims for state " + state );
+#/
+/#
+	println( "Disabling face anims" );
+#/
+	setfacestate( "face_disabled" );
+	self clearanim( level.facestates["face_root"], 0 );
+	self notify( "stop_face_anims" );
+	wait 0.05;
+/#
+	println( "state undefined\n" );
+	println( "level.faceStates undefined\n" );
+	println( "level.faceStates undefined\n" );
+	println( "level.faceStates[state] undefined\n" );
+	facestatesarray = getarraykeys( level.facestates );
+	println( state + " undefined\n" );
+	i = 0;
+	println( i + ":" );
+	println( facestatesarray[i] + "\n" );
+	i++;
+#/
+	setfacestate( state );
+/#
+	println( "Exitstate found, returning, anim tree:" + level.face_anim_tree );
+#/
+	self waittill_dobj( localclientnum );
+	return;
+/#
+	println( "setAnimKnob286" );
+#/
+	self setanimknob( level.facestates[state]["animation"][randomint( numanims )], 1, 0.1, 1 );
+	self notify( "stop_face_anims" );
+	self.curr_face_base = undefined;
+	self.curr_face_event = undefined;
+	return;
+	self.face_curr_base = state;
+	self.face_curr_base_idx = randomint( numanims );
+/#
+	println( "New base face anim state " + self.face_curr_base + " anim # " + self.face_curr_base_idx );
+#/
+/#
+	println( "trying to play animation for state " + self.face_curr_base + " w/ index " + self.face_curr_base_idx );
+#/
+	self waittill_dobj( localclientnum );
+	return;
+	self setanimknob( level.facestates[self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+	self.face_curr_event = state;
+	self.face_curr_event_idx = randomint( numanims );
+/#
+	println( "New face anim event " + self.face_curr_event + " anim # " + self.face_curr_event_idx );
+#/
+	self waittill_dobj( localclientnum );
+	return;
+	self setflaggedanimknob( "face_event", level.facestates[self.face_curr_event]["animation"][self.face_curr_event_idx], 1, 0.1, 1 );
+	self thread waitforfaceeventcomplete( localclientnum );
+	self setanimknob( level.facestates[self.face_curr_event]["animation"][self.face_curr_event_idx], 1, 0.1, 1 );
+	self setanimknob( level.facestates[self.face_curr_base]["animation"][self.face_curr_base_idx], 1, 0.1, 1 );
+	state = self waitforanypriorityreturn( self.face_curr_event );
+	state = self waitforanypriorityreturn( self.face_curr_base );
+// SP = 0x0 - check OK
+}
+
+// 0x10D0
+showstate( state )
+{
+/#
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	entnum = self getentitynumber();
+	entnum = "?";
+	disablechar = "-";
+	disablechar = "+";
+	deathchar = "D";
+	deathchar = "A";
+	print3d( self.origin + vector_scale( ( 0, 0, 1 ), 72 ), disablechar + deathchar + "[" + entnum + "]" + self.face_state, ( 1, 1, 1 ), 1, 0.25 );
+	wait 0.01;
+#/
+// SP = 0x0 - check OK
+}
+
+// 0x11BC
+setfacestate( state )
+{
+	self.face_curr_event = "zombie_" + self.face_curr_event;
+	self.face_curr_base = "face_alert";
+	self.face_state = self.face_curr_base;
+	return;
+	self.face_state = self.face_curr_event;
+	self.face_curr_base = "zombie_" + self.face_curr_base;
+	self.face_curr_base = "face_alert";
+	self.face_state = self.face_curr_base;
+	return;
+	self.face_state = state;
+// SP = 0x0 - check OK
+}
+
+// 0x12DC
+watchfor_death()
+{
+	level endon( "demo_jump" );
+	self endon( "entityshutdown" );
+	self waittillmatch( "face" );
+	return "face_death";
+	self.face_death = 1;
+// SP = 0x0 - check OK
+}

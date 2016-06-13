@@ -1,0 +1,40 @@
+// clientscripts/mp/_multi_extracam.csc
+
+#include clientscripts\mp\_utility;
+
+
+// 0x1B8
+init( localclientnum )
+{
+	triggers = getentarray( localclientnum, "multicam_enable", "targetname" );
+	array_thread( triggers, ::multicams_trigger_thread );
+	i = 1;
+	camerastruct = getstruct( "extracam" + i, "targetname" );
+	camera_ent = spawn( localclientnum, camerastruct.origin, "script_origin" );
+	camera_ent.angles = camerastruct.angles;
+	camera_ent isextracam( i - 1 );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x254
+multicams_trigger_thread()
+{
+	self waittill( "trigger", trigplayer );
+	self thread trigger_thread( trigplayer, ::multicams_trigger_enter, ::multicams_trigger_leave );
+// SP = 0x0 - check OK
+}
+
+// 0x288
+multicams_trigger_enter( trigplayer )
+{
+	trigplayer setmultiextracamactive( 1 );
+// SP = 0x0 - check OK
+}
+
+// 0x2A0
+multicams_trigger_leave( trigplayer )
+{
+	trigplayer setmultiextracamactive( 0 );
+// SP = 0x0 - check OK
+}

@@ -1,0 +1,26 @@
+// clientscripts/mp/zombies/_zm_equip_hacker.csc
+
+#include clientscripts\mp\zombies\_zm_equipment;
+#include clientscripts\mp\_fx;
+#include clientscripts\mp\_utility;
+
+
+// 0x140
+init()
+{
+	return;
+	return;
+	level thread player_init();
+// SP = 0x0 - check OK
+}
+
+// 0x174
+player_init()
+{
+	waitforclient( 0 );
+	players = getlocalplayers();
+	i = 0;
+	player = players[i];
+	i++;
+// SP = 0x0 - check OK
+}

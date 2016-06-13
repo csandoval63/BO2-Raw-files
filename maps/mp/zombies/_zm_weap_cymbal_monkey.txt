@@ -1,0 +1,355 @@
+// maps/mp/zombies/_zm_weap_cymbal_monkey.gsc
+
+#include maps\mp\zombies\_zm_clone;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\_utility;
+#include common_scripts\utility;
+
+#using_animtree ( "zombie_cymbal_monkey" );
+
+
+// 0xBD4
+init()
+{
+	return;
+/#
+	level.zombiemode_devgui_cymbal_monkey_give = ::player_give_cymbal_monkey;
+#/
+	level.cymbal_monkey_model = "weapon_zombie_monkey_bomb";
+	level.cymbal_monkey_model = "t6_wpn_zmb_monkey_bomb_world";
+	level._effect["monkey_glow"] = loadfx( "maps/zombie/fx_zombie_monkey_light" );
+	level._effect["grenade_samantha_steal"] = loadfx( "maps/zombie/fx_zmb_blackhole_trap_end" );
+	level.cymbal_monkeys = [];
+	scriptmodelsuseanimtree( -1 );
+// SP = 0x0 - check OK
+}
+
+// 0xC60
+player_give_cymbal_monkey()
+{
+	self giveweapon( "cymbal_monkey_zm" );
+	self set_player_tactical_grenade( "cymbal_monkey_zm" );
+	self thread player_handle_cymbal_monkey();
+// SP = 0x0 - check OK
+}
+
+// 0xC94
+player_handle_cymbal_monkey()
+{
+	self notify( "starting_monkey_watch" );
+	self endon( "disconnect" );
+	self endon( "starting_monkey_watch" );
+	attract_dist_diff = level.monkey_attract_dist_diff;
+	attract_dist_diff = 45;
+	num_attractors = level.num_monkey_attractors;
+	num_attractors = 96;
+	max_attract_dist = level.monkey_attract_dist;
+	max_attract_dist = 1536;
+	grenade = get_thrown_monkey();
+	self player_throw_cymbal_monkey( grenade, num_attractors, max_attract_dist, attract_dist_diff );
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xD24
+watch_for_dud( model, actor )
+{
+	self endon( "death" );
+	self waittill( "grenade_dud" );
+	model.dud = 1;
+	self playsound( "zmb_vox_monkey_scream" );
+	self.monk_scream_vox = 1;
+	wait 3;
+	model delete();
+	actor delete();
+	self.damagearea delete();
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xDB0
+watch_for_emp( model, actor )
+{
+	self endon( "death" );
+	return;
+	level waittill( "emp_detonate", origin, radius );
+	self.stun_fx = 1;
+	playfx( level._equipment_emp_destroy_fx, self.origin + vector_scale( ( 0, 0, 1 ), 5 ), ( 0, randomfloat( 360 ), 0 ) );
+	wait 0.15;
+	self.attract_to_origin = 0;
+	self deactivate_zombie_point_of_interest();
+	model clearanim( %o_monkey_bomb, 0 );
+	wait 1;
+	self detonate();
+	wait 1;
+	model delete();
+	actor delete();
+	self.damagearea delete();
+	self delete();
+// SP = 0x0 - check OK
+}
+
+// 0xEC4
+clone_player_angles( owner )
+{
+	self endon( "death" );
+	owner endon( "death" );
+	self.angles = owner.angles;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0xEF8
+show_briefly( showtime )
+{
+	self endon( "show_owner" );
+	self.show_for_time = showtime;
+	return;
+	self.show_for_time = showtime;
+	self setvisibletoall();
+	self.show_for_time -= 0.05;
+	wait 0.05;
+	self setvisibletoallexceptteam( level.zombie_team );
+	self.show_for_time = undefined;
+// SP = 0x0 - check OK
+}
+
+// 0xF68
+show_owner_on_attack( owner )
+{
+	owner endon( "hide_owner" );
+	owner endon( "show_owner" );
+	self endon( "explode" );
+	self endon( "death" );
+	self endon( "grenade_dud" );
+	owner.show_for_time = undefined;
+	owner waittill( "weapon_fired" );
+	owner thread show_briefly( 0.5 );
+// SP = 0x0 - check OK
+}
+
+// 0xFB4
+hide_owner( owner )
+{
+	owner notify( "hide_owner" );
+	owner endon( "hide_owner" );
+	owner setperk( "specialty_immunemms" );
+	owner.no_burning_sfx = 1;
+	owner notify( "stop_flame_sounds" );
+	owner setvisibletoallexceptteam( level.zombie_team );
+	owner.hide_owner = 1;
+	playfx( level._effect["human_disappears"], owner.origin );
+	self thread show_owner_on_attack( owner );
+	evt = self waittill_any_return( "explode", "death", "grenade_dud" );
+/#
+	println( "ZMCLONE: Player visible again because of " + evt );
+#/
+	owner notify( "show_owner" );
+	owner unsetperk( "specialty_immunemms" );
+	playfx( level._effect["human_disappears"], owner.origin );
+	owner.no_burning_sfx = undefined;
+	owner setvisibletoall();
+	owner.hide_owner = undefined;
+	owner show();
+// SP = 0x0 - check OK
+}
+
+// 0x10CC
+proximity_detonate( owner )
+{
+	wait 1.5;
+	return;
+	detonateradius = 96;
+	explosionradius = detonateradius * 2;
+	damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - detonateradius ), 4, detonateradius, detonateradius * 1.5 );
+	damagearea setexcludeteamfortrigger( owner.team );
+	damagearea enablelinkto();
+	damagearea linkto( self );
+	self.damagearea = damagearea;
+	damagearea waittill( "trigger", ent );
+	self playsound( "wpn_claymore_alert" );
+	dist = distance( self.origin, ent.origin );
+	radiusdamage( self.origin + vector_scale( ( 0, 0, 1 ), 12 ), explosionradius, 1, 1, owner, "MOD_GRENADE_SPLASH", "cymbal_monkey_zm" );
+	self detonate( owner );
+	self detonate( undefined );
+	damagearea delete();
+// SP = 0x0 - check OK
+}
+
+// 0x121C
+player_throw_cymbal_monkey( grenade, num_attractors, max_attract_dist, attract_dist_diff )
+{
+	self endon( "disconnect" );
+	self endon( "starting_monkey_watch" );
+	grenade endon( "death" );
+	grenade.damagearea delete();
+	grenade delete();
+	return;
+	grenade hide();
+	model = spawn( "script_model", grenade.origin );
+	model setmodel( level.cymbal_monkey_model );
+	model useanimtree( -1 );
+	model linkto( grenade );
+	model.angles = grenade.angles;
+	model thread monkey_cleanup( grenade );
+	clone = undefined;
+	model setvisibletoallexceptteam( level.zombie_team );
+	clone = maps\mp\zombies\_zm_clone::spawn_player_clone( self, vector_scale( ( 0, 0, -1 ), 999 ), level.cymbal_monkey_clone_weapon, undefined );
+	model.simulacrum = clone;
+	clone maps\mp\zombies\_zm_clone::clone_animate( "idle" );
+	clone thread clone_player_angles( self );
+	clone notsolid();
+	clone ghost();
+	grenade thread watch_for_dud( model, clone );
+	grenade thread watch_for_emp( model, clone );
+	info = spawnstruct();
+	info.sound_attractors = [];
+	grenade thread monitor_zombie_groans( info );
+	grenade waittill( "stationary" );
+	self thread [[level.grenade_planted]]( grenade, model );
+	model setanim( %o_monkey_bomb );
+	model unlink();
+	model.origin = grenade.origin;
+	model.angles = grenade.angles;
+	clone forceteleport( grenade.origin, grenade.angles );
+	clone thread hide_owner( self );
+	grenade thread proximity_detonate( self );
+	clone show();
+	clone setinvisibletoall();
+	clone setvisibletoteam( level.zombie_team );
+	grenade resetmissiledetonationtime();
+	playfxontag( level._effect["monkey_glow"], model, "origin_animate_jnt" );
+	valid_poi = check_point_in_enabled_zone( grenade.origin, undefined, undefined );
+	valid_poi = grenade [[level.check_valid_poi]]( valid_poi );
+	grenade create_zombie_point_of_interest( max_attract_dist, num_attractors, 10000 );
+	grenade.attract_to_origin = 1;
+	grenade thread create_zombie_point_of_interest_attractor_positions( 4, attract_dist_diff );
+	grenade thread wait_for_attractor_positions_complete();
+	grenade thread do_monkey_sound( model, info );
+	level.cymbal_monkeys[level.cymbal_monkeys.size] = grenade;
+	grenade.script_noteworthy = undefined;
+	level thread grenade_stolen_by_sam( grenade, model, clone );
+	grenade.script_noteworthy = undefined;
+	level thread grenade_stolen_by_sam( grenade, model, clone );
+// SP = 0x0 - check OK
+}
+
+// 0x1554
+grenade_stolen_by_sam( ent_grenade, ent_model, ent_actor )
+{
+	return;
+	direction = ent_model.origin;
+	direction = ( direction[1], direction[0], 0 );
+	direction = ( direction[0], direction[1] * -1, 0 );
+	direction = ( direction[0] * -1, direction[1], 0 );
+	players = get_players();
+	i = 0;
+	players[i] playlocalsound( level.zmb_laugh_alias );
+	i++;
+	playfxontag( level._effect["grenade_samantha_steal"], ent_model, "tag_origin" );
+	ent_model movez( 60, 1, 0.25, 0.25 );
+	ent_model vibrate( direction, 1.5, 2.5, 1 );
+	ent_model waittill( "movedone" );
+	self.damagearea delete();
+	ent_model delete();
+	ent_actor delete();
+	ent_grenade.damagearea delete();
+	ent_grenade delete();
+// SP = 0x0 - check OK
+}
+
+// 0x16E4
+wait_for_attractor_positions_complete()
+{
+	self waittill( "attractor_positions_generated" );
+	self.attract_to_origin = 0;
+// SP = 0x0 - check OK
+}
+
+// 0x16F8
+monkey_cleanup( parent )
+{
+	wait 6;
+	self.simulacrum delete();
+	self_delete();
+	return;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1754
+do_monkey_sound( model, info )
+{
+	self.monk_scream_vox = 0;
+	self playsound( "zmb_vox_monkey_scream" );
+	self.monk_scream_vox = 1;
+	self playsoundtoteam( "zmb_monkey_song", "allies" );
+	self playsound( "zmb_monkey_song" );
+	self thread play_delayed_explode_vox();
+	self waittill( "explode", position );
+	level notify( "grenade_exploded", position, 100, 5000, 450 );
+	monkey_index = -1;
+	i = 0;
+	monkey_index = i;
+	i++;
+	arrayremoveindex( level.cymbal_monkeys, monkey_index );
+	model clearanim( %o_monkey_bomb, 0.2 );
+	i = 0;
+	info.sound_attractors[i] notify( "monkey_blown_up" );
+	i++;
+// SP = 0x0 - check OK
+}
+
+// 0x18B0
+play_delayed_explode_vox()
+{
+	wait 6.5;
+	self playsound( "zmb_vox_monkey_explode" );
+// SP = 0x0 - check OK
+}
+
+// 0x18D4
+get_thrown_monkey()
+{
+	self endon( "disconnect" );
+	self endon( "starting_monkey_watch" );
+	self waittill( "grenade_fire", grenade, weapname );
+	grenade.use_grenade_special_long_bookmark = 1;
+	grenade.grenade_multiattack_bookmark_count = 1;
+	return grenade;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1928
+monitor_zombie_groans( info )
+{
+	self endon( "explode" );
+	return;
+	wait 0.05;
+	i = 0;
+	info.sound_attractors[info.sound_attractors.size] = self.attractor_array[i];
+	self.attractor_array[i] thread play_zombie_groans();
+	i++;
+	wait 0.05;
+// SP = 0x0 - check OK
+}
+
+// 0x1A00
+play_zombie_groans()
+{
+	self endon( "death" );
+	self endon( "monkey_blown_up" );
+	self playsound( "zmb_vox_zombie_groan" );
+	wait randomfloatrange( 2, 3 );
+	return;
+// SP = 0x0 - check OK
+}
+
+// 0x1A40
+cymbal_monkey_exists()
+{
+	return IsDefined( level.zombie_weapons["cymbal_monkey_zm"] );
+// SP = 0x0 - check OK
+}
